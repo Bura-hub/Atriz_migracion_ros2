@@ -81,6 +81,18 @@ for r in ~/atriz_git/src/Atriz_rvr ~/atriz_migracion; do
 done
 ```
 
+### Reinstalar con ayuda de un agente
+
+Tras grabar Ubuntu Server 24.04 y clonar este repositorio, basta con arrancar Claude Code
+en `~/atriz_migracion` y decirle:
+
+> Lee CLAUDE.md y sigue el manual desde el capítulo 3 para poner el sistema a punto.
+
+`CLAUDE.md` se carga solo y le da las reglas, las trampas conocidas y los valores de
+referencia. Los capítulos **3, 4 y 5** del manual cubren flasheo, higiene del SO e
+instalación de ROS 2 — pero están **📝 NO VERIFICADOS**: se escribieron antes de ejecutarse.
+Hay que confirmar cada paso y corregir el manual sobre la marcha.
+
 **Después:** Fase 1 (reinstalación), y su primer paso es el go/no-go:
 
 ```bash

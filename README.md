@@ -32,6 +32,10 @@ Ver [CHANGELOG.md](CHANGELOG.md) para la bitácora detallada.
 
 ## Por dónde empezar
 
+**Si eres un agente (Claude Code u otro)** → **[CLAUDE.md](CLAUDE.md)**. Se carga
+automáticamente al abrir este directorio y contiene las reglas del proyecto, las trampas
+conocidas y los valores de referencia medidos.
+
 **Si retomas el proyecto tras un tiempo, o en otra máquina** → **[TRASPASO.md](TRASPASO.md)**.
 Es el documento de contexto: qué está verificado, qué está roto, cuál es el siguiente paso
 exacto, y las cinco lecciones que ahorran horas.
@@ -53,6 +57,7 @@ con anotaciones de auditoría marcadas aparte del texto original.
 ## Estructura
 
 ```
+CLAUDE.md                     ← contexto e instrucciones para agentes
 TRASPASO.md                   ← EMPIEZA AQUÍ si retomas el proyecto
 00_auditoria/
 ├── INFORME_AUDITORIA.md      Diagnóstico completo con mediciones
@@ -76,7 +81,8 @@ scripts/
 ├── fase_0_1_fix_uart.sh      ✅ ejecutado — repara el UART
 ├── diag_uart_pins.sh         diagnóstico de los pines GPIO14/15
 ├── fase_0_3_respaldo.sh      ⏳ prepara la SD para la imagen (BLOQUEANTE)
-└── fase_1_validar_sdk_py312.py   GO/NO-GO de la migración
+├── fase_1_validar_sdk_py312.py   GO/NO-GO de la migración
+└── fase_1_higiene_so.sh      📝 higiene del SO en 24.04 (NO VERIFICADO)
 ```
 
 ---

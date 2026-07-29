@@ -8,9 +8,9 @@
 > | 0 | Convenciones y hardware | ✅ verificado |
 > | 1 | Enlace UART Pi ↔ RVR | ✅ **verificado 2026-07-29** |
 > | 2 | Ritmo de telemetría | ✅ **medido 2026-07-29** |
-> | 3 | Flasheo de Ubuntu Server 24.04 | ⏳ no escrito |
-> | 4 | Higiene del SO (headless, governor, journal) | ⏳ no escrito |
-> | 5 | ROS 2 Jazzy y workspace colcon | ⏳ no escrito |
+> | 3 | Flasheo de Ubuntu Server 24.04 | 📝 **escrito · NO VERIFICADO** |
+> | 4 | Higiene del SO (headless, governor, journal) | 📝 **escrito · NO VERIFICADO** |
+> | 5 | ROS 2 Jazzy y workspace colcon | 📝 **escrito · NO VERIFICADO** |
 > | 6 | Driver del RVR en `rclpy` | ⏳ no escrito |
 > | 7 | URDF y árbol TF | ⏳ no escrito |
 > | 8 | YDLIDAR X2 | 🟡 **hardware verificado**; driver ROS pendiente |
@@ -367,7 +367,260 @@ Jazzy), con `params/X2.yaml`.
 
 ---
 
-## Capítulos 3–7 y 9–12
+## Capítulos 3, 4 y 5 — la instalación
+
+> 📝 **ESCRITO PERO NO VERIFICADO.** Estos tres capítulos se redactaron **antes** de
+> ejecutarlos, a partir de lo aprendido en Ubuntu 20.04 y de la documentación oficial de
+> Ubuntu y ROS 2. **Nadie los ha ejecutado todavía en 24.04.**
+>
+> Al recorrerlos por primera vez: **verifica cada paso y corrige este documento en el
+> mismo momento**. Cuando un apartado quede confirmado, cambia su marca a ✅ y anota la
+> fecha. Si algo no funciona como está escrito, **corrígelo aquí antes de seguir** — no en
+> un mensaje de chat.
+>
+> Los puntos con más probabilidad de diferir están marcados **⚠️ COMPROBAR**.
+
+---
+
+## Capítulo 3 — Flashear Ubuntu Server 24.04 LTS
+
+### 3.1 Qué imagen y por qué
+
+**Ubuntu Server 24.04 LTS arm64.** No Desktop.
+
+El manual original instalaba Server y luego añadía `ubuntu-desktop` + `xrdp` a mano para
+tener escritorio remoto. Esa decisión resultó ser la causa nº1 de la lentitud del sistema:
+dos sesiones gráficas simultáneas, ~120 procesos GUI, 273 tareas con ROS parado. **No se
+repite.** El acceso es por SSH, y RViz2 se ejecuta desde un portátil.
+
+ROS 2 Jazzy tiene soporte hasta **mayo de 2029** y su plataforma de referencia es 24.04.
+
+### 3.2 Grabar la tarjeta
+
+Con **Raspberry Pi Imager** en un PC:
+
+| Campo | Valor |
+|---|---|
+| Dispositivo | Raspberry Pi 4 |
+| Sistema operativo | Other general-purpose OS → Ubuntu → **Ubuntu Server 24.04.x LTS (64-bit)** |
+| Almacenamiento | la microSD (mínimo 32 GB) |
+
+En **«Editar ajustes»**:
+- Usuario **`sphero`**, con una contraseña **nueva** — la del manual original está
+  comprometida (aparece en un repositorio público)
+- Hostname: **`rvr-01`** (y `rvr-NN` para el resto de la flota)
+- WiFi: SSID y contraseña. **Preferir 5 GHz**
+- **Activar SSH**
+- Zona horaria y teclado
+
+> Dejar que el Imager configure el WiFi ahorra tener que escribir netplan a mano.
+
+### 3.3 ⚠️ COMPROBAR — antes del primer arranque, editar `cmdline.txt`
+
+**Este paso es crítico y fácil de olvidar.** Con la tarjeta aún en el PC, monta la partición
+FAT (`system-boot` o `boot/firmware`) y edita **`cmdline.txt`**:
+
+**Quitar `console=serial0,115200`.** La imagen de Ubuntu lo trae por defecto y **reserva el
+UART para la consola del sistema**, dejándolo inutilizable para el RVR. Debe quedar
+`console=tty1`.
+
+Es el único acierto importante del manual original, y hay que repetirlo en cada instalación.
+
+### 3.4 ⚠️ COMPROBAR — configuración de arranque en 24.04
+
+En Ubuntu 20.04 había tres ficheros: `config.txt` (no editable), que incluía `syscfg.txt` y
+`usercfg.txt`. **En 24.04 probablemente sea un único `/boot/firmware/config.txt` editable
+directamente**, sin `usercfg.txt`.
+
+**Comprueba qué existe:**
+```bash
+ls -l /boot/firmware/*.txt
+```
+Y añade al fichero que corresponda (`usercfg.txt` si existe; si no, al final de `config.txt`):
+```
+dtoverlay=disable-bt
+enable_uart=1
+```
+
+El razonamiento completo está en el **capítulo 1**. Resumen: sin `disable-bt`, el RVR queda
+en el mini-UART, cuyo baudrate deriva con el reloj del VPU.
+
+### 3.5 Primer arranque
+
+```bash
+ssh sphero@<ip>
+```
+
+Para encontrar la IP: mírala en el router (y aprovecha para **crear la reserva DHCP por
+MAC** — con 16 robots es la única forma sensata), o usa `ping rvr-01.local` si mDNS responde.
+
+⚠️ El primer arranque de Ubuntu Server tarda: `cloud-init` hace su trabajo inicial. Espera
+un par de minutos antes de dar por perdida la conexión.
+
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo reboot
+```
+
+### 3.6 Verificación del capítulo 3
+
+```bash
+lsb_release -a                      # Ubuntu 24.04.x LTS
+uname -m                            # aarch64
+python3 --version                   # ⚠️ COMPROBAR: se espera 3.12.x
+grep -o "console=[^ ]*" /boot/firmware/cmdline.txt   # solo console=tty1
+grep -E "disable-bt|enable_uart" /boot/firmware/*.txt
+hostname                            # rvr-01
+```
+
+---
+
+## Capítulo 4 — Higiene del sistema operativo
+
+> Automatizado en [`scripts/fase_1_higiene_so.sh`](../scripts/fase_1_higiene_so.sh).
+> Este capítulo explica **por qué** hace cada cosa.
+
+Cada medida responde a algo **medido** en la auditoría del sistema anterior, no a
+preferencias. Instalando Server, varias de las purgas originales ya no aplican (no habrá
+GNOME ni xrdp), pero `cloud-init`, `snapd`, los timers de `apt` y el conflicto de red
+**sí vienen** en la imagen Server.
+
+### 4.1 Las medidas y su justificación
+
+| Medida | Evidencia que la motiva |
+|---|---|
+| Governor a **`performance`** | La CPU pasaba **59.6 %** del tiempo a 600 MHz con `ondemand`, teniendo 60 °C y cero throttling. Causa nº1 de la sensación de lentitud |
+| `journald`: `Storage=volatile` o `SystemMaxUse=32M` | **784 MB** de journal sin límite; `journald.conf` estaba vacío |
+| WiFi **power-save OFF** | `Power Management: on` provocaba latencias aleatorias de 100–300 ms |
+| Deshabilitar **`cloud-init`** | ~20 de los 27 s de userspace del arranque |
+| Purgar **`snapd`** (y LXD si aparece) | 6 loop devices y ~11 s de arranque, sin función en un robot |
+| Desactivar timers **`apt-daily`** | 1 min 27 s + 1 min 14 s martilleando la microSD periódicamente |
+| **`noatime`** en `/etc/fstab` | Evita una escritura por cada lectura. Longevidad de la tarjeta |
+| **Sin swap** | Evita bloqueos y desgaste de flash |
+| Un solo stack de red | Estaban activos NetworkManager **y** systemd-networkd, con 6 ciclos de `wpa_supplicant couldn't grab this interface` en el journal |
+| `multi-user.target` | Que no arranque nada gráfico ni por accidente |
+
+> **Longevidad de la microSD.** Con un robot es una molestia; **con 16 es mantenimiento
+> semanal**. La medición que lo justifica: **47 segundos de bloqueo global por I/O en 42
+> minutos** con el sistema ocioso, causados sobre todo por el journal.
+
+### 4.2 Ejecutar
+
+```bash
+sudo bash ~/atriz_migracion/scripts/fase_1_higiene_so.sh
+sudo reboot
+```
+
+### 4.3 Verificación del capítulo 4
+
+Compara con la línea base de `00_auditoria/evidencia/` (el sistema **antes** de optimizar):
+
+```bash
+systemd-analyze                     # antes: 29.5 s de userspace -> objetivo < 15 s
+ps -e | wc -l                       # antes: 273 tareas -> objetivo < 120
+cat /proc/pressure/io               # 'full total' debe ser mucho menor
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor   # performance
+iw dev wlan0 get power_save         # off
+journalctl --disk-usage             # decenas de MB, no cientos
+systemctl get-default               # multi-user.target
+systemctl --failed                  # vacío
+```
+
+---
+
+## Capítulo 5 — ROS 2 Jazzy y workspace
+
+### 5.1 ⚠️ COMPROBAR — el go/no-go, ANTES de instalar ROS
+
+**Este es el paso que decide si la migración es viable.** No instales nada de ROS 2 hasta
+haberlo hecho.
+
+```bash
+sudo apt install -y python3-pip python3-venv
+pip install --break-system-packages pyserial pyserial-asyncio
+# (24.04 aplica PEP 668: pip requiere --break-system-packages o un venv)
+
+# El código del robot, para tener el SDK a mano:
+mkdir -p ~/atriz_ws/src && cd ~/atriz_ws/src
+git clone -b migracion-ros2 https://github.com/Bura-hub/Atriz_rvr.git
+
+# Con el RVR ENCENDIDO:
+python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
+```
+
+- **GO** → sigue con 5.2
+- **NO-GO** → **PARA.** El script imprime las cuatro alternativas ordenadas por coste. Es una
+  decisión de arquitectura, no un problema a improvisar.
+
+> Contexto: el análisis estático del SDK fue muy favorable (0 patrones roubles en Python
+> 3.12, un único `get_event_loop()` en la ruta usada), pero **análisis estático no es
+> ejecución**.
+
+### 5.2 Instalar ROS 2 Jazzy
+
+⚠️ **COMPROBAR contra la documentación oficial** — el método de las claves GPG cambia entre
+versiones. `apt-key add`, que usaba el manual original, **está obsoleto**.
+
+```bash
+sudo apt install -y software-properties-common curl
+sudo add-apt-repository universe -y
+
+sudo curl -sSL -o /usr/share/keyrings/ros-archive-keyring.gpg \
+  https://raw.githubusercontent.com/ros/rosdistro/master/ros.key
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] \
+http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
+  | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+
+sudo apt update
+sudo apt install -y ros-jazzy-ros-base ros-dev-tools
+```
+
+> **`ros-base`, NO `desktop`.** En el sistema anterior estaban instalados `desktop-full`,
+> `desktop` **y** `ros-base` a la vez: **236 paquetes**, con Gazebo y RViz en un robot que
+> no tiene pantalla. RViz2 se ejecuta desde un portátil, conectándose por DDS o rosbridge.
+
+### 5.3 Entorno
+
+En `~/.bashrc`:
+```bash
+source /opt/ros/jazzy/setup.bash
+export ROS_DOMAIN_ID=1                       # ← el número de ESTE robot (1..16)
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+[ -f ~/atriz_ws/install/setup.bash ] && source ~/atriz_ws/install/setup.bash
+```
+
+**`ROS_DOMAIN_ID` distinto por robot** es una decisión de arquitectura, no un detalle: aísla
+completamente cada robot en DDS. Ver `ARQUITECTURA.md`, Decisión 1.
+
+### 5.4 Compilar el workspace
+
+```bash
+cd ~/atriz_ws
+rosdep init 2>/dev/null; rosdep update
+rosdep install --from-paths src --ignore-src -r -y
+colcon build --symlink-install
+source install/setup.bash
+```
+
+> ⚠️ **El código de `migracion-ros2` es todavía ROS 1 (catkin).** No compilará con colcon
+> hasta el port del capítulo 6. En este punto solo interesa tener el **SDK** accesible, que
+> es Python puro y no necesita compilación.
+
+### 5.5 Verificación del capítulo 5
+
+```bash
+ros2 doctor
+echo $ROS_DOMAIN_ID
+# En dos terminales:
+ros2 run demo_nodes_cpp talker
+ros2 run demo_nodes_cpp listener
+ros2 topic hz /chatter              # estable
+```
+
+---
+
+## Capítulos 6, 7 y 9–12
 
 ⏳ **No escritos todavía.** Se redactan al ejecutar las fases 1–6 del
 [plan](../01_plan/PLAN_MIGRACION_ROS2.md), capítulo a capítulo, tras verificar cada paso.
