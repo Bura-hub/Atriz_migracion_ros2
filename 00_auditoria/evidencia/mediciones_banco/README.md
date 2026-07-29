@@ -29,3 +29,23 @@ python3 medir.py                    # ritmo a traves de ROS
 - El firmware cuantiza a múltiplos de 20 ms
 - SDK y ROS dan el mismo número → el nodo no es el cuello de botella
 - 125 paquetes/s a 60 ms, holgado para 115200 baud
+
+---
+
+## Prueba de estabilidad de 12 min — 2026-07-29
+
+Salida completa en `estabilidad_12min_2026-07-29.txt`. Resumen:
+
+| Métrica | Resultado |
+|---|---|
+| `/odom` | 11 962 msgs en 721 s = **16.59 Hz** |
+| Intervalo | mediana **60.1 ms**, máx 82.7 ms, σ **2.5 ms** |
+| Huecos > 3× mediana (180 ms) | **0** |
+| Discontinuidades de `header.seq` | **0** |
+| Mensajes perdidos | **0** de 11 965 |
+| Temperatura | 55.5 – 57.9 °C (bajó durante la prueba) |
+| RSS del nodo | 53 MB → 53 MB, **crecimiento 0** |
+| CPU del nodo | 29.4 % → 29.6 % de un núcleo |
+
+Cadencia por minuto: 997 mensajes, constante en los 12 intervalos. Ni una sola
+reconexión del UART.

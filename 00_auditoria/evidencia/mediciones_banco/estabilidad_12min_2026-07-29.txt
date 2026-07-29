@@ -1,0 +1,26 @@
+nodo activo ✓
+inicio 21:21:20 | duracion 720s | pid nodo 9216
+  t=  60s  odom=  997  temp=57.0C  rss=53MB  cpu=29.4%
+  t= 120s  odom= 1994  temp=57.5C  rss=53MB  cpu=29.4%
+  t= 180s  odom= 2991  temp=57.0C  rss=53MB  cpu=29.5%
+  t= 240s  odom= 3987  temp=57.0C  rss=53MB  cpu=29.5%
+  t= 300s  odom= 4984  temp=56.5C  rss=53MB  cpu=29.5%
+  t= 360s  odom= 5982  temp=57.9C  rss=53MB  cpu=29.5%
+  t= 420s  odom= 6982  temp=57.5C  rss=53MB  cpu=29.5%
+  t= 480s  odom= 7976  temp=56.5C  rss=53MB  cpu=29.5%
+  t= 540s  odom= 8971  temp=56.0C  rss=53MB  cpu=29.6%
+  t= 600s  odom= 9969  temp=56.0C  rss=53MB  cpu=29.6%
+  t= 660s  odom=10968  temp=55.5C  rss=53MB  cpu=29.6%
+  t= 721s  odom=11962  temp=56.0C  rss=53MB  cpu=29.6%
+
+==================================================================
+odom: 11962 msgs | 16.59 Hz | mediana 60.1 ms | max 82.7 ms | sigma 2.5 ms
+      huecos > 3x mediana (180 ms): 0
+imu: 11964 msgs | 16.59 Hz | mediana 60.1 ms | max 86.1 ms | sigma 2.7 ms
+      huecos > 3x mediana (180 ms): 0
+
+secuencia: primer=1999 ultimo=13963 recibidos=11965 discontinuidades=0
+mensajes perdidos por el suscriptor: 0
+
+temperatura: min 55.5C  max 57.9C
+RSS del nodo: inicio 53MB  final 53MB  (crecimiento 0MB)

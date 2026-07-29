@@ -62,7 +62,10 @@ Cierra el riesgo «115200 baud no aguanta 20 Hz»: 125 paquetes/s a 60 ms, holga
 
 1. **Subir `migracion-ros2`** a GitHub (requiere token).
 2. **Fase 0.3 (bloqueante)** — imagen `dd` de la microSD antes de reflashear.
-3. Prueba de estabilidad larga: `/odom` sin cortes durante 10+ min seguidos.
+3. ~~Prueba de estabilidad larga~~ ✅ **SUPERADA**: 12 min, 11 962 mensajes a 16.59 Hz,
+   **0 huecos**, **0 discontinuidades de secuencia**, **0 mensajes perdidos**, RSS plano
+   en 53 MB, temperatura 55.5–57.9 °C. Evidencia en
+   `00_auditoria/evidencia/mediciones_banco/estabilidad_12min_2026-07-29.txt`.
 4. **Sin medir:** el impacto de las 48 llamadas a `asyncio.run()` en la latencia de
    `cmd_vel`. No afirmar nada sobre ello sin datos.
 5. **Sin verificar:** que la parada de emergencia de la web esté rota.

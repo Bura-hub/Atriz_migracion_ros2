@@ -253,7 +253,29 @@ rosrun atriz_rvr_driver Atriz_rvr_node.py &
 python3 00_auditoria/evidencia/mediciones_banco/medir.py         # a traves de ROS
 ```
 
-### 2.5 Aplicado
+### 2.5 Estabilidad verificada
+
+12 minutos continuos con `interval=60`:
+
+| Métrica | Resultado |
+|---|---|
+| `/odom` | 11 962 msgs en 721 s = **16.59 Hz** |
+| Intervalo | mediana 60.1 ms, máx 82.7 ms, σ **2.5 ms** |
+| Huecos > 180 ms | **0** |
+| Discontinuidades de `header.seq` | **0** |
+| Mensajes perdidos | **0** de 11 965 |
+| RSS del nodo | 53 MB → 53 MB (**sin fugas**) |
+| CPU del nodo | 29.5 % de un núcleo |
+| Temperatura | 55.5 – 57.9 °C |
+
+Exactamente 997 mensajes por minuto en los 12 intervalos, sin una sola reconexión del
+UART. Reproducir con
+`00_auditoria/evidencia/mediciones_banco/estabilidad.py`.
+
+**Nota de consumo:** un solo robot ocupa ~29 % de un núcleo del Pi 4 a 16.5 Hz. Con SLAM
+y Nav2 encima habrá que medir de nuevo — es la referencia contra la que comparar.
+
+### 2.6 Aplicado
 
 `atriz_rvr_driver/scripts/Atriz_rvr_node.py:1313` → `interval=60`. Commit `24c7749` en
 `migracion-ros2`. En el port a `rclpy` pasa a ser el valor por defecto del parámetro
