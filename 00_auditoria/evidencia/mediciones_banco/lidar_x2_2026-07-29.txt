@@ -1,0 +1,60 @@
+Verificación del YDLIDAR X2 — 2026-07-29
+========================================
+PRIMERA VEZ que este LIDAR se verifica en el proyecto.
+
+--- Detección ---
+$ lsusb
+Bus 001 Device 003: ID 10c4:ea60 Silicon Labs CP210x UART Bridge
+
+$ dmesg | grep cp210x
+cp210x 1-1.2:1.0: cp210x converter detected
+usb 1-1.2: cp210x converter now attached to ttyUSB0
+usb 1-1.2: Product: CP2102 USB to UART Bridge Controller
+usb 1-1.2: SerialNumber: 0001          <-- GENERICO, ver nota al final
+
+$ ls -l /dev/ttyUSB0
+crw-rw---- 1 root dialout 188, 0 /dev/ttyUSB0     (usuario en dialout: si)
+
+--- Prueba cruda (scripts/lydar/test_lidar.py) ---
+Puerto disponible, 21038 bytes en 3 s = 7012 bytes/s
+"Tipo de LIDAR detectado: Desconocido"   <-- el identificador del script falla,
+                                             pero los datos SI son validos
+
+--- Decodificación del protocolo X2 (x2_parse.py, 12 s) ---
+paquetes decodificados : 1147   (95/s)
+checksum OK / KO       : 1147 / 0   (100.0% validos)
+muestras totales       : 36245   (2998 muestras/s)
+paquetes de inicio de vuelta : 138
+distancias validas     : 28587  (79% de las muestras)
+  min 0.445 m | p50 1.205 m | max 3.158 m
+
+Derivados:
+  frecuencia de giro   : 138 vueltas / 12.1 s = 11.4 Hz
+  puntos por vuelta    : 36245 / 138 = 263
+  resolucion angular   : 360 / 263 = 1.37 grados
+  caudal USB           : ~7 KB/s
+
+NOTA sobre el numero impreso por el script: x2_parse.py imprime
+"frecuencia de giro: 480.72 Hz", que es FALSO. Calcula la mediana de los
+intervalos de llegada de los paquetes de inicio de vuelta, pero esos paquetes
+llegan a rafagas desde el buffer del USB, no en tiempo real. El valor correcto
+es la cuenta directa: 138 vueltas en 12.1 s.
+
+VEREDICTO
+=========
+El YDLIDAR X2 FUNCIONA. Protocolo valido, 100% de checksums correctos, caudal
+de muestras exactamente en especificacion (2998 vs 3000 nominales).
+
+Los 2998 muestras/s y los 11.4 Hz coinciden con la hoja de datos del X2 y con
+el 'frequency: 10.0' que ya tienen los launch del repo.
+
+Con 263 puntos por vuelta (1.37 grados) SLAM funcionara, pero la calidad del
+mapa sera modesta. Es una limitacion del sensor, no de la configuracion.
+
+NOTA PARA LOS 16 ROBOTS
+=======================
+El CP2102 reporta SerialNumber "0001", generico. Si los 16 adaptadores son
+iguales, NO se puede hacer una regla udev por numero de serie. Habra que usar
+la ruta fisica del puerto USB (ATTRS{devpath} o KERNELS=="1-1.2"), lo que
+implica que el lidar debe ir SIEMPRE en el mismo puerto USB de cada Pi.
+Alternativa: comprar adaptadores con serial unico (FTDI los tiene).
