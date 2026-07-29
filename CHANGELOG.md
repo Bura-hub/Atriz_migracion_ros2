@@ -22,7 +22,7 @@ Lección para el resto del proyecto: `git fetch` **antes** de auditar nada.
 - `main` local puesto al día con `origin/main` (`659364c`), fast-forward limpio.
 - Rama nueva **`migracion-ros2`** creada **desde `origin/main`**, no desde el local obsoleto.
 - Los 3 scripts de estudiantes sin commitear quedaron en `stash@{0}`.
-- **`migracion-ros2` aún NO está subida a GitHub.**
+- `migracion-ros2` **subida a GitHub** (`24c7749`).
 
 ### UART reparado y verificado
 
@@ -60,7 +60,7 @@ Cierra el riesgo «115200 baud no aguanta 20 Hz»: 125 paquetes/s a 60 ms, holga
 
 ### Pendiente
 
-1. **Subir `migracion-ros2`** a GitHub (requiere token).
+1. ~~Subir `migracion-ros2`~~ ✅ hecho (`24c7749` en GitHub).
 2. **Fase 0.3 (bloqueante)** — imagen `dd` de la microSD antes de reflashear.
 3. ~~Prueba de estabilidad larga~~ ✅ **SUPERADA**: 12 min, 11 962 mensajes a 16.59 Hz,
    **0 huecos**, **0 discontinuidades de secuencia**, **0 mensajes perdidos**, RSS plano
