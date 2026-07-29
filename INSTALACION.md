@@ -79,8 +79,18 @@ sudo poweroff
 
 ### A3 👤 · Imagen de la microSD — **BLOQUEANTE**
 
-Con la tarjeta en un PC. Procedimiento completo, con las variantes de Windows y Linux, en
-**[`03_operacion/RECUPERACION.md`](03_operacion/RECUPERACION.md) §1**.
+Con la Pi **apagada** y la tarjeta en un PC. Copia byte a byte de toda la tarjeta a un
+fichero: es el botón de deshacer de todo el proyecto.
+
+**Procedimiento completo, con Windows y Linux paso a paso, en
+[`03_operacion/RECUPERACION.md`](03_operacion/RECUPERACION.md) §1.**
+
+🔴 **Si el PC es Windows:** al insertar la microSD, Windows ofrecerá **formatearla** porque no
+entiende ext4. **CANCELAR SIEMPRE** — aceptar destruye el sistema que se intenta respaldar.
+La herramienta es **Win32DiskImager**, botón **Read**; Rufus y balenaEtcher no sirven porque
+solo escriben, no leen.
+
+En Linux:
 
 ```bash
 lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL      # identifica el dispositivo

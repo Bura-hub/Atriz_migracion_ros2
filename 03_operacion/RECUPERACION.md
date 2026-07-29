@@ -56,13 +56,63 @@ gzip -6 atriz_noetic_fallback.img          # 29 GB → ~4-6 GB
 Sustituye `/dev/mmcblk0` por el dispositivo real (puede ser `/dev/sdb`, `/dev/mmcblk0`…).
 **Un `of=` equivocado destruye el disco de destino.** Verifica dos veces.
 
-### Windows
+### Windows  ← camino por defecto de este proyecto
 
-Win32DiskImager → botón **"Read"** → guardar como `.img`.
+**Herramienta: Win32DiskImager** — <https://sourceforge.net/projects/win32diskimager/>
 
-### Verificar la imagen
+> ⚠️ **Rufus, balenaEtcher y Raspberry Pi Imager NO sirven.** Solo *escriben* tarjetas; no
+> saben *leerlas* a un fichero. Para crear la imagen hace falta Win32DiskImager (o USB
+> Image Tool).
 
-Una imagen sin verificar no es un respaldo:
+**Requisito:** ~35 GB libres en el disco. La imagen ocupa 29 GB aunque la tarjeta esté a
+medias, porque copia también el espacio vacío.
+
+#### 🔴 Advertencia crítica
+
+Al insertar la microSD, **Windows dirá «Necesita formatear el disco de la unidad X: antes de
+poder usarlo»**.
+
+**PULSA CANCELAR. NO FORMATEES.**
+
+Windows no entiende ext4, así que asume que la tarjeta está corrupta y ofrece «arreglarla».
+Si aceptas, **destruyes el sistema que intentas respaldar**. El aviso puede salir una o dos
+veces (hay dos particiones); cancélalo siempre.
+
+#### Pasos
+
+1. `sudo poweroff` en la Pi, esperar a que se apaguen los LEDs, y sacar la microSD.
+2. Insertarla en el PC. **Cancelar** el aviso de formatear.
+3. **Clic derecho en Win32DiskImager → «Ejecutar como administrador».** Sin permisos de
+   administrador no puede leer el dispositivo en crudo.
+4. En **Device**: la letra de la microSD. Comprobar en «Este equipo» qué letra apareció al
+   insertarla.
+5. En **Image File**: icono de carpeta, y **escribir un nombre que no existe todavía**, p. ej.
+   `D:\respaldos\atriz_noetic_fallback.img`. Es normal que no exista: lo crea el programa.
+6. Pulsar **Read**.
+   ⚠️ **NO «Write»** — haría lo contrario y borraría la tarjeta.
+7. Esperar **6-10 minutos** para 29 GB.
+
+#### Comprimir
+
+**7-Zip**: clic derecho en el `.img` → *7-Zip* → *Añadir al archivo* → formato **gzip**.
+Queda en **4-6 GB**.
+
+#### Verificar en Windows
+
+No se puede montar ext4 con facilidad, así que la comprobación práctica es:
+
+| Comprobación | Qué esperar |
+|---|---|
+| Tamaño del `.img` | **~29-31 GB**. Si pesa unos MB, falló |
+| Abrirlo con 7-Zip (*Abrir archivo*) | Deben verse **dos particiones** dentro |
+| (Opcional, más a fondo) DiskInternals Linux Reader | Navegar hasta `/home/sphero/atriz_git` |
+
+**Guardarla en dos sitios distintos.** Una única copia en el mismo PC desde el que se va a
+reflashear no es un respaldo.
+
+### Linux / WSL — verificación a fondo
+
+Una imagen sin verificar no es un respaldo. En Linux se puede comprobar de verdad, montándola:
 
 ```bash
 sudo losetup -Pf --show atriz_noetic_fallback.img     # devuelve /dev/loopN
