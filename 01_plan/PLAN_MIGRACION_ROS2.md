@@ -94,6 +94,12 @@ Ubuntu Server 24.04 LTS arm64 (headless, multi-user.target)
 
 ## Fase 0 — Validar sobre el sistema actual antes de reinstalar (~2 h)
 
+> ✅ **§0.1 COMPLETADA el 2026-07-29.** UART sobre PL011 vía `/dev/rvr`, verificado con
+> paquetes crudos de checksum válido. De paso se midió y corrigió la frecuencia de
+> odometría (3.85 → 16.59 Hz). Commits `67c8776` y `24c7749` en la rama
+> `migracion-ros2` de `Atriz_rvr`. **Pendientes: §0.3 (imagen de respaldo, bloqueante)
+> y la prueba de estabilidad larga.**
+
 Como la SD se va a reflashear, aquí **no se persigue dejar bonito el sistema viejo**: se persigue *validar en un entorno que ya funciona* la única configuración cuyo fallo sería ambiguo después de reinstalar. Si el RVR falla tras la migración, hay que poder descartar que la causa sea el cableado o el UART.
 
 El resto de la higiene del SO (§0.2) **no se aplica aquí** — se documenta como receta y se aplica una sola vez en la Fase 1, ya sobre 24.04.
@@ -201,9 +207,24 @@ while not rospy.is_shutdown():
     loop.run_until_complete(asyncio.gather(handle_ros()))   # + await asyncio.sleep(0.1) dentro
     r.sleep()                                               # 15 Hz
 ```
-El event loop de asyncio solo avanza en ráfagas de ~100 ms cada ~166 ms → los callbacks serie del SDK se procesan a tirones. Odometría real ~4 Hz con jitter. Agravado por ~10 llamadas a `asyncio.run()` dentro de callbacks ROS síncronos, que **crean y destruyen un event loop entero por cada `cmd_vel`**.
+> ⚠️ **CORREGIDO EL 2026-07-29 — este apartado baja de prioridad.** El plan original
+> afirmaba que este bucle causaba la odometría a 4 Hz «con jitter». **Medido y
+> desmentido:** el jitter era de σ 1.7 ms, y midiendo a nivel del SDK **sin ROS de
+> por medio** el resultado era idéntico (3.85 Hz). Los 4 Hz venían solo de
+> `sensor_control.start(interval=250)`.
+>
+> Se bajó a `interval=60` y el nodo pasó a entregar **16.59 Hz con σ 2.8 ms sin
+> degradación alguna** (commit `24c7749` en `migracion-ros2`). Si este bucle fuera el
+> cuello de botella, a 60 ms se habría notado.
+>
+> **Sigue mereciendo la pena rehacerlo** en el port a `rclpy` —por claridad, y porque
+> hay **48** llamadas a `asyncio.run()` en callbacks—, pero **ya no es la vía crítica
+> para el rendimiento**. Y el impacto de esas 48 llamadas en la latencia de `cmd_vel`
+> **no se ha medido**: no debe afirmarse sin datos.
 
-**Solución:**
+El event loop de asyncio solo avanza mientras `run_until_complete` está activo, así que los callbacks serie del SDK se procesan en ráfagas de ~100 ms cada ~166 ms. Además, las 48 llamadas a `asyncio.run()` dentro de callbacks ROS síncronos **crean y destruyen un event loop entero por cada `cmd_vel`**.
+
+**Solución (por limpieza y latencia de comandos, no por throughput):**
 ```python
 # El event loop de asyncio vive en su PROPIO hilo, corriendo siempre
 self._loop = asyncio.new_event_loop()
@@ -222,11 +243,28 @@ Nodo con `MultiThreadedExecutor` y callback groups separados para comandos y tel
 - `light_handler` usa `rospy.Time()` (cero) como timestamp → usar el reloj del nodo.
 - `wait_until_motion_complete()` no tiene timeout → puede colgar el hilo de servicio indefinidamente. Añadir timeout y devolver fallo.
 - **Watchdog de `cmd_vel` (seguridad, imprescindible en un laboratorio remoto):** si no llega `cmd_vel` en 500 ms, parar motores. Hoy no existe nada así: si el WebSocket se cae (y hay 797 reintentos WiFi en 42 min), el robot sigue conduciendo.
-- **Subir la frecuencia de sensores:** `sensor_control.start(interval=250)` → probar 50 ms (20 Hz). SLAM y Nav2 necesitan odometría ≫ 4 Hz. **Restricción real a validar:** 115200 baud ≈ 11.5 KB/s; conviene reducir los streams activos a los necesarios (`locator`, `quaternion`, `gyroscope`, `velocity`) y medir pérdida de paquetes antes de bajar de 50 ms.
+- ✅ **Frecuencia de sensores — RESUELTO Y MEDIDO** (Fase 0.1, commit `24c7749`).
+  `interval` de 250 → **60 ms**, con las **8** corrientes de sensores activas:
+
+  | `interval` | `/odom` real | σ |
+  |---|---|---|
+  | 250 ms | 3.85 Hz | 1.7 ms |
+  | 100 ms | 9.94 Hz | 2.4 ms |
+  | **60 ms** | **16.59 Hz** | **2.8 ms** |
+  | 50 ms | el streaming **no arranca** | — |
+
+  El firmware **cuantiza a múltiplos de 20 ms** (250 → 260 reales, 150 → 160). 60 ms
+  es el mínimo estable. **No hizo falta recortar sensores:** 125 paquetes/s caben de
+  sobra en 115200 baud (~11.5 KB/s). En el port a `rclpy` esto pasa a ser el valor
+  por defecto del parámetro `streaming_interval_ms`.
+- **Manejo de errores del check de firmware:** `rvr_fw_check_async.py` captura
+  `except (asyncio.TimeoutError, Exception)` y **continúa en silencio**, de modo que
+  el arranque parece correcto aunque el RVR no responda. Debe registrar un `WARN`
+  visible y exponer el estado del enlace en un topic de diagnóstico.
 
 **Verificación:**
 ```bash
-ros2 topic hz /rvr_01/odom          # objetivo ≥ 20 Hz, jitter bajo
+ros2 topic hz /rvr_01/odom          # objetivo 16.5 Hz (techo del firmware con interval=60)
 ros2 topic echo /rvr_01/imu --once  # angular_velocity en rad/s
 ros2 topic pub /rvr_01/cmd_vel geometry_msgs/Twist "{linear: {x: 0.2}}"   # se mueve
 # soltar el publisher → debe pararse en <500 ms (watchdog)
@@ -362,7 +400,7 @@ La documentación del repo describe un sistema que no existe, lo que hace perder
 | Riesgo | Mitigación |
 |---|---|
 | El SDK del RVR falla en Python 3.12 por algo no detectado en el análisis estático | **Validar en la Fase 1, antes de portar nada**: script mínimo `pyserial-asyncio` + SDK que despierte el robot y lea batería. Es el go/no-go de todo el plan |
-| 115200 baud no aguanta 20 Hz de telemetría | Reducir a los 4 streams necesarios; medir pérdida de paquetes; si no llega, aceptar 10 Hz y compensar con `robot_localization` |
+| ~~115200 baud no aguanta 20 Hz de telemetría~~ | ✅ **CERRADO 2026-07-29.** Medido: 16.59 Hz con los 8 sensores y 125 paquetes/s, holgado para ~11.5 KB/s. No hizo falta recortar streams. El techo lo pone el firmware del RVR (mínimo 60 ms, cuantizado a 20 ms), no el enlace serie |
 | WiFi saturado con 16 robots | Aislamiento DDS por dominio (ya en el diseño) elimina el tráfico de descubrimiento; medir ancho de banda real por robot en Fase 5 |
 | Nav2 no cabe en el Pi 4 junto al resto | Mapear una vez + AMCL en vez de SLAM continuo; costmaps pequeños; si no llega, Nav2 en el servidor vía rosbridge |
 | Mortalidad de microSD con 16 unidades | `log2ram`, journal volátil, `noatime`, sin swap (Fase 1.5); presupuestar tarjetas de repuesto y tener la imagen dorada lista para reflashear |
@@ -377,7 +415,7 @@ Sobre un robot, con el sistema arrancado por systemd tras un reinicio limpio y *
 
 1. `ros2 topic list` muestra el conjunto completo bajo `/rvr_01/`.
 2. `ros2 run tf2_tools view_frames` → un único árbol `map → odom → base_footprint → base_link → laser`.
-3. `ros2 topic hz /rvr_01/odom` ≥ 20 Hz; `/rvr_01/scan` ≈ 10 Hz.
+3. `ros2 topic hz /rvr_01/odom` ≈ 16.5 Hz (medido en Noetic; techo del firmware); `/rvr_01/scan` ≈ 10 Hz.
 4. Desde el navegador: teleoperación fluida, telemetría en vivo, mapa construyéndose.
 5. Enviar destino de navegación desde la web → el robot llega evitando un obstáculo.
 6. **Prueba de fallo:** cortar el WiFi de la Pi → la UI marca desconexión y el robot se detiene en <500 ms.
