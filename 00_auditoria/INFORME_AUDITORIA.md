@@ -405,6 +405,45 @@ El plan de migración derivado de este informe está en [`../01_plan/PLAN_MIGRAC
 
 ---
 
+## 6.bis · El YDLIDAR X2 — primera verificación del proyecto
+
+Este sensor **nunca se había comprobado**. El informe original solo podía decir que el
+driver no estaba instalado; no si el hardware funcionaba.
+
+**Funciona.** Verificado el 2026-07-29 decodificando el protocolo X2 a mano, sin depender
+del driver ROS:
+
+| Parámetro | Nominal | Medido | |
+|---|---|---|---|
+| Muestras | 3000/s | **2998/s** | ✅ |
+| Checksums válidos | — | **1147 / 1147 = 100 %** | ✅ |
+| Frecuencia de giro | 6–12 Hz | **11.4 Hz** | ✅ |
+| Puntos por vuelta | — | 263 → **1.37°** | modesto |
+| Distancias | 0.12–8 m | 0.445–3.16 m | ✅ *(limitado por la sala)* |
+| Retornos válidos | — | 79 % | normal |
+
+Detectado como **CP2102** (Silicon Labs `10c4:ea60`) en `/dev/ttyUSB0`.
+
+**Por qué importaba comprobarlo antes de reflashear:** si el X2 no hubiera funcionado, se
+habría descubierto *después* de reinstalar, depurando dos incógnitas simultáneas — ¿es el
+sensor, o es la instalación nueva? Separarlas cuesta horas. Es el mismo razonamiento que
+resolvió el problema del RVR en un minuto con `raw_uart.py`.
+
+**Dos números falsos que imprimen las herramientas** (documentados para que nadie se fíe):
+`scripts/lydar/test_lidar.py` reporta «Tipo de LIDAR: Desconocido» con datos perfectamente
+válidos, y `x2_parse.py` imprime «480.72 Hz de giro», que es un artefacto de medir
+intervalos de llegada de paquetes que salen a ráfagas del buffer USB.
+
+**Restricción descubierta para la flota:** el adaptador reporta `SerialNumber "0001"`,
+genérico. Con 16 adaptadores iguales **no se puede hacer una regla udev por número de
+serie**. Ver [`FLOTA.md`](../03_operacion/FLOTA.md), restricción 1.
+
+**Margen de mejora:** el X2 entrega ~3000 muestras/s independientemente del giro, así que la
+resolución angular es inversa a la velocidad. A 7 Hz darían 428 puntos/vuelta (0.84°) en
+lugar de 263 (1.37°). Para mapear un laboratorio fijo eso pesa más que el refresco.
+
+---
+
 ## Correcciones tras verificar en banco
 
 El informe original se escribió por **análisis estático** sobre un clon local que, se descubrió después, estaba **5 commits por detrás de GitHub** y en el que **nunca se había ejecutado `git fetch`**. Al contrastar contra `origin/main` (`659364c`) y, sobre todo, al **medir sobre el robot real**, tres hallazgos resultaron equivocados.
