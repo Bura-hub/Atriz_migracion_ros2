@@ -51,6 +51,28 @@ el cuello de botella**, como afirmaba la auditoría.
 
 Cierra el riesgo «115200 baud no aguanta 20 Hz»: 125 paquetes/s a 60 ms, holgado.
 
+### LIDAR X2 verificado — por primera vez en el proyecto
+
+Nunca se había comprobado. Detectado como CP2102 en `/dev/ttyUSB0` y validado
+decodificando el protocolo X2 a mano, **sin instalar el driver ROS**:
+
+| Métrica | Resultado |
+|---|---|
+| Checksums válidos | **1147 / 1147 = 100 %** |
+| Muestras | **2998/s** (especificación: 3000/s) |
+| Giro | 138 vueltas en 12.1 s = **11.4 Hz** |
+| Puntos por vuelta | 263 → resolución angular **1.37°** |
+| Distancias | 0.445 – 3.158 m, mediana 1.205 m |
+
+**Con esto, todo el hardware del robot está verificado.** Lo que queda es software.
+
+Corrección documentada: `x2_parse.py` imprime "480.72 Hz de giro", que es **falso** —
+mide intervalos de llegada de paquetes, que llegan a ráfagas desde el buffer USB. El
+valor real sale de contar vueltas.
+
+Aviso para la flota: el CP2102 reporta `SerialNumber "0001"`, genérico. Con 16
+adaptadores iguales no se podrá hacer regla udev por serial.
+
 ### Commits en `migracion-ros2`
 
 ```
@@ -68,7 +90,10 @@ Cierra el riesgo «115200 baud no aguanta 20 Hz»: 125 paquetes/s a 60 ms, holga
    `00_auditoria/evidencia/mediciones_banco/estabilidad_12min_2026-07-29.txt`.
 4. **Sin medir:** el impacto de las 48 llamadas a `asyncio.run()` en la latencia de
    `cmd_vel`. No afirmar nada sobre ello sin datos.
-5. **Sin verificar:** que la parada de emergencia de la web esté rota.
+5. ~~Sin verificar: la parada de emergencia de la web~~ 🔴 **CONFIRMADA ROTA**. Probado
+   de extremo a extremo: la web publica en `/rvr/emergency_stop`, que **no existe**;
+   el flag no se mueve. Con el topic correcto (`is_emergency_stop`) sí funciona.
+   Falla en silencio con `200 OK`. Evidencia en `estop_2026-07-29.txt`.
 
 ---
 

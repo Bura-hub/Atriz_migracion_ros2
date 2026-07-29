@@ -20,7 +20,7 @@ reconstruir el sistema si algo sale mal.
 
 | | |
 |---|---|
-| **Fase actual** | **Fase 0.1 — completada** (2026-07-29). UART sobre PL011 verificado, odometría de 3.85 → **16.59 Hz** |
+| **Fase actual** | **Fase 0.1 — completada** (2026-07-29). UART sobre PL011, odometría 3.85 → **16.59 Hz**, LIDAR X2 verificado. **Todo el hardware probado** |
 | **Siguiente paso** | Subir la rama `migracion-ros2` y hacer la **Fase 0.3** (imagen de respaldo) |
 | **Bloqueante antes de reinstalar** | **Fase 0.3** — imagen `dd` completa de la microSD. Ver [RECUPERACION.md](03_operacion/RECUPERACION.md) |
 | **Sistema hoy** | Raspberry Pi 4B 8 GB · Ubuntu 20.04.6 · ROS Noetic · Sphero RVR por UART · YDLIDAR X2 (driver **no instalado**) |
@@ -71,7 +71,7 @@ con anotaciones de auditoría marcadas aparte del texto original.
 
 ---
 
-## Los cuatro hallazgos que motivan todo
+## Los cinco hallazgos que motivan todo
 
 Resumidos del [informe completo](00_auditoria/INFORME_AUDITORIA.md):
 
@@ -86,15 +86,20 @@ Resumidos del [informe completo](00_auditoria/INFORME_AUDITORIA.md):
    baudrate deriva con el reloj del VPU. Ahora corre sobre el PL011 vía `/dev/rvr`,
    verificado con paquetes crudos de checksum válido.
 
-3. **El driver del YDLIDAR no está instalado en la Pi.** El código que lo consume
-   sí existe (`obstacle_avoidance.py`, launch autónomo), pero el paquete
-   `ydlidar_ros_driver` nunca se instaló, así que esos launch fallan. Y el árbol
-   TF sigue partido en dos (`rvr_base_link` vs `base_link`), lo que impide SLAM.
+3. **El driver del YDLIDAR no está instalado en la Pi.** El sensor **sí funciona**
+   (verificado: 100 % de checksums válidos, 2998 muestras/s, 11.4 Hz) y el código que
+   lo consume existe (`obstacle_avoidance.py`), pero el paquete `ydlidar_ros_driver`
+   nunca se instaló. Y el árbol TF sigue partido en dos (`rvr_base_link` vs
+   `base_link`), lo que impide SLAM.
 
-4. **La arquitectura no llega a 16 robots.** ROS Noetic EOL, un `roscore` único,
-   control por SSH secuencial (hasta 64 s por comando con 16 robots), sin
-   telemetría en streaming, y la parada de emergencia publicando en un topic que
-   el driver no escucha.
+4. 🔴 **La parada de emergencia de la web no funciona — confirmado en banco.**
+   Publica en `/rvr/emergency_stop`, un topic que no existe; el driver escucha
+   `is_emergency_stop`. Falla **en silencio**: la API devuelve `200 OK` y el robot
+   sigue igual. Es peor que no tener botón.
+
+5. **La arquitectura no llega a 16 robots.** ROS Noetic EOL, un `roscore` único,
+   control por SSH secuencial (hasta 64 s por comando con 16 robots) y sin
+   telemetría en streaming.
 
 ---
 
