@@ -20,7 +20,7 @@ reconstruir el sistema si algo sale mal.
 
 | | |
 |---|---|
-| **Fase actual** | **Fase 00 — completada.** Repositorio creado con auditoría, plan y respaldos |
+| **Fase actual** | **Fase 00 — completada** (2026-07-29). Repositorio publicado con auditoría, plan y respaldos |
 | **Siguiente paso** | **Fase 0.1** — aplicar y validar la corrección del UART (`dtoverlay=disable-bt`) sobre el sistema Noetic actual |
 | **Bloqueante antes de reinstalar** | **Fase 0.3** — imagen `dd` completa de la microSD. Ver [RECUPERACION.md](03_operacion/RECUPERACION.md) |
 | **Sistema hoy** | Raspberry Pi 4B 8 GB · Ubuntu 20.04.6 · ROS Noetic · Sphero RVR por UART · YDLIDAR X2 (driver **no instalado**) |

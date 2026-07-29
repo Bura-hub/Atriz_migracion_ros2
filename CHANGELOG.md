@@ -6,7 +6,8 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ## 2026-07-29 — Auditoría inicial y creación del repositorio
 
-**Fase 00 — completada.**
+**Fase 00 — completada.** Repositorio publicado en
+<https://github.com/Bura-hub/Atriz_migracion_ros2> (privado), commit `f714a74`.
 
 ### Qué se hizo
 
