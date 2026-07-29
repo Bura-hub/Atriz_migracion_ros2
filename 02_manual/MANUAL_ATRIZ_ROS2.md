@@ -1,5 +1,14 @@
 # Manual Atriz — Sphero RVR sobre Raspberry Pi
 
+> ⚠️ **Los capítulos están numerados POR TEMA, no por orden de ejecución.** No los sigas del
+> 0 al 12: el capítulo 1 (UART) presupone un sistema ya instalado, que es el capítulo 3.
+>
+> **Para instalar desde cero, sigue [`INSTALACION.md`](../INSTALACION.md)**, que da el orden
+> real y remite a los capítulos que toquen. Este manual es la **referencia temática**; ese
+> otro es el **recorrido**.
+>
+> ---
+>
 > **Sustituto de `MANUAL SPHERO.docx`.** Se escribe de forma incremental: cada capítulo
 > aparece aquí **solo después de haberse ejecutado y verificado** en la máquina real.
 >

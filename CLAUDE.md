@@ -26,8 +26,10 @@ Tres repositorios:
 1. Lee **[`TRASPASO.md`](TRASPASO.md)** — es el estado actual: qué está verificado, qué está
    roto, cuál es el siguiente paso exacto.
 2. Lee **[`CHANGELOG.md`](CHANGELOG.md)** — la bitácora, para saber qué pasó y por qué.
-3. Si vas a instalar el sistema desde cero: **[`02_manual/MANUAL_ATRIZ_ROS2.md`](02_manual/MANUAL_ATRIZ_ROS2.md)**,
-   capítulo por capítulo, en orden.
+3. Si vas a instalar el sistema desde cero: **[`INSTALACION.md`](INSTALACION.md)**.
+   ⚠️ **No sigas el manual del capítulo 0 al 12** — sus capítulos están numerados por tema,
+   no por orden de ejecución. `INSTALACION.md` da el recorrido real y remite a cada capítulo
+   cuando toca.
 
 **No empieces a tocar el sistema sin haber leído esos tres.** El contexto de este proyecto
 tiene bastantes trampas documentadas que cuestan horas si se ignoran.

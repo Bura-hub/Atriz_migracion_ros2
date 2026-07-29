@@ -43,8 +43,11 @@ exacto, y las cinco lecciones que ahorran horas.
 **Si vienes nuevo al proyecto** → lee el [informe de auditoría](00_auditoria/INFORME_AUDITORIA.md).
 Explica qué hay montado, qué falla y por qué.
 
-**Si vas a ejecutar la migración** → lee el [plan](01_plan/PLAN_MIGRACION_ROS2.md).
-Está dividido en fases con criterios de verificación en cada una.
+**Si vas a formatear e instalar el sistema** → **[INSTALACION.md](INSTALACION.md)**. Es el
+recorrido paso a paso, en orden, desde apagar el sistema actual hasta el robot funcionando.
+
+**Si quieres el porqué y la estrategia** → el [plan](01_plan/PLAN_MIGRACION_ROS2.md),
+dividido en fases con criterios de verificación.
 
 **Si algo se rompió y hay que volver atrás** → [RECUPERACION.md](03_operacion/RECUPERACION.md).
 
@@ -58,6 +61,7 @@ con anotaciones de auditoría marcadas aparte del texto original.
 
 ```
 CLAUDE.md                     ← contexto e instrucciones para agentes
+INSTALACION.md                ← LA RUTA: de formatear a robot funcionando
 TRASPASO.md                   ← EMPIEZA AQUÍ si retomas el proyecto
 00_auditoria/
 ├── INFORME_AUDITORIA.md      Diagnóstico completo con mediciones

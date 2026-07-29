@@ -86,7 +86,7 @@ done
 Tras grabar Ubuntu Server 24.04 y clonar este repositorio, basta con arrancar Claude Code
 en `~/atriz_migracion` y decirle:
 
-> Lee CLAUDE.md y sigue el manual desde el capítulo 3 para poner el sistema a punto.
+> Lee CLAUDE.md y sigue INSTALACION.md para poner el sistema a punto.
 
 `CLAUDE.md` se carga solo y le da las reglas, las trampas conocidas y los valores de
 referencia. Los capítulos **3, 4 y 5** del manual cubren flasheo, higiene del SO e
