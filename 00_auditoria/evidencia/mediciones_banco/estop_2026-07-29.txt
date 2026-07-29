@@ -1,0 +1,50 @@
+Verificación en banco de la parada de emergencia — 2026-07-29
+=============================================================
+
+Código de la web (Atriz_web_server, rama pruebas):
+  swarm_lab_api/app/api/robots.py:84
+    command = "rostopic pub -1 /rvr/emergency_stop std_msgs/Empty '{}'"
+
+Código del driver (Atriz_rvr, origin/main):
+  Atriz_rvr_node.py — se suscribe a 'is_emergency_stop'
+
+--- 1. ¿Qué topics de emergencia existen con el driver corriendo? ---
+$ rostopic list | grep -i emerg
+/is_emergency_stop
+
+--- 2. ¿Quién escucha cada uno? ---
+$ rostopic info /is_emergency_stop
+Type: std_msgs/Empty
+Publishers: None
+Subscribers:
+ * /driver_rvr (http://ubuntu:36969/)
+
+$ rostopic info /rvr/emergency_stop
+ERROR: Unknown topic /rvr/emergency_stop
+
+--- 3. Prueba de extremo a extremo ---
+$ rosparam get /emergency_stop
+false                                    <- estado inicial
+
+$ rostopic pub -1 /rvr/emergency_stop std_msgs/Empty '{}'    <- COMANDO EXACTO DE LA WEB
+publishing and latching message for 3.0 seconds
+$ rosparam get /emergency_stop
+false                                    <- SIN EFECTO
+
+$ rostopic pub -1 /is_emergency_stop std_msgs/Empty '{}'     <- topic correcto
+publishing and latching message for 3.0 seconds
+$ rosparam get /emergency_stop
+true                                     <- FUNCIONA
+
+$ rosservice call /release_emergency_stop
+$ rosparam get /emergency_stop
+false                                    <- estado liberado
+
+CONCLUSIÓN
+==========
+El botón de parada de emergencia de la plataforma web NO TIENE NINGÚN EFECTO.
+Publica en un topic que no existe y que nadie escucha. Confirmado, no deducido.
+
+El robot no estaba despierto durante la prueba, lo cual no afecta al resultado:
+el driver registra sus suscriptores al arrancar, con independencia de que el RVR
+responda, y el flag rosparam es puramente del lado ROS.

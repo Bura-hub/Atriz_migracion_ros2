@@ -329,9 +329,31 @@ Además están commiteados `swarm_lab_env/` (un venv completo, **5418 ficheros**
 | La web publica en | `/rvr/emergency_stop` (`app/api/robots.py`) |
 | El driver escucha | `is_emergency_stop` (`Atriz_rvr_node.py:1599`) |
 
-**Nombres distintos.** A menos que exista un remap que no se ha encontrado, **el botón de parada de emergencia del panel no hace nada**.
+**Nombres distintos.**
 
-> Debe verificarse en banco como prioridad absoluta. Es seguridad, no funcionalidad.
+> ✅ **CONFIRMADO EN BANCO el 2026-07-29 — el botón de emergencia de la web no hace
+> absolutamente nada.** Ya no es una deducción:
+>
+> ```
+> $ rostopic info /rvr/emergency_stop        # el que publica la web
+> ERROR: Unknown topic /rvr/emergency_stop   # nadie lo escucha
+>
+> $ rosparam get /emergency_stop
+> false
+> $ rostopic pub -1 /rvr/emergency_stop std_msgs/Empty '{}'   # comando exacto de la web
+> $ rosparam get /emergency_stop
+> false                                      # SIN EFECTO
+>
+> $ rostopic pub -1 /is_emergency_stop std_msgs/Empty '{}'    # topic correcto
+> $ rosparam get /emergency_stop
+> true                                       # FUNCIONA
+> ```
+>
+> Evidencia completa en `evidencia/mediciones_banco/estop_2026-07-29.txt`.
+>
+> **Es el fallo más grave del sistema entero**, porque falla en silencio: el operador
+> pulsa el botón, la API devuelve `200 OK`, y el robot sigue exactamente igual. Peor que
+> no tener botón, porque genera una confianza falsa.
 
 ### 5.3 🔴 No hay watchdog
 
