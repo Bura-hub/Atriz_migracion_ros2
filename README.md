@@ -32,6 +32,10 @@ Ver [CHANGELOG.md](CHANGELOG.md) para la bitácora detallada.
 
 ## Por dónde empezar
 
+**Si retomas el proyecto tras un tiempo, o en otra máquina** → **[TRASPASO.md](TRASPASO.md)**.
+Es el documento de contexto: qué está verificado, qué está roto, cuál es el siguiente paso
+exacto, y las cinco lecciones que ahorran horas.
+
 **Si vienes nuevo al proyecto** → lee el [informe de auditoría](00_auditoria/INFORME_AUDITORIA.md).
 Explica qué hay montado, qué falla y por qué.
 
@@ -49,6 +53,7 @@ con anotaciones de auditoría marcadas aparte del texto original.
 ## Estructura
 
 ```
+TRASPASO.md                   ← EMPIEZA AQUÍ si retomas el proyecto
 00_auditoria/
 ├── INFORME_AUDITORIA.md      Diagnóstico completo con mediciones
 └── evidencia/                Salidas CRUDAS de los comandos (línea base)
@@ -61,12 +66,17 @@ con anotaciones de auditoría marcadas aparte del texto original.
 └── MANUAL_ATRIZ_ROS2.md               El manual nuevo (se escribe en fases 1–5)
 03_operacion/
 ├── RECUPERACION.md           Cómo volver al sistema Noetic
-├── RUNBOOK.md                Operación diaria (fases 2–5)
-├── ARQUITECTURA.md           Decisiones de diseño (fase 5)
-└── FLOTA.md                  Clonado y gestión de los 16 robots (fase 6)
+├── RUNBOOK.md                Operación y diagnóstico de fallos
+├── ARQUITECTURA.md           Las 4 decisiones de diseño
+└── FLOTA.md                  Restricciones medidas y gestión de los 16 robots
 04_respaldo/
 ├── configs/                  cmdline.txt, config.txt, udev, fstab, bashrc
 └── sin_commitear/            Los 6 ficheros de Atriz_rvr que se perderían al reflashear
+scripts/
+├── fase_0_1_fix_uart.sh      ✅ ejecutado — repara el UART
+├── diag_uart_pins.sh         diagnóstico de los pines GPIO14/15
+├── fase_0_3_respaldo.sh      ⏳ prepara la SD para la imagen (BLOQUEANTE)
+└── fase_1_validar_sdk_py312.py   GO/NO-GO de la migración
 ```
 
 ---
