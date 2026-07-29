@@ -13,7 +13,7 @@
 > | 5 | ROS 2 Jazzy y workspace colcon | ⏳ no escrito |
 > | 6 | Driver del RVR en `rclpy` | ⏳ no escrito |
 > | 7 | URDF y árbol TF | ⏳ no escrito |
-> | 8 | YDLIDAR X2 | ⏳ no escrito |
+> | 8 | YDLIDAR X2 | 🟡 **hardware verificado**; driver ROS pendiente |
 > | 9 | SLAM y Nav2 | ⏳ no escrito |
 > | 10 | rosbridge y plataforma web | ⏳ no escrito |
 > | 11 | Arranque automático con systemd | ⏳ no escrito |
@@ -283,7 +283,91 @@ y Nav2 encima habrá que medir de nuevo — es la referencia contra la que compa
 
 ---
 
-## Capítulos 3–12
+## Capítulo 8 — YDLIDAR X2 (parcial)
+
+> 🟡 **El hardware está verificado; el driver ROS aún no se ha instalado.** Esta sección
+> cubre lo comprobado el 2026-07-29. Los apartados 8.4 en adelante se escriben en la Fase 3.
+
+### 8.1 El sensor
+
+**YDLIDAR X2 — LiDAR 2D de 360°.** Conectado por un adaptador **CP2102 USB-UART**
+(Silicon Labs, `10c4:ea60`) → `/dev/ttyUSB0`, grupo `dialout`.
+
+| Parámetro | Nominal | **Medido** |
+|---|---|---|
+| Barrido | 360° | 360° |
+| Muestras | 3000/s | **2998/s** |
+| Frecuencia de giro | 6–12 Hz | **11.4 Hz** |
+| Canal | único | único |
+| Baudrate | 115200 | 115200 |
+| Alcance | 0.12 – 8 m | 0.445 – 3.16 m *(limitado por la sala, no por el sensor)* |
+| Puntos por vuelta | — | **263** → resolución angular **1.37°** |
+| Caudal USB | — | ~7 KB/s |
+
+### 8.2 Verificación sin instalar el driver ROS
+
+Igual que con el RVR, se puede validar el sensor a nivel de protocolo. Es la prueba que
+distingue «el lidar está roto» de «el driver está mal configurado»:
+
+```bash
+python3 00_auditoria/evidencia/mediciones_banco/x2_parse.py
+```
+Salida de referencia:
+```
+paquetes decodificados: 1147   (95/s)
+checksum OK / KO      : 1147 / 0   (100.0% validos)
+muestras totales      : 36245   (2998 muestras/s)
+distancias validas    : 28587  (79% de las muestras)
+  min 0.445 m | p50 1.205 m | max 3.158 m
+```
+
+El protocolo X2 es sencillo: cabecera `0xAA 0x55`, tipo, número de muestras, ángulo inicial
+y final, checksum (XOR de palabras de 16 bits), y las muestras a 2 bytes. La **distancia en
+milímetros es el valor entre 4**.
+
+> ⚠️ **Cuidado con dos números falsos.**
+>
+> `scripts/lydar/test_lidar.py` reporta **«Tipo de LIDAR: Desconocido»** aunque los datos
+> sean perfectamente válidos: su identificador no reconoce al X2. Fíjate en «bytes
+> recibidos» y «tasa de datos» (~7000 B/s), no en el tipo.
+>
+> `x2_parse.py` imprime **«frecuencia de giro: 480.72 Hz»**, que es **falso**. Calcula la
+> mediana de los intervalos de llegada de paquetes, pero llegan a ráfagas desde el buffer
+> del USB. El valor real sale de contar vueltas: 138 en 12.1 s = **11.4 Hz**.
+
+### 8.3 Resolución angular — un margen de mejora real
+
+El X2 entrega **~3000 muestras/s pase lo que pase**. Eso significa que la resolución angular
+es **inversamente proporcional** a la velocidad de giro:
+
+| Giro | Puntos/vuelta | Resolución |
+|---|---|---|
+| **11.4 Hz** (actual) | 263 | 1.37° |
+| 10.0 Hz | 300 | 1.20° |
+| **7.0 Hz** | **428** | **0.84°** |
+
+Para mapear un laboratorio fijo, donde el robot se mueve despacio, **la resolución angular
+importa más que la frecuencia de refresco**. Merece la pena probar 7 Hz y comparar la nitidez
+del mapa.
+
+> **NO VERIFICADO:** si el driver consigue fijar la velocidad del motor en un X2 de canal
+> único, o si viene fija por hardware. Los launch del repo piden `frequency: 10.0`.
+
+### 8.4 Si el lidar no gira
+
+El X2 alimenta su motor por la línea **DTR** del adaptador USB (de ahí el
+`support_motor_dtr: true` de los launch). No todos los adaptadores la exponen.
+
+**El adaptador es el primer sospechoso, no el lidar.**
+
+### 8.5 Driver ROS
+
+⏳ **Pendiente, Fase 3.** `YDLidar-SDK` + `ydlidar_ros2_driver` (rama `humble`, funciona en
+Jazzy), con `params/X2.yaml`.
+
+---
+
+## Capítulos 3–7 y 9–12
 
 ⏳ **No escritos todavía.** Se redactan al ejecutar las fases 1–6 del
 [plan](../01_plan/PLAN_MIGRACION_ROS2.md), capítulo a capítulo, tras verificar cada paso.
