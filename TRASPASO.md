@@ -108,13 +108,40 @@ Si sale **NO-GO**, el propio script imprime las cuatro alternativas ordenadas po
 | Repo | Rama | Commit | Contenido |
 |---|---|---|---|
 | `Atriz_migracion_ros2` | `main` | — | Este repositorio: auditoría, plan, manual, scripts |
-| `Atriz_rvr` | `main` | `659364c` | Código original, sin tocar |
+| `Atriz_rvr` | `main` | `6f48ae1` | Original + **el arreglo del UART** (cherry-pick de `67c8776`) |
 | `Atriz_rvr` | **`migracion-ros2`** | `24c7749` | UART → `/dev/rvr` · `interval` 250→60 ms |
 | `Atriz_rvr` | `wip/scripts-estudiantes` | `62e0313` | Stash rescatado. **No mezclar** — ver decisión pendiente arriba |
 | `Atriz_web_server` | `pruebas` | `924d659` | Sin tocar — se aborda al final |
 
 La rama `migracion-ros2` se creó **desde `origin/main`**, no desde el clon local. Importante:
 ver la lección de abajo.
+
+### ⚠️ Por qué el arreglo del UART también está en `main`
+
+La imagen de respaldo de la Fase 0.3 se crea sobre un sistema que **ya tiene
+`dtoverlay=disable-bt` aplicado**, así que en él `/dev/ttyS0` **ya no lleva el UART**.
+
+Si se restaurara esa imagen y se trabajara desde `main` con el código original, el robot
+parecería roto sin motivo aparente: el driver abriría un puerto que existe pero no está
+conectado a nada. Por eso el commit del UART se llevó también a `main` (cherry-pick
+`6f48ae1`).
+
+**Regla general:** cualquier arreglo que dependa de la configuración del sistema operativo
+—no solo de ROS— debe estar en `main`, porque `main` es lo que se ejecuta si algo se revierte.
+
+### Ficheros sueltos sin versionar
+
+`carro.py` (**0 bytes**, nada que salvar) y `prueba.py` (92 líneas) siguen sin trackear.
+
+`prueba.py` es un tercer intento de seguidor de línea y **está roto**: define
+`def _init_(self)` con **un solo guion bajo** en lugar de `__init__`, así que el constructor
+nunca se ejecuta y la clase no hace nada. Además se suscribe a `/color_sensor_left` y
+`/color_sensor_right`, que **no existen** — el driver publica únicamente `/color`.
+
+Están respaldados como ficheros en `04_respaldo/sin_commitear/archivos/`. **Decisión
+pendiente:** versionarlos o descartarlos. Recomendación: borrar `carro.py` y no recuperar
+`prueba.py`, ya que `seguidor_linea_pid_demo.py` (en `origin/main`) resuelve lo mismo y
+funciona.
 
 ---
 
