@@ -102,7 +102,85 @@ dispositivos. Un cambio de subred se hace en un sitio en vez de en dieciséis.
 
 ---
 
-## Imagen dorada
+## Cómo NO repetir el proceso 16 veces
+
+**El trabajo se hace UNA vez.** Perfeccionas un robot, conviertes su tarjeta en imagen, y
+cada robot nuevo cuesta **~15 minutos casi desatendidos**: grabar la tarjeta, cambiar un
+número en un fichero de texto, y anotar la MAC.
+
+### Lo que se hace una sola vez
+
+```bash
+# En el robot de referencia, cuando ya funciona del todo y está verificado:
+sudo bash ~/atriz_migracion/scripts/fase_6_preparar_imagen_dorada.sh
+sudo poweroff
+
+# Desde un PC, con la tarjeta fuera:
+sudo dd if=/dev/mmcblk0 of=atriz_jazzy_v1.img bs=4M status=progress conv=fsync
+sha256sum atriz_jazzy_v1.img > atriz_jazzy_v1.img.sha256
+sudo pishrink.sh -Z atriz_jazzy_v1.img     # reduce al tamaño usado: 29 GB -> ~4-6 GB
+```
+
+### Lo que se hace por robot
+
+| Paso | Tiempo | ¿Atendido? |
+|---|---|---|
+| 1. Grabar la imagen en la microSD | ~8 min | no |
+| 2. Editar `robot_id.txt` en la partición FAT | 15 s | **sí** |
+| 3. Anotar la MAC y crear la reserva DHCP | ~1 min | **sí** |
+| 4. Arrancar (el `first-boot` hace el resto) | ~2 min | no |
+| 5. Verificar | ~2 min | **sí** |
+
+**Total atendido: unos 3 minutos por robot.** Los 16 caben en una tarde, y si consigues
+**varios lectores de tarjetas USB** puedes grabar tres o cuatro en paralelo mientras
+verificas las anteriores.
+
+El paso 2 es literalmente cambiar un número:
+```
+# /boot/firmware/robot_id.txt
+ROBOT_ID=07
+```
+La partición es **FAT**, así que se edita desde Windows, macOS o Linux **sin arrancar la
+Pi**. Grabas las 16 tarjetas seguidas y luego las editas una a una en el portátil.
+
+### Por qué hace falta el paso de «preparar»
+
+Clonar una tarjeta tal cual produce 16 robots con la **misma identidad**, y eso rompe cosas
+de formas confusas:
+
+| Duplicado | Qué provoca |
+|---|---|
+| `machine-id` | El DHCP puede dar la **misma IP a dos robots** |
+| Claves SSH de host | `REMOTE HOST IDENTIFICATION HAS CHANGED` al saltar de robot a robot — y ningún aviso real si algún día hay un intruso |
+| `hostname` | Imposible saber a qué robot estás conectado |
+| `ROS_DOMAIN_ID` | **Los robots se ven entre sí en DDS.** Es exactamente lo que la Decisión 1 evita |
+
+`fase_6_preparar_imagen_dorada.sh` borra todo eso e instala
+**`atriz-first-boot.service`**, que lo regenera en el primer arranque leyendo
+`robot_id.txt`.
+
+Detalles del servicio que importan:
+
+- Corre **antes de `network-pre.target`**: el hostname queda fijado antes de que el DHCP
+  pida IP, así el router registra el nombre correcto desde el principio.
+- Si `robot_id.txt` falta o es inválido, **no adivina**: registra el problema en
+  `/var/log/atriz-first-boot.log`, deja el sistema intacto y **se reintenta en el siguiente
+  arranque**. Es preferible a que dos robots acaben con la misma identidad en silencio.
+- Escribe la identidad en `/etc/profile.d/atriz-robot.sh` (no en `.bashrc`), así es
+  idempotente y fácil de inspeccionar.
+- Se deshabilita solo, dejando la marca `/var/lib/atriz-first-boot.done`.
+
+**Para cambiar el número de un robot ya desplegado:** edita `robot_id.txt`, borra
+`/var/lib/atriz-first-boot.done` y reinicia.
+
+> 📝 **NO VERIFICADO.** Estos scripts se escribieron **antes** de disponer de un segundo
+> robot. Al clonar el primero, comprueba cada paso y corrige este documento. La lógica de
+> parseo de `robot_id.txt` sí se probó de forma aislada, incluido el caso trampa de `08`
+> (que sin `10#` bash interpretaría como octal).
+
+---
+
+## Imagen dorada — detalle
 
 ### Crearla
 

@@ -1,0 +1,33 @@
+# atriz-first-boot.service
+#
+# Personaliza un clon de la imagen dorada en su primer arranque, leyendo
+# /boot/firmware/robot_id.txt. Se deshabilita solo al terminar con éxito.
+#
+# Lo instala fase_6_preparar_imagen_dorada.sh. No copiarlo a mano.
+#
+# 📝 NO VERIFICADO — escrito antes de disponer de un segundo robot.
+
+[Unit]
+Description=Atriz — personalizar identidad del robot en el primer arranque
+# Necesita /boot/firmware montado para leer robot_id.txt
+After=local-fs.target
+Requires=local-fs.target
+# No correr si ya se completó: el script escribe esta marca al final
+ConditionPathExists=!/var/lib/atriz-first-boot.done
+# Antes de la red: el hostname debe estar fijado cuando el DHCP pida IP
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/usr/local/sbin/atriz-first-boot.sh
+# Si robot_id.txt falta o es inválido el script sale con 1 y NO deja la marca,
+# así que se reintenta en el siguiente arranque. Preferible a que dos robots
+# acaben con la misma identidad en silencio.
+SuccessExitStatus=0
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

@@ -275,7 +275,10 @@ Orden y bloqueantes:
 4. **SLAM y Nav2** (Fase 4)
 5. **Plataforma web** (Fase 5) — al final. **Arreglar primero la parada de emergencia**, que
    está confirmada como no funcional
-6. **Los 16 robots** ([`FLOTA.md`](03_operacion/FLOTA.md))
+6. **Los 16 robots** ([`FLOTA.md`](03_operacion/FLOTA.md)) — el trabajo se hace **una vez**:
+   `scripts/fase_6_preparar_imagen_dorada.sh` convierte este robot en imagen dorada, y cada
+   robot nuevo cuesta **~3 minutos atendidos** (grabar, cambiar un número en `robot_id.txt`,
+   anotar la MAC). `atriz-first-boot.service` fija hostname, `ROS_DOMAIN_ID` y claves solo.
 
 ---
 
