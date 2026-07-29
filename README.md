@@ -80,14 +80,16 @@ Resumidos del [informe completo](00_auditoria/INFORME_AUDITORIA.md):
    *duplicado*, el governor `ondemand` dejando la CPU a 600 MHz el **59.6 %** del
    tiempo, y 784 MB de journal generando **47 s de bloqueo por I/O en 42 min**.
 
-2. **El UART del RVR está sobre el mini-UART.** Falta `dtoverlay=disable-bt`,
-   así que el PL011 (el UART bueno) está reservado a un Bluetooth **sin adaptador**
-   y el RVR habla por un puerto cuyo baudrate deriva con el reloj del VPU.
-   Fallo latente de fiabilidad.
+2. ✅ **El UART del RVR estaba sobre el mini-UART** — *resuelto en la Fase 0.1*.
+   Faltaba `dtoverlay=disable-bt`, así que el PL011 (el UART bueno) estaba
+   reservado a un Bluetooth **sin adaptador** y el RVR hablaba por un puerto cuyo
+   baudrate deriva con el reloj del VPU. Ahora corre sobre el PL011 vía `/dev/rvr`,
+   verificado con paquetes crudos de checksum válido.
 
-3. **El LIDAR no existe en el sistema.** El driver YDLIDAR nunca se instaló, pero
-   3 launch files y toda la documentación lo dan por hecho. Y el árbol TF está
-   partido en dos, lo que hace imposible cualquier SLAM.
+3. **El driver del YDLIDAR no está instalado en la Pi.** El código que lo consume
+   sí existe (`obstacle_avoidance.py`, launch autónomo), pero el paquete
+   `ydlidar_ros_driver` nunca se instaló, así que esos launch fallan. Y el árbol
+   TF sigue partido en dos (`rvr_base_link` vs `base_link`), lo que impide SLAM.
 
 4. **La arquitectura no llega a 16 robots.** ROS Noetic EOL, un `roscore` único,
    control por SSH secuencial (hasta 64 s por comando con 16 robots), sin
