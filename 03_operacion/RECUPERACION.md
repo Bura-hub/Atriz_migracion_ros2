@@ -15,6 +15,29 @@ Existen dos rutas de vuelta, de muy distinto coste.
 
 ---
 
+## 0. Preparar la Pi antes de apagarla
+
+**Ejecuta esto primero, en la Raspberry Pi:**
+
+```bash
+bash ~/atriz_migracion/scripts/fase_0_3_respaldo.sh
+```
+
+Comprueba en los dos repositorios si queda algo sin commitear, **sin subir**, o en un
+**stash** (los stashes no viajan a un remoto y desaparecen con la tarjeta), respalda las
+claves SSH, el netplan y un inventario de paquetes en `~/respaldo_pre_migracion`, y hace
+`sync`.
+
+**Copia `~/respaldo_pre_migracion` a un USB o a tu PC.** No va a git: contiene claves
+privadas y la PSK del WiFi.
+
+Luego:
+```bash
+sudo poweroff
+```
+
+---
+
 ## 1. Crear la imagen de respaldo (Fase 0.3 — hacer ANTES de reflashear)
 
 Con la Raspberry Pi **apagada** y la microSD en un PC.

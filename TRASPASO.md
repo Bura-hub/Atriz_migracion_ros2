@@ -53,8 +53,33 @@ sudo poweroff
 # con la SD en un PC, seguir 03_operacion/RECUPERACION.md
 ```
 
-⚠️ Hay un **`stash@{0}`** en `~/atriz_git/src/Atriz_rvr` con tres scripts de estudiantes sin
-commitear. **Los stashes no viajan a GitHub y se perderían al reflashear.** El script avisa.
+✅ **El `stash@{0}` ya está rescatado.** Contenía tres scripts de estudiantes que solo
+existían en un stash local — y los stashes **no viajan a un remoto**, así que se habrían
+perdido al reflashear. Están preservados sin modificar en la rama
+**`wip/scripts-estudiantes`** (commit `62e0313`). El stash original se conserva intacto
+(se usó `stash apply`, no `pop`).
+
+⚠️ **Decisión pendiente sobre `01_avanzar.py`.** No está modificado: está **reemplazado**.
+El tutorial «ULTRA SIMPLE: solo avanza el robot» ya no existe en esa rama; en su lugar hay
+una clase `SeguidorBordeRojo` que sigue el borde de una línea roja con `/color` y el servicio
+`/enable_color`. Parece un experimento escrito encima del fichero equivocado — es el
+**primer** script que ejecutan los estudiantes y ya no hace lo que su nombre promete.
+Además `origin/main` ya trae `scripts/estudiantes/seguidor_linea_pid_demo.py`, que aborda el
+mismo problema.
+
+Hay que decidir: **(a)** mover el seguidor a su propio fichero y restaurar el tutorial, o
+**(b)** descartarlo por estar superado por `seguidor_linea_pid_demo.py`. Por eso la rama es
+WIP y **no debe mezclarse con `main`** hasta resolverlo.
+
+⚠️ **Antes de apagar, comprueba que no queda nada sin subir.** Es lo que hace el propio
+script, pero conviene saber por qué: un commit local o un stash **no existen** para nadie
+más, y desaparecen con la tarjeta.
+
+```bash
+for r in ~/atriz_git/src/Atriz_rvr ~/atriz_migracion; do
+  echo "── $r"; git -C $r status -sb | head -1; git -C $r stash list
+done
+```
 
 **Después:** Fase 1 (reinstalación), y su primer paso es el go/no-go:
 
@@ -73,6 +98,7 @@ Si sale **NO-GO**, el propio script imprime las cuatro alternativas ordenadas po
 | `Atriz_migracion_ros2` | `main` | — | Este repositorio: auditoría, plan, manual, scripts |
 | `Atriz_rvr` | `main` | `659364c` | Código original, sin tocar |
 | `Atriz_rvr` | **`migracion-ros2`** | `24c7749` | UART → `/dev/rvr` · `interval` 250→60 ms |
+| `Atriz_rvr` | `wip/scripts-estudiantes` | `62e0313` | Stash rescatado. **No mezclar** — ver decisión pendiente arriba |
 | `Atriz_web_server` | `pruebas` | `924d659` | Sin tocar — se aborda al final |
 
 La rama `migracion-ros2` se creó **desde `origin/main`**, no desde el clon local. Importante:
