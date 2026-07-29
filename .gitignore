@@ -1,0 +1,22 @@
+# Secretos — nunca
+*.key
+*.pem
+id_rsa*
+id_ed25519*
+.env
+.env.*
+!.env.example
+*netplan*.yaml
+known_hosts
+
+# Imágenes de respaldo (demasiado grandes para git)
+*.img
+*.img.gz
+*.img.xz
+
+# Ruido
+__pycache__/
+*.pyc
+.DS_Store
+*~
+*.swp

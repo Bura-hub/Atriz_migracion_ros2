@@ -1,0 +1,93 @@
+=== /etc/os-release ===
+NAME="Ubuntu"
+VERSION="20.04.6 LTS (Focal Fossa)"
+ID=ubuntu
+ID_LIKE=debian
+PRETTY_NAME="Ubuntu 20.04.6 LTS"
+VERSION_ID="20.04"
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+VERSION_CODENAME=focal
+UBUNTU_CODENAME=focal
+
+=== uname -a ===
+Linux ubuntu 5.4.0-1129-raspi #142-Ubuntu SMP PREEMPT Mon Apr 21 06:57:00 UTC 2025 aarch64 aarch64 aarch64 GNU/Linux
+
+=== modelo ===
+Raspberry Pi 4 Model B Rev 1.5
+
+=== lscpu ===
+Architecture:                       aarch64
+CPU op-mode(s):                     32-bit, 64-bit
+Byte Order:                         Little Endian
+CPU(s):                             4
+On-line CPU(s) list:                0-3
+Thread(s) per core:                 1
+Core(s) per socket:                 4
+Socket(s):                          1
+Vendor ID:                          ARM
+Model:                              3
+Model name:                         Cortex-A72
+Stepping:                           r0p3
+CPU max MHz:                        1800.0000
+CPU min MHz:                        600.0000
+BogoMIPS:                           108.00
+Vulnerability Gather data sampling: Not affected
+Vulnerability Itlb multihit:        Not affected
+Vulnerability L1tf:                 Not affected
+Vulnerability Mds:                  Not affected
+Vulnerability Meltdown:             Not affected
+Vulnerability Mmio stale data:      Not affected
+Vulnerability Retbleed:             Not affected
+Vulnerability Spec store bypass:    Vulnerable
+Vulnerability Spectre v1:           Mitigation; __user pointer sanitization
+Vulnerability Spectre v2:           Vulnerable
+Vulnerability Srbds:                Not affected
+Vulnerability Tsx async abort:      Not affected
+Flags:                              fp asimd evtstrm crc32 cpuid
+
+=== free -h ===
+              total        used        free      shared  buff/cache   available
+Mem:          7.6Gi       1.7Gi       3.9Gi        24Mi       2.1Gi       5.6Gi
+Swap:            0B          0B          0B
+
+=== swapon ===
+Filename				Type		Size	Used	Priority
+
+=== vm.swappiness ===
+60
+
+=== df -h ===
+Filesystem      Size  Used Avail Use% Mounted on
+udev            3.8G     0  3.8G   0% /dev
+tmpfs           781M  3.6M  778M   1% /run
+/dev/mmcblk0p2   29G   12G   16G  44% /
+tmpfs           3.9G     0  3.9G   0% /dev/shm
+tmpfs           5.0M  4.0K  5.0M   1% /run/lock
+tmpfs           3.9G     0  3.9G   0% /sys/fs/cgroup
+/dev/loop0       60M   60M     0 100% /snap/core20/2672
+/dev/loop1       60M   60M     0 100% /snap/core20/2690
+/dev/loop2       92M   92M     0 100% /snap/lxd/32669
+/dev/loop3       92M   92M     0 100% /snap/lxd/36559
+/dev/loop4       45M   45M     0 100% /snap/snapd/25205
+/dev/mmcblk0p1  253M  130M  123M  52% /boot/firmware
+tmpfs           781M   20K  781M   1% /run/user/128
+tmpfs           781M   36K  781M   1% /run/user/1000
+/dev/loop5       44M   44M     0 100% /snap/snapd/27595
+
+=== lsblk ===
+NAME         SIZE TYPE TRAN MOUNTPOINT        MODEL
+loop0       59.6M loop      /snap/core20/2672 
+loop1       59.6M loop      /snap/core20/2690 
+loop2         92M loop      /snap/lxd/32669   
+loop3         92M loop      /snap/lxd/36559   
+loop4       44.2M loop      /snap/snapd/25205 
+loop5       43.4M loop      /snap/snapd/27595 
+mmcblk0     29.1G disk                        
+├─mmcblk0p1  256M part      /boot/firmware    
+└─mmcblk0p2 28.9G part      /                 
+
+=== id ===
+uid=1000(sphero) gid=1003(sphero) groups=1003(sphero),4(adm),20(dialout),24(cdrom),27(sudo),29(audio),44(video),46(plugdev),60(games),100(users),107(input),109(render),115(netdev),1000(gpio),1001(spi),1002(i2c)

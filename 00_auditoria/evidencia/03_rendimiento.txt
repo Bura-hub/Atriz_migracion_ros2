@@ -1,0 +1,98 @@
+=== uptime ===
+ 18:17:19 up  1:33,  2 users,  load average: 0.73, 0.30, 0.26
+
+=== pressure ===
+--- io ---
+some avg10=0.00 avg60=0.00 avg300=0.00 total=57116372
+full avg10=0.00 avg60=0.00 avg300=0.00 total=49257547
+--- cpu ---
+some avg10=0.44 avg60=0.10 avg300=0.02 total=26784117
+--- memory ---
+some avg10=0.00 avg60=0.00 avg300=0.00 total=0
+full avg10=0.00 avg60=0.00 avg300=0.00 total=0
+
+=== governor ===
+ondemand
+ondemand
+ondemand
+ondemand
+
+=== freq min/max/cur ===
+600000
+1800000
+1500000
+
+=== time_in_state (cpu0) ===
+600000 294873
+700000 87545
+800000 18883
+900000 13973
+1000000 10202
+1100000 8419
+1200000 8809
+1300000 8621
+1400000 9870
+1500000 9123
+1600000 6954
+1700000 13779
+1800000 71821
+
+=== temperatura (milideg) ===
+59887
+
+=== ps top 25 por RAM ===
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+sphero      8090 20.8  7.1 6471504 572760 pts/4  Rl+  17:23  11:10 claude
+sphero      1643  1.3  4.9 4712104 395256 ?      Ssl  16:45   1:16 /usr/bin/gnome-shell
+gdm         1222  0.7  2.6 4276408 207992 tty1   Sl+  16:44   0:39 /usr/bin/gnome-shell
+sphero      4734  5.2  2.4 32945352 194088 ?     Sl   17:03   3:50 /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/node --dns-result-order=ipv4first /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/out/bootstrap-fork --type=extensionHost --transformURIs --useHostProxy=false
+sphero      4092  0.4  2.1 926284 173996 ?       SNl  16:58   0:19 /usr/bin/python3 /usr/bin/update-manager --no-update --no-focus-on-map
+sphero      4392  0.6  1.5 11579272 127672 ?     Sl   17:02   0:27 /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/node /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/out/server-main.js --start-server --host=127.0.0.1 --port=0 --connection-token-file /home/sphero/.antigravity-ide-server/.e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a.token --telemetry-level off --enable-remote-auto-shutdown --accept-server-license-terms
+root        1498  0.2  1.1 270316 92232 tty2     Sl+  16:45   0:13 /usr/lib/xorg/Xorg vt2 -displayfd 3 -auth /run/user/1000/gdm/Xauthority -background none -noreset -keeptty -verbose 3
+sphero      4505  0.3  1.0 939552 86176 ?        Sl   17:03   0:15 /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/node /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/out/bootstrap-fork --type=ptyHost --logsPath /home/sphero/.antigravity-ide-server/data/logs/20260729T170259
+sphero      4741  0.4  1.0 999632 83156 ?        Sl   17:03   0:19 /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/node /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/out/bootstrap-fork --type=fileWatcher
+root        1162  0.0  0.8 241788 68764 tty1     Sl+  16:44   0:02 /usr/lib/xorg/Xorg vt1 -displayfd 3 -auth /run/user/128/gdm/Xauthority -background none -noreset -keeptty -verbose 3
+sphero      1853  0.0  0.6 645004 54292 ?        Sl   16:45   0:01 /usr/libexec/evolution-data-server/evolution-alarm-notify
+sphero      2015  0.1  0.6 813780 49556 ?        Ssl  16:45   0:07 /usr/libexec/gnome-terminal-server
+root        7070  0.1  0.4 1997976 39452 ?       Ssl  17:19   0:04 /usr/lib/snapd/snapd
+sphero      2072  0.0  0.4 421092 32908 ?        Sl   16:46   0:00 update-notifier
+sphero      1729  0.0  0.4 624964 32184 ?        Sl   16:45   0:00 /usr/libexec/goa-daemon
+sphero      1689  0.0  0.3 274804 30204 ?        Sl   16:45   0:04 /usr/libexec/ibus-extension-gtk3
+sphero      1833  0.0  0.3 898964 30028 ?        Ssl  16:45   0:00 /usr/libexec/gsd-media-keys
+sphero      1732  0.0  0.3 1380728 28448 ?       Ssl  16:45   0:00 /usr/libexec/evolution-calendar-factory
+sphero      1865  0.0  0.3 345868 28304 ?        Ssl  16:45   0:00 /usr/libexec/gsd-xsettings
+sphero      1779  0.0  0.3 822500 28072 ?        Ssl  16:45   0:00 /usr/libexec/evolution-addressbook-factory
+sphero      1823  0.0  0.3 567556 27760 ?        Ssl  16:45   0:00 /usr/libexec/gsd-color
+sphero      1835  0.0  0.3 345856 27556 ?        Ssl  16:45   0:00 /usr/libexec/gsd-power
+sphero      1830  0.0  0.3 345260 27220 ?        Ssl  16:45   0:00 /usr/libexec/gsd-keyboard
+sphero      1692  0.0  0.3 197016 26828 ?        Sl   16:45   0:00 /usr/libexec/ibus-x11 --kill-daemon
+
+=== ps top 25 por CPU ===
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+sphero      8090 20.8  7.1 6471504 572748 pts/4  Sl+  17:23  11:10 claude
+sphero      4734  5.2  2.4 32945352 194088 ?     Sl   17:03   3:50 /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/node --dns-result-order=ipv4first /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/out/bootstrap-fork --type=extensionHost --transformURIs --useHostProxy=false
+sphero      1643  1.3  4.9 4712104 395256 ?      Ssl  16:45   1:16 /usr/bin/gnome-shell
+root           1  1.0  0.1 170660 12552 ?        Ss   16:43   0:57 /sbin/init fixrtc splash splash
+gdm         1222  0.7  2.6 4276408 207992 tty1   Sl+  16:44   0:39 /usr/bin/gnome-shell
+sphero      4392  0.6  1.5 11579272 127672 ?     Sl   17:02   0:27 /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/node /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/out/server-main.js --start-server --host=127.0.0.1 --port=0 --connection-token-file /home/sphero/.antigravity-ide-server/.e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a.token --telemetry-level off --enable-remote-auto-shutdown --accept-server-license-terms
+sphero     15356  0.5  0.0   8460  2972 ?        Ss   18:16   0:00 /bin/bash -c source /home/sphero/.claude/shell-snapshots/snapshot-bash-1785345864998-qjuetx.sh 2>/dev/null || true && shopt -u extglob 2>/dev/null || true && { \builtin unalias -- 'unsetenv'; \builtin unset -f -- 'unsetenv'; } >/dev/null 2>&1 || true && eval 'E=/home/sphero/atriz_migracion/00_auditoria/evidencia S="$(date -u '"'"'+%Y-%m-%dT%H:%M:%SZ'"'"')"  { echo "# Evidencia capturada: $S"; echo "# Host: $(hostname)  Uptime: $(uptime -p)"; } > $E/00_METADATOS.txt  # --- Hardware / SO --- { echo "=== /etc/os-release ==="; cat /etc/os-release   echo; echo "=== uname -a ==="; uname -a   echo; echo "=== modelo ==="; tr -d '"'"'\0'"'"' < /proc/device-tree/model; echo   echo; echo "=== lscpu ==="; lscpu   echo; echo "=== free -h ==="; free -h   echo; echo "=== swapon ==="; swapon --show; cat /proc/swaps   echo; echo "=== vm.swappiness ==="; cat /proc/sys/vm/swappiness   echo; echo "=== df -h ==="; df -h   echo; echo "=== lsblk ==="; lsblk -o NAME,SIZE,TYPE,TRAN,MOUNTPOINT,MODEL   echo; echo "=== id ==="; id } > $E/01_hardware_so.txt 2>&1  # --- Boot --- { echo "=== systemd-analyze ==="; systemd-analyze   echo; echo "=== systemd-analyze blame (top 50) ==="; systemd-analyze blame 2>/dev/null | head -50   echo; echo "=== systemd-analyze critical-chain ==="; systemd-analyze critical-chain 2>/dev/null   echo; echo "=== systemctl get-default ==="; systemctl get-default   echo; echo "=== unit-files enabled ==="; systemctl list-unit-files --state=enabled --type=service   echo; echo "=== failed ==="; systemctl --failed   echo; echo "=== servicios running (conteo) ==="; systemctl list-units --type=service --state=running | wc -l } > $E/02_boot_servicios.txt 2>&1  # --- Rendimiento --- { echo "=== uptime ==="; uptime   echo; echo "=== pressure ==="; for f in io cpu memory; do echo "--- $f ---"; cat /proc/pressure/$f 2>/dev/null; done   echo; echo "=== governor ==="; cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor   echo; echo "=== freq min/max/cur ==="   cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq   echo; echo "=== time_in_state (cpu0) ==="; cat /sys/devices/system/cpu/cpu0/cpufreq/stats/time_in_state   echo; echo "=== temperatura (milideg) ==="; cat /sys/class/thermal/thermal_zone0/temp   echo; echo "=== ps top 25 por RAM ==="; ps aux --sort=-%mem | head -25   echo; echo "=== ps top 25 por CPU ==="; ps aux --sort=-%cpu | head -25   echo; echo "=== nº tareas ==="; ps -e | wc -l } > $E/03_rendimiento.txt 2>&1  # --- UART / serial --- { echo "=== /dev/tty* relevantes ==="; ls -la /dev/ttyAMA* /dev/ttyS* /dev/serial* /dev/ttyUSB* 2>&1   echo; echo "=== cmdline.txt ==="; cat /boot/firmware/cmdline.txt   echo; echo "=== config.txt ==="; cat /boot/firmware/config.txt   echo; echo "=== syscfg.txt ==="; cat /boot/firmware/syscfg.txt 2>&1   echo; echo "=== usercfg.txt ==="; cat /boot/firmware/usercfg.txt 2>&1   echo; echo "=== udev rules ==="; ls -la /etc/udev/rules.d/; echo "--- 50-serial.rules ---"; cat /etc/udev/rules.d/50-serial.rules 2>&1   echo; echo "=== bluetooth ==="; systemctl is-active bluetooth; systemctl is-enabled bluetooth 2>&1   echo; echo "=== hciconfig -a ==="; hciconfig -a 2>&1   echo; echo "=== serial-getty ==="; systemctl is-enabled serial-getty@ttyS0 serial-getty@ttyAMA0 2>&1   echo; echo "=== dmesg serial ==="; dmesg 2>/dev/null | grep -iE "ttyAMA|ttyS0|serial|uart" | head -20 } > $E/04_uart_serial.txt 2>&1  # --- Red --- { echo "=== ip -br a ==="; ip -br a   echo; echo "=== iw dev ==="; iw dev 2>&1   echo; echo "=== /proc/net/wireless ==="; cat /proc/net/wireless   echo; echo "=== iwconfig ==="; iwconfig 2>&1 | grep -v "no wireless"   echo; echo "=== power_save ==="; iw dev wlan0 get power_save 2>&1   echo; echo "=== nmcli ==="; nmcli device status 2>&1   echo; echo "=== puertos a la escucha ==="; ss -tlnp 2>/dev/null || netstat -tlnp 2>&1 } > $E/05_red.txt 2>&1  # --- Software --- { echo "=== python3 ==="; python3 --version   echo; echo "=== rosversion ==="; rosversion -d 2>&1   echo; echo "=== nº paquetes ros-noetic ==="; dpkg -l | grep -c ros-noetic   echo; echo "=== metapaquetes ROS ==="; dpkg -l | grep -E "ros-noetic-(desktop|ros-base)" | awk '"'"'{print $2, $3}'"'"'   echo; echo "=== pip3 list ==="; pip3 list 2>/dev/null   echo; echo "=== snap list ==="; snap list 2>&1   echo; echo "=== apt upgradable ==="; apt list --upgradable 2>/dev/null   echo; echo "=== ubuntu pro ==="; pro status 2>&1 | head -25 } > $E/06_software.txt 2>&1  # --- Logs --- { echo "=== journal disk usage ==="; journalctl --disk-usage 2>&1   echo; echo "=== du /var/log ==="; du -sh /var/log 2>/dev/null   echo; echo "=== journald.conf ==="; grep -v '"'"'^\s*#'"'"' /etc/systemd/journald.conf | grep -v '"'"'^\s*$'"'"'   echo; echo "=== errores del boot actual ==="; journalctl -p err -b --no-pager 2>/dev/null | tail -40   echo; echo "=== dmesg throttle/undervolt/error ==="; dmesg 2>/dev/null | grep -iE "throttl|under.?volt|error|fail" | tail -30 } > $E/07_logs.txt 2>&1  echo "Ficheros de evidencia:"; ls -la $E; echo; echo "Tamaño total:"; du -sh $E' && pwd -P >| /tmp/claude-cea3-cwd
+sphero      4092  0.4  2.1 926284 173996 ?       SNl  16:58   0:19 /usr/bin/python3 /usr/bin/update-manager --no-update --no-focus-on-map
+sphero      4741  0.4  1.0 999632 83156 ?        Sl   17:03   0:19 /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/node /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/out/bootstrap-fork --type=fileWatcher
+root        2156  0.3  0.0      0     0 ?        I    16:50   0:15 [kworker/u8:3-brcmf_wq/mmc1:0001:1]
+sphero      4505  0.3  1.0 939552 86176 ?        Sl   17:03   0:15 /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/node /home/sphero/.antigravity-ide-server/bin/2.1.1-e0b7a2bcf575cfba10528c4e7c10bd3ce2d7769a/out/bootstrap-fork --type=ptyHost --logsPath /home/sphero/.antigravity-ide-server/data/logs/20260729T170259
+root        1498  0.2  1.1 270316 92232 tty2     Sl+  16:45   0:13 /usr/lib/xorg/Xorg vt2 -displayfd 3 -auth /run/user/1000/gdm/Xauthority -background none -noreset -keeptty -verbose 3
+sphero      4700  0.2  0.0  18256  7688 ?        S    17:03   0:09 sshd: sphero@notty
+message+     777  0.1  0.0  10656  6032 ?        Ss   16:43   0:08 /usr/bin/dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+root         787  0.1  0.1 241200 10628 ?        Ssl  16:43   0:06 /usr/lib/policykit-1/polkitd --no-debug
+sphero      2015  0.1  0.6 813780 49556 ?        Ssl  16:45   0:07 /usr/libexec/gnome-terminal-server
+sphero      5866  0.1  0.0  15856  4884 ?        S    17:08   0:04 sshd: sphero@pts/4
+root        7070  0.1  0.4 1997976 39452 ?       Ssl  17:19   0:04 /usr/lib/snapd/snapd
+root       11052  0.1  0.0      0     0 ?        I    17:32   0:04 [kworker/1:1-events]
+root       13238  0.1  0.0      0     0 ?        I    17:54   0:02 [kworker/0:0-events]
+root       13348  0.1  0.0      0     0 ?        I    17:55   0:01 [kworker/u8:2-events_power_efficient]
+root       14380  0.1  0.0      0     0 ?        I    18:06   0:00 [kworker/2:0-events]
+root       14445  0.1  0.0      0     0 ?        I    18:07   0:00 [kworker/0:1-events]
+root       14638  0.1  0.0      0     0 ?        I    18:09   0:00 [kworker/u8:0-events_power_efficient]
+
+=== nº tareas ===
+269

@@ -1,0 +1,56 @@
+=== journal disk usage ===
+Archived and active journals take up 784.1M in the file system.
+
+=== du /var/log ===
+789M	/var/log
+
+=== journald.conf ===
+[Journal]
+
+=== errores del boot actual ===
+Jun 17 20:29:42 ubuntu kernel: brcmfmac: brcmf_fw_alloc_request: using brcm/brcmfmac43455-sdio for chip BCM4345/6
+Jun 17 20:29:42 ubuntu kernel: brcmfmac: brcmf_c_preinit_dcmds: Firmware: BCM4345/6 wl0: Nov  1 2021 00:37:25 version 7.45.241 (1a2f2fa CY) FWID 01-703fd60
+Jun 17 20:29:42 ubuntu kernel: brcmfmac: brcmf_cfg80211_set_power_mgmt: power save enabled
+May 08 20:12:18 ubuntu wpa_supplicant[802]: Failed to initialize control interface '/run/wpa_supplicant'.
+                                            You may have another wpa_supplicant process already running or the file was
+                                            left by an unclean termination of wpa_supplicant in which case you will need
+                                            to manually remove this file before starting wpa_supplicant again.
+May 08 20:12:18 ubuntu NetworkManager[778]: <error> [1778271138.4880] sup-iface[0xaaaae6f06100,wlan0]: error adding interface: wpa_supplicant couldn't grab this interface.
+May 08 20:12:28 ubuntu wpa_supplicant[802]: Failed to initialize control interface '/run/wpa_supplicant'.
+                                            You may have another wpa_supplicant process already running or the file was
+                                            left by an unclean termination of wpa_supplicant in which case you will need
+                                            to manually remove this file before starting wpa_supplicant again.
+May 08 20:12:28 ubuntu NetworkManager[778]: <error> [1778271148.5570] sup-iface[0xaaaae6f061f0,wlan0]: error adding interface: wpa_supplicant couldn't grab this interface.
+May 08 20:12:31 ubuntu gnome-session-binary[1117]: Unrecoverable failure in required component org.gnome.Shell.desktop
+May 08 20:12:38 ubuntu wpa_supplicant[802]: Failed to initialize control interface '/run/wpa_supplicant'.
+                                            You may have another wpa_supplicant process already running or the file was
+                                            left by an unclean termination of wpa_supplicant in which case you will need
+                                            to manually remove this file before starting wpa_supplicant again.
+May 08 20:12:38 ubuntu NetworkManager[778]: <error> [1778271158.5684] sup-iface[0xaaaae6f062e0,wlan0]: error adding interface: wpa_supplicant couldn't grab this interface.
+May 08 20:12:48 ubuntu wpa_supplicant[802]: Failed to initialize control interface '/run/wpa_supplicant'.
+                                            You may have another wpa_supplicant process already running or the file was
+                                            left by an unclean termination of wpa_supplicant in which case you will need
+                                            to manually remove this file before starting wpa_supplicant again.
+May 08 20:12:48 ubuntu NetworkManager[778]: <error> [1778271168.5533] sup-iface[0xaaaae6f063d0,wlan0]: error adding interface: wpa_supplicant couldn't grab this interface.
+May 08 20:12:58 ubuntu wpa_supplicant[802]: Failed to initialize control interface '/run/wpa_supplicant'.
+                                            You may have another wpa_supplicant process already running or the file was
+                                            left by an unclean termination of wpa_supplicant in which case you will need
+                                            to manually remove this file before starting wpa_supplicant again.
+May 08 20:12:58 ubuntu NetworkManager[778]: <error> [1778271178.5690] sup-iface[0xaaaae6f064c0,wlan0]: error adding interface: wpa_supplicant couldn't grab this interface.
+May 08 20:13:08 ubuntu wpa_supplicant[802]: Failed to initialize control interface '/run/wpa_supplicant'.
+                                            You may have another wpa_supplicant process already running or the file was
+                                            left by an unclean termination of wpa_supplicant in which case you will need
+                                            to manually remove this file before starting wpa_supplicant again.
+May 08 20:13:08 ubuntu NetworkManager[778]: <error> [1778271188.5891] sup-iface[0xaaaae6f064c0,wlan0]: error adding interface: wpa_supplicant couldn't grab this interface.
+May 08 20:13:38 ubuntu gdm-password][1475]: gkr-pam: unable to locate daemon control file
+May 08 20:18:35 ubuntu kernel: brcmfmac: brcmf_cfg80211_set_power_mgmt: power save enabled
+May 08 20:20:53 ubuntu systemd-resolved[741]: Failed to send hostname reply: Invalid argument
+May 08 20:20:56 ubuntu systemd-resolved[741]: Failed to send hostname reply: Invalid argument
+Jul 29 16:54:49 ubuntu systemd[1]: Failed to start Refresh fwupd metadata and update motd.
+Jul 29 17:27:21 ubuntu sudo[10048]:   sphero : a password is required ; TTY=unknown ; PWD=/home/sphero ; USER=root ; COMMAND=/usr/sbin/hdparm -t /dev/mmcblk0
+
+=== dmesg throttle/undervolt/error ===
+[    1.396959] bcmgenet fd580000.ethernet: failed to get enet clock
+[    1.396992] bcmgenet fd580000.ethernet: failed to get enet-wol clock
+[    1.397007] bcmgenet fd580000.ethernet: failed to get enet-eee clock
+[    8.540291] vc_sm_cma: module verification failed: signature and/or required key missing - tainting kernel

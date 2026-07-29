@@ -1,0 +1,198 @@
+diff --git a/atriz_rvr_driver/scripts/.fw b/atriz_rvr_driver/scripts/.fw
+index 77ec528..af4ae2b 100644
+--- a/atriz_rvr_driver/scripts/.fw
++++ b/atriz_rvr_driver/scripts/.fw
+@@ -1 +1 @@
+-1758084817.233702
+\ No newline at end of file
++1761752448.297958
+\ No newline at end of file
+diff --git a/scripts/estudiantes/01_avanzar.py b/scripts/estudiantes/01_avanzar.py
+index 84e37fc..d288503 100755
+--- a/scripts/estudiantes/01_avanzar.py
++++ b/scripts/estudiantes/01_avanzar.py
+@@ -1,88 +1,66 @@
+ #!/usr/bin/env python3
+-"""
+-Script ULTRA SIMPLE: Solo avanza el robot
++import rospy
++from geometry_msgs.msg import Twist
++from atriz_rvr_msgs.msg import Color
++from std_srvs.srv import SetBool
++import signal, sys
+ 
+-ESTE ES EL PRIMER SCRIPT QUE DEBES EJECUTAR
+-- Enseña los conceptos básicos de ROS
+-- Muestra cómo enviar comandos de movimiento
+-- Incluye manejo seguro de Ctrl+C
+-"""
++class SeguidorBordeRojo:
++    def __init__(self):
++        rospy.init_node('seguidor_borde_rojo')
++        self.pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
++        rospy.Subscriber('/color', Color, self.color_callback)
++        rospy.wait_for_service('/enable_color')
++        activar = rospy.ServiceProxy('/enable_color', SetBool)
++        activar(True)
++        signal.signal(signal.SIGINT, self.detener)
++        
++        self.en_rojo = False
++        self.sentido_giro = 1  # 1 = izquierda, -1 = derecha
++        self.tiempo_sin_rojo = 0
++        rospy.sleep(1)
++        rospy.loginfo("🤖 Seguidor del borde rojo (versión rápida) listo!")
+ 
+-# ============================================
+-# IMPORTACIONES NECESARIAS
+-# ============================================
+-import rospy                    # Biblioteca principal de ROS para Python
+-from geometry_msgs.msg import Twist  # Tipo de mensaje para comandos de velocidad
+-import signal                   # Para manejar señales del sistema (Ctrl+C)
+-import sys                      # Para salir del programa
++    def color_callback(self, msg):
++        r, g, b = [int(c) for c in msg.rgb_color]
++        # Ajusta estos valores según tu entorno
++        if r > 120 and g < 90 and b < 90:
++            self.en_rojo = True
++            self.tiempo_sin_rojo = 0
++        else:
++            self.en_rojo = False
++            self.tiempo_sin_rojo += 1
+ 
+-# ============================================
+-# VARIABLES GLOBALES
+-# ============================================
+-# Variable global para el publicador - la usaremos en toda la función
+-pub = None
++    def mover(self):
++        rate = rospy.Rate(10)
++        while not rospy.is_shutdown():
++            cmd = Twist()
+ 
+-# ============================================
+-# FUNCIÓN DE EMERGENCIA
+-# ============================================
+-def detener(signum=None, frame=None):
+-    """
+-    Función de emergencia que se ejecuta cuando presionas Ctrl+C
+-    
+-    Args:
+-        signum: Número de la señal recibida (no lo usamos)
+-        frame: Frame actual de ejecución (no lo usamos)
+-    """
+-    print("\n🛑 DETENIENDO ROBOT...")
+-    
+-    # Crear comando de parada (velocidades en cero)
+-    cmd = Twist()
+-    cmd.linear.x = 0.0   # Sin movimiento hacia adelante/atrás
+-    cmd.angular.z = 0.0  # Sin rotación
+-    
+-    # Enviar comando de parada varias veces para asegurar que se detenga
+-    for _ in range(5):  # Repetir 5 veces
+-        pub.publish(cmd)      # Enviar comando al robot
+-        rospy.sleep(0.1)      # Esperar 0.1 segundos entre envíos
+-    
+-    print("✅ Robot detenido correctamente")
+-    sys.exit(0)  # Salir del programa
++            if self.en_rojo:
++                # 💨 Aumentamos un poco la velocidad lineal
++                cmd.linear.x = 0.22   # antes 0.18
++                cmd.angular.z = 0.0
++            else:
++                # 🔄 Gira suavemente más rápido para encontrar el borde
++                cmd.linear.x = 0.0
++                cmd.angular.z = 0.32 * self.sentido_giro  # antes 0.25
+ 
+-# ============================================
+-# CONFIGURACIÓN DE ROS
+-# ============================================
+-# Configurar Ctrl+C para que llame a nuestra función de emergencia
+-signal.signal(signal.SIGINT, detener)
++                # Si pasa mucho tiempo sin ver rojo, cambia dirección
++                if self.tiempo_sin_rojo > 25:
++                    self.sentido_giro *= -1
++                    self.tiempo_sin_rojo = 0
++                    rospy.loginfo("🔁 Cambiando dirección de búsqueda")
+ 
+-# Inicializar el nodo ROS con un nombre único
+-rospy.init_node('simple_avanzar')
++            self.pub.publish(cmd)
++            rate.sleep()
+ 
+-# Crear un publicador para enviar comandos al robot
+-# - '/cmd_vel': nombre del tópico (canal de comunicación)
+-# - Twist: tipo de mensaje (velocidad lineal + angular)
+-# - queue_size=10: tamaño de la cola de mensajes
+-pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+-
+-# Esperar un momento para que ROS se configure correctamente
+-rospy.sleep(0.5)
+-
+-# ============================================
+-# PROGRAMA PRINCIPAL
+-# ============================================
+-print("🚀 Robot avanzando...")
+-
+-# Crear comando de movimiento
+-cmd = Twist()
+-cmd.linear.x = 0.3  # Velocidad hacia adelante (0.3 m/s)
+-# Nota: cmd.linear.y y cmd.linear.z no se usan en robots terrestres
+-# cmd.angular.z = 0.0  # Sin rotación (ya está en cero por defecto)
+-
+-# Publicar comando durante 3 segundos
+-rate = rospy.Rate(10)  # 10 Hz = 10 mensajes por segundo
+-for _ in range(30):    # 30 iteraciones × 0.1s = 3 segundos
+-    pub.publish(cmd)   # Enviar comando al robot
+-    rate.sleep()       # Esperar 0.1 segundos (mantener 10 Hz)
+-
+-# Llamar a la función de detención al finalizar
+-detener()
++    def detener(self, *args):
++        cmd = Twist()
++        for _ in range(5):
++            self.pub.publish(cmd)
++            rospy.sleep(0.1)
++        sys.exit(0)
+ 
++if __name__ == "__main__":
++    seguidor = SeguidorBordeRojo()
++    seguidor.mover()
+diff --git a/scripts/estudiantes/02_girar.py b/scripts/estudiantes/02_girar.py
+index 3b40123..2b51357 100755
+--- a/scripts/estudiantes/02_girar.py
++++ b/scripts/estudiantes/02_girar.py
+@@ -14,7 +14,7 @@ ESTE SCRIPT ENSEÑA ROTACIÓN BÁSICA
+ import rospy                    # Biblioteca principal de ROS para Python
+ from geometry_msgs.msg import Twist  # Tipo de mensaje para comandos de velocidad
+ import signal                   # Para manejar señales del sistema (Ctrl+C)
+-import sys                      # Para salir del programa
++import sys                      # Para salir del prograpythonma
+ 
+ # ============================================
+ # VARIABLES GLOBALES
+diff --git a/scripts/estudiantes/11_sensor_avanzado.py b/scripts/estudiantes/11_sensor_avanzado.py
+index c661e8a..85a195d 100755
+--- a/scripts/estudiantes/11_sensor_avanzado.py
++++ b/scripts/estudiantes/11_sensor_avanzado.py
+@@ -446,19 +446,13 @@ def main():
+         print("🎨 SENSOR DE COLOR - MENÚ DE OPCIONES")
+         print("=" * 60)
+         print("")
+-        print("1. Modo Calibración (recomendado primero)")
+-        print("   → Obtén los valores RGB reales de tu pista")
+-        print("")
+-        print("2. Modo Monitoreo (solo observar colores)")
+-        print("   → El robot NO se moverá, solo mostrará colores detectados")
+-        print("")
+-        print("3. Modo Reacción (robot reacciona a colores)")
++        print("1. Modo Reacción (robot reacciona a colores)")
+         print("   → El robot SE MOVERÁ según el color detectado")
+         print("")
+         print("=" * 60)
+         print("")
+         
+-        opcion = input("Seleccione una opción (1-3): ")
++        opcion = input("Seleccione 1 para avanzar")
+         
+         if opcion == "1":
+             detector.calibrar_colores(duracion_por_color=5.0)

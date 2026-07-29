@@ -1,0 +1,20 @@
+f4d48a9 docs: Agregar comentarios educativos detallados a scripts de estudiantes
+b1ca095 Actualizar referencias de ros_sphero_rvr a Atriz_rvr en documentación de estudiantes
+11edbe8 feat: Integración completa YDLIDAR X2 con Sphero RVR
+b870065 docs: Update README.md in estudiantes folder
+44ad460 feat: Add comprehensive student learning materials for Sphero RVR
+a9fcf8a Cambios mayores driver
+d758fa2 actualizaciones importantes
+d8f182d organizacion antes del cambio
+8702d40 magnetometer eliminado, no funciona
+303458b Remove .gitignore from tracking
+b049fdf Refact
+ef52359 Cambios en Documentacion
+66fbabe cambios menores
+c7fe4ad Actualizacion de odometria
+5403582 Clean repository: Remove all cache files
+6976b61 Add comprehensive .gitignore for ROS Sphero RVR project
+eced9f8 random_walk
+76917fd Correcion Follow an broadcast IR
+a433124 Agregados topicos y handlers IR
+e47c201 Merge branch 'main' of https://github.com/atriz-udenar/ros_sphero_rvr into main

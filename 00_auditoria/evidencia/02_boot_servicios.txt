@@ -1,0 +1,182 @@
+=== systemd-analyze ===
+Startup finished in 6.147s (kernel) + 29.470s (userspace) = 35.618s 
+graphical.target reached after 27.397s in userspace
+
+=== systemd-analyze blame (top 50) ===
+1min 27.147s apt-daily-upgrade.service                               
+1min 14.207s apt-daily.service                                       
+     13.309s plymouth-quit-wait.service                              
+     10.839s gdm.service                                             
+      6.893s snapd.service                                           
+      6.790s man-db.service                                          
+      6.426s fstrim.service                                          
+      5.112s snapd.seeded.service                                    
+      4.220s snap.lxd.activate.service                               
+      3.691s cloud-init-local.service                                
+      3.283s motd-news.service                                       
+      2.762s systemd-udev-settle.service                             
+      2.356s dev-mmcblk0p2.device                                    
+      2.340s cloud-init.service                                      
+      2.065s cloud-final.service                                     
+      2.003s accounts-daemon.service                                 
+      1.956s cloud-config.service                                    
+      1.935s udisks2.service                                         
+      1.606s networkd-dispatcher.service                             
+      1.449s NetworkManager-wait-online.service                      
+      1.362s xrdp.service                                            
+      1.361s systemd-random-seed.service                             
+      1.270s logrotate.service                                       
+      1.164s ModemManager.service                                    
+      1.076s NetworkManager.service                                  
+      1.063s avahi-daemon.service                                    
+      1.001s polkit.service                                          
+       929ms switcheroo-control.service                              
+       898ms systemd-logind.service                                  
+       894ms wpa_supplicant.service                                  
+       838ms snapd.apparmor.service                                  
+       653ms xrdp-sesman.service                                     
+       619ms user@128.service                                        
+       615ms user@1000.service                                       
+       504ms systemd-journal-flush.service                           
+       444ms colord.service                                          
+       428ms rsyslog.service                                         
+       421ms systemd-udevd.service                                   
+       416ms systemd-udev-trigger.service                            
+       398ms apparmor.service                                        
+       383ms systemd-fsck@dev-disk-by\x2dlabel-system\x2dboot.service
+       310ms e2scrub_reap.service                                    
+       304ms systemd-resolved.service                                
+       304ms keyboard-setup.service                                  
+       293ms upower.service                                          
+       269ms fwupd-refresh.service                                   
+       268ms dev-loop2.device                                        
+       228ms dev-loop0.device                                        
+       212ms dev-loop3.device                                        
+       205ms apport.service                                          
+
+=== systemd-analyze critical-chain ===
+The time when unit became active or started is printed after the "@" character.
+The time the unit took to start is printed after the "+" character.
+
+graphical.target @27.397s
+└─multi-user.target @27.397s
+  └─getty.target @18.557s
+    └─cloud-config.service @16.598s +1.956s
+      └─snapd.seeded.service @11.477s +5.112s
+        └─basic.target @11.344s
+          └─sockets.target @11.344s
+            └─snapd.socket @11.341s +2ms
+              └─sysinit.target @11.319s
+                └─cloud-init.service @8.977s +2.340s
+                  └─systemd-networkd-wait-online.service @8.937s +35ms
+                    └─systemd-networkd.service @8.803s +129ms
+                      └─network-pre.target @8.799s
+                        └─cloud-init-local.service @5.106s +3.691s
+                          └─boot-firmware.mount @5.031s +50ms
+                            └─systemd-fsck@dev-disk-by\x2dlabel-system\x2dboot.service @4.642s +383ms
+                              └─local-fs-pre.target @4.607s
+                                └─multipathd.service @4.478s +128ms
+                                  └─systemd-udev-settle.service @1.712s +2.762s
+                                    └─systemd-udev-trigger.service @1.291s +416ms
+                                      └─systemd-udevd-kernel.socket @1.158s
+                                        └─system.slice @1.141s
+                                          └─-.slice @1.141s
+
+=== systemctl get-default ===
+graphical.target
+
+=== unit-files enabled ===
+UNIT FILE                                  STATE   VENDOR PRESET
+accounts-daemon.service                    enabled enabled      
+anacron.service                            enabled enabled      
+apparmor.service                           enabled enabled      
+atd.service                                enabled enabled      
+autovt@.service                            enabled enabled      
+avahi-daemon.service                       enabled enabled      
+binfmt-support.service                     enabled enabled      
+blk-availability.service                   enabled enabled      
+bluetooth.service                          enabled enabled      
+cloud-config.service                       enabled enabled      
+cloud-final.service                        enabled enabled      
+cloud-init-local.service                   enabled enabled      
+cloud-init.service                         enabled enabled      
+console-setup.service                      enabled enabled      
+cron.service                               enabled enabled      
+cups-browsed.service                       enabled enabled      
+cups.service                               enabled enabled      
+dbus-fi.w1.wpa_supplicant1.service         enabled enabled      
+dbus-org.bluez.service                     enabled enabled      
+dbus-org.freedesktop.Avahi.service         enabled enabled      
+dbus-org.freedesktop.ModemManager1.service enabled enabled      
+dbus-org.freedesktop.nm-dispatcher.service enabled enabled      
+dbus-org.freedesktop.resolve1.service      enabled enabled      
+dbus-org.freedesktop.timesync1.service     enabled enabled      
+dmesg.service                              enabled enabled      
+e2scrub_reap.service                       enabled enabled      
+finalrd.service                            enabled enabled      
+getty@.service                             enabled enabled      
+irqbalance.service                         enabled enabled      
+iscsi.service                              enabled enabled      
+kerneloops.service                         enabled enabled      
+keyboard-setup.service                     enabled enabled      
+lm-sensors.service                         enabled enabled      
+lvm2-monitor.service                       enabled enabled      
+lxd-agent-9p.service                       enabled enabled      
+lxd-agent.service                          enabled enabled      
+ModemManager.service                       enabled enabled      
+multipath-tools.service                    enabled enabled      
+multipathd.service                         enabled enabled      
+network-manager.service                    enabled enabled      
+networkd-dispatcher.service                enabled enabled      
+NetworkManager-dispatcher.service          enabled enabled      
+NetworkManager-wait-online.service         enabled enabled      
+NetworkManager.service                     enabled enabled      
+ondemand.service                           enabled enabled      
+open-iscsi.service                         enabled enabled      
+openvpn.service                            enabled enabled      
+pollinate.service                          enabled enabled      
+pppd-dns.service                           enabled enabled      
+rsync.service                              enabled enabled      
+rsyslog.service                            enabled enabled      
+setvtrgb.service                           enabled enabled      
+snap.lxd.activate.service                  enabled enabled      
+snapd.apparmor.service                     enabled enabled      
+snapd.autoimport.service                   enabled enabled      
+snapd.core-fixup.service                   enabled enabled      
+snapd.recovery-chooser-trigger.service     enabled enabled      
+snapd.seeded.service                       enabled enabled      
+snapd.service                              enabled enabled      
+snapd.system-shutdown.service              enabled enabled      
+ssh.service                                enabled enabled      
+sshd.service                               enabled enabled      
+switcheroo-control.service                 enabled enabled      
+syslog.service                             enabled enabled      
+systemd-networkd-wait-online.service       enabled enabled      
+systemd-networkd.service                   enabled enabled      
+systemd-pstore.service                     enabled enabled      
+systemd-resolved.service                   enabled enabled      
+systemd-timesyncd.service                  enabled enabled      
+ua-reboot-cmds.service                     enabled enabled      
+ubuntu-advantage.service                   enabled enabled      
+udisks2.service                            enabled enabled      
+ufw.service                                enabled enabled      
+unattended-upgrades.service                enabled enabled      
+whoopsie.service                           enabled enabled      
+wpa_supplicant.service                     enabled enabled      
+xrdp-sesman.service                        enabled enabled      
+xrdp.service                               enabled enabled      
+
+78 unit files listed.
+
+=== failed ===
+  UNIT                  LOAD   ACTIVE SUB    DESCRIPTION                           
+● fwupd-refresh.service loaded failed failed Refresh fwupd metadata and update motd
+
+LOAD   = Reflects whether the unit definition was properly loaded.
+ACTIVE = The high-level unit activation state, i.e. generalization of SUB.
+SUB    = The low-level unit activation state, values depend on unit type.
+
+1 loaded units listed.
+
+=== servicios running (conteo) ===
+46
