@@ -26,7 +26,7 @@ avis(){ printf '  \033[1;33m!\033[0m %s\n' "$1"; }
 mkdir -p "$DEST"
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "1/4 · ¿Queda trabajo sin subir a GitHub?"
+say "1/5 · ¿Queda trabajo sin subir a GitHub?"
 
 PROBLEMAS=0
 for repo in "$HOME/atriz_git/src/Atriz_rvr" "$HOME/atriz_migracion"; do
@@ -40,7 +40,34 @@ for repo in "$HOME/atriz_git/src/Atriz_rvr" "$HOME/atriz_migracion"; do
     echo "  ── $nombre (rama $rama)"
     [[ -n "$sucio" ]]      && { bad "cambios sin commitear:"; echo "$sucio" | sed 's/^/       /'; PROBLEMAS=1; } || ok "sin cambios pendientes"
     [[ "$sinsubir" == "0" ]] && ok "todo subido al remoto" || { bad "$sinsubir commit(s) SIN SUBIR"; PROBLEMAS=1; }
-    [[ "$stashes" == "0" ]]  && ok "sin stashes" || { bad "$stashes stash(es) — NO viajan al remoto"; PROBLEMAS=1; }
+    # Los stashes no viajan al remoto. Pero comprobamos si su contenido ya está
+    # preservado en algún commit alcanzable: si lo está, el stash es redundante y
+    # no hay nada en riesgo. Evita falsas alarmas.
+    if [[ "$stashes" == "0" ]]; then
+        ok "sin stashes"
+    else
+        redundantes=0; enriesgo=0
+        for i in $(seq 0 $((stashes-1))); do
+            todo_ok=1
+            while read -r f; do
+                [[ -z "$f" ]] && continue
+                h=$(git -C "$repo" show "stash@{$i}:$f" 2>/dev/null | git -C "$repo" hash-object --stdin 2>/dev/null)
+                [[ -z "$h" ]] && { todo_ok=0; break; }
+                # ¿existe ese blob exacto en alguna rama/tag?
+                if ! git -C "$repo" cat-file -e "$h" 2>/dev/null; then todo_ok=0; break; fi
+                if [[ -z "$(git -C "$repo" branch -a --contains \
+                        "$(git -C "$repo" log --all --format=%H --find-object="$h" -1 2>/dev/null)" \
+                        2>/dev/null)" ]]; then todo_ok=0; break; fi
+            done < <(git -C "$repo" stash show --name-only "stash@{$i}" 2>/dev/null)
+            if [[ $todo_ok -eq 1 ]]; then redundantes=$((redundantes+1)); else enriesgo=$((enriesgo+1)); fi
+        done
+        [[ $redundantes -gt 0 ]] && ok "$redundantes stash(es) redundante(s): su contenido ya está en un commit"
+        if [[ $enriesgo -gt 0 ]]; then
+            bad "$enriesgo stash(es) EN RIESGO — no viajan al remoto y se perderán"
+            git -C "$repo" stash list | sed 's/^/       /'
+            PROBLEMAS=1
+        fi
+    fi
 
     # los untracked se respaldan aunque no sean un problema
     git -C "$repo" status --porcelain | awk '$1=="??"{print $2}' | while read -r f; do
@@ -49,16 +76,20 @@ for repo in "$HOME/atriz_git/src/Atriz_rvr" "$HOME/atriz_migracion"; do
 done
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "2/4 · Copiar lo que NO está en ningún repositorio"
+say "2/5 · Copiar lo que NO está en ningún repositorio"
 
 if [[ -d "$HOME/.ssh" ]]; then
     cp -a "$HOME/.ssh" "$DEST/ssh"; chmod -R go-rwx "$DEST/ssh"
     ok "claves SSH → $DEST/ssh   (¡contienen material privado, no subir a git!)"
 fi
-if sudo -n true 2>/dev/null; then
-    sudo cp /etc/netplan/*.yaml "$DEST/" 2>/dev/null && ok "netplan copiado (contiene la PSK del WiFi)"
+if cp /etc/netplan/*.yaml "$DEST/" 2>/dev/null; then
+    ok "netplan copiado (contiene la PSK del WiFi)"
+elif sudo -n cp /etc/netplan/*.yaml "$DEST/" 2>/dev/null; then
+    ok "netplan copiado con sudo (contiene la PSK del WiFi)"
 else
-    bad "netplan necesita sudo — cópialo a mano: sudo cp /etc/netplan/*.yaml $DEST/"
+    avis "netplan necesita contraseña. Ejecuta ahora:"
+    avis "    sudo cp /etc/netplan/*.yaml $DEST/ && sudo chown \$USER $DEST/*.yaml"
+    avis "(no cuenta como trabajo en riesgo: es reconstruible, ver NETPLAN_OMITIDO.md)"
 fi
 cp "$HOME/.bashrc" "$DEST/bashrc" 2>/dev/null && ok ".bashrc copiado"
 { echo "# Estado del sistema justo antes del respaldo — $STAMP"; echo

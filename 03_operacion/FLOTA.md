@@ -265,6 +265,7 @@ Obligatorio en la imagen dorada:
 | Sin swap | Evita bloqueos y desgaste |
 | Timers `apt-daily` desactivados | 1 min 27 s + 1 min 14 s martilleando la tarjeta |
 | Sin `tracker-miner-fs` (no habrá, con Server) | Indexaba la tarjeta continuamente |
+| `chmod 600 /etc/netplan/*.yaml` | En 20.04 estaba en **`-rw-r--r--`**: la **PSK del WiFi era legible por cualquier usuario** del sistema. Con 16 robots y estudiantes con acceso, importa |
 
 **Presupuestar tarjetas de repuesto** y tener la imagen dorada lista para reflashear. Con 16
 robots, reflashear será rutina, no emergencia.

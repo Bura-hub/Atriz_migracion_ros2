@@ -101,6 +101,9 @@ el corchete, o el PID directamente.
 Raspberry Pi es el *firmware* quien asigna los pines. No es un fallo, y perseguirlo cuesta
 tiempo.
 
+**`/etc/netplan/*.yaml` suele venir con permisos `644`.** Contiene la PSK del WiFi en texto
+plano, así que cualquier usuario del sistema puede leerla. `chmod 600` en la imagen dorada.
+
 **Dos herramientas mienten.** `scripts/lydar/test_lidar.py` reporta «Tipo de LIDAR:
 Desconocido» con datos perfectamente válidos. Y `x2_parse.py` imprime una frecuencia de giro
 absurda (~480 Hz) porque mide intervalos de llegada de paquetes que salen a ráfagas del
