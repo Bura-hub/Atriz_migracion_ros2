@@ -58,3 +58,36 @@ iguales, NO se puede hacer una regla udev por numero de serie. Habra que usar
 la ruta fisica del puerto USB (ATTRS{devpath} o KERNELS=="1-1.2"), lo que
 implica que el lidar debe ir SIEMPRE en el mismo puerto USB de cada Pi.
 Alternativa: comprar adaptadores con serial unico (FTDI los tiene).
+
+MODELO CONFIRMADO POR EL USUARIO
+================================
+"YDLIDAR X2 Sensor LiDAR 2D de 360"
+
+Especificacion nominal del X2 frente a lo medido:
+
+  parametro          nominal        medido        veredicto
+  -----------------  -------------  ------------  ---------
+  barrido            360 grados     360           ok
+  muestras/s         3000           2998          ok
+  frecuencia giro    6 - 12 Hz      11.4 Hz       ok (extremo alto)
+  canal              unico          unico         ok
+  baudrate           115200         115200        ok
+  alcance            0.12 - 8 m     0.445-3.16 m  ok (limitado por la sala)
+
+MARGEN DE MEJORA PARA SLAM
+==========================
+El X2 entrega ~3000 muestras/s SIEMPRE, reparta como reparta. Eso significa
+que la resolucion angular depende INVERSAMENTE de la velocidad de giro:
+
+  11.4 Hz  ->  263 puntos/vuelta  ->  1.37 grados   <- estado actual
+  10.0 Hz  ->  300 puntos/vuelta  ->  1.20 grados
+   7.0 Hz  ->  428 puntos/vuelta  ->  0.84 grados   <- mejor para SLAM
+
+Girando mas despacio se obtienen mas puntos por vuelta y mapas mas nitidos, a
+cambio de refrescar menos veces por segundo. Para mapear un laboratorio fijo
+—donde el robot se mueve despacio— la resolucion angular importa mas que la
+frecuencia de refresco.
+
+Los launch del repo ya piden 'frequency: 10.0'. Conviene probar 7 Hz en la
+Fase 4 y comparar la calidad del mapa. PENDIENTE DE VERIFICAR si el driver
+consigue realmente fijar la velocidad del motor en el X2 de canal unico.
