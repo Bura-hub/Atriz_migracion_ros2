@@ -4,7 +4,72 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
-## 2026-07-29 — Auditoría inicial y creación del repositorio
+## 2026-07-29 (tarde) — Fase 0.1 completada y auditoría corregida
+
+**Fase 0.1 — completada y verificada sobre el robot real.**
+
+### Lo más importante: el clon local estaba desactualizado
+
+`~/atriz_git/src/Atriz_rvr` estaba **5 commits por detrás de GitHub** y **nunca se le
+había hecho `git fetch`**. La auditoría de la mañana se hizo sobre código de octubre
+de 2025, ignorando trabajo de marzo de 2026. **Tres hallazgos resultaron erróneos** —
+ver «Correcciones tras verificar en banco» en el informe.
+
+Lección para el resto del proyecto: `git fetch` **antes** de auditar nada.
+
+### Estructura de ramas
+
+- `main` local puesto al día con `origin/main` (`659364c`), fast-forward limpio.
+- Rama nueva **`migracion-ros2`** creada **desde `origin/main`**, no desde el local obsoleto.
+- Los 3 scripts de estudiantes sin commitear quedaron en `stash@{0}`.
+- **`migracion-ros2` aún NO está subida a GitHub.**
+
+### UART reparado y verificado
+
+- `dtoverlay=disable-bt` + `enable_uart=1` en `/boot/firmware/usercfg.txt`
+- `/etc/udev/rules.d/99-rvr.rules` → `/dev/rvr` → `ttyAMA0` (PL011)
+- `bluetooth.service` deshabilitado (no había adaptador registrado)
+- Verificado con paquetes crudos: el RVR responde con checksum válido
+
+Falsa alarma que costó tiempo: `uart0_pins` queda con `brcm,pins` vacío tras
+`disable-bt`. Decompilando el overlay se ve que **es intencional** — el firmware
+asigna los pines, no el kernel. Los cero bytes iniciales eran simplemente que
+**el robot estaba dormido**.
+
+### Odometría: de 3.85 Hz a 16.59 Hz con una línea
+
+| `interval` | Frecuencia | σ |
+|---|---|---|
+| 250 ms (original) | 3.85 Hz | 1.7 ms |
+| 100 ms | 9.94 Hz | 2.4 ms |
+| **60 ms (elegido)** | **16.59 Hz** | **2.8 ms** |
+| 50 ms | no arranca | — |
+
+El firmware cuantiza a múltiplos de 20 ms. Medido también a nivel del SDK sin ROS:
+resultado **idéntico**, lo que demuestra que **el anti-patrón del event loop NO era
+el cuello de botella**, como afirmaba la auditoría.
+
+Cierra el riesgo «115200 baud no aguanta 20 Hz»: 125 paquetes/s a 60 ms, holgado.
+
+### Commits en `migracion-ros2`
+
+```
+24c7749  Sensores: bajar el intervalo de streaming de 250 ms a 60 ms
+67c8776  UART: usar /dev/rvr en lugar de /dev/ttyS0
+```
+
+### Pendiente
+
+1. **Subir `migracion-ros2`** a GitHub (requiere token).
+2. **Fase 0.3 (bloqueante)** — imagen `dd` de la microSD antes de reflashear.
+3. Prueba de estabilidad larga: `/odom` sin cortes durante 10+ min seguidos.
+4. **Sin medir:** el impacto de las 48 llamadas a `asyncio.run()` en la latencia de
+   `cmd_vel`. No afirmar nada sobre ello sin datos.
+5. **Sin verificar:** que la parada de emergencia de la web esté rota.
+
+---
+
+## 2026-07-29 (mañana) — Auditoría inicial y creación del repositorio
 
 **Fase 00 — completada.** Repositorio publicado en
 <https://github.com/Bura-hub/Atriz_migracion_ros2> (privado), commit `f714a74`.

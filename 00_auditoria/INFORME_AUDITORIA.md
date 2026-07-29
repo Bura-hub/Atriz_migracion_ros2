@@ -1,6 +1,7 @@
 # Informe de auditoría — Sistema Atriz / Sphero RVR
 
 **Fecha:** 29 de julio de 2026
+**Revisado:** 29 de julio de 2026 — ver [Correcciones](#correcciones-tras-verificar-en-banco) al final. **Léelas antes que nada: tres hallazgos de este informe resultaron erróneos.**
 **Alcance:** Raspberry Pi 4B con Ubuntu 20.04 + ROS Noetic, repositorio `Atriz_rvr`, plataforma web `Atriz_web_server` (rama `pruebas`), y el `MANUAL SPHERO.docx` con el que se montó el sistema.
 **Motivo:** el sistema se percibe lento e ineficiente. Se quiere determinar si existe una base mejor antes de escalar a 16 robots en un laboratorio remoto.
 
@@ -379,6 +380,84 @@ El manual además deja como pendientes sin desarrollar: automatización de arran
 **Sobre migrar a ROS 2.** El análisis del SDK (§4.5) elimina el principal riesgo: la parte difícil es agnóstica a ROS y está limpia para Python 3.12. Y todo lo que hoy *falta* —driver YDLIDAR, SLAM, navegación, rosbridge, multi-robot— está mejor soportado en ROS 2 que en ROS 1. Lo único que se pierde, la capa C++ `ros_control`, **ya es código muerto que no se ejecuta**.
 
 El plan de migración derivado de este informe está en [`../01_plan/PLAN_MIGRACION_ROS2.md`](../01_plan/PLAN_MIGRACION_ROS2.md).
+
+---
+
+## Correcciones tras verificar en banco
+
+El informe original se escribió por **análisis estático** sobre un clon local que, se descubrió después, estaba **5 commits por detrás de GitHub** y en el que **nunca se había ejecutado `git fetch`**. Al contrastar contra `origin/main` (`659364c`) y, sobre todo, al **medir sobre el robot real**, tres hallazgos resultaron equivocados.
+
+Se dejan aquí en lugar de borrarlos: saber qué falló el análisis estático es tan útil como el análisis mismo.
+
+### ❌ C1 — «Odometría a ~4 Hz **con jitter alto**» por el anti-patrón del event loop
+
+**Lo que decía §4.2:** que el bucle `while` + `run_until_complete()` + `asyncio.sleep(0.1)` procesaba los callbacks del SDK a ráfagas, causando latencia y jitter.
+
+**Lo medido:** la frecuencia era correcta (3.85 Hz), pero **el jitter es de σ = 1.7 ms** sobre una mediana de 259.9 ms. Es extraordinariamente estable, no errático.
+
+**Y la atribución era falsa.** Midiendo a nivel del SDK, **sin ROS de por medio**, el resultado es idéntico:
+
+| Configuración | Frecuencia | Mediana | σ |
+|---|---|---|---|
+| `interval=250`, SDK solo (sin ROS) | 3.85 Hz | 260.0 ms | 1.1 ms |
+| `interval=250`, a través del nodo ROS | 3.85 Hz | 259.9 ms | 1.7 ms |
+
+El nodo no añadía prácticamente nada. Los 4 Hz venían **solo** de `sensor_control.start(interval=250)`.
+
+**Consecuencia práctica — el arreglo era una línea, no una reescritura.** Barrido del intervalo con los 8 sensores del driver:
+
+| `interval` | Real | Frecuencia | σ |
+|---|---|---|---|
+| 250 ms | 260.0 ms | 3.85 Hz | 1.7 ms |
+| 200 ms | 199.9 ms | 5.00 Hz | 0.6 ms |
+| 150 ms | 160.1 ms | 6.25 Hz | 0.8 ms |
+| 100 ms | 100.1 ms | 9.94 Hz | 2.4 ms |
+| **60 ms** | **60.1 ms** | **16.59 Hz** | **2.8 ms** |
+| 50 ms | — | el streaming **no arranca** | — |
+
+El firmware del RVR **cuantiza a múltiplos de 20 ms** (250 → 260 reales, 150 → 160). Por debajo de 60 ms no arranca.
+
+Y la prueba definitiva: **el nodo ROS transmite los 16.59 Hz sin degradarlos** (σ 2.8 ms). Si el event loop fuera el cuello de botella, a 60 ms se habría notado. No se nota.
+
+> **Riesgo del plan cerrado.** El plan listaba como riesgo «115200 baud no aguanta 20 Hz». Medido: 125 paquetes/s a 60 ms, holgado para ~11.5 KB/s. Los seis sensores de odometría van a 16.5 Hz; `ambient_light` y `color_detection`, más lentos, se quedan en 13 Hz.
+>
+> **La reestructuración del event loop deja de ser prioritaria.** Sigue siendo deseable en el port a `rclpy` por limpieza y por las 48 llamadas a `asyncio.run()` en callbacks, pero **el impacto de esas 48 llamadas en la latencia de `cmd_vel` NO se ha medido** y no debe afirmarse sin datos.
+
+### ❌ C2 — «`SetPosAndYaw.srv` no está registrado en `add_service_files()`»
+
+**Falso en `origin/main`.** Está registrado (línea 8 de `atriz_rvr_msgs/CMakeLists.txt`) y `_SetPosAndYaw.py` se genera correctamente. Era un artefacto del código obsoleto. **Hallazgo retirado.**
+
+### ❌ C3 — «No hay integración con el LIDAR»
+
+**Impreciso.** En `origin/main` existen `obstacle_avoidance.py` (300 líneas; se suscribe a `/scan`, publica `/cmd_vel`, escucha `/is_emergency_stop`) y `rvr_with_lidar_autonomous.launch`.
+
+**Lo que sí sigue siendo cierto** —y es un hecho del sistema, no del repositorio— es que el paquete `ydlidar_ros_driver` **no está instalado en esta Pi**, así que ese launch no puede arrancar. Y el árbol TF sigue partido.
+
+### ⚠️ C4 — Los números de línea de todo el informe
+
+`Atriz_rvr_node.py` creció 160 líneas entre el clon local y `origin/main`. **Todas las referencias `fichero:línea` del informe apuntan al código antiguo.** Las verificadas contra `origin/main`:
+
+| Hallazgo | Línea en `origin/main` |
+|---|---|
+| `child_frame_id='rvr_base_link'` | 99 |
+| `check_if_need_to_send_msg('gyroscope')` duplicado | 935 y 940 |
+| `sensor_control.start(interval=...)` | 1313 |
+| `wait_until_motion_complete()` sin timeout | 1568 |
+| Bucle principal | 1661–1672 |
+
+### ✅ Lo que sí se confirmó contra `origin/main`
+
+Bucle principal con `run_until_complete` dentro del `while`; `asyncio.run()` en callbacks (**y empeoró: de ~10 a 48 ocurrencias**); doble llamada deg/s + rad/s en `gyroscope_handler`; `wait_until_motion_complete()` sin timeout; TF partido entre `rvr_base_link` y `base_link`; `/dev/ttyS0` hardcodeado en los mismos sitios; y el driver del YDLIDAR ausente del sistema.
+
+**Hallazgo nuevo, no presente en el informe original:** `rvr_fw_check_async.py` captura `except (asyncio.TimeoutError, Exception)` y **continúa en silencio**. El resultado es que el arranque *parece* correcto aunque el RVR no responda: se pierden 10 s en dos timeouts y no se advierte de nada. Es un falso positivo que puede costar horas de diagnóstico — de hecho costó un rato durante esta verificación.
+
+### Sobre el UART — una falsa alarma que conviene documentar
+
+Tras aplicar `dtoverlay=disable-bt` se observó que `uart0_pins` queda con `brcm,pins` **vacío** (0 bytes) en el device-tree, y que el mini-UART pasa a `disabled`. Se interpretó como que ningún UART quedaba enrutado a GPIO14/15.
+
+**Era una falsa alarma.** Al decompilar el overlay (`dtc -I dtb -O dts disable-bt.dtbo`) se ve que **vacía `uart0_pins` a propósito**: en Raspberry Pi es el *firmware* quien asigna los pines al ver `enable_uart=1`, y el kernel no debe tocarlos. Verificado en la práctica: con el robot encendido, el RVR responde con paquetes de checksum válido sobre `/dev/rvr` → `ttyAMA0` (PL011).
+
+**La causa real de los «cero bytes» era que el robot estaba dormido.** Encenderlo lo resolvió.
 
 ---
 
