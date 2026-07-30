@@ -88,7 +88,7 @@ mini-UART -> disabled
 snapd.service : inactive
 snapd.socket  : inactive
 servicios en ejecucion: 14   (antes del arreglo: 15)
-procesos de usuario   : 0
+procesos de usuario   : 40   (hilos de kernel: 123, ps -e total: 163)
 # El verificador del power-save ya NO da falso positivo:
 #   ✓ verificado: Power save: off
 # Y el de snapd confirma el efecto real:
