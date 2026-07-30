@@ -51,35 +51,54 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 
 ## El siguiente paso, exacto
 
-**Etapa E1 — instalar ROS 2 Jazzy.** El go/no-go ya está pasado, así que esto ya no es
-arriesgado. **Manual, capítulo 5.2** — y ese capítulo sigue **📝 NO VERIFICADO**: corrígelo
-sobre la marcha.
+**Fase 2 del plan — portar el driver a `rclpy`.** Es el trabajo grande, y merece su propia
+sesión de trabajo.
 
-```bash
-sudo apt install -y software-properties-common curl
-sudo add-apt-repository universe -y
-sudo curl -sSL -o /usr/share/keyrings/ros-archive-keyring.gpg \
-  https://raw.githubusercontent.com/ros/rosdistro/master/ros.key
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] \
-http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
-  | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
-sudo apt update
-sudo apt install -y ros-jazzy-ros-base ros-dev-tools
-```
+🔴 **Hasta que esto se haga, el driver del robot NO se ha ejecutado nunca en este sistema — y
+no puede.** No es «pendiente de probar», es **imposible**: `Atriz_rvr_node.py` es ROS 1.
+Medido el 2026-07-30 sobre `migracion-ros2` (`24c7749`):
 
-⚠️ **`ros-base`, NO `desktop`** — son 236 paquetes con Gazebo y RViz en un robot sin pantalla.
-⚠️ **COMPROBAR el método de las claves GPG** contra la documentación oficial: cambia entre
-versiones, y `apt-key add` está obsoleto.
+| | |
+|---|---|
+| `Atriz_rvr_node.py` | **1704 líneas** |
+| referencias a `rospy.*` | **99** (y `rospy` no existe en ROS 2) |
+| llamadas a `asyncio.run()` | **48**, cada una crea y destruye un event loop entero |
+| paquetes | 3, los tres **catkin** — no `ament` |
+| interfaces | 6 `.msg` + 20 `.srv`, todas registradas correctamente |
 
-Después, `ROS_DOMAIN_ID` y el entorno (cap. 5.3), y luego la **Fase 2 del plan**: portar el
-driver a `rclpy`, que incluye el **watchdog de `cmd_vel`** (hoy no existe) y corregir
-`imu.angular_velocity` a rad/s.
+`colcon build` fallará, y **debe** fallar. Lo que sí está validado es el **SDK** (Etapa D, 🟢
+GO): es la pieza insustituible, la única que sabe hablar con el RVR. El driver es código propio
+y por tanto reescribible.
 
-**Verifica con:**
-```bash
-bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
-```
-Su bloque 8 ya sabe comprobar ROS 2 y avisará si se instaló `desktop` por error.
+**Lo que el port tiene que incluir** (plan, Fase 2, apartados 2.1 a 2.4):
+
+1. **Limpieza previa.** Borrar lastre en vez de portarlo: los `.cpp` y `src/rvr++/`
+   (`hardware_interface` que nunca se ejecutó), el paquete `atriz_rvr_serial`, y
+   `scripts/rvr-ros.py` — confirmado el 2026-07-30 que **no tiene bit de ejecución**.
+2. **Los 3 paquetes catkin → `ament`**, y `atriz_rvr_msgs` a `rosidl`.
+3. **El arreglo estructural.** Hoy el event loop de asyncio solo avanza en ráfagas dentro de un
+   `while not rospy.is_shutdown()`. Pasa a vivir en su propio hilo, y los comandos entran con
+   `asyncio.run_coroutine_threadsafe` en lugar de crear un loop por cada `cmd_vel`.
+4. 🔴 **Watchdog de `cmd_vel` — seguridad, y hoy no existe.** Si cae la red, el robot sigue
+   ejecutando el último comando indefinidamente. Debe parar los motores si no llega `cmd_vel`
+   en 500 ms.
+5. 🔴 **`imu.angular_velocity` a rad/s.** Hoy va en deg/s y viola REP-103, lo que degrada la
+   calidad de SLAM. Y `gyroscope_handler` publica **dos veces**, en unidades distintas.
+6. Parametrizar `serial_port` (por defecto `/dev/rvr`), `baud`, los frames y
+   `streaming_interval_ms` con `declare_parameter`. Nada hardcodeado.
+
+**Lo que NO hay que volver a tocar:** el `interval=60` ya está aplicado (16.59 Hz medidos), y
+el puerto ya es `/dev/rvr`. Ambos verificados hoy en el SDK.
+
+**Después del port viene la Fase 3, el URDF**, que el plan llama **el bloqueante raíz**: el
+árbol TF está partido en dos (`odom → rvr_base_link` por un lado, el LIDAR colgando de
+`base_link` por otro) y sin un árbol conectado SLAM es imposible por bien que funcione el
+driver.
+
+⚠️ **Y antes de crear la imagen dorada:** quitar `ROS_DOMAIN_ID` de `~/.bashrc`. Está puesto
+ahí a mano porque `atriz-first-boot` no está instalado todavía, pero el `.bashrc` se lee
+**después** de `/etc/profile.d/`, así que clonar tal cual dejaría **los 16 robots en el dominio
+1** sin que nada avise. `verificar_robot.sh` ya comprueba esa colisión.
 
 ### Ya hecho, no lo repitas
 

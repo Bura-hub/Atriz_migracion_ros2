@@ -442,9 +442,14 @@ real y se corrigieron sobre la marcha. El 3.4 estaba equivocado en su suposició
 (daba por hecho que existiría `usercfg.txt`) y el capítulo 4 escondía un paso que no hacía
 nada. Ambas correcciones están donde ocurrieron, no en un mensaje.
 
-**El capítulo 5 sigue 📝 NO VERIFICADO** — es el siguiente, y con él la Etapa D. Al recorrerlo,
-**corrige el manual en el mismo momento** y cambia su marca a ✅ con la fecha. No en un mensaje
-de chat: en el repositorio.
+**El capítulo 5 también quedó ✅ VERIFICADO** (2026-07-30), y también hubo que corregirlo: su
+apartado 5.5 pedía `ros2 run demo_nodes_cpp talker`, y `demo_nodes_cpp` **no viene en
+`ros-base`**. Se sustituyó por una prueba equivalente con `ros2 topic pub`/`echo`/`hz`.
+
+**Los capítulos que siguen NO ESCRITOS son el 6 y siguientes** (driver en `rclpy`, URDF, SLAM,
+web, flota). Se redactan al ejecutar las fases 2 a 6 del plan, capítulo a capítulo, tras
+verificar cada paso. Al hacerlo, **corrige el documento en el mismo momento** y marca ✅ con la
+fecha. No en un mensaje de chat: en el repositorio.
 
 Y la regla que hizo falta en esta instalación, por si sirve en la siguiente: **un cambio por
 reinicio.** Si aplicas dos cosas y algo se rompe, no sabrás cuál fue.
