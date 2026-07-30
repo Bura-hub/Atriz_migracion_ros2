@@ -168,7 +168,7 @@ referencia de **ambos** sistemas.
 | 1 | Enlace UART | ✅ verificado en 20.04 **y en 24.04** |
 | 3 | Flasheo de 24.04, `cmdline.txt`, `config.txt` | ✅ **verificado** — dejó de ser NO VERIFICADO |
 | 4 | Higiene del SO | ✅ **verificado** — dejó de ser NO VERIFICADO |
-| 5 | ROS 2 Jazzy y workspace | 📝 **sigue NO VERIFICADO** — es lo próximo |
+| 5 | ROS 2 Jazzy y workspace | ✅ **verificado 2026-07-30** — 201 paquetes, `ros2 doctor` 5/5 |
 | 8 | YDLIDAR X2 | ✅ hardware verificado en ambos; driver ROS pendiente |
 
 Los capítulos 3 y 4 se recorrieron y **se corrigieron sobre la marcha**, que es lo que pedía

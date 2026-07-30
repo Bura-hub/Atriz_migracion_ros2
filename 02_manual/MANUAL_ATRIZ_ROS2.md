@@ -20,7 +20,7 @@
 > | 3 | Flasheo de Ubuntu Server 24.04 | ✅ **verificado 2026-07-30** |
 > | 4 | Higiene del SO (headless, governor, journal) | ✅ **verificado 2026-07-30** |
 > | 5 | ROS 2 Jazzy y workspace colcon | ✅ **verificado 2026-07-30** (5.4 en espera del port) |
-> | 6 | Driver del RVR en `rclpy` | ⏳ no escrito |
+> | 6 | Driver del RVR en `rclpy` | ⏳ **no escrito — EN CURSO** |
 > | 7 | URDF y árbol TF | ⏳ no escrito |
 > | 8 | YDLIDAR X2 | 🟡 **hardware verificado en 20.04 y 24.04**; driver ROS pendiente |
 > | 9 | SLAM y Nav2 | ⏳ no escrito |
