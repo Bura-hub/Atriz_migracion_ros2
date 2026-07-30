@@ -8,6 +8,9 @@ id_ed25519*
 !.env.example
 *netplan*.yaml
 known_hosts
+.git-credentials
+*.token
+authorized_keys
 
 # Imágenes de respaldo (demasiado grandes para git)
 *.img

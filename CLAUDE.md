@@ -100,14 +100,41 @@ el corchete, o el PID directamente.
 **`uart0_pins` vacío tras `disable-bt` es NORMAL.** El overlay lo vacía a propósito: en
 Raspberry Pi es el *firmware* quien asigna los pines. No es un fallo, y perseguirlo cuesta
 tiempo.
+→ **Atajo para saber si el overlay está en efecto, sin `sudo`:**
+`cat /proc/device-tree/aliases/uart0` debe dar `/soc/serial@7e201000` (PL011). Si da
+`7e215040`, sigues en el mini-UART.
 
-**`/etc/netplan/*.yaml` suele venir con permisos `644`.** Contiene la PSK del WiFi en texto
-plano, así que cualquier usuario del sistema puede leerla. `chmod 600` en la imagen dorada.
+**`dmesg` necesita `sudo` en Ubuntu 24.04.** `kernel.dmesg_restrict=1`. Sin `sudo` responde
+`read kernel buffer failed: Operation not permitted`, que leído con prisa parece que el UART
+no existe. Es un permiso, no un fallo de hardware.
 
-**Dos herramientas mienten.** `scripts/lydar/test_lidar.py` reporta «Tipo de LIDAR:
-Desconocido» con datos perfectamente válidos. Y `x2_parse.py` imprime una frecuencia de giro
-absurda (~480 Hz) porque mide intervalos de llegada de paquetes que salen a ráfagas del
-buffer USB; el valor real se obtiene contando vueltas.
+**En 24.04 NO existe `usercfg.txt`, y crearlo no sirve de nada.** Ubuntu abandonó el esquema
+de tres ficheros: `pibootctl` ya no se instala y `config.txt` no tiene ninguna línea
+`include`. Se escribe en `/boot/firmware/config.txt`, y **obligatoriamente bajo `[all]`** —
+la imagen termina en `[cm4]`, así que lo añadido al final sin esa cabecera no se aplica en un
+Pi 4. Existe en el fichero y no hace nada. Detalle en el manual, cap. 3.4.
+
+**`iw` no viene instalado en Ubuntu Server 24.04.** Importa porque es lo que apaga el
+power-save del WiFi. `fase_1_higiene_so.sh` lo instala; si escribes un `ExecStart` con
+`iw ... || true`, el servicio queda en verde sin hacer nada, para siempre.
+
+**`unattended-upgrades` viene ACTIVO y actualiza el kernel solo.** Durante la instalación del
+2026-07-30 metió 8 lotes de paquetes en 4 minutos, incluido `linux-image-6.8.0-1060-raspi`
+sobre un sistema corriendo el 1047. **Cierra las actualizaciones y reinicia antes de tocar el
+device-tree**, o un mismo reinicio aplicará dos cambios y no podrás atribuir un fallo
+posterior. `fase_1_higiene_so.sh` lo deshabilita.
+
+**`/etc/netplan/*.yaml` puede venir con permisos `644`** — contiene la PSK del WiFi en texto
+plano. En 20.04 estaba así; en la imagen de **Server 24.04 ya viene `600`**. Compruébalo, no
+lo asumas en ninguna de las dos direcciones. `fase_1_higiene_so.sh` lo corrige si hace falta.
+
+**Una herramienta miente** (antes eran dos). `scripts/lydar/test_lidar.py` (en `Atriz_rvr`)
+reporta «Tipo de LIDAR: Desconocido» con datos perfectamente válidos — mira «bytes recibidos»
+y «tasa de datos», no el tipo.
+✅ `x2_parse.py` **ya está corregido** (2026-07-30): imprimía frecuencias de giro absurdas
+(480 Hz, luego 741 Hz) porque promediaba intervalos de llegada de paquetes que salen a
+ráfagas del buffer USB. Ahora cuenta vueltas y da 11.48 Hz. La lección que queda:
+**un timestamp tomado al leer de un buffer no mide cuándo ocurrió el evento.**
 
 ---
 
@@ -145,8 +172,26 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | RAM del driver | ~53 MB, plana | sin fugas en 12 min |
 | Temperatura | 55–58 °C | con el driver activo |
 | Puerto del RVR | `/dev/rvr` → `ttyAMA0` (PL011) | |
-| Puerto del LIDAR | `/dev/ttyUSB0` (CP2102) | |
+| Puerto del LIDAR | `/dev/ttyUSB0` (CP2102, `ID_SERIAL_SHORT=0001`) | |
 | Firmware del RVR | 9.1.462 (Nordic) | |
+
+**Línea base de Ubuntu Server 24.04 recién instalado** (2026-07-30, *antes* de la higiene del
+SO). Evidencia cruda en `00_auditoria/evidencia_24_04/`:
+
+| Métrica | 20.04 (sistema viejo) | 24.04 recién instalado | Objetivo tras la higiene |
+|---|---|---|---|
+| Arranque, userspace | 29.5 s | **1 min 39 s** (`cloud-final` = 1 min 7 s) | < 15 s |
+| Tareas | 273 | **187** | < 120 |
+| `io.full total` | 47 s / 42 min | **74.6 s / 34 min** | mucho menor |
+| Journal | 784 MB | 17.7 MB | decenas de MB |
+| Governor | `ondemand` | `ondemand` | `performance` |
+| Default target | `graphical.target` | `graphical.target` (sí, en Server) | `multi-user.target` |
+| Temperatura | 59.9 °C | 63.7 °C, `throttled=0x0` | — |
+| `iw` | instalado | **no instalado** | instalado |
+
+⚠️ **No compares 24.04 contra la línea base de 20.04.** Son dos sistemas distintos:
+`00_auditoria/evidencia/` es el viejo, `00_auditoria/evidencia_24_04/` el nuevo. Mezclarlos es
+lo que produce deriva entre documentación y realidad.
 
 **Límites del hardware, no negociables:**
 - El firmware del RVR **no baja de `interval=60` ms** (16.5 Hz) y cuantiza a múltiplos de 20 ms.
@@ -191,4 +236,27 @@ cat TRASPASO.md | head -60          # estado y siguiente paso
 git -C ~/atriz_migracion log --oneline -10
 git -C ~/atriz_ws/src/Atriz_rvr branch -vv    # (o ~/atriz_git si aún es ROS 1)
 ls -l /dev/rvr /dev/ttyUSB0         # ¿está el hardware?
+lsb_release -ds; uname -r           # ¿20.04+Noetic o 24.04+Jazzy? ¿qué kernel?
+cat /proc/device-tree/aliases/uart0 # ¿está el PL011 en GPIO14/15?
 ```
+
+### Antes de subir nada: comprueba que PUEDES subir
+
+En un sistema recién instalado no hay credenciales de git, y el repositorio es privado.
+`git fetch` falla con `could not read Username` y los commits se quedan solo en la tarjeta —
+exactamente el riesgo que este proyecto ya sufrió con un stash.
+
+```bash
+git -C ~/atriz_migracion fetch origin && echo "OK: hay credenciales"
+```
+
+Si falla, es la persona quien lo arregla (el token es un secreto, no se pone en el repo ni se
+teclea en un comando que quede en el historial):
+
+```bash
+git config --global credential.helper 'store --file ~/.git-credentials'
+cd ~/atriz_migracion && git fetch origin   # Username: Bura-hub · Password: el PAT
+chmod 600 ~/.git-credentials
+```
+
+`fase_0_3_respaldo.sh` respalda `~/.git-credentials` desde el 2026-07-30, para no repetirlo.

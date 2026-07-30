@@ -13,10 +13,12 @@
 
 ### 1. 🔴 Los adaptadores USB del LIDAR no tienen serial único
 
+Confirmado dos veces, en 20.04 y en 24.04, sobre la misma unidad:
+
 ```
-$ dmesg | grep -i cp210
-usb 1-1.2: Product: CP2102 USB to UART Bridge Controller
-usb 1-1.2: SerialNumber: 0001          ← genérico
+$ udevadm info -q property -n /dev/ttyUSB0 | grep -E 'ID_SERIAL_SHORT|ID_PATH='
+ID_SERIAL_SHORT=0001                                        ← genérico, inservible
+ID_PATH=platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.2:1.0   ← el puerto físico, SÍ sirve
 ```
 
 **Consecuencia:** si los 16 adaptadores reportan `0001`, **no se puede crear una regla udev
@@ -27,15 +29,35 @@ USB serie, el orden de enumeración depende del arranque.
 
 | Opción | Coste | Inconveniente |
 |---|---|---|
-| **a) Regla udev por ruta física del puerto** (`KERNELS=="1-1.2"`) | 0 € | El lidar debe ir **siempre en el mismo puerto USB** de cada Pi. Documentar con foto |
+| **a) Regla udev por ruta física del puerto** | 0 € | El lidar debe ir **siempre en el mismo puerto USB** de cada Pi. Documentar con foto |
 | **b) Adaptadores FTDI con serial único** | ~5 €/robot | Hay que comprobar que expone **DTR** (el X2 alimenta el motor por ahí) |
 | **c) Reprogramar el serial del CP2102** | 0 € | Requiere la herramienta de Silicon Labs y un paso manual por robot |
 
 **Recomendación:** (a) para empezar, porque es gratis y funciona. Pasar a (b) si el
 mantenimiento se vuelve molesto.
 
+Para (a), la clave es **`ID_PATH`**, que sí identifica el puerto de forma única y estable.
+Regla propuesta para `/etc/udev/rules.d/99-ydlidar.rules`:
+
+```
+# /dev/ydlidar -> el adaptador USB-serie conectado al puerto físico de SIEMPRE.
+# No se puede usar el serial: los CP2102 genéricos reportan todos "0001".
+# Obtén el ID_PATH de TU robot con:
+#     udevadm info -q property -n /dev/ttyUSB0 | grep ID_PATH=
+SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="10c4", ENV{ID_MODEL_ID}=="ea60", \
+  ENV{ID_PATH}=="platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.2:1.0", \
+  SYMLINK+="ydlidar", MODE="0660", GROUP="dialout"
+```
+
+> 📝 **NO VERIFICADO.** La regla está deducida del `ID_PATH` medido, pero **no se ha
+> escrito ni probado** todavía. Se hace en la Fase 3, junto con el driver ROS del X2.
+> Al probarla, comprobar además que el `ID_PATH` es idéntico en dos robots distintos con
+> el lidar en el mismo puerto físico — si no lo fuera, la regla no es clonable y habría que
+> generarla en el primer arranque (`first-boot.sh`) en lugar de meterla en la imagen dorada.
+
 > **Verificar primero:** puede que los 16 adaptadores **no** sean todos `0001`. Enchufa dos
-> y compara `dmesg | grep SerialNumber` antes de decidir.
+> y compara `udevadm info -q property -n /dev/ttyUSB0 | grep ID_SERIAL_SHORT` antes de
+> decidir. (Usa `udevadm`, no `dmesg`: en 24.04 `dmesg` requiere `sudo`.)
 
 ### 2. El techo de la telemetría es el firmware del RVR, no la red ni el UART
 
