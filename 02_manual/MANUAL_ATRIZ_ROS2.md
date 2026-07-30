@@ -2108,29 +2108,40 @@ Coste con todo en marcha: driver 33.6 %, SLAM 5.0 %, LIDAR 2.6 %, RSP 0.5 %; 64.
 
 ### 9.12 ⚠️ Lo que queda abierto tras cerrar la fase
 
-🟡 **La deriva de la localización NO está caracterizada, y las dos medidas que hay se
-contradicen.** Misma prueba, mismo binario, el mismo día:
+✅ **La deriva está CARACTERIZADA, y es pequeña** (2026-07-31, 6 corridas con las variables
+controladas). Evidencia: `14_deriva_slam_caracterizada.txt`.
 
-| Corrida | Recorrido | Deriva al volver al inicio | Espacio |
-|---|---|---|---|
-| 1ª (`--pasos 3`) | 262.5 cm | **87.8 cm y 10.9°** | hueco justo, el robot rozó obstáculos |
-| 2ª (`--pasos 2`) | 178.5 cm | **0.9 cm y 3.1°** | 2 m × 0.8 m despejados |
+| Recorrido | n | Deriva mediana | Peor caso | σ |
+|---|---|---|---|---|
+| ~159 cm | 3 | **1.0 cm** y 1.3° | 2.7 cm | 1.0 cm |
+| ~237 cm | 3 | **2.7 cm** y 2.3° | 3.2 cm | 0.6 cm |
 
-**Las dos son reales y ninguna se presenta como «la buena».** En ambas el mapa crece y es
-utilizable, pero con dos órdenes de magnitud de diferencia no se puede decir todavía si la
-pose vale para Nav2. **Hay que repetir la prueba varias veces en espacio despejado antes de
-atribuir nada** — es la regla nº 4 del proyecto, y saltársela aquí sería fácil.
+**El error de posición cabe dentro de una celda del mapa** (5 cm) y es un orden de magnitud
+menor que el radio del robot (~11 cm). Crece con la distancia de forma coherente —0.63 % del
+recorrido en las cortas, 1.14 % en las largas—, que es el comportamiento normal de una
+odometría corregida por emparejado de barridos, no el patrón de un fallo.
 
-Tres sospechas, y **no se ha aislado cuál**:
+Y el mapa es **repetible**: las tres corridas largas dieron +2347, +2321 y +2334 celdas — un
+rango de 26 celdas sobre 2334.
 
-- rozar obstáculos en la primera corrida, que es la diferencia más evidente;
-- la inclinación de ~8° hace que el LIDAR barra un plano inclinado, y la geometría que ve
-  cambia al moverse de forma que el emparejado no puede reconciliar;
-- la velocidad de `/odom` sigue siendo basura, así que `slam_toolbox` no tiene una
-  estimación decente del movimiento entre barridos.
+🔴 **Los 87.8 cm de la primera corrida de la Fase 4 fueron una anomalía.** La corrida larga de
+aquí recorre 237 cm, comparable a los 262 cm de aquella, y sale **30 veces mejor**. La
+diferencia conocida es que aquella se hizo en un hueco demasiado justo y el robot rozó
+obstáculos.
 
-🔴 **La inclinación de ~8°**, ahora confirmada por **tres vías independientes** (árbol TF,
-Roll de la IMU y acelerómetro). Causa sin determinar — es lo siguiente que mirar.
+⚠️ **No se reprodujo la anomalía a propósito**, así que «rozar obstáculos» sigue siendo la
+explicación más probable, **no una causa demostrada**. Lo que sí queda demostrado es que no es
+el comportamiento normal del sistema.
+
+✅ **Consecuencia: la localización ya NO es un bloqueante para Nav2.** De los tres que había,
+queda uno menos.
+
+🔴 **La inclinación de ~8°**, confirmada por **tres vías independientes** (árbol TF, Roll de la
+IMU y acelerómetro). Causa sin determinar.
+
+📝 Los resultados de deriva **acotan su gravedad**: con la inclinación presente, la deriva es de
+2.7 cm. Así que no está arruinando el emparejado. Sigue habiendo que resolverla para Nav2
+—por REP-105 `odom → base_footprint` debería ser plana— pero **no es urgente**.
 
 🔴 La **velocidad de `/odom`** sigue siendo basura. No bloquea SLAM, sí bloquea Nav2.
 

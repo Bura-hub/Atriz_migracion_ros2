@@ -30,6 +30,7 @@ Sirven para responder «¿es culpa del robot o de mi código?», que es la prime
 | 🚗 `medir_watchdog_ros2.py` | ¿frena el watchdog al cortar `cmd_vel`? Mide **desplazamiento**, no velocidad | 527 ms, 7.9 cm |
 | 🚗 `medir_slam_ros2.py` | ¿crece el mapa al moverse? | 2367 → 3299 celdas |
 | 🚗 `verificar_inverted_lidar.py` | ¿coinciden `/scan` y `/odom` en el sentido de giro? | ±48°, opuestos, calidad 0.93 |
+| 🚗 `caracterizar_deriva_slam.py` | Repite la prueba de SLAM N veces y da la **distribución** de la deriva | mediana 1.0 / 2.7 cm, n=6 |
 
 ## Cuánto espacio hace falta
 

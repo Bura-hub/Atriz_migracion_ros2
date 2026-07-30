@@ -320,6 +320,7 @@ verificar_leds_sensores.py   # 37 comprobaciones de LEDs y los 17 sensores (sin 
 medir_watchdog_ros2.py       # ¿frena el watchdog? mide DESPLAZAMIENTO, no velocidad
 medir_slam_ros2.py           # ⚠️ MUEVE EL ROBOT: ¿crece el mapa al moverse?
 medir_keepalive_ros2.py      # ¿se duerme el RVR? vigila el RITMO de /odom, no el topic
+caracterizar_deriva_slam.py  # ⚠️ MUEVE EL ROBOT 20 min: 6 corridas -> distribución de la deriva
 medir_slam_ros2.py           # ⚠️ MUEVE EL ROBOT ~1.3 m: ¿crece el mapa? (girar NO vale)
 verificar_inverted_lidar.py  # ⚠️ gira 50°: ¿se contradicen /scan y /odom?
 ```
@@ -358,6 +359,7 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | **Timeout de inactividad del RVR** | **300.6 s = 5.01 min** (dos medidas idénticas) | 2026-07-31 |
 | `/battery_state` | cada **30.0 s** exactos — es el latido del keepalive | 2026-07-31 |
 | Enlace con keepalive | **12 min, 0 huecos** en `/odom`, 16.54 Hz | 2026-07-31 |
+| **Deriva de SLAM** | mediana **1.0 cm** (1.6 m de recorrido) y **2.7 cm** (2.4 m); peor caso 3.2 cm, n=6 | 2026-07-31 |
 | CPU de `slam_toolbox` | **4.5 %** de un núcleo, 49 MB | 2026-07-30, async |
 | Todo a la vez (driver+LIDAR+RSP+SLAM) | **~24 %** de un núcleo, ~200 MB, loadavg 0.62, 62.3 °C, `throttled=0x0` | 2026-07-30 |
 

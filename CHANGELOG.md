@@ -4,6 +4,69 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 (parte 3) — La deriva de SLAM, caracterizada: es pequeña
+
+Cierra la única incógnita que dejó la Fase 4. Manual, cap. 9.12. Evidencia:
+`00_auditoria/evidencia_24_04/14_deriva_slam_caracterizada.txt`.
+
+**Herramienta nueva:** `mediciones_banco/caracterizar_deriva_slam.py`.
+
+### El problema: dos medidas que se contradecían
+
+```
+corrida 1 (2.62 m de recorrido)  ->  87.8 cm y 10.9°
+corrida 2 (1.78 m de recorrido)  ->   0.9 cm y  3.1°
+```
+
+Dos órdenes de magnitud, y diferían en **dos cosas a la vez**: la distancia recorrida y que en
+la primera el robot rozó obstáculos. Con dos variables cambiando no se puede atribuir la causa
+a ninguna.
+
+### Cómo se controlaron las variables
+
+- Mismo pasillo despejado de 3 m × 0.8 m, robot en el **centro**, punto de partida marcado.
+- **Orientación comprobada ANTES de empezar** con un empujón de 10 cm. La vez anterior se
+  movió primero y se perdió una corrida entera contra los obstáculos.
+- Nadie cruzó la zona en los ~20 min — el LIDAR ve piernas a 17.5 cm perfectamente.
+- **Dos distancias alternadas**, para separar «distancia» de «obstáculos».
+- **`slam_toolbox` reiniciado de cero en cada corrida.** Sin esto las últimas parten con el
+  mapa que construyeron las anteriores y la comparación no vale.
+
+### Resultado: 6 corridas
+
+| Recorrido | n | Deriva mediana | Peor caso | σ |
+|---|---|---|---|---|
+| ~159 cm | 3 | **1.0 cm** y 1.3° | 2.7 cm | 1.0 cm |
+| ~237 cm | 3 | **2.7 cm** y 2.3° | 3.2 cm | 0.6 cm |
+
+**El error cabe dentro de una celda del mapa** (5 cm) y es un orden de magnitud menor que el
+radio del robot (~11 cm). Crece con la distancia de forma coherente (0.63 % del recorrido en
+las cortas, 1.14 % en las largas): es el comportamiento normal de una odometría corregida por
+emparejado de barridos, no el patrón de un fallo.
+
+Y el mapa es **repetible**: las tres corridas largas dieron +2347, +2321 y +2334 celdas.
+
+### 🔴 Los 87.8 cm de la Fase 4 eran una anomalía
+
+La corrida larga de aquí recorre 237 cm —comparable a los 262 cm de aquella— y sale **30 veces
+mejor**. ⚠️ **No se reprodujo la anomalía a propósito**, así que «rozar obstáculos» sigue
+siendo la explicación más probable, **no una causa demostrada**. Lo que sí queda demostrado es
+que no es el comportamiento normal del sistema.
+
+### ✅ Consecuencia: un bloqueante menos para Nav2
+
+La localización ya no bloquea. Quedan dos: la **velocidad de `/odom`** (que pasa a ser el
+siguiente paso) y la **inclinación de ~8°** — cuya gravedad queda acotada por estos números:
+con la inclinación presente, la deriva es de 2.7 cm, así que no está arruinando el emparejado.
+
+### La lección de método
+
+Con dos puntos que se contradicen no se puede concluir nada, y la tentación es quedarse con el
+que conviene. Seis corridas con las variables controladas costaron 20 minutos y convirtieron
+«no sabemos si sirve para Nav2» en un número con desviación típica.
+
+---
+
 ## 2026-07-31 (parte 2) — Fase 4 CERRADA: SLAM mapea de verdad
 
 ```

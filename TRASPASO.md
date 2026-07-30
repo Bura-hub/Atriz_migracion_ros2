@@ -23,9 +23,11 @@ huecos sin el arreglo (manual, cap. 9.8).
 mapa pasó de **2367 a 3299 celdas** (5.92 → 8.25 m²). Hicieron falta tres arreglos y corregir
 dos herramientas propias, y **ninguno de los fallos daba un error** (manual, cap. 9.11).
 
-**El siguiente paso es caracterizar la deriva de la localización**: dos corridas dieron
-87.8 cm y 0.9 cm de error al volver al punto de partida, y hasta saber cuál es el
-comportamiento típico no se puede decir si la pose sirve para Nav2.
+✅ **Y la deriva de la localización está caracterizada**: 6 corridas dan una mediana de
+**1.0 cm** (recorridos de 1.6 m) y **2.7 cm** (2.4 m), con un peor caso de 3.2 cm. El error
+cabe en una celda del mapa, así que **la pose ya no bloquea Nav2**.
+
+**El siguiente paso es la velocidad de `/odom`**, que sigue siendo basura y sí bloquea Nav2.
 
 ---
 
@@ -52,7 +54,7 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 | Problema | Gravedad | Estado |
 |---|---|---|
 | ~~El RVR se duerme solo y el driver no se entera~~ | seguridad operativa | ✅ **resuelto 2026-07-31**: timeout medido en **300.6 s**, keepalive cada 30 s + detector de silencio. 2 huecos → 0 |
-| 🔴 **La velocidad de `/odom` es basura.** El stream `Velocity` del RVR reporta 0.001 m/s a 0.147 m/s reales. La posición sí es buena | bloquea Nav2 | 🔴 abierto, 3 opciones sin probar |
+| 🔴 **La velocidad de `/odom` es basura.** El stream `Velocity` del RVR reporta 0.001 m/s a 0.147 m/s reales. La posición sí es buena | bloquea Nav2 | 🔴 abierto, 3 opciones sin probar — **es el siguiente paso** |
 | ~~`inverted` del LIDAR sin verificar~~ | corrompe mapas | ✅ **verificado 2026-07-31**: `true` es CORRECTO. El equivocado era el yaw de `/odom` |
 | 🔴 **El robot está inclinado ~8°** (árbol TF, Roll de la IMU y acelerómetro: **tres** vías) | bloquea Nav2 | 🔴 abierto, causa sin determinar |
 | 🔴 **La parada de emergencia de la web no hace nada.** Publica en `/rvr/emergency_stop`, que no existe. Falla **en silencio** con `200 OK` | seguridad | ⏳ el topic ya existe en el driver ROS 2; falta el lado web (fase final) |
@@ -96,25 +98,34 @@ Hicieron falta tres arreglos y corregir dos herramientas propias, y **ninguno da
 - **`fixed_resolution: false`** hacía que `slam_toolbox` descartara barridos (254/255 puntos).
 - **Mi herramienta medía algo imposible**: giraba en el sitio y esperaba que el mapa creciera.
 
-### 1. Caracterizar la deriva de la localización
+### ✅ Hecho el 2026-07-31: la deriva, caracterizada
 
-Dos corridas dieron **87.8 cm / 10.9°** y **0.9 cm / 3.1°**. No se sabe qué las separa
-(la primera rozó obstáculos). **Repetir varias veces en espacio despejado** antes de decidir
-si la pose vale para Nav2.
+**Es pequeña y estable.** 6 corridas con las variables controladas (mismo pasillo de 3 m,
+`slam_toolbox` reiniciado de cero en cada una, sin nadie cruzando):
 
-```bash
-ros2 launch atriz_rvr_bringup robot.launch.py     # terminal 1
-ros2 launch atriz_rvr_bringup slam.launch.py      # terminal 2
-python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_slam_ros2.py
-```
+| Recorrido | n | Deriva mediana | Peor caso | σ |
+|---|---|---|---|---|
+| ~159 cm | 3 | **1.0 cm** y 1.3° | 2.7 cm | 1.0 cm |
+| ~237 cm | 3 | **2.7 cm** y 2.3° | 3.2 cm | 0.6 cm |
 
-⚠️ Necesita **1 m por delante, 1 m por detrás y 40 cm a cada lado**, y nada a menos de 60 cm:
-el robot **no esquiva obstáculos**.
+El error **cabe dentro de una celda del mapa** (5 cm). ✅ **La localización ya no es un
+bloqueante para Nav2.** Los 87.8 cm de la Fase 4 fueron una anomalía, 30 veces peor que lo
+normal a distancia comparable — muy probablemente por rozar obstáculos, aunque **no se
+reprodujo a propósito**, así que no es una causa demostrada.
 
-### 2. 🔴 La inclinación de ~8°, ahora confirmada por TRES vías
+### 1. 🔴 La velocidad de `/odom` — el bloqueante que queda para Nav2
+
+El stream `Velocity` del RVR reporta 0.001 m/s con el robot a 0.147 real. Tres opciones,
+**ninguna probada**: derivarla del locator, integrarla de los encoders, o dejarla a cero y que
+la estime `robot_localization`.
+
+### 2. 🔴 La inclinación de ~8°, confirmada por TRES vías
 
 Árbol TF, `Roll` de la IMU y el acelerómetro con unidades correctas. Causa sin determinar.
-Para SLAM 2D funciona; para Nav2 hay que resolverla.
+
+📝 La caracterización de la deriva **acota su gravedad**: con la inclinación presente, la
+deriva es de 2.7 cm, así que no está arruinando el emparejado. Hay que resolverla para Nav2
+—por REP-105 `odom → base_footprint` debería ser plana— pero **no es urgente**.
 
 ---
 

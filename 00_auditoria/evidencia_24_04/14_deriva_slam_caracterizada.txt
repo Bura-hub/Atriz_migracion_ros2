@@ -1,0 +1,126 @@
+═══════════════════════════════════════════════════════════════════════════════
+DERIVA DE SLAM — CARACTERIZADA CON 6 CORRIDAS
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Herramienta: mediciones_banco/caracterizar_deriva_slam.py
+Manual, cap. 9.12.
+
+VEREDICTO: ✅ la deriva es PEQUEÑA y ESTABLE. Mediana de 1.0 cm en recorridos de
+           1.6 m y de 2.7 cm en recorridos de 2.4 m. Ninguna de las 6 corridas
+           paso de 3.2 cm.
+
+           -> Los 87.8 cm de la primera corrida de la Fase 4 fueron una ANOMALIA,
+              no el comportamiento del sistema.
+
+
+───────────────────────────────────────────────────────────────────────────────
+QUE HABIA QUE RESOLVER
+───────────────────────────────────────────────────────────────────────────────
+Al cerrar la Fase 4 quedaron dos medidas que se contradecian, tomadas el mismo
+dia con el mismo binario:
+
+    corrida 1 (2.62 m de recorrido)  ->  87.8 cm y 10.9°
+    corrida 2 (1.78 m de recorrido)  ->   0.9 cm y  3.1°
+
+Dos ordenes de magnitud. Y diferian en DOS COSAS A LA VEZ: la distancia
+recorrida y que en la primera el robot rozo obstaculos. Con dos variables
+cambiando no se puede atribuir la causa a ninguna.
+
+
+───────────────────────────────────────────────────────────────────────────────
+COMO SE CONTROLARON LAS VARIABLES
+───────────────────────────────────────────────────────────────────────────────
+  · Mismo sitio: pasillo despejado de 3 m x 0.8 m, robot en el CENTRO y
+    alineado con el eje largo, punto de partida marcado en el suelo.
+  · Se comprobo la orientacion ANTES de empezar con un empujon de 10 cm, para
+    no descubrir a mitad de recorrido que "adelante" iba hacia un obstaculo.
+  · Nadie cruzo la zona en los ~20 min (el LIDAR ve piernas a 17.5 cm; una
+    persona pasando mete un obstaculo movil que el emparejado no reconcilia).
+  · DOS distancias, alternadas, para separar "distancia" de "obstaculos".
+  · slam_toolbox REINICIADO DE CERO en cada corrida. Sin esto las ultimas
+    parten con el mapa que construyeron las anteriores y la comparacion no vale.
+
+
+───────────────────────────────────────────────────────────────────────────────
+LAS 6 CORRIDAS
+───────────────────────────────────────────────────────────────────────────────
+  CORTA 1/3     157.9 cm ->    0.8 cm,   1.3°   (mapa +1536 celdas)
+  CORTA 2/3     159.1 cm ->    2.7 cm,   3.8°   (mapa +1080)
+  CORTA 3/3     159.9 cm ->    1.0 cm,   0.1°   (mapa +1077)
+  LARGA 1/3     236.9 cm ->    2.0 cm,   2.3°   (mapa +2347)
+  LARGA 2/3     234.8 cm ->    3.2 cm,   1.5°   (mapa +2321)
+  LARGA 3/3     237.9 cm ->    2.7 cm,   5.0°   (mapa +2334)
+
+  CORTA  (n=3, recorrido medio 159 cm)
+    deriva en cm      min  0.8   mediana  1.0   max  2.7   sigma 1.0
+    deriva en grados  min  0.1   mediana  1.3   max  3.8
+
+  LARGA  (n=3, recorrido medio 237 cm)
+    deriva en cm      min  2.0   mediana  2.7   max  3.2   sigma 0.6
+    deriva en grados  min  1.5   mediana  2.3   max  5.0
+
+
+───────────────────────────────────────────────────────────────────────────────
+QUE DICEN LOS NUMEROS
+───────────────────────────────────────────────────────────────────────────────
+1. LA DERIVA ES PEQUEÑA. Peor caso de las 6: 3.2 cm y 5.0°. La resolucion del
+   mapa es de 5 cm, asi que el error de posicion cabe DENTRO de una celda.
+
+2. ES ESTABLE, NO ERRATICA. Sigma de 1.0 cm en las cortas y 0.6 cm en las
+   largas. No hay corridas malas sueltas.
+
+3. CRECE CON LA DISTANCIA, PERO POCO Y DE FORMA COHERENTE:
+       159 cm de recorrido -> 1.0 cm de deriva  (0.63 % del recorrido)
+       237 cm de recorrido -> 2.7 cm de deriva  (1.14 % del recorrido)
+   Es el comportamiento normal de una odometria corregida por emparejado de
+   barridos. NO es el patron de un fallo.
+
+4. EL MAPA CRECE DE FORMA CONSISTENTE, y proporcional al recorrido:
+       cortas: +1077 a +1536 celdas
+       largas: +2321 a +2347 celdas
+   Las tres largas dan practicamente el mismo numero (rango de 26 celdas sobre
+   2334): el sistema es REPETIBLE.
+
+5. 🔴 LOS 87.8 cm DE LA FASE 4 FUERON UNA ANOMALIA. La corrida LARGA de aqui
+   recorre 237 cm —comparable a los 262 cm de aquella— y da 2.7 cm de mediana:
+   TREINTA VECES mejor. La diferencia conocida entre ambas es que aquella se
+   hizo en un hueco demasiado justo y el robot rozo obstaculos.
+
+   ⚠️ No se ha REPRODUCIDO la anomalia a proposito, asi que "rozar obstaculos"
+      sigue siendo la explicacion mas probable, no una causa demostrada. Lo que
+      SI queda demostrado es que no es el comportamiento normal del sistema.
+
+
+───────────────────────────────────────────────────────────────────────────────
+CONSECUENCIA PARA NAV2
+───────────────────────────────────────────────────────────────────────────────
+✅ La localizacion YA NO ES UN BLOQUEANTE. Con 2.7 cm de mediana y 3.2 cm de
+   peor caso sobre 2.4 m, la pose es utilizable: el error cabe en una celda del
+   mapa (5 cm) y es un orden de magnitud menor que el radio del robot (~11 cm).
+
+De los tres bloqueantes que tenia Nav2, queda uno menos. Siguen abiertos:
+
+🔴 La velocidad de /odom es basura (stream `Velocity` del RVR: 0.001 m/s con el
+   robot a 0.147 real). Tres opciones, ninguna probada.
+
+🔴 La inclinacion de ~8°, confirmada por tres vias independientes (arbol TF,
+   Roll de la IMU y acelerometro). Causa sin determinar. Por REP-105
+   odom->base_footprint deberia ser plana (x, y, yaw) y el driver mete roll y
+   pitch.
+
+   📝 Estos resultados acotan su gravedad: con la inclinacion PRESENTE, la
+      deriva es de 2.7 cm. Asi que la inclinacion no esta arruinando el
+      emparejado — sigue habiendo que resolverla para Nav2, pero no es urgente.
+
+
+───────────────────────────────────────────────────────────────────────────────
+LA LECCION DE METODO
+───────────────────────────────────────────────────────────────────────────────
+Con DOS puntos que se contradicen no se puede concluir nada, y la tentacion es
+quedarse con el que conviene. Seis corridas con las variables controladas
+costaron 20 minutos y convirtieron "no sabemos si sirve para Nav2" en un numero
+con desviacion tipica.
+
+Y el orden importo: PRIMERO se definio el espacio necesario y se comprobo la
+orientacion con un empujon de 10 cm, DESPUES se movio el robot. La vez anterior
+fue al reves y se perdio una corrida entera contra los obstaculos.

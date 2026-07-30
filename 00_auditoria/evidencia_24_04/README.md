@@ -32,6 +32,7 @@ Los ficheros van **numerados en orden cronológico**, que es el mismo orden de l
 | `11_slam_fase4.txt` | SLAM: ciclo de vida, `base_link` con dos padres, y **🔴 el RVR se duerme solo** | Fase 4 |
 | `12_keepalive_rvr.txt` | El timeout del RVR **medido en 300.6 s**, y el arreglo verificado: 2 huecos → **0** | Fase 4 |
 | `13_fase4_cerrada.txt` | **Fase 4 cerrada**: el mapa crece al moverse. Tres arreglos y dos herramientas propias corregidas | Fase 4 |
+| `14_deriva_slam_caracterizada.txt` | La deriva, con 6 corridas: mediana **1.0 / 2.7 cm**. Los 87.8 cm eran una anomalía | Fase 4 |
 | `mapas/` | `mapa_fase4_banco` (robot casi quieto) y `mapa_fase4_cerrada` (8.25 m² mapeados) — formato nativo de slam_toolbox | Fase 4 |
 | `lidar_x2_2026-07-30.txt` | Salida de `x2_parse.py` | B |
 | `raw_uart_2026-07-30.txt` | Salida de `raw_uart.py`: «el RVR CONTESTA» | B |
