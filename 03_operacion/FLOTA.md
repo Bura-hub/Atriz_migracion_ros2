@@ -107,13 +107,17 @@ que decide si 16 robots caben en un punto de acceso o hacen falta varios.
 
 | Robot | Hostname | `ROS_DOMAIN_ID` | Namespace | IP (reserva DHCP) | MAC |
 |---|---|---|---|---|---|
-| 01 | `rvr-01` | 1 | `/rvr_01` | *por asignar* | *por rellenar* |
+| 01 | `rvr-01` | 1 | `/rvr_01` | `192.168.1.58` ⚠️ **sin reserva DHCP todavía** | `d8:3a:dd:d6:c1:ee` (wlan0) · `d8:3a:dd:d6:c1:ea` (eth0) |
 | 02 | `rvr-02` | 2 | `/rvr_02` | | |
 | … | … | … | … | | |
 | 16 | `rvr-16` | 16 | `/rvr_16` | | |
 
 **Rellenar esta tabla a medida que se despliega cada robot.** Es el inventario, y sin él no
 se puede diagnosticar nada a distancia.
+
+👤 **Pendiente en `rvr-01`:** crear su **reserva DHCP** en el router para la MAC
+`d8:3a:dd:d6:c1:ee`. Hoy tiene `192.168.1.58` por DHCP dinámico, así que puede cambiar y
+dejarte sin saber dónde está el robot. Es el momento de hacerlo, antes de que haya 16.
 
 **Por qué un dominio DDS por robot** y no namespaces en un dominio común: ver
 [ARQUITECTURA.md](ARQUITECTURA.md), Decisión 1. Resumen: ~160 participantes DDS sobre WiFi
@@ -127,43 +131,99 @@ dispositivos. Un cambio de subred se hace en un sitio en vez de en dieciséis.
 ## Cómo NO repetir el proceso 16 veces
 
 **El trabajo se hace UNA vez.** Perfeccionas un robot, conviertes su tarjeta en imagen, y
-cada robot nuevo cuesta **~15 minutos casi desatendidos**: grabar la tarjeta, cambiar un
-número en un fichero de texto, y anotar la MAC.
+cada robot nuevo cuesta **~3 minutos atendidos**.
+
+### Las cuatro herramientas
+
+Escritas el 2026-07-30, después de instalar `rvr-01` a mano y descubrir que el proceso tiene
+más trampas de las que caben en una lista de pasos.
+
+| Script | Dónde corre | Qué hace |
+|---|---|---|
+| **`provision.sh`** | en el robot | De un 24.04 recién instalado a robot terminado. Idempotente. **Es la fuente de verdad**: la imagen dorada se construye ejecutándolo |
+| **`preparar_tarjeta.sh`** | en el **PC** (Linux/WSL) | Sobre una tarjeta recién grabada: `cmdline.txt`, `config.txt` con `[all]`, `robot_id.txt`. Elimina el editar ficheros a mano |
+| **`verificar_robot.sh`** | en el robot | 36+ aserciones. Sale con código ≠ 0 si algo falla. **Es quien decide si un robot está listo** |
+| **`fase_6_preparar_imagen_dorada.sh`** | en el robot de referencia | Le quita la identidad para poder clonarlo |
+
+### Por qué imagen dorada y no aprovisionar 15 robots por red
+
+Es una decisión de **ancho de banda**, no de comodidad.
+
+Aprovisionar un robot desde cero descarga **~1.5 GB**: `full-upgrade` + kernel nuevo +
+`iw` + `python3-pip` + `python3-aiohttp` + `pyserial-asyncio` + ROS 2 Jazzy y sus
+dependencias. Multiplicado por 15 robots son **~22 GB sobre la única AP del laboratorio** —
+que es justo el [riesgo nº4 de esta página](#4--el-riesgo-de-red-sigue-sin-medir-y-es-el-principal),
+el que sigue sin medir y el más probable.
+
+Con imagen dorada, esos 22 GB son **0 GB de red**: se escriben por SD desde el PC.
+
+**Pero una imagen que nadie sabe reconstruir es una caja negra**, y ese es exactamente el
+problema del `MANUAL SPHERO.docx` original: describía un sistema que nadie podía rehacer. De
+ahí la relación entre las dos piezas:
+
+```
+   provision.sh ──(una vez, en el robot de referencia)──►  robot terminado
+                                                                  │
+                                            fase_6_preparar_imagen_dorada.sh
+                                                                  │
+                                                                  ▼
+                                                          IMAGEN DORADA
+                                                                  │
+                                          preparar_tarjeta.sh --id NN
+                                                                  │
+                                                                  ▼
+                                                      robots 02 … 16
+```
+
+**La imagen es el atajo. El script es la verdad.** Si divergen, gana el script: se
+reconstruye la imagen. Y como `provision.sh` es idempotente, sirve además para **actualizar**
+un robot ya en marcha (`git pull && sudo bash provision.sh`), que es lo que evita la deriva
+de configuración — lo que mata las flotas.
 
 ### Lo que se hace una sola vez
 
 ```bash
-# En el robot de referencia, cuando ya funciona del todo y está verificado:
+# En el robot de referencia, cuando pasa verificar_robot.sh --hardware SIN FALLOS
+# y ha superado la verificación de extremo a extremo del plan:
 sudo bash ~/atriz_migracion/scripts/fase_6_preparar_imagen_dorada.sh
-sudo poweroff
+sudo poweroff       # NO volver a arrancar esta tarjeta antes del dd
 
 # Desde un PC, con la tarjeta fuera:
 sudo dd if=/dev/mmcblk0 of=atriz_jazzy_v1.img bs=4M status=progress conv=fsync
 sha256sum atriz_jazzy_v1.img > atriz_jazzy_v1.img.sha256
 sudo pishrink.sh -Z atriz_jazzy_v1.img     # reduce al tamaño usado: 29 GB -> ~4-6 GB
+
+# Y etiqueta el código, para saber qué corre cada robot:
+git tag -a v1.0-jazzy -m "Primera imagen dorada validada" && git push origin v1.0-jazzy
 ```
+
+🔴 **La imagen dorada contiene la PSK del WiFi** (en `/etc/netplan/50-cloud-init.yaml`) y la
+contraseña del usuario `sphero`. Es lo deseable —así los 16 robots entran solos en la red—
+pero significa que **la imagen es material sensible**: no sale del laboratorio, no va a git,
+y no se comparte por servicios en la nube.
 
 ### Lo que se hace por robot
 
 | Paso | Tiempo | ¿Atendido? |
 |---|---|---|
 | 1. Grabar la imagen en la microSD | ~8 min | no |
-| 2. Editar `robot_id.txt` en la partición FAT | 15 s | **sí** |
-| 3. Anotar la MAC y crear la reserva DHCP | ~1 min | **sí** |
-| 4. Arrancar (el `first-boot` hace el resto) | ~2 min | no |
-| 5. Verificar | ~2 min | **sí** |
+| 2. `sudo bash preparar_tarjeta.sh --id NN` (en el PC) | ~15 s | **sí** |
+| 3. Anotar la MAC y crear la reserva DHCP en el router | ~1 min | **sí** |
+| 4. Arrancar — `atriz-first-boot` hace el resto | ~2 min | no |
+| 5. `bash verificar_robot.sh --hardware` | ~1 min | **sí** |
+| 6. Rellenar la fila de la tabla de asignación | ~15 s | **sí** |
 
-**Total atendido: unos 3 minutos por robot.** Los 16 caben en una tarde, y si consigues
-**varios lectores de tarjetas USB** puedes grabar tres o cuatro en paralelo mientras
-verificas las anteriores.
+**Total atendido: unos 3 minutos por robot.** Los 16 caben en una tarde, y con **varios
+lectores de tarjetas USB** se graban tres o cuatro en paralelo mientras se verifican las
+anteriores.
 
-El paso 2 es literalmente cambiar un número:
-```
-# /boot/firmware/robot_id.txt
-ROBOT_ID=07
-```
-La partición es **FAT**, así que se edita desde Windows, macOS o Linux **sin arrancar la
-Pi**. Grabas las 16 tarjetas seguidas y luego las editas una a una en el portátil.
+El paso 2 sustituye a lo que antes era «editar `robot_id.txt` con el Bloc de notas». Sigue
+siendo posible hacerlo a mano —la partición es FAT y se abre desde cualquier PC— pero el
+script comprueba además que `cmdline.txt` y `config.txt` están bien, y esos dos **fallan en
+silencio**: un `[all]` olvidado no da ningún error, el robot simplemente no habla con el RVR.
+
+Si en lugar de la imagen dorada partes de una **instalación limpia** de Ubuntu Server, el
+paso 4 pasa a ser `sudo bash provision.sh` y sube a ~25 minutos, casi todos desatendidos.
 
 ### Por qué hace falta el paso de «preparar»
 
@@ -296,22 +356,58 @@ robots, reflashear será rutina, no emergencia.
 
 ## Alta de un robot nuevo
 
-1. Grabar la imagen dorada en la microSD
-2. Editar `/boot/firmware/robot_id.txt` con el número
-3. Añadir la reserva DHCP en el router (por MAC)
-4. Montar el hardware: RVR por UART (**TX/RX cruzados**, GND común), LIDAR **en el mismo
-   puerto USB que los demás** (ver restricción 1)
-5. Arrancar y verificar:
-   ```bash
-   hostname                    # rvr-NN
-   echo $ROS_DOMAIN_ID         # NN
-   ls -l /dev/rvr /dev/ydlidar
-   python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
-   ros2 topic hz /rvr_NN/odom  # ~16.5 Hz
-   ros2 topic hz /rvr_NN/scan  # ~10 Hz
-   ```
-6. **Rellenar la tabla de asignación** de este documento
-7. Registrar el robot en la plataforma web
+**1. Grabar** la imagen dorada en la microSD (Raspberry Pi Imager o `dd`).
+
+**2. Preparar la tarjeta**, con ella todavía en el PC:
+```bash
+sudo bash ~/atriz_migracion/scripts/preparar_tarjeta.sh --id NN
+```
+Fija `robot_id.txt` y comprueba `cmdline.txt` y `config.txt`. Lleva `--simular` si quieres ver
+qué haría antes de que lo haga.
+
+**3. Montar el hardware.** RVR por UART: **TX y RX van CRUZADOS** (GPIO14→RX, GPIO15→TX) y el
+**GND común es obligatorio** — sin él la comunicación falla de forma errática, no limpia, que
+es mucho peor para diagnosticar. El LIDAR, **en el mismo puerto USB físico que en los demás
+robots** (ver restricción 1: los CP2102 no tienen serial único).
+
+**4. Arrancar.** `atriz-first-boot` lee `robot_id.txt` y fija hostname, `ROS_DOMAIN_ID`,
+`machine-id` y claves SSH de host. Espera ~2 minutos.
+
+> Tu PC avisará de una **huella SSH nueva** al conectarte. Es lo esperado: cada robot genera
+> sus claves en el primer arranque. Si **no** avisara, es señal de que las claves se clonaron
+> y todos los robots comparten identidad — eso sí es un problema.
+
+**5. Anotar la MAC y crear la reserva DHCP** en el router. Con 16 robots es la única forma
+sensata de saber quién es quién.
+
+**6. Verificar.** Un solo comando decide si el robot está listo:
+```bash
+bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
+```
+36+ comprobaciones y **código de salida ≠ 0 si algo falla**. No des el robot por bueno sin
+esto: los fallos de este proyecto son los que no se manifiestan como error. Si sale limpio,
+comprueba además las frecuencias, que dependen de ROS 2:
+```bash
+ros2 topic hz /rvr_NN/odom     # ~16.5 Hz
+ros2 topic hz /rvr_NN/scan     # ~10 Hz
+```
+
+**7. Rellenar la fila** de la tabla de asignación de este documento. Sin inventario no se
+diagnostica nada a distancia.
+
+**8. Registrar el robot** en la plataforma web.
+
+### Lo que la imagen dorada NO resuelve
+
+Conviene tenerlo claro para no confiarse:
+
+| | |
+|---|---|
+| **Deriva posterior** | La imagen iguala los robots el día 1. A partir de ahí divergen en cuanto alguien toca uno. La respuesta es `git pull && sudo bash provision.sh` en los 16, o Ansible |
+| **Actualizaciones de seguridad** | La higiene deshabilita `unattended-upgrades` a propósito (no queremos que un robot se actualice a mitad de un experimento). Eso significa que **actualizar los 16 es una tarea manual y periódica** |
+| **La regla udev del LIDAR** | Va por `ID_PATH`, y **está sin verificar** que el `ID_PATH` sea idéntico entre robots. Si no lo fuera, no es clonable y hay que generarla en `first-boot.sh`. Ver restricción 1 |
+| **El ancho de banda en operación** | La imagen ahorra el tráfico de *instalación*, no el de *telemetría*. El riesgo nº4 sigue intacto y sin medir |
+| **Las tarjetas microSD** | Mueren. Con 16 unidades es mantenimiento periódico. Tener la imagen lista es precisamente lo que convierte eso en 10 minutos |
 
 ---
 

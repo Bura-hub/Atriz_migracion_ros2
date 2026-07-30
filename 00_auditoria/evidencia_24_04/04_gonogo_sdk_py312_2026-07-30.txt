@@ -1,0 +1,44 @@
+======================================================================
+  GO / NO-GO — SDK de Sphero sobre Python 3.12
+======================================================================
+
+[94m▶ 1/6 · Entorno[0m
+  Python 3.12.3  (/usr/bin/python3)
+  Linux-6.8.0-1060-raspi-aarch64-with-glibc2.39
+  [92m✓[0m Python 3.12 — es el escenario que hay que validar
+
+[94m▶ 2/6 · Dependencias del SDK[0m
+  [92m✓[0m pyserial: 3.5
+  [92m✓[0m pyserial-asyncio: 0.6
+  [93m![0m aiohttp (solo el backend por URL; opcional) ausente — no afecta al backend serie
+
+[94m▶ 3/6 · Localizar el SDK[0m
+  [92m✓[0m encontrado en /home/sphero/atriz_ws/src/Atriz_rvr/atriz_rvr_driver/scripts
+
+[94m▶ 4/6 · Importar el SDK (aquí es donde revientan los patrones obsoletos)[0m
+  [91m✗[0m ModuleNotFoundError: No module named 'aiohttp'
+
+======================================================================
+[91m  NO-GO / GO PARCIAL — 1 problema(s):[0m
+    · fallo al importar: ModuleNotFoundError
+
+  SI SALE NO-GO — opciones, de menos a más invasiva:
+
+  1. Parchear el SDK. Si son unos pocos ficheros con patrones asyncio
+     obsoletos, es lo más barato. El análisis estático del 2026-07-29 predecía
+     solo `sphero_rvr_async.py:35` (un `get_event_loop()`).
+
+  2. Contenedor con Python 3.8. Docker con el SDK aislado, hablando con el
+     nodo ROS 2 por un socket. Funciona, pero añade una pieza que mantener en
+     16 robots.
+
+  3. Quedarse en Noetic. La Fase 0.1 dejó el robot a 16.59 Hz y estable; es un
+     punto de partida decente. Se pierden SLAM/Nav2 modernos y el soporte
+     hasta 2029. Restaurar con la imagen de la Fase 0.3.
+
+  4. Reimplementar el protocolo serie del RVR. Está documentado y ya lo
+     validamos a mano en `raw_uart.py` (cabecera 0x8D, fin 0xD8, checksum por
+     complemento). Es el camino largo, pero elimina la dependencia de un SDK
+     que Sphero ya no mantiene.
+
+======================================================================

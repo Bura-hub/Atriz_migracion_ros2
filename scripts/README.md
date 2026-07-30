@@ -4,8 +4,28 @@ Cada script corresponde a un paso del [plan](../01_plan/PLAN_MIGRACION_ROS2.md).
 Todos son **idempotentes** (se pueden repetir sin daño) y **respaldan** lo que
 modifican con sufijo de fecha.
 
+## Los tres que usarás para la flota
+
+Si vienes a montar un robot nuevo, son estos. El resto son las piezas que ellos orquestan.
+
+| Script | Dónde corre | Para qué |
+|---|---|---|
+| **`preparar_tarjeta.sh --id NN`** | en el **PC**, tarjeta recién grabada | Deja `cmdline.txt`, `config.txt` y `robot_id.txt` correctos antes del primer arranque |
+| **`provision.sh`** | en el robot | De un 24.04 limpio a robot terminado. Idempotente: sirve también para actualizar |
+| **`verificar_robot.sh --hardware`** | en el robot | 36+ aserciones. **Decide si el robot está listo.** Código ≠ 0 si algo falla |
+
+El procedimiento completo de alta de un robot está en
+[`03_operacion/FLOTA.md`](../03_operacion/FLOTA.md).
+
+---
+
+## Todos los scripts
+
 | Script | Fase / Etapa | Requiere root | Estado |
 |---|---|---|---|
+| `verificar_robot.sh` | cualquiera | no | ✅ **probado en rvr-01** (2026-07-30): 36 correctas, detectó 1 fallo real |
+| `provision.sh` | B–E | sí | 🟡 **probado en seco** (`--simular`); no ejecutado de principio a fin |
+| `preparar_tarjeta.sh` | B (en el PC) | sí | 🟡 **probado en seco** sobre copias de la partición FAT; no en una microSD real |
 | `fase_0_1_fix_uart.sh` | 0.1 · B3 | sí | ✅ **ejecutado y verificado** en 20.04 (2026-07-29) y en **24.04 (2026-07-30)** |
 | `diag_uart_pins.sh` | 0.1 | sí | diagnóstico opcional, **nunca ha hecho falta** |
 | `fase_0_3_respaldo.sh` | 0.3 · A1 | no (sudo opcional) | ✅ **ejecutado** (2026-07-29). 📝 Sus dos correcciones del 2026-07-30 **sin reejecutar** |
