@@ -258,14 +258,13 @@ Manual, cap. 2 y 10.
 
   ── 👤 ESTADO FISICO DEL ROBOT AL CERRAR LA SESION (2026-07-31) ──
 
-  🔴 EL ROBOT NO QUEDO EN SU POSICION INICIAL. La ultima prueba (medida (e))
-     avanzo ~26 cm por el pasillo, giro 90°, avanzo ~19 cm de lado y deshizo el
-     giro. Asi que esta desplazado de la marca del suelo, aunque con la
-     orientacion aproximadamente original.
+  🔴 EL ROBOT SE RETIRO DEL BANCO al cerrar la sesion. No esta donde lo dejaron
+     las pruebas ni sobre la marca del suelo.
 
-  ANTES DE RETOMAR: recolocarlo en el centro del pasillo, sobre la marca y
-  alineado con el eje largo. Y comprobar la orientacion con un empujon de 10 cm
-  antes de lanzar nada, como se hizo al empezar — no darla por buena.
+  ANTES DE RETOMAR: montar de nuevo el pasillo despejado de 3 m x 0.8 m, colocar
+  el robot en el CENTRO alineado con el eje largo, marcar el punto de partida, y
+  comprobar la orientacion con un empujon de 10 cm antes de lanzar nada — como
+  se hizo al empezar. No darla por buena.
 
   📝 Y recordar que reset_locator_x_and_y() pone a cero la ODOMETRIA, no
      devuelve el robot al sitio: el cero de software se mueve CON el robot. Es

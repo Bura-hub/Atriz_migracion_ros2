@@ -174,10 +174,15 @@ publicado, y girar el robot debe mover ambas en el **mismo** sentido. Hoy fallan
 
 ### 👤 Antes de retomar: el robot NO está en su posición inicial
 
-La última prueba lo dejó ~26 cm adelantado y ~19 cm de lado respecto a la marca del suelo, con
-la orientación aproximadamente original. **Recolócalo en el centro del pasillo, sobre la marca
-y alineado con el eje largo**, y comprueba la orientación con un empujón de 10 cm antes de
-lanzar nada.
+El robot se **retiró del banco** al cerrar la sesión del 2026-07-31, así que no está donde lo
+dejaron las pruebas ni sobre la marca.
+
+**Al retomar:** colócalo en el centro de un pasillo despejado de **3 m × 0.8 m**, alineado con
+el eje largo, marca el punto de partida en el suelo, y **comprueba la orientación con un
+empujón de 10 cm** antes de lanzar nada — el robot **no esquiva obstáculos**.
+
+📝 Y recuerda que `reset_locator_x_and_y()` pone a cero la **odometría**, no devuelve el robot
+a su sitio: el cero de software se mueve con él. Es lo que hizo que chocara una vez.
 
 ### 2. 🔴 La inclinación de ~8°, confirmada por TRES vías
 
