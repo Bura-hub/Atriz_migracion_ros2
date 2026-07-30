@@ -10,9 +10,10 @@
 
 ## En una frase
 
-**El sistema nuevo está instalado y a punto**: Ubuntu Server 24.04.4 con el RVR y el LIDAR
-verificados. Lo que falta es el **go/no-go del SDK en Python 3.12**, y con él la decisión de
-si la migración sigue adelante tal como está planteada.
+**🟢 GO: la migración es viable.** El sistema nuevo está instalado y a punto (Ubuntu Server
+24.04.4), el RVR y el LIDAR están verificados, y el **SDK de Sphero funciona en Python 3.12**
+entregando telemetría a 16.67 Hz — el mismo rendimiento que en Python 3.8. El siguiente paso
+es instalar ROS 2 Jazzy y portar el driver a `rclpy`.
 
 ---
 
@@ -50,27 +51,35 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 
 ## El siguiente paso, exacto
 
-**Etapa D — el GO/NO-GO del SDK en Python 3.12.** Es el punto de decisión de toda la
-migración. **No instales ROS 2 antes de pasarlo.**
+**Etapa E1 — instalar ROS 2 Jazzy.** El go/no-go ya está pasado, así que esto ya no es
+arriesgado. **Manual, capítulo 5.2** — y ese capítulo sigue **📝 NO VERIFICADO**: corrígelo
+sobre la marcha.
 
 ```bash
-sudo apt install -y python3-pip python3-venv
-pip install --break-system-packages pyserial-asyncio     # pyserial 3.5 ya está en el sistema
-                                                          # (24.04 aplica PEP 668)
-mkdir -p ~/atriz_ws/src && cd ~/atriz_ws/src
-git clone -b migracion-ros2 https://github.com/Bura-hub/Atriz_rvr.git
-
-# Regla nº1 del proyecto: fetch ANTES de auditar o leer código
-git -C ~/atriz_ws/src/Atriz_rvr fetch origin
-git -C ~/atriz_ws/src/Atriz_rvr status -sb    # esperado: migracion-ros2 = 24c7749
-
-# Con el RVR ENCENDIDO:
-python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
+sudo apt install -y software-properties-common curl
+sudo add-apt-repository universe -y
+sudo curl -sSL -o /usr/share/keyrings/ros-archive-keyring.gpg \
+  https://raw.githubusercontent.com/ros/rosdistro/master/ros.key
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] \
+http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
+  | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+sudo apt update
+sudo apt install -y ros-jazzy-ros-base ros-dev-tools
 ```
 
-- **GO** → seguir con la Etapa E (instalar `ros-jazzy-ros-base`), manual cap. 5.2.
-- **NO-GO** → **PARAR.** El script imprime las cuatro alternativas ordenadas por coste. Es una
-  decisión de arquitectura, no algo a improvisar. Documentar la salida cruda y consultar.
+⚠️ **`ros-base`, NO `desktop`** — son 236 paquetes con Gazebo y RViz en un robot sin pantalla.
+⚠️ **COMPROBAR el método de las claves GPG** contra la documentación oficial: cambia entre
+versiones, y `apt-key add` está obsoleto.
+
+Después, `ROS_DOMAIN_ID` y el entorno (cap. 5.3), y luego la **Fase 2 del plan**: portar el
+driver a `rclpy`, que incluye el **watchdog de `cmd_vel`** (hoy no existe) y corregir
+`imu.angular_velocity` a rad/s.
+
+**Verifica con:**
+```bash
+bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
+```
+Su bloque 8 ya sabe comprobar ROS 2 y avisará si se instaló `desktop` por error.
 
 ### Ya hecho, no lo repitas
 
@@ -79,8 +88,13 @@ python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
 | **A** — imagen `dd` del sistema Noetic | ✅ hecha **y verificada**. La reversión existe |
 | **B** — instalar 24.04, `cmdline.txt`, `config.txt`, UART, `/dev/rvr` | ✅ verificado 2026-07-30 |
 | **B5** — actualizaciones cerradas y credenciales de git | ✅ 2026-07-30 |
-| **C** — higiene del SO | ✅ 2026-07-30 |
+| **C** — higiene del SO (arranque 1min39s → **8.7 s**) | ✅ verificado 2026-07-30 |
+| **D** — **GO/NO-GO del SDK en Python 3.12** | ✅ 🟢 **GO** — 16.67 Hz, firmware 9.1.462 |
 | **E3/E4** — verificación de UART y LIDAR | ✅ hechas ya, sobre 24.04 |
+
+Y para no repetir la verificación a mano: **`bash scripts/verificar_robot.sh --hardware`**
+hace 39 comprobaciones y sale con código ≠ 0 si algo falla. En `rvr-01`, el 2026-07-30: **39
+correctas, 0 fallos**.
 
 ✅ **El `stash@{0}` ya está rescatado.** Contenía tres scripts de estudiantes que solo
 existían en un stash local — y los stashes **no viajan a un remoto**, así que se habrían

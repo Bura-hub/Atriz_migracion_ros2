@@ -2,43 +2,79 @@
   GO / NO-GO — SDK de Sphero sobre Python 3.12
 ======================================================================
 
-[94m▶ 1/6 · Entorno[0m
+▶ 1/6 · Entorno
   Python 3.12.3  (/usr/bin/python3)
   Linux-6.8.0-1060-raspi-aarch64-with-glibc2.39
-  [92m✓[0m Python 3.12 — es el escenario que hay que validar
+  ✓ Python 3.12 — es el escenario que hay que validar
 
-[94m▶ 2/6 · Dependencias del SDK[0m
-  [92m✓[0m pyserial: 3.5
-  [92m✓[0m pyserial-asyncio: 0.6
-  [93m![0m aiohttp (solo el backend por URL; opcional) ausente — no afecta al backend serie
+▶ 2/6 · Dependencias del SDK
+  ✓ serial 3.5  — el enlace serie
+  ✓ serial_asyncio 0.6  — el backend asyncio
+  ✓ aiohttp 3.9.1  — lo importa __init__.py sin condiciones
 
-[94m▶ 3/6 · Localizar el SDK[0m
-  [92m✓[0m encontrado en /home/sphero/atriz_ws/src/Atriz_rvr/atriz_rvr_driver/scripts
+▶ 3/6 · Localizar el SDK
+  ✓ encontrado en /home/sphero/atriz_ws/src/Atriz_rvr/atriz_rvr_driver/scripts
 
-[94m▶ 4/6 · Importar el SDK (aquí es donde revientan los patrones obsoletos)[0m
-  [91m✗[0m ModuleNotFoundError: No module named 'aiohttp'
+▶ 4/6 · Importar el SDK (aquí es donde revientan los patrones obsoletos)
+  ✓ sphero_sdk desde /home/sphero/atriz_ws/src/Atriz_rvr/atriz_rvr_driver/scripts/sphero_sdk/__init__.py
+  ✓ version 1.0.0
+  ✓ SpheroRvrAsync disponible
+  ✓ SerialAsyncDal disponible
+  ✓ RvrStreamingServices disponible
+  ✓ RvrLedGroups disponible
+  ✓ RawMotorModesEnum disponible
 
-======================================================================
-[91m  NO-GO / GO PARCIAL — 1 problema(s):[0m
-    · fallo al importar: ModuleNotFoundError
+▶ 5/6 · Compilar los 103 ficheros del SDK
+  ✓ los 103 ficheros compilan sin errores de sintaxis
 
-  SI SALE NO-GO — opciones, de menos a más invasiva:
-
-  1. Parchear el SDK. Si son unos pocos ficheros con patrones asyncio
-     obsoletos, es lo más barato. El análisis estático del 2026-07-29 predecía
-     solo `sphero_rvr_async.py:35` (un `get_event_loop()`).
-
-  2. Contenedor con Python 3.8. Docker con el SDK aislado, hablando con el
-     nodo ROS 2 por un socket. Funciona, pero añade una pieza que mantener en
-     16 robots.
-
-  3. Quedarse en Noetic. La Fase 0.1 dejó el robot a 16.59 Hz y estable; es un
-     punto de partida decente. Se pierden SLAM/Nav2 modernos y el soporte
-     hasta 2029. Restaurar con la imagen de la Fase 0.3.
-
-  4. Reimplementar el protocolo serie del RVR. Está documentado y ya lo
-     validamos a mano en `raw_uart.py` (cabecera 0x8D, fin 0xD8, checksum por
-     complemento). Es el camino largo, pero elimina la dependencia de un SDK
-     que Sphero ya no mantiene.
+▶ 6/6 · Hablar con el RVR de verdad (/dev/rvr)
+  ✓ SpheroRvrAsync construido en 0.0 s
+  ✓ batería: {'percentage': 100}
+  ✓ firmware (Nordic): {'major': 9, 'minor': 1, 'revision': 462}
+  ✓ streaming: 99 muestras a 16.67 Hz (esperado ~16.5 Hz con interval=60)
 
 ======================================================================
+  GO — el SDK funciona en esta versión de Python.
+  Seguir con el port a rclpy según la Fase 2 del plan.
+======================================================================
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONTEXTO DE ESTA EJECUCION
+#
+# Ubuntu Server 24.04.4 LTS · kernel 6.8.0-1060-raspi · Python 3.12.3
+# SDK: ~/atriz_ws/src/Atriz_rvr (rama migracion-ros2, commit 24c7749)
+# Puerto: /dev/rvr -> ttyAMA0 (PL011)
+#
+# Dependencias, y de donde salen:
+#   pyserial 3.5          apt (python3-serial)         -> /usr/lib/python3/dist-packages
+#   aiohttp 3.9.1         apt (python3-aiohttp)        -> /usr/lib/python3/dist-packages
+#   pyserial-asyncio 0.6  pip --break-system-packages  -> /usr/local/lib/python3.12/dist-packages
+#                         (NO existe como paquete apt: comprobado con apt-cache policy)
+#
+# A NIVEL DE SISTEMA, no de usuario. Una instalacion con 'pip --user' funciona para
+# esta prueba pero deja el modulo en ~/.local, donde un servicio systemd puede no
+# verlo segun su User=, y en la imagen dorada quedaria enterrado en el home de un
+# usuario. Paso el 2026-07-30 y se corrigio.
+#
+# PRIMER INTENTO: NO-GO FALSO
+#
+# La primera ejecucion dio NO-GO por 'ModuleNotFoundError: No module named aiohttp'.
+# NO era una incompatibilidad con Python 3.12: era un paquete que faltaba.
+# sphero_sdk/__init__.py importa TODO de golpe, y esa cadena llega a
+# common/firmware/cms_fw_check_base.py:2, que hace 'import aiohttp' a nivel de
+# modulo. En 20.04 aiohttp estaba instalado por casualidad (aparece en el pip list
+# del respaldo), asi que nadie habia notado la dependencia.
+#
+# El script marcaba aiohttp como 'opcional, no afecta al backend serie' en el paso
+# 2/6 y moria por el en el 4/6. Corregido: las tres dependencias son obligatorias.
+#
+# LO QUE ESTE GO SIGNIFICA, Y LO QUE NO
+#
+# SI significa: el SDK importa, compila, se conecta, lee bateria y firmware, y
+# entrega telemetria a 16.67 Hz en Python 3.12. Identico a los 16.59 Hz medidos en
+# Python 3.8 sobre 20.04. El analisis estatico predijo un parche de ~4 lineas;
+# resultaron ser CERO.
+#
+# NO significa que el driver ROS funcione: Atriz_rvr_node.py sigue siendo ROS 1
+# (catkin) y no compilara con colcon hasta el port de la Fase 2. Lo que este GO
+# valida es la pieza insustituible, el SDK.

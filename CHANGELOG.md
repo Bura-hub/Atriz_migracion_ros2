@@ -4,7 +4,127 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
-## 2026-07-30 — Instalación de 24.04: etapas A, B y C recorridas y verificadas
+## 2026-07-30 (parte 2) — 🟢 GO, y la infraestructura para los 15 robots restantes
+
+### 🟢 GO — el SDK de Sphero funciona en Python 3.12
+
+**Es la decisión que bloqueaba todo el proyecto, y sale a favor.**
+
+| Comprobación | Resultado |
+|---|---|
+| Los 103 ficheros del SDK | compilan sin errores de sintaxis en 3.12 |
+| `SpheroRvrAsync` construido en | **0.0 s** (el atajo: 0 s = responde, ~10 s = dos timeouts) |
+| Batería | 100 % |
+| Firmware Nordic | **9.1.462** — el documentado |
+| Streaming con `interval=60` | **16.67 Hz** |
+
+**16.67 Hz en Python 3.12 sobre 24.04, frente a 16.59 Hz en Python 3.8 sobre 20.04.** Mismo
+rendimiento. El análisis estático del 2026-07-29 predijo un parche de ~4 líneas; resultaron ser
+**cero**.
+
+Lo que este GO **no** significa: el driver sigue siendo ROS 1 (catkin) y no compilará con
+`colcon` hasta el port de la Fase 2. Lo validado es la pieza insustituible, el SDK.
+
+### El primer intento dio un NO-GO FALSO, y el script tenía la culpa
+
+`ModuleNotFoundError: No module named 'aiohttp'`. **No era una incompatibilidad con Python
+3.12: era un paquete que faltaba.** `sphero_sdk/__init__.py` importa todo de golpe, y esa
+cadena llega a `common/firmware/cms_fw_check_base.py:2`, que hace `import aiohttp` a nivel de
+módulo. En 20.04 estaba instalado por casualidad (aparece en el `pip list` del respaldo), así
+que la dependencia nunca se había notado.
+
+El script marcaba `aiohttp` como «opcional, no afecta al backend serie» en el paso 2/6 **y
+moría por él en el 4/6** — sugiriendo replantear la arquitectura del proyecto por un paquete
+que se instala en diez segundos. Corregido: las tres dependencias son obligatorias y cada una
+dice cómo instalarse.
+
+Que `aiohttp` solo se **use** para consultar el firmware contra un servicio web de Sphero es
+cierto e irrelevante: el import es incondicional.
+
+### Las tres dependencias, y dónde va cada una
+
+| Módulo | Cómo | Dónde queda |
+|---|---|---|
+| `pyserial` 3.5 | `apt` (`python3-serial`, ya venía) | `/usr/lib/python3/dist-packages` |
+| `aiohttp` 3.9.1 | `apt` (`python3-aiohttp`) | `/usr/lib/python3/dist-packages` |
+| `pyserial-asyncio` 0.6 | `pip3 --break-system-packages` | `/usr/local/lib/python3.12/dist-packages` |
+
+`pyserial-asyncio` **no existe como paquete apt** (`apt-cache policy` vacío): es la única que
+obliga a `pip`, y 24.04 aplica PEP 668.
+
+**Error propio corregido:** se instaló primero con `pip --user`, dejándolo en
+`/home/sphero/.local`. Funciona para la prueba, pero un servicio systemd puede no verlo según
+su `User=` y en la imagen dorada quedaría enterrado en el home de un usuario. Reinstalado a
+nivel de sistema y **eliminada la copia de usuario**, que enmascaraba la del sistema.
+
+---
+
+### Infraestructura para no repetir esto 15 veces
+
+Tres scripts nuevos, escritos **después** de instalar `rvr-01` a mano — no antes, para no
+automatizar suposiciones.
+
+**`verificar_robot.sh`** — 39 aserciones, código de salida ≠ 0 si algo falla. Es la pieza más
+valiosa: hoy se verificó este robot con ~25 comandos sueltos y aparecieron **cinco fallos
+silenciosos**; repetir eso a ojo en 15 robots garantiza que algo se cuele.
+
+Su regla es **comprobar el efecto, no la intención**, y cada decisión viene de un fallo real:
+no mira `config.txt` para saber si `disable-bt` está aplicado sino el device-tree; no se fía de
+`systemctl is-enabled snapd`, que hoy mintió; lee el power-save con `grep -oi` porque `iw`
+imprime `Power save:` con mayúsculas; sabe que `is-enabled cloud-init` dice `enabled` aunque
+esté desactivado y lo dice en voz alta; y no usa `ps -e | wc -l` como métrica.
+**Probado en `rvr-01`: 39 correctas, 0 fallos.**
+
+**`provision.sh`** — de un 24.04 limpio a robot terminado, idempotente. No duplica nada:
+orquesta `fase_0_1_fix_uart.sh` y `fase_1_higiene_so.sh`. Su bloque de ROS 2 está
+**deliberadamente vacío**, porque la Etapa E no se había ejecutado al escribirlo y poner
+comandos sin probar es lo que este proyecto no hace.
+
+**`preparar_tarjeta.sh`** — corre en el **PC** sobre una tarjeta recién grabada: `cmdline.txt`,
+`config.txt` con `[all]` y `robot_id.txt`. Elimina el editar ficheros con el Bloc de notas, que
+para un robot es tolerable y para 15 es una fuente garantizada de errores silenciosos. Probado
+en seco contra copias de la partición FAT, incluido un **caso de control**
+(`dtoverlay=dwc2,dr_mode=host` bajo `[cm4]` se detecta como inactivo), que es lo que demuestra
+que el `awk` distingue secciones de verdad.
+
+### Por qué imagen dorada: es ancho de banda, no comodidad
+
+Aprovisionar un robot descarga **~1.5 GB**. Quince robots serían **~22 GB sobre la única AP del
+laboratorio**, que es el riesgo nº4 de `FLOTA.md` — el que sigue sin medir y el más probable.
+Con imagen dorada son **0 GB de red**.
+
+Pero una imagen que nadie sabe reconstruir es una **caja negra**, y ese es exactamente el
+problema del `MANUAL SPHERO.docx` original. De ahí la relación: `provision.sh` construye el
+robot de referencia, la imagen se hace de él, y si divergen **gana el script**. Coste por robot
+nuevo: **~3 minutos atendidos**.
+
+### Un tercer defecto propio, encontrado al probar
+
+`verificar_robot.sh --hardware` salía **siempre** con código 2, porque el aviso «esto despierta
+el robot» —informativo— se estaba contando como problema. Eso deja el código de salida inútil
+para automatizar «¿pasó este robot?». Corregido a mensaje informativo.
+
+### Pendiente
+
+1. **Etapa E1: instalar `ros-jazzy-ros-base`** (manual cap. 5.2, todavía NO VERIFICADO), y
+   luego la Fase 2 del plan: portar el driver a `rclpy` con el **watchdog de `cmd_vel`** y las
+   unidades en rad/s.
+2. 👤 **Reserva DHCP para `rvr-01`** (MAC `d8:3a:dd:d6:c1:ee`). Hoy tiene IP dinámica
+   `192.168.1.58` y puede cambiar. Mejor hacerlo con un robot que con dieciséis.
+3. 👤 **Anotar dónde está guardada la imagen `dd`**, con sus dos copias. Hay una tabla
+   esperándolo en `RECUPERACION.md`. Una imagen que nadie encuentra no es un respaldo.
+4. 👤 **Confirmar si la contraseña de `sphero` se rotó** al grabar la imagen. No se puede
+   comprobar desde el sistema. En cualquier caso sigue pendiente purgarla del historial de
+   `Atriz_web_server`.
+5. La regla udev de `/dev/ydlidar` por `ID_PATH` está **propuesta y NO VERIFICADA**: falta
+   comprobar que el `ID_PATH` coincide entre dos robots. Si no coincidiera, no es clonable en
+   la imagen dorada y habría que generarla en `first-boot.sh`.
+6. Medir el arranque tras el próximo reinicio: `snapd.seeded` (3.5 s de los 8.7 s) ya está
+   fuera, así que debería bajar. **No se anota ninguna cifra hasta medirla.**
+
+---
+
+## 2026-07-30 (parte 1) — Instalación de 24.04: etapas A, B y C recorridas y verificadas
 
 **El sistema nuevo está instalado y a punto.** Ubuntu Server 24.04.4 LTS · aarch64 ·
 Python 3.12.3 · `rvr-01`. Los capítulos **1, 3, 4 y 8** del manual dejan de estar

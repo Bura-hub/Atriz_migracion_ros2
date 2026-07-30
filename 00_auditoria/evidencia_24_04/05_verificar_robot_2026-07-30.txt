@@ -1,0 +1,74 @@
+======================================================================
+  verificar_robot.sh — ¿está este robot como debe estar?
+======================================================================
+  · host rvr-01 · 2026-07-29T20:53:55-05:00 · kernel 6.8.0-1060-raspi
+
+▶ 1 · Sistema base
+  ✓ arquitectura: aarch64
+  ✓ distribución: Ubuntu 24.04.4 LTS
+  ✓ python3: 3.12.3
+  ✓ hostname: rvr-01
+
+▶ 2 · Arranque y UART (lo que decide si el robot habla)
+  ✓ cmdline.txt no reserva el puerto serie (console=tty1 )
+  ✓ uart0 -> /soc/serial@7e201000 (PL011, reloj estable)
+  ✓ mini-UART: disabled (normal y deseable tras disable-bt)
+  ✓ /dev/rvr apunta a: ttyAMA0
+  ✓ /dev/rvr legible y escribible por sphero
+  ✓ regla udev 99-rvr.rules presente
+  ✓ serial-getty@ttyAMA0.service: disabled
+  ✓ serial-getty@ttyS0.service: disabled
+  ✓ bluetooth: inactive
+
+▶ 3 · LIDAR YDLIDAR X2
+  ✓ adaptador CP210x detectado en USB
+  ✓ módulo cp210x cargado
+  ✓ /dev/ttyUSB0 presente
+  · ID_PATH=platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.2:1.0  (el serial es genérico '0001'; para la regla udev de la flota usar ID_PATH)
+
+▶ 4 · Higiene del SO (efecto real, no 'is-enabled')
+  ✓ default target: multi-user.target
+  ✓ governor de CPU: performance
+  ✓ wlan0 power-save: Power save: off
+  ✓ cloud-init desactivado (/etc/cloud/cloud-init.disabled presente)
+  · 'systemctl is-enabled cloud-init' dirá 'enabled' y NO es un problema
+  ✓ snapd inactivo (service=inactive socket=inactive)
+  ✓ apt-daily.timer: disabled
+  ✓ apt-daily-upgrade.timer: disabled
+  ✓ unattended-upgrades: disabled
+  ✓ noatime en /: rw,noatime
+  ✓ journal: 14.1M
+  ✓ servicios en fallo: 0
+
+▶ 5 · Salud del hardware
+  ✓ temperatura: 56 °C
+  ✓ throttling / under-voltage: throttled=0x0
+  · espacio en /: 24G libres (12% usado)
+  · swap: 0B (0B es lo correcto: desgasta la SD)
+  · procesos de usuario: 44 (hilos de kernel: 122, que no se pueden bajar)
+  ✓ servicios en ejecución: 16
+
+▶ 6 · Dependencias de Python del SDK
+  ✓ serial 3.5
+  ✓ serial_asyncio 0.6
+  ✓ aiohttp 3.9.1
+
+▶ 7 · Código del robot
+  ✓ Atriz_rvr en /home/sphero/atriz_ws/src/Atriz_rvr (rama migracion-ros2, 24c7749)
+  ✓ sin cambios sin commitear
+  ✓ SDK usa /dev/rvr por defecto (commit 67c8776)
+  ✓ streaming a interval=60 ms → 16.59 Hz (commit 24c7749)
+
+▶ 8 · ROS 2 — PENDIENTE
+  · ROS 2 aún no instalado — es la Etapa E. Nada que comprobar todavía.
+  · PENDIENTE de añadir aquí: /dev/ydlidar, unidades systemd del stack,
+  · rosbridge en :9090, árbol TF conectado, y frecuencias de /odom y /scan.
+
+▶ 9 · Hablar con el hardware de verdad
+  · esto DESPIERTA el robot: enciende sus LEDs y gasta batería
+  ✓ el RVR contesta por /dev/rvr
+  ✓ LIDAR X2: 100.0% validos checksums, 11.48 Hz
+
+======================================================================
+  39 comprobaciones correctas
+======================================================================

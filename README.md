@@ -20,9 +20,9 @@ reconstruir el sistema si algo sale mal.
 
 | | |
 |---|---|
-| **Fase actual** | **Etapas A, B y C completadas** (2026-07-30). El sistema nuevo está instalado y puesto a punto: Ubuntu Server 24.04.4, UART sobre PL011 con el RVR contestando, LIDAR X2 verificado |
-| **Siguiente paso** | **Etapa D — el GO/NO-GO**: `scripts/fase_1_validar_sdk_py312.py`. Decide si el SDK de Sphero funciona en Python 3.12, y con ello si la migración es viable. **No instalar ROS 2 antes** |
-| **Sistema hoy** | Raspberry Pi 4B 8 GB · **Ubuntu Server 24.04.4 LTS** · Python 3.12.3 · `rvr-01` · Sphero RVR por `/dev/rvr` (PL011) · YDLIDAR X2 en `/dev/ttyUSB0` · **ROS todavía no instalado** |
+| **Fase actual** | **Etapas A, B, C y D completadas** (2026-07-30). 🟢 **GO: la migración es viable** — el SDK de Sphero funciona en Python 3.12 y entrega telemetría a **16.67 Hz**, el mismo rendimiento que en Python 3.8 |
+| **Siguiente paso** | **Etapa E1 — instalar `ros-jazzy-ros-base`** (manual, cap. 5.2), y después portar el driver a `rclpy` (plan, Fase 2) |
+| **Sistema hoy** | Raspberry Pi 4B 8 GB · **Ubuntu Server 24.04.4 LTS** · Python 3.12.3 · `rvr-01` · arranque en **8.7 s** · Sphero RVR por `/dev/rvr` (PL011) · YDLIDAR X2 en `/dev/ttyUSB0` · **ROS todavía no instalado** |
 | **Sistema objetivo** | Ubuntu Server 24.04 LTS · ROS 2 Jazzy (soporte hasta mayo 2029) · rosbridge · SLAM + Nav2 · 16 robots |
 | **Vuelta atrás** | ✅ Disponible. La imagen `dd` del sistema Noetic está hecha **y verificada**. Ver [RECUPERACION.md](03_operacion/RECUPERACION.md) |
 
@@ -36,12 +36,21 @@ Ver [CHANGELOG.md](CHANGELOG.md) para la bitácora detallada, e
 | Enlace UART Pi ↔ RVR (`/dev/rvr` → PL011) | ✅ 2026-07-29 | ✅ **2026-07-30** |
 | Telemetría del RVR a 16.59 Hz, 12 min sin huecos | ✅ 2026-07-29 | ⏳ tras portar el driver |
 | YDLIDAR X2 (100 % checksums, ~2990 muestras/s, 11.48 Hz) | ✅ 2026-07-29 | ✅ **2026-07-30** |
-| Higiene del SO | receta documentada | ✅ **2026-07-30** |
-| SDK de Sphero en Python 3.12 | — | ⏳ **es el siguiente paso** |
+| Higiene del SO | receta documentada | ✅ **2026-07-30** — arranque 1min39s → **8.7 s** |
+| SDK de Sphero | ✅ GO en Python 3.8 | ✅ 🟢 **GO en Python 3.12** — 16.67 Hz |
 
 Evidencia cruda: [`00_auditoria/evidencia/`](00_auditoria/evidencia/) para 20.04,
 [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) para 24.04. **Son dos líneas
 base distintas y no deben mezclarse.**
+
+### Un solo comando para saber si un robot está bien
+
+```bash
+bash scripts/verificar_robot.sh --hardware
+```
+
+**39 comprobaciones** y código de salida ≠ 0 si algo falla. Es lo que hace que 16 robots sean
+manejables: no se pueden revisar a ojo. En `rvr-01`, el 2026-07-30: **39 correctas, 0 fallos**.
 
 ---
 
@@ -102,7 +111,10 @@ scripts/
 ├── diag_uart_pins.sh         diagnóstico de los pines GPIO14/15 (nunca ha hecho falta)
 ├── fase_0_3_respaldo.sh      ✅ prepara la SD para la imagen
 ├── fase_1_higiene_so.sh      ✅ higiene del SO — verificado en 24.04
-├── fase_1_validar_sdk_py312.py   ⏳ GO/NO-GO de la migración ← SIGUIENTE PASO
+├── fase_1_validar_sdk_py312.py   ✅ GO/NO-GO de la migración — 🟢 GO (2026-07-30)
+├── verificar_robot.sh        ✅ 39 aserciones: ¿está este robot bien? ← ÚSALO SIEMPRE
+├── provision.sh              🟡 de un 24.04 limpio a robot terminado (probado en seco)
+├── preparar_tarjeta.sh       🟡 en el PC: prepara la tarjeta de cada robot (en seco)
 ├── fase_6_preparar_imagen_dorada.sh   📝 NO VERIFICADO — imagen dorada de la flota
 └── first-boot.sh / .service  📝 NO VERIFICADO — personaliza cada robot clonado
 ```

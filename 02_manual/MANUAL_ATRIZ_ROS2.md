@@ -19,7 +19,7 @@
 > | 2 | Ritmo de telemetría | ✅ **medido 2026-07-29** |
 > | 3 | Flasheo de Ubuntu Server 24.04 | ✅ **verificado 2026-07-30** |
 > | 4 | Higiene del SO (headless, governor, journal) | ✅ **verificado 2026-07-30** |
-> | 5 | ROS 2 Jazzy y workspace colcon | 📝 **escrito · NO VERIFICADO** |
+> | 5 | ROS 2 Jazzy y workspace colcon | 🟡 **5.1 verificado (GO) 2026-07-30** · 5.2-5.5 NO VERIFICADO |
 > | 6 | Driver del RVR en `rclpy` | ⏳ no escrito |
 > | 7 | URDF y árbol TF | ⏳ no escrito |
 > | 8 | YDLIDAR X2 | 🟡 **hardware verificado en 20.04 y 24.04**; driver ROS pendiente |
@@ -440,7 +440,7 @@ Jazzy), con `params/X2.yaml`.
 > |---|---|
 > | **3** — Flasheo, `cmdline.txt`, `config.txt` | ✅ **RECORRIDO Y VERIFICADO 2026-07-30** |
 > | **4** — Higiene del SO | ✅ **RECORRIDO Y VERIFICADO 2026-07-30** |
-> | **5** — ROS 2 Jazzy y workspace | 📝 **ESCRITO, NO VERIFICADO** — nadie lo ha ejecutado |
+> | **5** — ROS 2 Jazzy y workspace | 🟡 **5.1 (go/no-go) VERIFICADO: GO.** 5.2-5.5 sin ejecutar |
 >
 > Los tres se redactaron **antes** de ejecutarlos, a partir de lo aprendido en Ubuntu 20.04 y
 > de la documentación oficial. Los capítulos 3 y 4 ya se recorrieron sobre la máquina real y
@@ -805,20 +805,59 @@ comprueba con `is-active` en vez de fiarse de `is-enabled`.
 
 ## Capítulo 5 — ROS 2 Jazzy y workspace
 
-### 5.1 ⚠️ COMPROBAR — el go/no-go, ANTES de instalar ROS
+### 5.1 🟢 El go/no-go — **GO, verificado 2026-07-30**
 
 **Este es el paso que decide si la migración es viable.** No instales nada de ROS 2 hasta
 haberlo hecho.
 
-```bash
-sudo apt install -y python3-pip python3-venv
-pip install --break-system-packages pyserial pyserial-asyncio
-# (24.04 aplica PEP 668: pip requiere --break-system-packages o un venv)
+#### Las tres dependencias, y de dónde sale cada una
 
-# El código del robot, para tener el SDK a mano:
+Esto importa más de lo que parece: **las tres son obligatorias**, aunque solo dos tengan que
+ver con hablar con el robot.
+
+| Módulo | Cómo se instala | Para qué |
+|---|---|---|
+| `pyserial` | `apt install python3-serial` *(ya viene en la imagen)* | el enlace serie |
+| `aiohttp` | `apt install python3-aiohttp` | **`sphero_sdk/__init__.py` lo importa sin condiciones** |
+| `pyserial-asyncio` | `pip3 install --break-system-packages pyserial-asyncio` | el backend asyncio del SDK |
+
+```bash
+sudo apt install -y python3-pip python3-aiohttp
+sudo pip3 install --break-system-packages pyserial-asyncio
+```
+
+> 🔴 **`pyserial-asyncio` NO existe como paquete apt.** Comprobado el 2026-07-30:
+> `apt-cache policy python3-pyserial-asyncio` no devuelve nada. Es la única dependencia que
+> obliga a usar `pip`, y 24.04 aplica **PEP 668**, de ahí `--break-system-packages`.
+>
+> 🔴 **Instálalo con `sudo`, a nivel de SISTEMA.** Con `pip --user` acaba en `~/.local`, donde
+> un servicio systemd puede no verlo según su `User=`, y en la imagen dorada quedaría
+> enterrado en el home de un usuario en lugar de en el sistema. Pasó el 2026-07-30 y hubo que
+> corregirlo.
+
+> ⚠️ **`aiohttp` parece opcional y no lo es.** Solo se usa en un fichero
+> (`common/firmware/cms_fw_check_base.py`) y solo para consultar la versión del firmware
+> contra un **servicio web de Sphero** — nada que ver con el UART. Pero `__init__.py` importa
+> todo el SDK de golpe, así que sin `aiohttp` el SDK **no se puede ni importar**.
+>
+> En 20.04 estaba instalado por casualidad, así que nadie había notado la dependencia. La
+> primera ejecución de este paso en 24.04 dio un **NO-GO falso** por eso: el script sugería
+> replantear la arquitectura del proyecto por un paquete que se instala en diez segundos.
+
+#### El código del robot
+
+```bash
 mkdir -p ~/atriz_ws/src && cd ~/atriz_ws/src
 git clone -b migracion-ros2 https://github.com/Bura-hub/Atriz_rvr.git
 
+# Regla nº1 del proyecto: fetch ANTES de mirar el código
+git -C ~/atriz_ws/src/Atriz_rvr fetch origin
+git -C ~/atriz_ws/src/Atriz_rvr status -sb        # esperado: migracion-ros2 = 24c7749
+```
+
+#### Ejecutarlo
+
+```bash
 # Con el RVR ENCENDIDO:
 python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
 ```
@@ -827,9 +866,37 @@ python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
 - **NO-GO** → **PARA.** El script imprime las cuatro alternativas ordenadas por coste. Es una
   decisión de arquitectura, no un problema a improvisar.
 
-> Contexto: el análisis estático del SDK fue muy favorable (0 patrones roubles en Python
-> 3.12, un único `get_event_loop()` en la ruta usada), pero **análisis estático no es
-> ejecución**.
+#### Resultado real: 🟢 **GO**
+
+```
+▶ 1/6 · Entorno         Python 3.12.3 · Linux-6.8.0-1060-raspi-aarch64
+▶ 2/6 · Dependencias    serial 3.5 · serial_asyncio 0.6 · aiohttp 3.9.1
+▶ 3/6 · Localizar SDK   ~/atriz_ws/src/Atriz_rvr/atriz_rvr_driver/scripts
+▶ 4/6 · Importar        sphero_sdk 1.0.0 — SpheroRvrAsync, SerialAsyncDal, … disponibles
+▶ 5/6 · Compilar        los 103 ficheros compilan sin errores de sintaxis
+▶ 6/6 · Hablar con el RVR
+        SpheroRvrAsync construido en 0.0 s
+        batería: 100 %
+        firmware (Nordic): 9.1.462
+        streaming: 99 muestras a 16.67 Hz
+
+  GO — el SDK funciona en esta versión de Python.
+```
+
+**El dato que cierra el riesgo principal del proyecto:** la telemetría rinde **16.67 Hz en
+Python 3.12 sobre 24.04**, frente a los **16.59 Hz** medidos en Python 3.8 sobre 20.04. Es el
+mismo rendimiento. El análisis estático predecía un parche de ~4 líneas; resultaron ser
+**cero**.
+
+**Y el tiempo de construcción de `SpheroRvrAsync` es 0.0 s**, que según el atajo de
+`CLAUDE.md` significa que el robot responde. (~10 s serían dos timeouts de 5 s = no responde.)
+
+> **Lo que este GO NO significa.** El driver ROS sigue siendo **ROS 1 (catkin)** y no
+> compilará con `colcon` hasta el port de la Fase 2. Lo que queda validado es la pieza
+> insustituible: el SDK, que es lo único que sabe hablar con el RVR.
+
+Evidencia cruda con todo el contexto en
+[`00_auditoria/evidencia_24_04/04_gonogo_sdk_py312_2026-07-30.txt`](../00_auditoria/evidencia_24_04/04_gonogo_sdk_py312_2026-07-30.txt).
 
 ### 5.2 Instalar ROS 2 Jazzy
 

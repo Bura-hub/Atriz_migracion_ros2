@@ -212,6 +212,9 @@ lo que produce deriva entre documentación y realidad.
 | **Sin cámara** en los robots | confirmado por el usuario |
 | La plataforma web **al final** | decisión del usuario |
 | `ros-jazzy-ros-base`, **NO** `desktop` | Server headless; RViz2 va en un portátil |
+| **Imagen dorada** para los 16, no aprovisionar por red | ~1.5 GB por robot = ~22 GB sobre la única AP. `FLOTA.md` |
+| La imagen dorada se **construye ejecutando `provision.sh`**, no a mano | Una imagen irreproducible es una caja negra. `FLOTA.md` |
+| **🟢 GO: el SDK funciona en Python 3.12** (16.67 Hz) | manual, cap. 5.1 · verificado 2026-07-30 |
 
 ---
 
@@ -230,6 +233,31 @@ lo que produce deriva entre documentación y realidad.
 ---
 
 ## Cómo saber en qué punto estás
+
+### Primero: pasa el verificador. Un comando en vez de veinticinco.
+
+```bash
+bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
+```
+
+**39 aserciones**, código de salida ≠ 0 si algo falla, y cada fallo viene con el comando que lo
+arregla. Existe porque el 2026-07-30 se verificó este robot a mano con ~25 comandos y
+aparecieron **cinco fallos silenciosos**. No repitas eso: pásalo al empezar y al cerrar.
+
+Su regla es **comprobar el efecto, no la intención**. Si añades comprobaciones, mantenla.
+
+### Los tres scripts de la flota
+
+| Script | Dónde corre | Para qué |
+|---|---|---|
+| `preparar_tarjeta.sh --id NN` | en el **PC** | Tarjeta recién grabada: `cmdline.txt`, `config.txt`, `robot_id.txt` |
+| `provision.sh` | en el robot | De un 24.04 limpio a robot terminado. Idempotente: sirve para actualizar |
+| `verificar_robot.sh` | en el robot | Decide si el robot está listo |
+
+**La imagen dorada es el atajo; `provision.sh` es la verdad.** Si divergen, gana el script y se
+reconstruye la imagen. Procedimiento completo en `03_operacion/FLOTA.md`.
+
+### Y luego el contexto
 
 ```bash
 cat TRASPASO.md | head -60          # estado y siguiente paso

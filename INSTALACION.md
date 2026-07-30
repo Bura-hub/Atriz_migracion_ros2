@@ -33,14 +33,13 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      C1  Higiene del SO                       scripts/fase_1_higiene_so.sh   ✅
      C2  Verificar contra la línea base       manual, cap. 4.3               ✅
 
-  ETAPA D — GO / NO-GO                                            ⏳ SIGUIENTE PASO
-     D1  Clonar el código                     manual, cap. 5.1
+  ETAPA D — GO / NO-GO                                    🟢 GO — 2026-07-30
+     D1  Clonar el código                     manual, cap. 5.1               ✅
      D2  Validar el SDK en Python 3.12        scripts/fase_1_validar_sdk_py312.py
-         ├── GO     → sigue en E
-         └── NO-GO  → PARA. Decisión de arquitectura
+         └── 🟢 GO: 16.67 Hz, firmware 9.1.462, los 103 ficheros compilan     ✅
 
-  ETAPA E — ROS 2 y el robot                                      ⏳
-     E1  Instalar ROS 2 Jazzy                 manual, cap. 5.2-5.5
+  ETAPA E — ROS 2 y el robot                                      ⏳ SIGUIENTE PASO
+     E1  Instalar ROS 2 Jazzy                 manual, cap. 5.2-5.5   ← AQUÍ
      E2  Recuperar el estado actual           ver "Cómo volver a donde estábamos"
      E3  Verificar UART y telemetría          manual, cap. 1.3 y 2   ← UART ✅ ya hecho
      E4  Verificar el LIDAR                   manual, cap. 8.2       ← ✅ ya hecho
@@ -54,12 +53,36 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      F6  Clonar a los 16 robots               FLOTA.md
 ```
 
-> **Etapas A, B y C están recorridas y verificadas sobre la máquina real.** Los capítulos 1,
-> 3, 4 y 8 del manual dejaron de ser NO VERIFICADO. La evidencia cruda de cada paso está en
-> [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
+> **Etapas A, B, C y D están recorridas y verificadas sobre la máquina real.** Los capítulos 1,
+> 3, 4, 5.1 y 8 del manual dejaron de ser NO VERIFICADO. La evidencia cruda de cada paso está
+> en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
 > comparar cuando un robot nuevo de la flota no dé lo mismo.
 >
-> **El siguiente paso es D2, el go/no-go.** No instales ROS 2 antes.
+> **🟢 El go/no-go salió GO**, así que la migración sigue adelante tal como está planteada. El
+> siguiente paso es **E1: instalar `ros-jazzy-ros-base`**.
+>
+> ### Un solo comando para saber si el robot está bien
+>
+> ```bash
+> bash scripts/verificar_robot.sh --hardware
+> ```
+>
+> **39 comprobaciones**, y sale con código ≠ 0 si algo falla. Pásalo al final de cada etapa en
+> lugar de recordar qué había que mirar. En `rvr-01`, el 2026-07-30: 39 correctas, 0 fallos.
+>
+> ### Y si estás instalando el robot 2, 3… 16
+>
+> **No sigas esta ruta a mano.** Hay tres scripts para eso, y el procedimiento completo está en
+> [`03_operacion/FLOTA.md`](03_operacion/FLOTA.md):
+>
+> | Script | Dónde | Qué hace |
+> |---|---|---|
+> | `preparar_tarjeta.sh --id NN` | en el **PC** | `cmdline.txt`, `config.txt` y `robot_id.txt` de una tarjeta recién grabada |
+> | `provision.sh` | en el robot | Todas las etapas B–E de una vez. Idempotente |
+> | `verificar_robot.sh` | en el robot | Decide si quedó bien |
+>
+> Esta ruta a mano es **para el primer robot** y para entender *por qué* hace cada cosa. A
+> partir del segundo, la imagen dorada ahorra ~1.5 GB de descarga **por robot**.
 
 ---
 

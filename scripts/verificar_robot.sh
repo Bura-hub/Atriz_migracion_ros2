@@ -322,7 +322,10 @@ _nota "rosbridge en :9090, árbol TF conectado, y frecuencias de /odom y /scan."
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ $HARDWARE -eq 1 ]]; then
     sec "9 · Hablar con el hardware de verdad"
-    _avi "esto DESPIERTA el robot: enciende sus LEDs y gasta batería"
+    # _nota, no _avi: es información, no un problema del robot. Con _avi el
+    # script salía SIEMPRE con código 2 al usar --hardware, y eso convierte el
+    # código de salida en inútil para automatizar "¿pasó este robot?".
+    _nota "esto DESPIERTA el robot: enciende sus LEDs y gasta batería"
     AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     MED="$AQUI/00_auditoria/evidencia/mediciones_banco"
 

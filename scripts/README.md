@@ -30,7 +30,7 @@ El procedimiento completo de alta de un robot está en
 | `diag_uart_pins.sh` | 0.1 | sí | diagnóstico opcional, **nunca ha hecho falta** |
 | `fase_0_3_respaldo.sh` | 0.3 · A1 | no (sudo opcional) | ✅ **ejecutado** (2026-07-29). 📝 Sus dos correcciones del 2026-07-30 **sin reejecutar** |
 | `fase_1_higiene_so.sh` | 1 · C1 | sí | ✅ **ejecutado y verificado** en 24.04 (2026-07-30) |
-| `fase_1_validar_sdk_py312.py` | 1 · D2 | no | ⏳ **pendiente** — es el go/no-go de la migración |
+| `fase_1_validar_sdk_py312.py` | 1 · D2 | no | ✅ **ejecutado 2026-07-30 → 🟢 GO** (16.67 Hz en Python 3.12) |
 | `fase_6_preparar_imagen_dorada.sh` | 6 · F6 | sí | ⏳ **pendiente**, y 📝 **NO VERIFICADO** |
 | `first-boot.sh` + `first-boot.service` | 6 · F6 | sí (en el robot clonado) | ⏳ **pendiente**, y 📝 **NO VERIFICADO** |
 
@@ -223,13 +223,29 @@ sudo reboot
 
 ## `fase_1_validar_sdk_py312.py` — el go/no-go (Etapa D)
 
-⏳ **Pendiente.** Es **el punto de decisión de toda la migración**: comprueba si el SDK de
-Sphero funciona en Python 3.12. No instales ROS 2 antes de haberlo pasado.
+✅ **Ejecutado el 2026-07-30 → 🟢 GO.** Era **el punto de decisión de toda la migración**:
+comprueba si el SDK de Sphero funciona en Python 3.12.
+
+**Resultado:** los 103 ficheros del SDK compilan, `SpheroRvrAsync` se construye en 0.0 s,
+batería 100 %, firmware 9.1.462, y streaming a **16.67 Hz** — el mismo rendimiento que los
+16.59 Hz medidos en Python 3.8 sobre 20.04.
 
 ```bash
-pip install --break-system-packages pyserial-asyncio   # 24.04 aplica PEP 668
-python3 fase_1_validar_sdk_py312.py [--puerto /dev/rvr]   # con el RVR ENCENDIDO
+sudo apt install -y python3-aiohttp
+sudo pip3 install --break-system-packages pyserial-asyncio   # 24.04 aplica PEP 668
+python3 fase_1_validar_sdk_py312.py [--puerto /dev/rvr]      # con el RVR ENCENDIDO
 ```
 
-Si sale **NO-GO**, el propio script imprime las cuatro alternativas ordenadas por coste. Es
+Las **tres** dependencias son obligatorias. `pyserial-asyncio` no existe en apt, y hay que
+instalarlo **a nivel de sistema** (con `sudo`): con `pip --user` acaba en `~/.local`, donde un
+servicio systemd puede no verlo.
+
+> 🐛 **El primer intento dio un NO-GO FALSO** por `ModuleNotFoundError: aiohttp`. No era una
+> incompatibilidad con Python 3.12: era un paquete que faltaba. `sphero_sdk/__init__.py`
+> importa todo de golpe y esa cadena llega a `cms_fw_check_base.py:2`, que hace
+> `import aiohttp` a nivel de módulo. El script lo marcaba como «opcional» en el paso 2/6 y
+> moría por él en el 4/6, sugiriendo replantear la arquitectura del proyecto por un paquete de
+> diez segundos. Corregido.
+
+Si algún día sale **NO-GO**, el script imprime las cuatro alternativas ordenadas por coste. Es
 una decisión de arquitectura, no algo a improvisar.
