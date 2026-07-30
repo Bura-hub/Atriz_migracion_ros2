@@ -1,6 +1,6 @@
 """Decodifica el protocolo YDLIDAR X2 (canal unico) sobre /dev/ttyUSB0.
 Verifica cabeceras, checksums, frecuencia de giro y rango de distancias."""
-import serial, time, struct, statistics, sys
+import serial, time, struct, sys
 
 PORT, BAUD, DUR = '/dev/ttyUSB0', 115200, 12
 p = serial.Serial(PORT, BAUD, timeout=1)
@@ -48,10 +48,15 @@ print(f"paquetes decodificados: {paquetes}   ({paquetes/dur:.0f}/s)")
 print(f"checksum OK / KO    : {ok_chk} / {bad_chk}   ({100*ok_chk/max(paquetes,1):.1f}% validos)")
 print(f"muestras totales    : {muestras_total}   ({muestras_total/dur:.0f} muestras/s)")
 print(f"paquetes de inicio de vuelta: {zero_pkts}")
-if len(t_zero) > 2:
-    per = [(t_zero[i+1]-t_zero[i]) for i in range(len(t_zero)-1)]
-    print(f"frecuencia de giro  : {1/statistics.median(per):.2f} Hz   (mediana {statistics.median(per)*1000:.1f} ms)")
-    print(f"muestras por vuelta : {muestras_total/max(zero_pkts,1):.0f}")
+if zero_pkts > 2:
+    # Se cuentan VUELTAS sobre la duración total. No se usa la mediana de los
+    # intervalos entre paquetes de inicio de vuelta: esos timestamps son la hora
+    # en que el paquete sale del buffer USB, y salen a RÁFAGAS. Esa mediana daba
+    # ~1.3 ms -> "741 Hz de giro", un valor absurdo que estuvo imprimiéndose
+    # hasta el 2026-07-30. El X2 gira a ~10 Hz por especificación.
+    print(f"frecuencia de giro  : {zero_pkts/dur:.2f} Hz   ({zero_pkts} vueltas en {dur:.1f} s)")
+    print(f"muestras por vuelta : {muestras_total/max(zero_pkts,1):.0f}"
+          f"   (resolucion angular {360/(muestras_total/max(zero_pkts,1)):.2f} grados)")
 if dists:
     dists.sort()
     print(f"distancias validas  : {len(dists)}  ({100*len(dists)/max(muestras_total,1):.0f}% de las muestras)")
