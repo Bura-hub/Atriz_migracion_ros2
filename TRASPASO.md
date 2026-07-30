@@ -19,8 +19,13 @@ enteraba; desde el 2026-07-31 el driver le habla cada 30 s, publica `/battery_st
 y reanuda si aun así deja de llegar telemetría. Verificado: 12 min sin un hueco, contra 2
 huecos sin el arreglo (manual, cap. 9.8).
 
-**El siguiente paso es cerrar la Fase 4**: repetir la prueba de mapeo con los dos launch
-arrancados juntos, que es lo único que falta para dar SLAM por bueno.
+✅ **Y la Fase 4 está CERRADA.** `slam_toolbox` mapea de verdad: moviendo el robot 1.78 m el
+mapa pasó de **2367 a 3299 celdas** (5.92 → 8.25 m²). Hicieron falta tres arreglos y corregir
+dos herramientas propias, y **ninguno de los fallos daba un error** (manual, cap. 9.11).
+
+**El siguiente paso es caracterizar la deriva de la localización**: dos corridas dieron
+87.8 cm y 0.9 cm de error al volver al punto de partida, y hasta saber cuál es el
+comportamiento típico no se puede decir si la pose sirve para Nav2.
 
 ---
 
@@ -48,8 +53,8 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 |---|---|---|
 | ~~El RVR se duerme solo y el driver no se entera~~ | seguridad operativa | ✅ **resuelto 2026-07-31**: timeout medido en **300.6 s**, keepalive cada 30 s + detector de silencio. 2 huecos → 0 |
 | 🔴 **La velocidad de `/odom` es basura.** El stream `Velocity` del RVR reporta 0.001 m/s a 0.147 m/s reales. La posición sí es buena | bloquea Nav2 | 🔴 abierto, 3 opciones sin probar |
-| 🔴 **`inverted` del LIDAR sin verificar.** Si está al revés **el mapa sale espejado** sin dar error | corrompe mapas | 🔴 abierto |
-| 🔴 **El robot está inclinado ~7°** (árbol TF y Roll de la IMU, dos vías independientes). `slam_toolbox` lo absorbe en `map → odom` | bloquea Nav2 | 🔴 abierto, causa sin determinar |
+| ~~`inverted` del LIDAR sin verificar~~ | corrompe mapas | ✅ **verificado 2026-07-31**: `true` es CORRECTO. El equivocado era el yaw de `/odom` |
+| 🔴 **El robot está inclinado ~8°** (árbol TF, Roll de la IMU y acelerómetro: **tres** vías) | bloquea Nav2 | 🔴 abierto, causa sin determinar |
 | 🔴 **La parada de emergencia de la web no hace nada.** Publica en `/rvr/emergency_stop`, que no existe. Falla **en silencio** con `200 OK` | seguridad | ⏳ el topic ya existe en el driver ROS 2; falta el lado web (fase final) |
 | **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — acción del usuario |
 | **Sin arranque automático** — ninguna unidad systemd | operación | ⏳ pendiente |
@@ -57,7 +62,7 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 | ~~No hay watchdog de `cmd_vel`~~ | seguridad | ✅ **resuelto**: para en 527 ms / 7.9 cm |
 | ~~No hay URDF → árbol TF partido~~ | bloqueante | ✅ **resuelto**: `atriz_rvr_description` |
 | ~~Driver ROS del LIDAR no instalado~~ | bloqueante | ✅ **resuelto**: `/scan` a 10.1 Hz |
-| ~~Sin SLAM~~ | bloqueante | 🟡 **`slam_toolbox` activo y publicando `/map`**; falta la prueba con movimiento |
+| ~~Sin SLAM~~ | bloqueante | ✅ **Fase 4 CERRADA 2026-07-31**: el mapa crece al moverse (2367 → 3299 celdas) |
 | ~~`imu.angular_velocity` en deg/s~~ | calidad de SLAM | ✅ **resuelto**: rad/s (REP-103) |
 
 ---
@@ -77,11 +82,25 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 
 Contraste: **2 huecos sin keepalive, 0 con él**, en 12 min cada prueba.
 
-### 1. Cerrar la Fase 4: repetir la prueba de mapeo
+### ✅ Hecho el 2026-07-31: Fase 4 CERRADA
 
-La prueba con movimiento del 2026-07-30 **no es válida**: se reinició solo el driver dejando el
-`slam_toolbox` viejo en marcha, y ese dejó de procesar (mapa idéntico celda a celda tras 80 cm
-de recorrido). **Arrancar los dos launch juntos**, `robot.launch.py` primero:
+`slam_toolbox` mapea. Verificado moviendo el robot: **2367 → 3299 celdas**, 5.92 → 8.25 m².
+Manual cap. 9, evidencia `13_fase4_cerrada.txt`.
+
+Hicieron falta tres arreglos y corregir dos herramientas propias, y **ninguno daba un error**:
+
+- **El yaw de `/odom` tenía el signo invertido** — el RVR reporta el cuaternión y el locator
+  en FRD y el driver los copiaba crudos. `/scan` y `/odom` decían que giraba en sentidos
+  contrarios. ✅ `inverted: true` del LIDAR **era correcto**; el LIDAR nunca fue el problema.
+- **El acelerómetro venía en `g`**, no en m/s². Ni el driver de ROS 1 lo convertía.
+- **`fixed_resolution: false`** hacía que `slam_toolbox` descartara barridos (254/255 puntos).
+- **Mi herramienta medía algo imposible**: giraba en el sitio y esperaba que el mapa creciera.
+
+### 1. Caracterizar la deriva de la localización
+
+Dos corridas dieron **87.8 cm / 10.9°** y **0.9 cm / 3.1°**. No se sabe qué las separa
+(la primera rozó obstáculos). **Repetir varias veces en espacio despejado** antes de decidir
+si la pose vale para Nav2.
 
 ```bash
 ros2 launch atriz_rvr_bringup robot.launch.py     # terminal 1
@@ -89,10 +108,13 @@ ros2 launch atriz_rvr_bringup slam.launch.py      # terminal 2
 python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_slam_ros2.py
 ```
 
-### 2. 🔴 Verificar `inverted` del LIDAR antes de confiar en un mapa
+⚠️ Necesita **1 m por delante, 1 m por detrás y 40 cm a cada lado**, y nada a menos de 60 cm:
+el robot **no esquiva obstáculos**.
 
-Si está al revés **el mapa sale espejado**: parece correcto y tiene las paredes al otro lado.
-Se comprueba con un objeto a 1 m delante del robot, mirando dónde aparece en `/scan`.
+### 2. 🔴 La inclinación de ~8°, ahora confirmada por TRES vías
+
+Árbol TF, `Roll` de la IMU y el acelerómetro con unidades correctas. Causa sin determinar.
+Para SLAM 2D funciona; para Nav2 hay que resolverla.
 
 ---
 

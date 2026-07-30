@@ -1,0 +1,249 @@
+═══════════════════════════════════════════════════════════════════════════════
+FASE 4 CERRADA — SLAM mapea de verdad
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Manual, cap. 9. Arreglos en Atriz_rvr, rama `ros2`.
+
+RESULTADO
+
+  celdas conocidas   657  ->  3110      (+2453)
+  area mapeada       1.64 ->  7.78 m²   (casi 5x)
+  nodos del grafo    4    ->  8
+  recorrido          262.5 cm en 3 tramos de 45 cm ida y vuelta
+
+  ✅ EL MAPA CRECE AL MOVERSE.
+
+Para llegar aqui hubo que arreglar TRES cosas y corregir DOS herramientas
+propias. Ninguna daba un error: las cinco fallaban en silencio.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. 🔴 /scan y /odom SE CONTRADECIAN EN EL SENTIDO DE GIRO
+───────────────────────────────────────────────────────────────────────────────
+Sintoma: SLAM producia mapa, pero tras dar una vuelta completa y volver al
+sitio creia haber girado 30°.
+
+COMO SE DETECTO (verificar_inverted_lidar.py): se gira el robot y se
+correlaciona el barrido de antes con el de despues. La fisica exige que el
+patron se desplace al REVES que el robot.
+
+    giro real (odom):          -47.0°
+    desplazamiento del scan:   -47.0°   <- MISMO signo. Uno de los dos miente.
+    calidad del ajuste:         0.96
+
+⚠️ ESTO SOLO NO DICE CUAL DE LOS DOS ESTA MAL. La primera version de la
+   herramienta concluyo "/scan esta espejado" y era CONCLUIR DE MAS: los datos
+   encajaban igual con "el yaw de /odom tiene el signo invertido". Corregida.
+
+COMO SE DESEMPATO — con una observacion fisica, que ningun software del robot
+puede hacer:
+
+  · El SDK documenta `yaw_angular_velocity` con la regla de la mano derecha
+    (positivo = antihorario) y el driver pasa `angular.z` sin tocarlo.
+  · Se mando un giro positivo y SE MIRO EL ROBOT: giro a la IZQUIERDA.
+  · -> el SDK cumple. El giro real fue +47°, el barrido (-47°) era CORRECTO,
+       y el equivocado era el yaw de /odom.
+  · Confirmado por segunda via: al curvar a la izquierda, la `y` del locator
+    salia NEGATIVA.
+
+✅ `inverted: true` del YDLIDAR ERA CORRECTO. El LIDAR nunca fue el problema.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. 🔴 EL RVR NO USA UNA SOLA CONVENCION DE EJES
+───────────────────────────────────────────────────────────────────────────────
+Se aplico la conversion FRD->FLU a los cuatro sensores POR ANALOGIA, y eso
+rompio dos de ellos. Hubo que medir CADA UNO por separado:
+
+  sensor          antes                    despues              accion
+  cuaternion      yaw invertido            +71.7° antihorario   (x,-y,-z,w)
+  locator         y invertida              y correcta           -y
+  giroscopio      YA ESTABA BIEN           +0.470 rad/s         solo deg->rad
+  acelerometro    YA ESTABA BIEN, y en g   +9.28 m/s^2 en z     solo g->m/s^2
+
+Medidas que lo demuestran:
+
+  En reposo, acelerometro = (-1.314, -0.004, +9.281)  modulo 9.374 m/s^2
+    -> z POSITIVO (gravedad hacia arriba, REP-103) y unidades reales.
+    -> antes daba modulo 0.973: el RVR reporta en **g**, no en m/s^2, y el
+       driver de ROS 1 tampoco lo convertia.
+
+  Girando antihorario:
+    gyro.z medio       = +0.470 rad/s
+    yaw del quaternion = +0.501 rad/s de media
+    -> coinciden entre si Y con el comando (+0.5).
+
+  📝 De propina, el acelerometro da la inclinacion del robot por una TERCERA
+     via independiente: asin(1.314/9.374) = 8.1°, coherente con los ~7°
+     medidos antes por el arbol TF y por el Roll de la IMU.
+
+EFECTO DEL ARREGLO sobre la coherencia de SLAM (misma prueba, antes y despues):
+
+    deriva tras un giro de 360° y volver al sitio
+      antes:   6.6 cm y 30.0°
+      despues: 0.2 cm y  1.8°
+
+Y verificado con verificar_inverted_lidar.py:
+
+    giro real (odom):          +48.5°
+    desplazamiento del scan:   -49.0°   <- signos OPUESTOS ✅
+    calidad del ajuste:         0.93
+    -> /scan y /odom SON COHERENTES entre si.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 fixed_resolution: false -> slam_toolbox DESCARTABA LOS BARRIDOS
+───────────────────────────────────────────────────────────────────────────────
+El X2 entrega barridos de longitud VARIABLE (254 unas veces, 255 otras).
+slam_toolbox registra el sensor con el tamaño del PRIMERO y descarta todos los
+que no coincidan. Una sola linea en su log, ningun error:
+
+    LaserRangeScan contains 254 range readings, expected 255
+
+Este parametro se habia puesto a `false` en la Fase 3.2 para callar un aviso
+COSMETICO del driver ("Real point count > fixed"). Cambiar un parametro para
+silenciar un aviso cambio un sintoma visible por uno invisible.
+
+Con `fixed_resolution: true`:
+
+    142 barridos de 260 puntos
+    -> TODOS IGUALES ✅   y el mensaje "expected N" desaparece del log.
+
+📝 El mismo problema reventaba `verificar_inverted_lidar.py` con IndexError:
+   asumia barridos del mismo tamaño. Corregido remuestreando a una rejilla
+   angular fija de 360 celdas. Mismo origen, dos victimas.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. 🔴 MI PROPIA HERRAMIENTA DABA UN FALSO NEGATIVO
+───────────────────────────────────────────────────────────────────────────────
+Arreglado todo lo anterior, `medir_slam_ros2.py` SEGUIA diciendo "el mapa NO
+creció". Y no era SLAM: era la prueba.
+
+Dos errores de diseño a la vez:
+
+  · Avanzaba 40 cm y retrocedia otros 40. slam_toolbox solo añade un barrido al
+    grafo cuando el robot se aleja `minimum_travel_distance` DEL ULTIMO NODO,
+    no de donde empezo la prueba. Medido: con el umbral en 0.3 hicieron falta
+    ~0.85 m de recorrido para el primer nodo nuevo.
+  · Solo miraba el mapa AL FINAL, con el robot otra vez donde empezo — el
+    momento en que menos ha cambiado.
+
+Lo que lo demostro fue mirar el GRAFO, no el mapa:
+
+    (config de fabrica, minimum_travel_distance 0.5)
+    inicio                 grafo=4  mapa= 690 celdas
+    tras paso 1 (+0.45 m)  grafo=5  mapa=1576 celdas   <- CRECE
+    tras paso 2 (+0.45 m)  grafo=5  mapa=1576
+    tras paso 3 (-0.45 m)  grafo=5  mapa=1576
+    tras paso 4 (-0.45 m)  grafo=5  mapa=1576
+
+    (mi config, minimum_travel_distance 0.3)
+    inicio                 grafo=4  mapa= 708 celdas
+    tras paso 1 (+0.45 m)  grafo=4  mapa= 708
+    tras paso 2 (+0.45 m)  grafo=5  mapa=1542   <- CRECE
+    tras paso 3 (-0.45 m)  grafo=5  mapa=1542
+    tras paso 4 (-0.45 m)  grafo=6  mapa=2279   <- CRECE
+
+Y antes de eso, comparar contra la CONFIG DE FABRICA descarto de un golpe que
+el problema fueran mis parametros: se comporto igual.
+
+Girar en el sitio NO basta: cuatro vueltas y media seguidas no cambiaron ni una
+celda. Sin cambiar de sitio no hay geometria nueva que ver.
+
+La herramienta ahora avanza en TRAMOS, mide DESPUES DE CADA UNO, y el veredicto
+usa el mapa MAS GRANDE visto, no el ultimo.
+
+
+───────────────────────────────────────────────────────────────────────────────
+LA PRUEBA QUE CIERRA LA FASE
+───────────────────────────────────────────────────────────────────────────────
+  ros2 launch atriz_rvr_bringup robot.launch.py    # terminal 1
+  ros2 launch atriz_rvr_bringup slam.launch.py     # terminal 2
+  python3 .../mediciones_banco/medir_slam_ros2.py
+
+  ── arbol TF ──
+    ✅ odom -> base_footprint
+    ✅ map  -> base_footprint
+    ✅ base_link -> laser
+
+  ANTES de mover      79 x 89 celdas     657 conocidas ( 9.3 %)  1.64 m²
+  tras el giro 360°   79 x 89            657            ( 9.3 %)  1.64 m²
+  tras avance 1/3     79 x 89            657            ( 9.3 %)  1.64 m²
+  tras avance 2/3     84 x 95           1669            (20.9 %)  4.17 m²
+  tras avance 3/3     86 x 95           2023            (24.8 %)  5.06 m²
+  al volver          121 x 98           3110            (26.2 %)  7.78 m²
+
+  recorrido real: 262.5 cm
+  ✅ EL MAPA CRECE AL MOVERSE: slam_toolbox esta mapeando.
+
+Mapa guardado (formato nativo, no necesita nav2):
+  mapas/mapa_fase4_cerrada.data        51 KB
+  mapas/mapa_fase4_cerrada.posegraph  3.4 MB
+
+
+───────────────────────────────────────────────────────────────────────────────
+COSTE EN EL PI 4 (todo a la vez)
+───────────────────────────────────────────────────────────────────────────────
+  rvr_driver_node             CPU 33.6 %   RSS 86.3 MB
+  async_slam_toolbox_node     CPU  5.0 %   RSS 50.3 MB
+  ydlidar_ros2_driver_node    CPU  2.6 %   RSS 30.8 MB
+  robot_state_publisher       CPU  0.5 %   RSS 32.4 MB
+  temp = 64.2 °C
+
+El driver del RVR subio de 15.9 % a 33.6 %: lleva ahora el keepalive, el
+detector de silencio y las conversiones de ejes. Sigue habiendo margen de
+sobra en un Pi 4 de cuatro nucleos.
+
+
+───────────────────────────────────────────────────────────────────────────────
+SEGUNDA CORRIDA DE CONFIRMACION (--pasos 2), en espacio despejado
+───────────────────────────────────────────────────────────────────────────────
+La primera corrida se hizo en un hueco demasiado justo y el robot llego a
+rozar obstaculos. Se repitio con 2 m x 0.8 m libres y el robot centrado:
+
+  ANTES de mover      88 x 110 celdas   2367 conocidas (24.5 %)  5.92 m²
+  tras el giro 360°   88 x 110          2367            (24.5 %)  5.92 m²
+  tras avance 1/2     88 x 110          2367            (24.5 %)  5.92 m²
+  tras avance 2/2     88 x 110          2988            (30.9 %)  7.47 m²
+  al volver al inicio 88 x 110          3299            (34.1 %)  8.25 m²
+
+  recorrido real: 178.5 cm
+  ✅ EL MAPA CRECE AL MOVERSE  (+932 celdas, 5.92 -> 8.25 m²)
+
+  deriva de la pose en `map` al volver al punto de partida:
+      0.9 cm y 3.1°
+
+🔴 ESTO CONTRADICE EL APARTADO DE DERIVA DE LA PRIMERA CORRIDA (87.8 cm y
+   10.9°). Las dos medidas son reales y estan tomadas con el mismo binario.
+   No se sabe que las separa. Diferencias conocidas entre ambas:
+     · la primera recorrio 262.5 cm (3 tramos), la segunda 178.5 cm (2 tramos);
+     · en la primera el robot rozo obstaculos, en la segunda no.
+
+   NO SE PRESENTA NINGUNA DE LAS DOS COMO "LA BUENA". Hace falta repetir la
+   prueba varias veces en espacio despejado antes de caracterizar la deriva.
+
+
+───────────────────────────────────────────────────────────────────────────────
+⚠️ LO QUE QUEDA ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+🟡 LA DERIVA DE LA LOCALIZACION NO ESTA CARACTERIZADA. Dos corridas dieron
+   87.8 cm / 10.9° y 0.9 cm / 3.1°. El mapa CRECE y es utilizable en ambas,
+   pero hasta saber cual es el comportamiento tipico no se puede decir si vale
+   para Nav2. Sospechas, sin comprobar:
+     · la inclinacion de ~8° hace que el LIDAR barra un plano inclinado, y la
+       geometria que ve cambia al moverse de forma que el emparejado no puede
+       reconciliar;
+     · la velocidad de /odom sigue siendo basura y slam_toolbox no tiene una
+       estimacion de movimiento decente entre barridos;
+     · rozar obstaculos en la primera corrida.
+   NO SE HA AISLADO CUAL. Es lo siguiente que medir, y hay que repetir la
+   prueba VARIAS VECES antes de atribuir nada.
+
+🔴 La inclinacion de ~8°, ahora confirmada por TRES vias independientes (arbol
+   TF, Roll de la IMU y el acelerometro). Causa sin determinar.
+
+🔴 La velocidad de /odom sigue siendo basura (stream `Velocity` del RVR). No
+   bloquea SLAM, si bloquea Nav2.
+
+📝 `save_map` sigue necesitando nav2_map_server, que llega en la Fase 5.

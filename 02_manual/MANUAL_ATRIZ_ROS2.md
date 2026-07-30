@@ -1577,9 +1577,15 @@ motores crudos…) tienen **el hardware detrás ya verificado**, así que portar
 
 ## Capítulo 9 — SLAM con slam_toolbox (Fase 4)
 
-🟡 **PARCIAL** — verificado el 2026-07-30. Arranca, se activa, completa el árbol TF y
-publica `/map`. **Lo que queda sin verificar es lo importante: que el mapa crezca al
-moverse.** Ver 9.7.
+✅ **CERRADA** el 2026-07-31. `slam_toolbox` arranca, se activa, completa el árbol TF,
+publica `/map` **y el mapa crece al moverse**: de 657 a **3110 celdas** (1.64 → 7.78 m²)
+recorriendo 2.6 m. Ver 9.11.
+
+⚠️ Con una reserva medida: **la localización deriva más de lo aceptable para Nav2** (87.8 cm
+tras 2.6 m). El mapa sirve; la pose todavía no. Ver 9.12.
+
+Para cerrarla hubo que arreglar **tres cosas** y corregir **dos herramientas propias**.
+Ninguna de las cinco daba un error: **todas fallaban en silencio.** Están en 9.11.
 
 ### 9.1 Qué añade SLAM, y qué tenía que estar ya en su sitio
 
@@ -1781,10 +1787,12 @@ explican:
 > mueve el robot y mide **cuántas celdas conocidas gana el mapa**, distinguiendo
 > «el robot no se movió» de «SLAM no procesó».
 
-### 9.7 ⏳ Lo que queda SIN VERIFICAR — la Fase 4 no está cerrada
+### 9.7 El intento fallido del 2026-07-30 — por qué no valía
 
-**No se ha comprobado que el mapa crezca al moverse.** El intento del 2026-07-30 no es
-válido, y la razón importa:
+✅ **Ya resuelto**: el mapa crece, verificado el 2026-07-31 (9.11). Se conserva este
+apartado porque la regla que dejó sigue valiendo.
+
+El intento del 2026-07-30 no era válido, y la razón importa:
 
 1. El driver murió a mitad de sesión (ver 9.8) y hubo que reiniciarlo.
 2. Se reinició **solo el driver**, dejando el `slam_toolbox` viejo en marcha.
@@ -1795,7 +1803,7 @@ válido, y la razón importa:
 > Se queda con un hueco en su buffer TF y con el `odom` anterior. Arranca los dos juntos
 > y en ese orden, siempre.
 
-Pendiente para la próxima sesión:
+La secuencia correcta, que es la que cerró la fase:
 
 ```bash
 # 1. los dos, desde cero, en este orden
@@ -1805,12 +1813,11 @@ ros2 launch atriz_rvr_bringup slam.launch.py
 python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_slam_ros2.py
 ```
 
-Y sigue abierto, del capítulo 8.5, lo que puede arruinar un mapa **sin dar ningún error**:
+Del capítulo 8.5 quedaba abierto lo que puede arruinar un mapa **sin dar ningún error**:
 
-- 🔴 **`inverted` del LIDAR sin verificar.** Si está al revés, **el mapa sale espejado**:
-  parece correcto y tiene las paredes al otro lado. Se comprueba con un objeto a 1 m
-  delante del robot, mirando dónde aparece en `/scan`. **Hazlo antes de confiar en
-  cualquier mapa.**
+- ✅ **`inverted` del LIDAR: VERIFICADO el 2026-07-31, y era correcto** (`true`). No hizo
+  falta colocar ningún objeto: se comprueba por software girando el robot y correlacionando
+  el barrido de antes con el de después (`verificar_inverted_lidar.py`). Detalle en 9.11.
 - 🔴 **El robot está inclinado ~7°**, medido por dos vías independientes (el árbol TF y
   el `Roll` de la IMU). El LIDAR barre un plano inclinado. Causa sin determinar.
   Consecuencia observada: `slam_toolbox` absorbe esa inclinación dentro de `map → odom`,
@@ -1980,7 +1987,154 @@ Message Filter dropping message: frame 'laser' … 'discarding message because t
 Es el filtro de mensajes de TF descartando un barrido mientras espera su transform. Cuatro
 veces en ~20 min de sesión.
 
-### 9.10 Verificación del capítulo
+### 9.11 ✅ Cómo se cerró la fase: tres arreglos y dos herramientas corregidas
+
+Con todo lo anterior en su sitio, el mapa **seguía sin crecer**. Estas cinco causas se
+fueron encontrando en cadena, y ninguna daba un error.
+
+#### 1. 🔴 `/scan` y `/odom` se contradecían en el sentido de giro
+
+Girando el robot y correlacionando el barrido de antes con el de después
+(`verificar_inverted_lidar.py`): la física exige que el patrón se desplace **al revés** que
+el robot, y salían **el mismo signo**.
+
+```
+giro real (odom):          -47.0°
+desplazamiento del scan:   -47.0°     <- deberían tener signos opuestos
+```
+
+⚠️ **Eso solo no dice cuál de los dos está mal**, y mi herramienta concluyó de más diciendo
+«`/scan` está espejado». Los datos encajaban igual con «el yaw de `/odom` está invertido».
+
+**Lo desempató una observación física**, y este es el punto del capítulo que más vale la
+pena recordar: se mandó un giro positivo y **se miró el robot**. Giró a la izquierda. Como
+el SDK documenta `yaw_angular_velocity` con la regla de la mano derecha y el driver pasa
+`angular.z` sin tocarlo, el giro real fue +47°, el barrido (−47°) era el correcto, y **el
+equivocado era el yaw de `/odom`**.
+
+> Cuando dos sensores se contradicen, el software puede decirte **que** se contradicen,
+> pero no **cuál miente**. Para eso hay que mirar el robot.
+
+✅ **`inverted: true` del YDLIDAR era correcto.** El LIDAR nunca fue el problema.
+
+#### 2. 🔴 El RVR no usa una sola convención de ejes
+
+Apliqué la conversión FRD→FLU a los cuatro sensores **por analogía** y rompí dos. Medidos
+uno a uno:
+
+| Sensor | Estaba | Qué necesita |
+|---|---|---|
+| cuaternión | yaw invertido | `(x, -y, -z, w)` |
+| locator | `y` invertida | `-y` |
+| giroscopio | **ya en FLU** | solo deg/s → rad/s |
+| acelerómetro | **ya en FLU**, y en **g** | solo **g → m/s²** |
+
+En reposo el acelerómetro daba módulo **0.973**: el RVR reporta en **g**, y el driver de
+ROS 1 tampoco lo convertía — `/imu` llevaba desde siempre valores 9.8 veces pequeños. Ahora
+`(-1.314, -0.004, +9.281)`, módulo 9.374 m/s².
+
+📝 De propina, el acelerómetro mide la inclinación del robot por una **tercera vía
+independiente**: `asin(1.314/9.374) = 8.1°`.
+
+El efecto sobre SLAM, misma prueba antes y después:
+
+| | Deriva tras girar 360° y volver |
+|---|---|
+| antes | 6.6 cm y **30.0°** |
+| después | 0.2 cm y **1.8°** |
+
+#### 3. 🔴 `fixed_resolution: false` hacía que se descartaran los barridos
+
+El X2 entrega barridos de longitud **variable** (254 unas veces, 255 otras). `slam_toolbox`
+registra el sensor con el tamaño del **primero** y **descarta todos los demás**, con una
+sola línea en su log y ningún error:
+
+```
+LaserRangeScan contains 254 range readings, expected 255
+```
+
+Ese parámetro se había puesto a `false` en la Fase 3.2 **para callar un aviso cosmético**
+del driver. **Cambiar un parámetro para silenciar un aviso cambió un síntoma visible por
+uno invisible.** Con `true`: 142 barridos, **todos de 260 puntos**.
+
+📝 El mismo problema reventaba `verificar_inverted_lidar.py` con `IndexError`: asumía
+barridos del mismo tamaño. Corregido remuestreando a una rejilla angular fija de 360
+celdas. **Mismo origen, dos víctimas.**
+
+#### 4. 🔴 Y aun así el mapa no crecía: la herramienta daba un falso negativo
+
+`medir_slam_ros2.py` avanzaba 40 cm, retrocedía otros 40, y **solo miraba el mapa al
+final** — con el robot otra vez donde empezó, el momento en que menos ha cambiado nada.
+
+`slam_toolbox` cuenta la distancia **desde el último nodo del grafo**, no desde donde
+empezó la prueba. Con `minimum_travel_distance: 0.3` hicieron falta **~0.85 m**. Y girar en
+el sitio no basta: **cuatro vueltas y media seguidas no cambiaron ni una celda.**
+
+Lo que lo demostró fue mirar el **grafo**, no el mapa:
+
+```
+(mi config, minimum_travel_distance 0.3)
+inicio                 grafo=4  mapa= 708 celdas
+tras paso 1 (+0.45 m)  grafo=4  mapa= 708
+tras paso 2 (+0.45 m)  grafo=5  mapa=1542   <- CRECE
+tras paso 3 (-0.45 m)  grafo=5  mapa=1542
+tras paso 4 (-0.45 m)  grafo=6  mapa=2279   <- CRECE
+```
+
+> **El truco de diagnóstico:** `ros2 topic echo /slam_toolbox/graph_visualization` — si el
+> número de marcadores no sube, `slam_toolbox` no está añadiendo nodos, y entonces el mapa
+> no puede crecer por mucho que el robot se mueva. Es más directo que mirar el mapa.
+
+Y antes de eso, **comparar contra la configuración de fábrica** descartó de un golpe que
+fueran mis parámetros: se comportó exactamente igual.
+
+#### El resultado
+
+```
+── árbol TF ──   ✅ odom → base_footprint   ✅ map → base_footprint   ✅ base_link → laser
+
+ANTES de mover      79 x 89 celdas     657 conocidas ( 9.3 %)  1.64 m²
+tras el giro 360°   79 x 89            657            ( 9.3 %)  1.64 m²
+tras avance 1/3     79 x 89            657            ( 9.3 %)  1.64 m²
+tras avance 2/3     84 x 95           1669            (20.9 %)  4.17 m²
+tras avance 3/3     86 x 95           2023            (24.8 %)  5.06 m²
+al volver          121 x 98           3110            (26.2 %)  7.78 m²
+
+recorrido real: 262.5 cm · nodos del grafo: 4 → 8
+✅ EL MAPA CRECE AL MOVERSE
+```
+
+Coste con todo en marcha: driver 33.6 %, SLAM 5.0 %, LIDAR 2.6 %, RSP 0.5 %; 64.2 °C.
+
+### 9.12 ⚠️ Lo que queda abierto tras cerrar la fase
+
+🟡 **La deriva de la localización NO está caracterizada, y las dos medidas que hay se
+contradicen.** Misma prueba, mismo binario, el mismo día:
+
+| Corrida | Recorrido | Deriva al volver al inicio | Espacio |
+|---|---|---|---|
+| 1ª (`--pasos 3`) | 262.5 cm | **87.8 cm y 10.9°** | hueco justo, el robot rozó obstáculos |
+| 2ª (`--pasos 2`) | 178.5 cm | **0.9 cm y 3.1°** | 2 m × 0.8 m despejados |
+
+**Las dos son reales y ninguna se presenta como «la buena».** En ambas el mapa crece y es
+utilizable, pero con dos órdenes de magnitud de diferencia no se puede decir todavía si la
+pose vale para Nav2. **Hay que repetir la prueba varias veces en espacio despejado antes de
+atribuir nada** — es la regla nº 4 del proyecto, y saltársela aquí sería fácil.
+
+Tres sospechas, y **no se ha aislado cuál**:
+
+- rozar obstáculos en la primera corrida, que es la diferencia más evidente;
+- la inclinación de ~8° hace que el LIDAR barra un plano inclinado, y la geometría que ve
+  cambia al moverse de forma que el emparejado no puede reconciliar;
+- la velocidad de `/odom` sigue siendo basura, así que `slam_toolbox` no tiene una
+  estimación decente del movimiento entre barridos.
+
+🔴 **La inclinación de ~8°**, ahora confirmada por **tres vías independientes** (árbol TF,
+Roll de la IMU y acelerómetro). Causa sin determinar — es lo siguiente que mirar.
+
+🔴 La **velocidad de `/odom`** sigue siendo basura. No bloquea SLAM, sí bloquea Nav2.
+
+### 9.13 Verificación del capítulo
 
 ```bash
 ros2 lifecycle get /slam_toolbox                 # active [3]
@@ -1995,7 +2149,24 @@ python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_slam_ros
 python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_keepalive_ros2.py
 ```
 
-Evidencia cruda: `00_auditoria/evidencia_24_04/11_slam_fase4.txt` y `mapas/`.
+⚠️ **Y el espacio importa.** `medir_slam_ros2.py` necesita, con el robot en el centro:
+
+```
+              ↑ 1 m por delante (hacia donde mira)
+      ┌───────────────────────┐
+ 40cm │      ┌─────┐          │ 40cm     el robot NO se desplaza
+ ←────┤      │ RVR │ →        ├────→     lateralmente: a los lados
+      │      └──┬──┘          │          solo hace falta el hueco
+      └───────────────────────┘          del giro (radio 14 cm)
+              ↓ 1 m por detrás
+```
+
+Nada a menos de 60 cm: **el robot no esquiva obstáculos**, solo tiene watchdog. Y el LIDAR
+va a 17.5 cm de altura barriendo en horizontal, así que pasa por encima de zócalos y cajas
+bajas — «parece despejado» a ras de suelo no basta.
+
+Evidencia cruda: `00_auditoria/evidencia_24_04/11_slam_fase4.txt`,
+`13_fase4_cerrada.txt` y `mapas/`.
 
 ---
 

@@ -4,6 +4,153 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 (parte 2) — Fase 4 CERRADA: SLAM mapea de verdad
+
+```
+celdas conocidas   657 -> 3110      área  1.64 -> 7.78 m²   (casi 5x)
+nodos del grafo      4 -> 8         recorrido 262.5 cm
+✅ EL MAPA CRECE AL MOVERSE
+```
+
+Manual cap. 9. Evidencia: `00_auditoria/evidencia_24_04/13_fase4_cerrada.txt` y
+`mapas/mapa_fase4_cerrada.*`.
+
+Para llegar aquí hubo que arreglar **tres cosas** y corregir **dos herramientas propias**.
+Ninguna de las cinco daba un error: todas fallaban en silencio.
+
+### 🔴 1. `/scan` y `/odom` se contradecían en el sentido de giro
+
+Girando el robot y correlacionando el barrido de antes con el de después:
+
+```
+giro real (odom):          -47.0°
+desplazamiento del scan:   -47.0°   <- MISMO signo; la física exige OPUESTOS
+```
+
+⚠️ **Y eso solo no dice cuál de los dos está mal.** La primera versión de
+`verificar_inverted_lidar.py` concluyó «`/scan` está espejado» y **era concluir de más**:
+los datos encajaban igual con «el yaw de `/odom` está invertido». Herramienta corregida
+para reportar la contradicción y enumerar las dos causas.
+
+**Lo desempató una observación física**, que ningún software del robot puede hacer: se
+mandó un giro positivo y **se miró el robot** — giró a la izquierda. Como el SDK documenta
+`yaw_angular_velocity` con la regla de la mano derecha y el driver pasa `angular.z` sin
+tocarlo, el giro real fue +47°, el barrido (−47°) era correcto, y el equivocado era el yaw
+de `/odom`.
+
+✅ **`inverted: true` del YDLIDAR era correcto. El LIDAR nunca fue el problema.**
+
+### 🔴 2. El RVR no usa una sola convención de ejes
+
+Se aplicó la conversión FRD→FLU a los cuatro sensores **por analogía**, y eso rompió dos.
+Hubo que medir cada uno por separado:
+
+| Sensor | Estaba | Acción |
+|---|---|---|
+| cuaternión | yaw invertido | `(x, -y, -z, w)` |
+| locator | `y` invertida | `-y` |
+| giroscopio | **ya estaba bien** | solo deg/s → rad/s |
+| acelerómetro | **ya estaba bien**, y en **g** | solo **g → m/s²** |
+
+En reposo el acelerómetro daba módulo **0.973**: el RVR reporta en **g**, y el driver de
+ROS 1 tampoco lo convertía. Ahora `(-1.314, -0.004, +9.281)`, módulo 9.374 m/s².
+
+📝 De propina, el acelerómetro da la inclinación del robot por una **tercera vía
+independiente**: `asin(1.314/9.374) = 8.1°`, coherente con los ~7° del árbol TF y del Roll.
+
+Efecto sobre la coherencia de SLAM, misma prueba antes y después:
+
+```
+deriva tras un giro de 360° y volver al sitio
+  antes:   6.6 cm y 30.0°
+  después: 0.2 cm y  1.8°
+```
+
+### 🔴 3. `fixed_resolution: false` hacía que slam_toolbox descartara los barridos
+
+El X2 entrega barridos de longitud **variable** (254 unas veces, 255 otras) y
+`slam_toolbox` registra el sensor con el tamaño del primero, **descartando el resto**. Una
+sola línea en su log, ningún error:
+
+```
+LaserRangeScan contains 254 range readings, expected 255
+```
+
+Ese parámetro se puso a `false` en la Fase 3.2 **para callar un aviso cosmético**. Cambiar
+un parámetro para silenciar un aviso cambió un síntoma visible por uno invisible. Con
+`true`: 142 barridos, **todos de 260 puntos**.
+
+📝 El mismo problema reventaba `verificar_inverted_lidar.py` con `IndexError`. Corregido
+remuestreando a una rejilla angular fija. Mismo origen, dos víctimas.
+
+### 🔴 4. Mi propia herramienta daba un falso negativo
+
+Con todo lo anterior arreglado, `medir_slam_ros2.py` **seguía** diciendo «el mapa no
+creció». No era SLAM: era la prueba. Avanzaba 40 cm y retrocedía otros 40, y solo miraba
+el mapa al final — con el robot otra vez donde empezó.
+
+`slam_toolbox` cuenta la distancia **desde el último nodo del grafo**, no desde donde
+empezó la prueba: con el umbral en 0.3 hicieron falta **~0.85 m**. Y girar en el sitio no
+basta — cuatro vueltas y media seguidas no cambiaron ni una celda.
+
+Lo demostró mirar el **grafo**, no el mapa, y compararlo contra la **configuración de
+fábrica** (que se comportó igual, descartando de un golpe que fueran mis parámetros).
+
+La herramienta ahora avanza en **tramos**, mide **después de cada uno**, y el veredicto usa
+el mapa **más grande visto**, no el último.
+
+### Coste en el Pi 4
+
+| Proceso | CPU | RSS |
+|---|---|---|
+| `rvr_driver_node` | 33.6 % | 86.3 MB |
+| `async_slam_toolbox_node` | 5.0 % | 50.3 MB |
+| `ydlidar_ros2_driver_node` | 2.6 % | 30.8 MB |
+| `robot_state_publisher` | 0.5 % | 32.4 MB |
+
+64.2 °C. El driver sube de 15.9 % a 33.6 %: lleva ahora el keepalive, el detector de
+silencio y las conversiones de ejes.
+
+### ⚠️ Lo que queda abierto
+
+### Segunda corrida, en espacio despejado — y contradice a la primera
+
+La primera se hizo en un hueco demasiado justo y el robot llegó a **rozar obstáculos**. Se
+repitió con 2 m × 0.8 m libres y el robot centrado:
+
+```
+recorrido 178.5 cm    celdas 2367 -> 3299 (+932)    área 5.92 -> 8.25 m²
+✅ EL MAPA CRECE AL MOVERSE
+deriva al volver al punto de partida:  0.9 cm y 3.1°
+```
+
+🟡 **La deriva NO está caracterizada: las dos medidas se contradicen.** Mismo binario, el
+mismo día:
+
+| Corrida | Recorrido | Deriva | Espacio |
+|---|---|---|---|
+| 1ª (`--pasos 3`) | 262.5 cm | **87.8 cm y 10.9°** | justo, rozó obstáculos |
+| 2ª (`--pasos 2`) | 178.5 cm | **0.9 cm y 3.1°** | 2 m × 0.8 m despejados |
+
+**Ninguna se presenta como «la buena».** En ambas el mapa crece y es utilizable, pero con dos
+órdenes de magnitud de diferencia no se puede decir aún si la pose sirve para Nav2. **Hay que
+repetir la prueba varias veces en espacio despejado antes de atribuir nada** — regla nº 4 del
+proyecto, y aquí era fácil saltársela.
+
+Tres sospechas **sin aislar**: rozar obstáculos en la primera, la inclinación de ~8° que hace
+al LIDAR barrer un plano inclinado, y la velocidad de `/odom`, que sigue siendo basura.
+
+📝 Y una lección de operación que costó una corrida entera: **hay que decir cuánto espacio
+hace falta ANTES de mover el robot.** `medir_slam_ros2.py` necesita, con el robot en el
+centro, 1 m por delante, 1 m por detrás y 40 cm a cada lado — y nada a menos de 60 cm, porque
+el robot **no esquiva obstáculos**, solo tiene watchdog. Documentado ya en el manual 9.13 y en
+`CLAUDE.md`.
+
+🔴 La inclinación de ~8°, ahora confirmada por **tres** vías independientes. Causa sin
+determinar.
+
+---
+
 ## 2026-07-31 — El RVR se dormía a los 300.6 s: medido y arreglado
 
 Cierra el fallo grave que abrió la Fase 4. Manual: **cap. 9.8a–9.8d**. Evidencia:

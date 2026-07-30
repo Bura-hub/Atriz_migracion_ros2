@@ -20,20 +20,37 @@ marcarse como libre. Un robot quieto barre siempre desde el mismo punto, y los
 rayos divergen: solo las celdas CERCA del robot reciben dos o más rayos. Las
 lejanas reciben uno y se quedan en «desconocido» para siempre.
 
-    robot quieto:            robot que se mueve:
-    rayos divergentes        cada celda vista desde varios sitios
-    ·  ·   ·    ·            ····························
-     · ·  ·  ·               ····························
-      ·· · ·                 ····························
-       ·│·                   ↑ el mapa se rellena
+Y además `minimum_travel_distance: 0.3` significa que **slam_toolbox no añade un
+barrido nuevo al grafo hasta que el robot se ha movido** 30 cm. Quieto, el grafo
+tiene un solo nodo.
 
-Y además `minimum_travel_distance: 0.3` / `minimum_travel_heading: 0.5` significan
-que **slam_toolbox no añade un barrido nuevo al grafo hasta que el robot se ha
-movido** 30 cm o girado 28.6°. Quieto, el grafo tiene un solo nodo.
+→ **Un mapa casi vacío con el robot parado NO es un fallo de SLAM.**
 
-→ **Un mapa casi vacío con el robot parado NO es un fallo de SLAM.** Es la trampa
-  de diagnóstico obvia de la Fase 4, y sin esta herramienta se pierde una tarde
-  ajustando parámetros del solver que están bien.
+🔴🔴 Y AHORA LA PARTE QUE ESTA MISMA HERRAMIENTA SE EQUIVOCÓ AL AFIRMAR:
+
+**GIRAR SOBRE EL EJE NO HACE CRECER EL MAPA. NUNCA.** El X2 barre los 360°
+completos, así que un robot que gira en el sitio vuelve a ver **exactamente lo
+mismo desde exactamente el mismo punto**. No aporta ni una celda.
+
+    girar en el sitio:              desplazarse:
+    mismo origen, mismos rayos      origen nuevo -> geometría nueva
+         ·  ·  ·                      ·  ·  ·        ·  ·  ·
+        · ·│· ·      (0 celdas)      · ·│· ·   ->   · ·│· ·   (+cientos)
+         ·  ·  ·                      ·  ·  ·        ·  ·  ·
+
+El 2026-07-31 la versión anterior de este fichero giraba 360° y medía si el mapa
+crecía. **No podía crecer**, y el «🔴 el mapa NO creció» que imprimía llevó a
+bisecar el YAML de slam_toolbox parámetro a parámetro, y a culpar a una
+configuración que estaba bien. La prueba medía algo imposible.
+
+Lo que sí lo demuestra, medido el mismo día con esta versión corregida:
+
+    avance de 70 cm    ->  774 -> 1593 celdas
+    retroceso de 70 cm ->        -> 2367 celdas   (5.9 m² mapeados)
+
+→ **Para saber si SLAM mapea, DESPLAZA el robot.** El giro se conserva porque
+  añade nodos al grafo (por `minimum_travel_heading`) y ejercita el emparejado,
+  pero NO se cuenta para el veredicto.
 
 MIDE EL EFECTO, NO LA INTENCIÓN (regla del proyecto): no comprueba «he publicado
 cmd_vel», comprueba **cuántas celdas conocidas tiene el mapa antes y después**.
@@ -200,9 +217,14 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--solo-giro', action='store_true',
-                    help='No avanza. Para cuando no hay espacio libre delante.')
-    ap.add_argument('--avance-m', type=float, default=0.40,
-                    help='Metros a avanzar y retroceder (por defecto 0.40).')
+                    help='No avanza. Para cuando no hay espacio libre delante. '
+                         'OJO: girando en el sitio el mapa NO suele crecer.')
+    ap.add_argument('--paso-m', type=float, default=0.45,
+                    help='Metros por tramo (por defecto 0.45).')
+    ap.add_argument('--pasos', type=int, default=3,
+                    help='Cuántos tramos hacia delante (por defecto 3 = 1.35 m). '
+                         'Menos de ~1 m en total puede no bastar para que '
+                         'slam_toolbox añada un solo nodo al grafo.')
     args = ap.parse_args()
 
     rclpy.init()
@@ -237,33 +259,67 @@ def main() -> int:
     imprimir("MAPA ANTES de mover", antes)
 
     recorrido_total = 0.0
+    mejor = antes                    # el mapa MÁS GRANDE visto en toda la prueba
+    def registrar(r):
+        nonlocal mejor
+        if r and (mejor is None or r['conocido'] > mejor['conocido']):
+            mejor = r
     try:
-        # 1) Giro completo. Añade barridos al grafo por `minimum_travel_heading`
-        #    (0.5 rad = 28.6°), y hace que las celdas cercanas reciban rayos
-        #    desde muchos ángulos.
+        # 1) Giro completo. Hace que las celdas cercanas reciban rayos desde
+        #    muchos ángulos, lo que ayuda con `min_pass_through`.
+        #
+        #    ⚠️ Girar en el sitio NO suele bastar para que el mapa crezca:
+        #    medido el 2026-07-31, cuatro vueltas y media seguidas no cambiaron
+        #    ni una celda. Sin cambiar de sitio no hay geometría nueva que ver.
         recorrido_total += n.mover(0.0, VEL_GIRO, 2 * math.pi / VEL_GIRO,
                                    "giro de 360° sobre el eje")
         n.parar()
         n.esperar_mapa(6.0)          # > map_update_interval (5 s)
         tras_giro = n.resumen_mapa()
+        registrar(tras_giro)
         imprimir("MAPA tras el giro", tras_giro)
 
-        # 2) Avance y retroceso. Es lo que de verdad rellena el mapa: cambia el
-        #    punto de vista, así que celdas que antes recibían un solo rayo pasan
-        #    a recibir varios y superan `min_pass_through`.
-        tras_avance = tras_giro
+        # 2) AVANZAR DE VERDAD, en tramos, midiendo en cada uno.
+        #
+        # 🔴 POR QUÉ EN TRAMOS Y NO IDA Y VUELTA — la primera versión de esta
+        #    herramienta avanzaba 40 cm y retrocedía otros 40, y concluía «el
+        #    mapa NO creció» con SLAM funcionando perfectamente. Dos errores de
+        #    diseño a la vez:
+        #
+        #      · 40 cm no basta. slam_toolbox solo añade un barrido al grafo
+        #        cuando el robot se aleja `minimum_travel_distance` del último
+        #        nodo. Medido: con el umbral en 0.3 hicieron falta ~0.85 m de
+        #        recorrido para el primer nodo nuevo, porque la distancia se
+        #        cuenta desde el ÚLTIMO NODO, no desde donde empezó la prueba.
+        #      · Volver al punto de partida deja el desplazamiento NETO en cero.
+        #        Y solo se miraba el mapa al final, con el robot otra vez donde
+        #        empezó: justo el momento en que menos ha cambiado nada.
+        #
+        #    Ahora se avanza en tramos, se mide DESPUÉS DE CADA UNO, y el
+        #    veredicto usa el mapa MÁS GRANDE visto, no el último.
         if not args.solo_giro:
-            t = args.avance_m / VEL_AVANCE
-            recorrido_total += n.mover(VEL_AVANCE, 0.0, t,
-                                       f"avance de {args.avance_m:.2f} m")
-            n.parar()
-            n.esperar_mapa(6.0)
-            recorrido_total += n.mover(-VEL_AVANCE, 0.0, t,
-                                       f"retroceso de {args.avance_m:.2f} m")
-            n.parar()
-            n.esperar_mapa(6.0)
-            tras_avance = n.resumen_mapa()
-            imprimir("MAPA tras avanzar y retroceder", tras_avance)
+            t = args.paso_m / VEL_AVANCE
+            for i in range(1, args.pasos + 1):
+                recorrido_total += n.mover(
+                    VEL_AVANCE, 0.0, t,
+                    f"avance {i}/{args.pasos} de {args.paso_m:.2f} m")
+                n.parar()
+                n.esperar_mapa(6.0)
+                r = n.resumen_mapa()
+                registrar(r)
+                imprimir(f"MAPA tras el avance {i}/{args.pasos}", r)
+
+            # Vuelta atrás para dejar el robot cerca de donde empezó. Se mide
+            # también: si el emparejado es bueno, el mapa NO debería encoger.
+            for i in range(1, args.pasos + 1):
+                recorrido_total += n.mover(
+                    -VEL_AVANCE, 0.0, t,
+                    f"retroceso {i}/{args.pasos} de {args.paso_m:.2f} m")
+                n.parar()
+                n.esperar_mapa(4.0)
+            r = n.resumen_mapa()
+            registrar(r)
+            imprimir("MAPA al volver al punto de partida", r)
     except KeyboardInterrupt:
         print("\n⚠️  abortado por el usuario — frenando")
         n.parar()
@@ -277,16 +333,20 @@ def main() -> int:
     print("═" * 74)
 
     salida = 0
-    if antes is None or tras_avance is None:
+    if antes is None or mejor is None:
         print("🔴 FALLO: no llegó /map. ¿está `slam.launch.py` en marcha y en `active`?")
         print("   ros2 lifecycle get /slam_toolbox   # debe decir: active [3]")
         salida = 1
     else:
-        crecimiento = tras_avance['conocido'] - antes['conocido']
+        # El máximo, no el último: al volver al punto de partida el mapa ya no
+        # crece, y quedarse con esa lectura fue lo que hizo que esta herramienta
+        # diera un falso negativo el 2026-07-31.
+        tras_avance = mejor
+        crecimiento = mejor['conocido'] - antes['conocido']
         print(f"  recorrido real:   {recorrido_total*100:.1f} cm  (medido en odom)")
-        print(f"  celdas conocidas: {antes['conocido']} -> {tras_avance['conocido']}"
-              f"  ({crecimiento:+d})")
-        print(f"  área mapeada:     {antes['area_m2']:.2f} -> {tras_avance['area_m2']:.2f} m²")
+        print(f"  celdas conocidas: {antes['conocido']} -> {mejor['conocido']}"
+              f"  ({crecimiento:+d})   <- máximo alcanzado, no el final")
+        print(f"  área mapeada:     {antes['area_m2']:.2f} -> {mejor['area_m2']:.2f} m²")
 
         # El robot se movió si recorrió más de 5 cm: por debajo es ruido del
         # locator y no se puede exigir que el mapa cambie.
@@ -305,14 +365,29 @@ def main() -> int:
             salida = 1
         else:
             print(f"\n  🔴 EL ROBOT SÍ SE MOVIÓ ({recorrido_total*100:.1f} cm) Y EL MAPA NO CRECIÓ.")
-            print("     El problema está en slam_toolbox, no en el robot.")
-            print("     1. ros2 lifecycle get /slam_toolbox      # debe: active [3]")
-            print("     2. ros2 topic hz /scan                   # ¿llegan barridos?")
-            print("     3. ros2 topic info /scan --verbose       # QoS: BEST_EFFORT en AMBOS")
-            print("     4. ⚠️  si reiniciaste el driver DESPUÉS de arrancar slam_toolbox,")
+            print("     Comprueba, EN ESTE ORDEN — los tres primeros ya han sido")
+            print("     la causa real alguna vez en este proyecto:")
+            print("\n     1. ¿RECORRIÓ BASTANTE? slam_toolbox cuenta la distancia")
+            print("        desde el ÚLTIMO NODO del grafo, no desde donde empezó la")
+            print("        prueba. Con el umbral en 0.3 hicieron falta ~0.85 m.")
+            print("        Sube --pasos y vuelve a intentarlo antes de nada.")
+            print("           ros2 topic echo /slam_toolbox/graph_visualization")
+            print("        Si el nº de marcadores no sube, no está añadiendo nodos.")
+            print("\n     2. ¿SON TODOS LOS BARRIDOS DEL MISMO TAMAÑO?")
+            print("           fixed_resolution: true   en config/ydlidar_x2.yaml")
+            print("        Con `false` el X2 alterna 254/255 puntos y slam_toolbox")
+            print("        DESCARTA todos los que no midan como el primero, con una")
+            print("        sola línea en su log:")
+            print("           LaserRangeScan contains 254 range readings, expected 255")
+            print("\n     3. ¿COINCIDEN /scan Y /odom EN EL SENTIDO DE GIRO?")
+            print("           python3 verificar_inverted_lidar.py")
+            print("        Si se contradicen, el emparejado pelea contra la")
+            print("        odometría y el mapa sale espejado o emborronado.")
+            print("\n     4. ros2 lifecycle get /slam_toolbox      # debe: active [3]")
+            print("     5. ros2 topic info /scan --verbose       # BEST_EFFORT en AMBOS")
+            print("     6. ⚠️  si reiniciaste el driver DESPUÉS de arrancar slam_toolbox,")
             print("        reinicia slam_toolbox también: se queda con un hueco en su")
-            print("        buffer TF y con el `odom` viejo, y deja de procesar. Mezclar")
-            print("        un slam viejo con un driver nuevo NO es una prueba válida.")
+            print("        buffer TF y con el `odom` viejo, y deja de procesar.")
             salida = 1
 
     pose_despues = n.pose('map', 'base_footprint')

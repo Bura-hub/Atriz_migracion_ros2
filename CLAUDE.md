@@ -212,6 +212,49 @@ correcto por REP-105 y lo que pide el `base_frame` de slam_toolbox).
   `tf2_echo odom base_footprint`. Un `tf2_echo` que resuelve prueba que hay *un* camino, no
   que el árbol esté bien.
 
+**🔴🔴 GIRAR SOBRE EL EJE NO HACE CRECER EL MAPA. NUNCA.** El X2 barre los 360° completos,
+así que un robot que gira en el sitio vuelve a ver **exactamente lo mismo desde exactamente
+el mismo punto**: cero información nueva. Verificado el 2026-07-31: cuatro vueltas y media
+seguidas, 0 celdas de cambio.
+→ Una herramienta de este proyecto medía justo eso y daba un **falso negativo**, que llevó a
+  bisecar el YAML de `slam_toolbox` parámetro a parámetro y a culpar a una configuración que
+  estaba bien. **Para saber si SLAM mapea, DESPLAZA el robot.**
+→ Y no bastan 40 cm: `slam_toolbox` cuenta la distancia desde el **último nodo del grafo**,
+  no desde donde empezó la prueba. Hicieron falta **~0.85 m**. Mira el grafo, no solo el mapa:
+  `ros2 topic echo /slam_toolbox/graph_visualization`.
+
+**🔴 El RVR NO usa una sola convención de ejes, y aplicarla «por analogía» rompe cosas.**
+Medido sensor a sensor el 2026-07-31:
+
+| Sensor | Convención | Qué hay que hacerle |
+|---|---|---|
+| cuaternión | **FRD** | `(x, -y, -z, w)` |
+| locator | **FRD** | invertir la `Y` |
+| giroscopio | **ya FLU** | solo deg/s → rad/s |
+| acelerómetro | **ya FLU**, y en **g** | solo × 9.80665 |
+
+Convertir los cuatro dejaba la gravedad apuntando al techo (`z = -0.967`) y un giroscopio que
+contradecía a la orientación de su propio mensaje `/imu`. **Comprueba cada sensor por
+separado**: cuesta un giro y una lectura en reposo.
+
+**Ningún software del robot puede decidir si el equivocado es `/scan` o `/odom`.** Si los dos
+se contradicen en el sentido de giro, las dos explicaciones encajan con los datos. Lo desempata
+**mirar el robot**: manda `angular.z` positivo y observa. El SDK documenta positivo =
+antihorario, y **cumple** (verificado). `inverted: true` del YDLIDAR **era correcto**.
+
+**`fixed_resolution: false` hace que `slam_toolbox` descarte barridos.** El X2 alterna 254/255
+puntos; slam_toolbox registra el sensor con el tamaño del **primero** y tira el resto, con una
+sola línea en su log y ningún error: `LaserRangeScan contains 254 range readings, expected 255`.
+Se había puesto a `false` para callar un aviso **cosmético** — cambiar un parámetro para
+silenciar un aviso cambió un síntoma visible por uno invisible. Con `true`: 142 barridos, todos
+de 260 puntos.
+
+**`pgrep -f` también muerde por la RUTA, no solo por el patrón.** El truco del `[s]lam_toolbox`
+evita que `pgrep` case su propio patrón, pero **no** que case una ruta que lo contenga: pasarle
+`/opt/ros/jazzy/share/slam_toolbox/config/…` hizo que un script se matara a sí mismo. Filtra por
+algo que no pueda estar en tu propia línea de comandos (`lib/slam_toolbox/async_slam_toolbox_node`)
+y excluye `$$` y `$PPID`.
+
 **Un robot QUIETO produce un mapa 92.9 % desconocido, y no es un fallo.** Con
 `min_pass_through: 2` una celda necesita **dos rayos** para marcarse, y los rayos de un LIDAR
 quieto divergen: solo las celdas cercanas reciben dos. Además `minimum_travel_distance: 0.3`
@@ -277,7 +320,14 @@ verificar_leds_sensores.py   # 37 comprobaciones de LEDs y los 17 sensores (sin 
 medir_watchdog_ros2.py       # ¿frena el watchdog? mide DESPLAZAMIENTO, no velocidad
 medir_slam_ros2.py           # ⚠️ MUEVE EL ROBOT: ¿crece el mapa al moverse?
 medir_keepalive_ros2.py      # ¿se duerme el RVR? vigila el RITMO de /odom, no el topic
+medir_slam_ros2.py           # ⚠️ MUEVE EL ROBOT ~1.3 m: ¿crece el mapa? (girar NO vale)
+verificar_inverted_lidar.py  # ⚠️ gira 50°: ¿se contradicen /scan y /odom?
 ```
+
+⚠️ **`medir_slam_ros2.py` necesita espacio, y el robot NO esquiva obstáculos** (solo tiene
+watchdog). Con el robot en el centro: **1 m por delante** (hacia donde mira), **1 m por
+detrás**, **40 cm a cada lado**. El LIDAR va a 17.5 cm barriendo en horizontal, así que pasa
+por encima de zócalos y cajas bajas: «despejado a ras de suelo» no basta.
 
 En `scripts/`:
 
