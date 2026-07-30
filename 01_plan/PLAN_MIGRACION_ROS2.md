@@ -301,13 +301,54 @@ Añadir regla udev `/dev/ydlidar` por serial del adaptador USB — **imprescindi
 
 ---
 
-## Fase 4 — SLAM y Nav2
+## Fase 4 — SLAM ✅ COMPLETADA (2026-07-31) · Nav2 ⏳ pendiente
 
-- `slam_toolbox` en modo `async` (`mapper_params_online_async.yaml`), ajustado a 10 Hz de scan y al alcance corto del X2.
+### 4a. SLAM — ✅ hecho y verificado
+
+`slam_toolbox` en modo `async`, con la configuración ajustada a lo **medido** de este robot
+(`atriz_rvr_bringup/config/slam_toolbox_atriz.yaml`): 8 m de alcance real del X2, 5 cm de
+resolución y 30 cm entre barridos.
+
+**Verificado:** el mapa crece al mover el robot — 2367 → 3299 celdas (5.92 → 8.25 m²) tras
+1.78 m de recorrido. Coste: **4.4 % de CPU**, ~30 % con todo a la vez. Manual, cap. 9.
+
+⚠️ **El plan subestimó esta fase.** Se preveía «arrancar slam_toolbox y ajustar parámetros», y
+lo que costó fueron **cuatro fallos que no daban ningún error**, tres de ellos fuera de SLAM:
+
+| Lo que falló | Dónde estaba |
+|---|---|
+| `base_link` con **dos padres** → árbol TF partido | el driver y el URDF |
+| El **yaw de `/odom` invertido** → `/scan` y `/odom` en desacuerdo | el driver (ejes FRD→FLU) |
+| El acelerómetro en **`g`**, no en m/s² | el driver |
+| `fixed_resolution: false` → slam_toolbox **descartaba barridos** | el YAML del LIDAR |
+
+Y dos herramientas de banco propias dieron **falsos negativos**, una de ellas midiendo algo
+imposible (si el mapa crecía **girando en el sitio**). El detalle está en el manual, cap. 9.11,
+y la evidencia cruda en `00_auditoria/evidencia_24_04/13_fase4_cerrada.txt`.
+
+**La lección para las fases que quedan:** en este sistema los fallos **no producen errores**.
+Cada verificación tiene que comprobar el **efecto medible** —el ritmo de un topic, el número de
+celdas del mapa— y no que un proceso exista o un comando devuelva 0.
+
+### 4b. Nav2 — ⏳ pendiente, y hay tres bloqueantes conocidos
+
 - Nav2 con `nav2_regulated_pure_pursuit_controller` (diferencial), costmaps a resolución modesta (5 cm) y ventanas pequeñas — es la carga más pesada del Pi 4.
 - Guardar el mapa del laboratorio (`nav2_map_server`) y distribuirlo a los 16 robots: en un laboratorio fijo, **mapear una vez y localizar con AMCL** es mucho más barato que 16 SLAM simultáneos.
+  - 📝 `nav2_map_server` **no está instalado todavía**, y por eso `/slam_toolbox/save_map`
+    falla con `result=255`. Para guardar mapas hoy se usa `serialize_map`, que es nativo.
 
-**Verificación:** mapear el laboratorio conduciendo manualmente y guardar el mapa; enviar un `NavigateToPose` desde la CLI y comprobar que llega evitando un obstáculo; medir carga (`top`) durante la navegación para confirmar margen en el Pi 4.
+🔴 **Antes de Nav2 hay que resolver tres cosas, y ninguna está resuelta:**
+
+1. **La deriva de la localización no está caracterizada.** Dos corridas dieron 87.8 cm y
+   0.9 cm de error al volver al punto de partida. Repetir varias veces en espacio despejado.
+2. **La velocidad de `/odom` es basura** (el stream `Velocity` del RVR reporta 0.001 m/s con el
+   robot a 0.147 real). No bloquea SLAM, sí Nav2. Tres opciones, ninguna probada.
+3. **El robot está inclinado ~8°**, confirmado por tres vías independientes (árbol TF, `Roll`
+   de la IMU y acelerómetro). Causa sin determinar. Para SLAM 2D funciona; para Nav2 hay que
+   resolverlo, porque por REP-105 `odom → base_footprint` debería ser plana (x, y, yaw) y el
+   driver mete roll y pitch.
+
+**Verificación de Nav2:** enviar un `NavigateToPose` desde la CLI y comprobar que llega evitando un obstáculo; medir carga (`top`) durante la navegación para confirmar margen en el Pi 4.
 
 ---
 

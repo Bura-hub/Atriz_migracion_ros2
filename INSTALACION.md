@@ -45,25 +45,33 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      E3  Verificar UART y telemetría          manual, cap. 1.3 y 2            ✅
      E4  Verificar el LIDAR                   manual, cap. 8.2                ✅
 
-  ETAPA F — Seguir construyendo                                   ⏳ SIGUIENTE PASO
-     F1  Driver a rclpy                       plan, Fase 2   ← AQUÍ. El trabajo grande:
-         1704 líneas, 99 referencias a rospy, 48 asyncio.run(), 3 paquetes catkin
+  ETAPA F — El robot completo sobre ROS 2                         ✅ 2026-07-31
+     F1  Clonar y compilar el workspace       Atriz_rvr rama `ros2`           ✅
+         └── driver rclpy + msgs + URDF + bringup. Ya escrito: solo se compila
+     F2  Driver del LIDAR desde fuentes       manual, cap. 8.5a-b             ✅
+         └── no hay paquete apt: YDLidar-SDK + ydlidar_ros2_driver (humble)
+     F3  Instalar slam_toolbox                manual, cap. 9                  ✅
+     F4  Arrancar y verificar                 manual, cap. 9.13               ✅
+         └── el mapa CRECE al moverse: 2367 -> 3299 celdas (8.25 m²)
 
-     F2  URDF y árbol TF                      plan, Fase 3  ← el bloqueante raíz de SLAM
-     F3  Driver ROS del LIDAR                 plan, Fase 3
-     F4  SLAM y Nav2                          plan, Fase 4
-     F5  Plataforma web                       plan, Fase 5
-     F6  Clonar a los 16 robots               FLOTA.md
+     F5  Lo que queda                                                         ⏳ SIGUIENTE
+         1. Caracterizar la deriva de la localización  ← AQUÍ
+         2. La inclinación de ~8° (tres vías, causa sin determinar)
+         3. La velocidad de /odom (basura; bloquea Nav2, no SLAM)
+         4. Nav2, y los 16 servicios del driver sin portar
+         5. Plataforma web                    plan, Fase 5
+         6. Clonar a los 16 robots            FLOTA.md
 ```
 
-> **Etapas A, B, C, D y E1 están recorridas y verificadas sobre la máquina real.** Los capítulos
-> 1, 3, 4, 5 y 8 del manual dejaron de ser NO VERIFICADO. La evidencia cruda de cada paso está
+> **Las etapas A a F4 están recorridas y verificadas sobre la máquina real.** Los capítulos
+> 1, 3, 4, 5, 7, 8, 8bis y 9 del manual dejaron de ser NO VERIFICADO. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
 > comparar cuando un robot nuevo de la flota no dé lo mismo.
 >
-> **🟢 El go/no-go salió GO** y ROS 2 Jazzy ya está instalado. El siguiente paso es **F1:
-> portar el driver a `rclpy`** — el driver es todavía ROS 1 y por tanto **no se ha podido
-> ejecutar nunca** en este sistema. Ver plan, Fase 2.
+> **🟢 El go/no-go salió GO**, ROS 2 Jazzy está instalado y el robot funciona entero: driver en
+> `rclpy`, URDF, LIDAR y SLAM. El siguiente paso es **F5.1: caracterizar la deriva de la
+> localización**, porque las dos medidas que hay se contradicen (87.8 cm y 0.9 cm de error al
+> volver al punto de partida) y hasta saberlo no se puede decir si la pose sirve para Nav2.
 >
 > ### Un solo comando para saber si el robot está bien
 >
@@ -71,8 +79,8 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 > bash scripts/verificar_robot.sh --hardware
 > ```
 >
-> **48 comprobaciones**, y sale con código ≠ 0 si algo falla. Pásalo al final de cada etapa en
-> lugar de recordar qué había que mirar. En `rvr-01`, el 2026-07-30: 48 correctas, 0 fallos.
+> **50 comprobaciones**, y sale con código ≠ 0 si algo falla. Pásalo al final de cada etapa en
+> lugar de recordar qué había que mirar. En `rvr-01`, el 2026-07-31: 50 correctas, 0 fallos.
 >
 > ### Y si estás instalando el robot 2, 3… 16
 >
@@ -393,22 +401,124 @@ python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/x2_parse.py
 
 ---
 
-## ETAPA F — Seguir construyendo
+## ETAPA F — El robot completo sobre ROS 2
 
-⏳ **No documentado todavía.** Los capítulos 6, 7 y 9–12 del manual se escriben al
-ejecutarlos. El alcance previsto está en
-[`01_plan/PLAN_MIGRACION_ROS2.md`](01_plan/PLAN_MIGRACION_ROS2.md), fases 2 a 6.
+✅ **Recorrida y verificada el 2026-07-31.** Al final de esta etapa el robot arranca con dos
+comandos y `slam_toolbox` construye un mapa.
 
-Orden y bloqueantes:
+Todo el código vive en `Bura-hub/Atriz_rvr`, rama **`ros2`**. No hay que escribir nada: se
+clona, se compila y se verifica.
 
-1. **Driver a `rclpy`** (plan, Fase 2) — incluye el **watchdog de `cmd_vel`**, que hoy no
-   existe, y corregir las unidades a rad/s
-2. **URDF + `robot_state_publisher`** (Fase 3) — **es el bloqueante raíz**: sin árbol TF
-   conectado, SLAM es imposible
-3. **Driver ROS del X2** (Fase 3) — `YDLidar-SDK` + `ydlidar_ros2_driver` rama `humble`
-4. **SLAM y Nav2** (Fase 4)
+### F1 ✅ · Clonar y compilar el workspace
+
+```bash
+mkdir -p ~/atriz_ws/src && cd ~/atriz_ws/src
+git clone -b ros2 https://github.com/Bura-hub/Atriz_rvr.git
+git -C ~/atriz_ws/src/Atriz_rvr fetch origin && git -C ~/atriz_ws/src/Atriz_rvr status -sb
+#   ↑ regla nº1 del proyecto: `fetch` ANTES de leer o auditar código
+
+# xacro NO viene en ros-base y hace falta para el URDF
+sudo apt install -y ros-jazzy-xacro                                    # 👤 sudo
+
+cd ~/atriz_ws && source /opt/ros/jazzy/setup.bash
+colcon build --symlink-install
+```
+
+⚠️ Si `ros2 run` dice «No executable found» con `colcon build` diciendo «Finished», falta
+`setup.cfg` en el paquete Python. Manual, cap. 6.
+
+### F2 ✅ · Driver del LIDAR — se compila desde fuentes
+
+**No hay paquete apt**: `ros-jazzy-ydlidar-ros2-driver` y sus variantes **no existen**
+(comprobado, `apt-cache search ydlidar` da 0 resultados). Manual, cap. 8.5a.
+
+```bash
+# 1. El SDK (instala en /usr/local)
+cd ~ && git clone https://github.com/YDLIDAR/YDLidar-SDK.git
+mkdir -p YDLidar-SDK/build && cd YDLidar-SDK/build
+cmake .. && make -j2
+sudo make install                                                      # 👤 sudo
+
+# 2. El driver ROS 2 — rama `humble`, compila en Jazzy sin cambios
+cd ~/atriz_ws/src
+git clone -b humble https://github.com/YDLIDAR/ydlidar_ros2_driver.git
+rm -rf ydlidar_ros2_driver/.git      # es código de terceros: no se mezcla con Atriz_rvr
+
+# 3. La regla udev para /dev/ydlidar (por ID_PATH: el CP2102 no tiene serie única)
+sudo cp ~/atriz_ws/src/Atriz_rvr/atriz_rvr_bringup/udev/99-ydlidar.rules \
+        /etc/udev/rules.d/                                             # 👤 sudo
+sudo udevadm control --reload-rules && sudo udevadm trigger            # 👤 sudo
+ls -l /dev/ydlidar                   # -> ttyUSB0
+
+cd ~/atriz_ws && colcon build --symlink-install
+```
+
+### F3 ✅ · SLAM
+
+```bash
+sudo apt install -y ros-jazzy-slam-toolbox                             # 👤 sudo
+```
+
+📝 **`ros-jazzy-nav2-map-server` no se instala todavía** (llega en la Fase 5). Consecuencia:
+`/slam_toolbox/save_map` falla con `result=255` y el error real solo aparece en el log de
+slam_toolbox (`Package 'nav2_map_server' not found`). Para guardar mapas hoy se usa
+**`serialize_map`**, que es nativo. Manual, cap. 9.5.
+
+### F4 ✅ · Arrancar y verificar
+
+⚠️ **Los dos launch se arrancan JUNTOS y en este orden.** Reiniciar el driver por debajo de un
+`slam_toolbox` ya en marcha lo deja con un hueco en su buffer TF y **deja de procesar**, sin
+dar ningún error. Invalidó una prueba entera. Manual, cap. 9.7.
+
+```bash
+source ~/atriz_ws/install/setup.bash
+ros2 launch atriz_rvr_bringup robot.launch.py     # terminal 1
+ros2 launch atriz_rvr_bringup slam.launch.py      # terminal 2
+```
+
+Verificación, y **cada línea comprueba algo que ya falló en silencio alguna vez**:
+
+```bash
+ros2 lifecycle get /slam_toolbox                 # active [3] ← si dice `unconfigured`, cap. 9.2
+ros2 run tf2_ros tf2_echo odom base_footprint    # ← LA prueba. NO uses `odom laser`: cap. 9.4
+ros2 run tf2_ros tf2_echo map base_footprint     # lo que añade SLAM
+ros2 topic hz /odom                              # 16.7 Hz ← si es 0, el RVR se durmió: cap. 9.8
+ros2 topic hz /scan                              # ~10 Hz
+ros2 topic hz /map                               # 0.200 Hz
+ros2 topic echo /battery_state --once            # llega cada 30 s: es el keepalive
+```
+
+Y la prueba que de verdad cierra la fase — **mueve el robot**:
+
+```bash
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_slam_ros2.py
+```
+
+⚠️ **Necesita espacio y el robot NO esquiva obstáculos** (solo tiene watchdog). Con el robot en
+el centro: **1 m por delante** (hacia donde mira), **1 m por detrás**, **40 cm a cada lado**, y
+nada a menos de 60 cm. El LIDAR va a 17.5 cm barriendo en horizontal, así que pasa por encima
+de zócalos y cajas bajas: «despejado a ras de suelo» no basta.
+
+🔴 **Girar sobre el eje NO hace crecer el mapa.** El X2 barre los 360°, así que girar en el
+sitio vuelve a ver lo mismo desde el mismo punto. Para saber si SLAM mapea hay que
+**desplazar** el robot, y no bastan 40 cm: `slam_toolbox` cuenta la distancia desde el **último
+nodo del grafo**. Hicieron falta ~0.85 m.
+
+Resultado esperado: **el mapa crece**. En `rvr-01`, 2367 → 3299 celdas (5.92 → 8.25 m²) tras
+1.78 m de recorrido.
+
+### F5 ⏳ · Lo que queda
+
+1. **Caracterizar la deriva de la localización** — dos corridas dieron 87.8 cm y 0.9 cm de
+   error al volver al punto de partida. Repetir varias veces en espacio despejado.
+2. **La inclinación de ~8°** del robot, confirmada por tres vías independientes (árbol TF,
+   `Roll` de la IMU y acelerómetro). Causa sin determinar. Para SLAM 2D funciona; para Nav2 hay
+   que resolverla.
+3. **La velocidad de `/odom`** — el stream `Velocity` del RVR es basura (0.001 m/s con el robot
+   a 0.147 real). No bloquea SLAM, sí Nav2. Tres opciones, ninguna probada.
+4. **Nav2** (plan, Fase 4b) y los **16 servicios y 4 topics** del driver sin portar.
 5. **Plataforma web** (Fase 5) — al final. **Arreglar primero la parada de emergencia**, que
-   está confirmada como no funcional
+   está confirmada como no funcional.
 6. **Los 16 robots** ([`FLOTA.md`](03_operacion/FLOTA.md)) — el trabajo se hace **una vez**:
    `scripts/fase_6_preparar_imagen_dorada.sh` convierte este robot en imagen dorada, y cada
    robot nuevo cuesta **~3 minutos atendidos** (grabar, cambiar un número en `robot_id.txt`,

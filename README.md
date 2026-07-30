@@ -20,9 +20,9 @@ reconstruir el sistema si algo sale mal.
 
 | | |
 |---|---|
-| **Fase actual** | **Etapas A, B, C, D y E1 completadas** (2026-07-30). 🟢 **GO: la migración es viable** — el SDK de Sphero funciona en Python 3.12 y entrega telemetría a **16.67 Hz**, el mismo rendimiento que en Python 3.8 |
-| **Siguiente paso** | **Fase 4 — SLAM** con `slam_toolbox`. Antes hay que decidir de dónde sale la velocidad de `/odom`: el stream `Velocity` del RVR **es basura** (0.001 m/s con el robot a 0.147 real) |
-| **Sistema hoy** | Raspberry Pi 4B 8 GB · **Ubuntu Server 24.04.4 LTS** · Python 3.12.3 · `rvr-01` · arranque en **8.7 s** · Sphero RVR por `/dev/rvr` (PL011) · YDLIDAR X2 en `/dev/ttyUSB0` · **ROS 2 Jazzy** (201 paquetes, `ros-base`) |
+| **Fase actual** | **Etapas A–E1 y Fases 2, 3 y 4 completadas** (2026-07-31). El robot corre entero sobre ROS 2 Jazzy y **`slam_toolbox` mapea**: moviéndolo 1.78 m el mapa pasó de 2367 a 3299 celdas |
+| **Siguiente paso** | **Caracterizar la deriva de la localización.** Dos corridas dieron 87.8 cm y 0.9 cm de error al volver al punto de partida; hasta saber cuál es el comportamiento típico no se puede decir si la pose sirve para Nav2 |
+| **Sistema hoy** | Raspberry Pi 4B 8 GB · **Ubuntu Server 24.04.4 LTS** · Python 3.12.3 · `rvr-01` · arranque en **8.7 s** · Sphero RVR por `/dev/rvr` (PL011) · YDLIDAR X2 en `/dev/ydlidar` · **ROS 2 Jazzy** (`ros-base`) · driver, URDF, LIDAR y SLAM funcionando |
 | **Sistema objetivo** | Ubuntu Server 24.04 LTS · ROS 2 Jazzy (soporte hasta mayo 2029) · rosbridge · SLAM + Nav2 · 16 robots |
 | **Vuelta atrás** | ✅ Disponible. La imagen `dd` del sistema Noetic está hecha **y verificada**. Ver [RECUPERACION.md](03_operacion/RECUPERACION.md) |
 
@@ -36,8 +36,12 @@ Ver [CHANGELOG.md](CHANGELOG.md) para la bitácora detallada, e
 | Enlace UART Pi ↔ RVR (`/dev/rvr` → PL011) | ✅ 2026-07-29 | ✅ **2026-07-30** |
 | Telemetría del RVR | ✅ 16.59 Hz, 12 min sin huecos | ✅ **16.671 Hz** sobre ROS 2, σ 0.47 ms |
 | Driver en `rclpy` · `cmd_vel` · watchdog | — | ✅ **2026-07-30**, verificado en banco |
-| Árbol TF conectado (`odom → laser`) | 🔴 partido en dos | ✅ **2026-07-30** — era el bloqueante raíz de SLAM |
+| Árbol TF conectado (`odom → base_footprint → laser`) | 🔴 partido en dos | ✅ **2026-07-31** — era el bloqueante raíz de SLAM |
 | Driver ROS del LIDAR · `/scan` | 🔴 nunca instalado | ✅ **2026-07-30** — 10.1 Hz, 89 % de puntos válidos |
+| **SLAM: el mapa crece al moverse** | 🔴 nunca hubo SLAM | ✅ **2026-07-31** — 2367 → 3299 celdas, 8.25 m² |
+| **El enlace aguanta solo** (el RVR se dormía a los 300.6 s) | — | ✅ **2026-07-31** — 12 min sin un hueco |
+| Ejes según REP-103 (`/odom`, `/imu`) | 🔴 sin verificar | ✅ **2026-07-31** — medido sensor a sensor |
+| `/imu.linear_acceleration` en m/s² | 🔴 venía en `g`, y ROS 1 tampoco convertía | ✅ **2026-07-31** — 9.374 m/s² en reposo |
 | YDLIDAR X2 (100 % checksums, ~2990 muestras/s, 11.48 Hz) | ✅ 2026-07-29 | ✅ **2026-07-30** |
 | Higiene del SO | receta documentada | ✅ **2026-07-30** — arranque 1min39s → **8.7 s** |
 | SDK de Sphero | ✅ GO en Python 3.8 | ✅ 🟢 **GO en Python 3.12** — 16.67 Hz |
@@ -52,8 +56,13 @@ base distintas y no deben mezclarse.**
 bash scripts/verificar_robot.sh --hardware
 ```
 
-**48 comprobaciones** y código de salida ≠ 0 si algo falla. Es lo que hace que 16 robots sean
-manejables: no se pueden revisar a ojo. En `rvr-01`, el 2026-07-30: **48 correctas, 0 fallos**.
+**50 comprobaciones** y código de salida ≠ 0 si algo falla. Es lo que hace que 16 robots sean
+manejables: no se pueden revisar a ojo. En `rvr-01`, el 2026-07-31: **50 correctas, 0 fallos**.
+
+Su regla es **comprobar el efecto, no la intención**, y no es retórica: comprueba el *ritmo* de
+`/odom` (no que el topic exista) porque el RVR se dormía dejando el nodo vivo y publicando cero,
+y comprueba `odom → base_footprint` (no `odom → laser`) porque esa segunda **pasaba** con el
+árbol TF partido en dos.
 
 ---
 

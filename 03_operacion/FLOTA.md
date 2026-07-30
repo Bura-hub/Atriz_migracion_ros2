@@ -245,6 +245,15 @@ silencio**: un `[all]` olvidado no da ningún error, el robot simplemente no hab
 Si en lugar de la imagen dorada partes de una **instalación limpia** de Ubuntu Server, el
 paso 4 pasa a ser `sudo bash provision.sh` y sube a ~25 minutos, casi todos desatendidos.
 
+📝 **`provision.sh` deja el robot COMPLETO desde el 2026-07-31**: sus 8 pasos incluyen ya la
+Etapa F (xacro, `slam_toolbox`, `YDLidar-SDK` compilado desde fuentes, `ydlidar_ros2_driver`,
+la regla udev de `/dev/ydlidar` y `colcon build`). Antes se quedaba en «ROS 2 instalado y el
+código clonado», que no arranca.
+
+🔴 **Y clonaba la rama equivocada** (`migracion-ros2`, la vieja con código de ROS 1, que no
+compila con colcon). Corregido a **`ros2`**. Si reconstruyes la imagen dorada desde un
+`provision.sh` anterior a esa fecha, el robot no funcionará.
+
 ### Por qué hace falta el paso de «preparar»
 
 Clonar una tarjeta tal cual produce 16 robots con la **misma identidad**, y eso rompe cosas

@@ -23,8 +23,8 @@ El procedimiento completo de alta de un robot está en
 
 | Script | Fase / Etapa | Requiere root | Estado |
 |---|---|---|---|
-| `verificar_robot.sh` | cualquiera | no | ✅ **probado en rvr-01** (2026-07-30): 36 correctas, detectó 1 fallo real |
-| `provision.sh` | B–E | sí | 🟡 **probado en seco** (`--simular`); no ejecutado de principio a fin |
+| `verificar_robot.sh` | cualquiera | no | ✅ **probado en rvr-01** (2026-07-31): **50 comprobaciones**, 0 fallos |
+| `provision.sh` | B–**F** | sí | 🟡 **probado en seco** (`--simular`); no ejecutado de principio a fin. 📝 Desde el 2026-07-31 deja el robot **completo** (8 pasos, incluida la Etapa F) y clona la rama **`ros2`** — antes clonaba `migracion-ros2`, que es código de ROS 1 y no compila |
 | `preparar_tarjeta.sh` | B (en el PC) | sí | 🟡 **probado en seco** sobre copias de la partición FAT; no en una microSD real |
 | `fase_0_1_fix_uart.sh` | 0.1 · B3 | sí | ✅ **ejecutado y verificado** en 20.04 (2026-07-29) y en **24.04 (2026-07-30)** |
 | `diag_uart_pins.sh` | 0.1 | sí | diagnóstico opcional, **nunca ha hecho falta** |
@@ -32,6 +32,16 @@ El procedimiento completo de alta de un robot está en
 | `fase_1_higiene_so.sh` | 1 · C1 | sí | ✅ **ejecutado y verificado** en 24.04 (2026-07-30) |
 | `fase_1_validar_sdk_py312.py` | 1 · D2 | no | ✅ **ejecutado 2026-07-30 → 🟢 GO** (16.67 Hz en Python 3.12) |
 | `fase_6_preparar_imagen_dorada.sh` | 6 · F6 | sí | ⏳ **pendiente**, y 📝 **NO VERIFICADO** |
+
+> ⚠️ **`verificar_robot.sh` comprueba el EFECTO, no la intención**, y las dos aserciones que se
+> le añadieron el 2026-07-30/31 explican por qué:
+>
+> - Mide el **ritmo** de `/odom`, no que el topic exista — el RVR se dormía a los 300.6 s
+>   dejando el nodo vivo y publicando cero, sin un error.
+> - Comprueba `odom → base_footprint`, no `odom → laser` — la segunda **pasaba** con el árbol
+>   TF partido en dos, resolviendo por el camino equivocado.
+>
+> Si añades comprobaciones, mantén esa regla.
 | `first-boot.sh` + `first-boot.service` | 6 · F6 | sí (en el robot clonado) | ⏳ **pendiente**, y 📝 **NO VERIFICADO** |
 
 > Los scripts de la Fase 6 (imagen dorada y personalización por robot) se escribieron antes de

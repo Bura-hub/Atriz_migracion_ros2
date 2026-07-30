@@ -167,7 +167,7 @@ correr apt-get full-upgrade -y -qq && ok "full-upgrade" || { mal "full-upgrade f
 
 if [[ -f /var/run/reboot-required ]]; then
     avi "hay un reinicio pendiente: $(tr '\n' ' ' < /var/run/reboot-required.pkgs 2>/dev/null)"
-    avi "no es un problema — el paso 7/7 te dirá cuándo reiniciar"
+    avi "no es un problema — el paso 8/8 te dirá cuándo reiniciar"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -242,9 +242,9 @@ if [[ -d "$WS/Atriz_rvr/.git" ]]; then
     ok "rama actual: $R"
 else
     correr install -d -o "$USUARIO" -g "$USUARIO" "$WS"
-    if correr sudo -u "$USUARIO" git clone -q -b migracion-ros2 \
+    if correr sudo -u "$USUARIO" git clone -q -b ros2 \
             https://github.com/Bura-hub/Atriz_rvr.git "$WS/Atriz_rvr"; then
-        ok "Atriz_rvr clonado en $WS (rama migracion-ros2)"
+        ok "Atriz_rvr clonado en $WS (rama ros2)"
     else
         mal "fallo al clonar Atriz_rvr"; FALLOS+=("clonar Atriz_rvr")
     fi
@@ -334,7 +334,78 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "7/7 · Resumen"
+say "7/8 · El robot completo: xacro, LIDAR, SLAM y compilar"
+
+# Esta es la Etapa F de INSTALACION.md. Sin ella el robot tiene ROS 2 y el codigo
+# clonado, pero no arranca: falta xacro para el URDF, el driver del LIDAR (que NO
+# tiene paquete apt) y slam_toolbox.
+
+if [[ $SIN_ROS -eq 1 ]]; then
+    salta "saltado por --sin-ros"
+elif [[ ! -d /opt/ros/jazzy ]]; then
+    salta "sin ROS 2 instalado, no hay nada que compilar"
+else
+    # xacro NO viene en ros-base y hace falta para el URDF. slam_toolbox tampoco.
+    espera_lock || true
+    correr apt-get install -y -qq ros-jazzy-xacro ros-jazzy-slam-toolbox \
+        && ok "ros-jazzy-xacro + ros-jazzy-slam-toolbox instalados" \
+        || { mal "fallo instalando xacro/slam_toolbox"; FALLOS+=("xacro/slam_toolbox"); }
+
+    # 🔴 El driver del YDLIDAR NO tiene paquete apt. Comprobado el 2026-07-30:
+    # `apt-cache search ydlidar` da 0 resultados. Se compila desde fuentes.
+    if [[ -f /usr/local/lib/libydlidar_sdk.a ]]; then
+        salta "YDLidar-SDK ya está en /usr/local"
+    else
+        SDKDIR="$HOME_USUARIO/YDLidar-SDK"
+        [[ -d "$SDKDIR/.git" ]] || correr sudo -u "$USUARIO" git clone -q \
+            https://github.com/YDLIDAR/YDLidar-SDK.git "$SDKDIR"
+        correr sudo -u "$USUARIO" mkdir -p "$SDKDIR/build"
+        if correr sudo -u "$USUARIO" bash -c "cd '$SDKDIR/build' && cmake .. >/dev/null && make -j2 >/dev/null" \
+           && correr bash -c "cd '$SDKDIR/build' && make install >/dev/null"; then
+            ok "YDLidar-SDK compilado e instalado en /usr/local"
+        else
+            mal "fallo compilando YDLidar-SDK"; FALLOS+=("YDLidar-SDK")
+        fi
+    fi
+
+    # El driver ROS 2: rama `humble`, compila en Jazzy sin cambios. Se le quita
+    # el .git porque es codigo de terceros y no se mezcla con Atriz_rvr.
+    if [[ -d "$WS/ydlidar_ros2_driver" ]]; then
+        salta "ydlidar_ros2_driver ya está en $WS"
+    elif correr sudo -u "$USUARIO" git clone -q -b humble \
+            https://github.com/YDLIDAR/ydlidar_ros2_driver.git "$WS/ydlidar_ros2_driver"; then
+        correr rm -rf "$WS/ydlidar_ros2_driver/.git"
+        ok "ydlidar_ros2_driver clonado (rama humble, sin .git)"
+    else
+        mal "fallo al clonar ydlidar_ros2_driver"; FALLOS+=("ydlidar_ros2_driver")
+    fi
+
+    # Regla udev por ID_PATH: el CP2102 del X2 reporta ID_SERIAL_SHORT=0001, que
+    # es generico y NO distingue un adaptador de otro. Sin /dev/ydlidar el driver
+    # no encuentra el LIDAR de forma determinista.
+    UDEV_SRC="$WS/Atriz_rvr/atriz_rvr_bringup/udev/99-ydlidar.rules"
+    if [[ -f "$UDEV_SRC" ]]; then
+        correr install -m 644 "$UDEV_SRC" /etc/udev/rules.d/99-ydlidar.rules
+        correr udevadm control --reload-rules
+        correr udevadm trigger
+        ok "regla udev de /dev/ydlidar instalada"
+    else
+        avi "no se encontró $UDEV_SRC — /dev/ydlidar no existirá"
+    fi
+
+    # Y compilar. Que `colcon build` no falle es la prueba de que lo anterior
+    # esta en su sitio.
+    if correr sudo -u "$USUARIO" bash -c \
+        "source /opt/ros/jazzy/setup.bash && cd '$HOME_USUARIO/atriz_ws' && colcon build --symlink-install >/dev/null 2>&1"; then
+        ok "workspace compilado (colcon build)"
+    else
+        mal "colcon build falló"; FALLOS+=("colcon build")
+        avi "míralo a mano: cd ~/atriz_ws && colcon build --symlink-install"
+    fi
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+say "8/8 · Resumen"
 
 if [[ $SIMULAR -eq 1 ]]; then
     avi "simulación terminada: no se ha modificado nada"
@@ -356,7 +427,7 @@ cat <<EOF
 
       bash $SCRIPTS/verificar_robot.sh --hardware
 
-  El verificador es el que decide si este robot está listo: 36+ comprobaciones,
+  El verificador es el que decide si este robot está listo: 50 comprobaciones,
   y sale con código != 0 si algo falla. No des el robot por bueno sin él.
 
   ¿Y PARA LOS OTROS 15 ROBOTS?

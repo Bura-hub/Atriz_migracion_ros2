@@ -13,78 +13,217 @@
 hay que hacerlo a mano. Se resuelve en la Fase 1 del plan (`atriz-rvr.service`).
 
 ```bash
-# Terminal 1
-roscore
+source /opt/ros/jazzy/setup.bash && source ~/atriz_ws/install/setup.bash
 
-# Terminal 2
-source /opt/ros/noetic/setup.bash
-source ~/atriz_git/devel/setup.bash
-rosrun atriz_rvr_driver Atriz_rvr_node.py
+# Terminal 1 — el robot: driver del RVR + URDF + LIDAR
+ros2 launch atriz_rvr_bringup robot.launch.py
+
+# Terminal 2 — SLAM (opcional; el robot funciona sin él)
+ros2 launch atriz_rvr_bringup slam.launch.py
 ```
 
-O con el script del repo, que hace las dos cosas:
+🔴 **Los dos launch se arrancan JUNTOS y en ese orden.** Reiniciar el driver por debajo de un
+`slam_toolbox` ya en marcha lo deja con un hueco en su buffer TF y **deja de procesar**, sin
+dar ningún error: el mapa se queda idéntico celda a celda. Si tienes que reiniciar el driver,
+reinicia también SLAM.
+
+Argumentos útiles:
+
 ```bash
-bash ~/atriz_git/src/Atriz_rvr/start_ros.sh
+ros2 launch atriz_rvr_bringup robot.launch.py lidar:=false          # solo el RVR
+ros2 launch atriz_rvr_bringup robot.launch.py keepalive_period:=0.0 # reproduce el sueño a propósito
+ros2 launch atriz_rvr_bringup slam.launch.py autostart:=false       # deja slam_toolbox sin activar
 ```
-
-> ⚠️ Los nombres de paquete del `MANUAL SPHERO.docx` (`sphero_rvr_hw`, `sphero_rvr`) **ya
-> no existen**. El paquete es `atriz_rvr_driver`.
 
 ### Antes de arrancar, dos comprobaciones de 5 segundos
 
 ```bash
 ls -l /dev/rvr          # debe existir y apuntar a ttyAMA0
-ls -l /dev/ttyUSB0      # el LIDAR, si lo vas a usar
+ls -l /dev/ydlidar      # el LIDAR, si lo vas a usar -> ttyUSB0
 ```
 
 Y lo más importante: **¿está el RVR encendido, con la batería puesta?** Un RVR dormido
 produce exactamente el mismo síntoma que un cable mal conectado.
+
+> **Para el sistema viejo (Noetic), tras restaurar la imagen `dd`:** `roscore` en una terminal
+> y `rosrun atriz_rvr_driver Atriz_rvr_node.py` en otra, o `bash ~/atriz_git/src/Atriz_rvr/start_ros.sh`.
+> Los nombres del `MANUAL SPHERO.docx` (`sphero_rvr_hw`, `sphero_rvr`) **no existen**.
 
 ---
 
 ## Verificar que funciona
 
 ```bash
-rostopic list                       # deben aparecer /odom /imu /cmd_vel /color ...
-rosnode list                        # debe aparecer /driver_rvr
-python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir.py
+ros2 topic list                      # /odom /imu /cmd_vel /color /scan /battery_state /tf ...
+ros2 node list                       # /rvr_driver /robot_state_publisher /ydlidar_ros2_driver_node
 ```
 
-Valores de referencia medidos el 2026-07-29 (con `interval=60`):
+**Y ahora las comprobaciones que de verdad importan.** Cada una existe porque lo que había
+antes **pasaba con el sistema roto**:
 
-| Métrica | Esperado |
-|---|---|
-| `/odom` | **16.59 Hz**, σ ~2.5 ms |
-| `/imu` | 16.59 Hz |
-| RSS del nodo | ~53 MB, **plano** |
-| CPU del nodo | ~29.5 % de un núcleo |
-| Temperatura de la Pi | 55–58 °C |
+```bash
+ros2 topic hz /odom          # 16.7 Hz  🔴 el RITMO, no que el topic exista: el RVR se dormía
+                             #          dejando el nodo vivo y publicando CERO, sin un error
+ros2 run tf2_ros tf2_echo odom base_footprint
+                             # 🔴 ESTA, no `odom laser`: la segunda resolvía por el camino
+                             #    equivocado con el árbol TF partido en dos
+ros2 topic echo /battery_state --once
+                             # llega cada 30 s. Es el latido del keepalive: si no llega,
+                             # el robot se dormirá a los 5 min
+ros2 topic hz /scan          # ~10 Hz
+ros2 lifecycle get /slam_toolbox     # active [3] — si dice `unconfigured`, está vivo y NO mapea
+```
+
+Valores de referencia medidos sobre **ROS 2 Jazzy**:
+
+| Métrica | Esperado | Medido |
+|---|---|---|
+| `/odom` | **16.7 Hz**, σ 0.47 ms | 2026-07-30 |
+| `/scan` | ~10 Hz, 260 puntos | 2026-07-31 |
+| `/map` | 0.200 Hz exactos | 2026-07-31 |
+| `/battery_state` | cada **30.0 s** exactos | 2026-07-31 |
+| CPU del driver | ~23 % de un núcleo | 2026-07-31 |
+| CPU de `slam_toolbox` | **4.4 %** | 2026-07-31 |
+| Todo a la vez | ~30 % de un núcleo, ~200 MB, 64 °C | 2026-07-31 |
 
 Si te desvías mucho de esos números, algo cambió. Son la línea base.
+
+O de una vez, con las 50 aserciones:
+
+```bash
+bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
+```
 
 ---
 
 ## Parar
 
 ```bash
-# Parada normal: Ctrl+C en el nodo, luego en roscore
-# Si quedan procesos colgados:
-kill -INT $(pgrep -f "[A]triz_rvr_node.py")
+# Parada normal: Ctrl+C en cada launch.
+# Si quedan procesos colgados, por PID:
+kill -INT $(pgrep -f "[r]os2 launch atriz_rvr_bringup")
 sleep 3
-kill -9 $(pgrep -f "[A]triz_rvr_node.py") 2>/dev/null
-kill $(pgrep -x rosmaster)
+pgrep -af "[r]vr_driver_node|[y]dlidar_ros2_driver_node|async_slam_toolbox_node"
 ```
 
-> ⚠️ **No uses `pkill -f Atriz_rvr_node`.** El patrón coincide con la propia línea de
-> comando del shell que lo ejecuta, y **mata tu propia terminal**. Pasó dos veces durante
-> la Fase 0.1. Usa `pgrep -f "[A]triz..."` (con el corchete) o el PID directamente.
+> ⚠️ **No uses `pkill -f`, y ojo también con `pgrep -f`.** El patrón coincide con la propia
+> línea de comando del shell que lo ejecuta y **mata tu terminal**. Pasó tres veces.
+>
+> 🔴 **Y el truco del corchete (`[r]vr_driver`) no basta.** Protege de que `pgrep` case su
+> propio patrón, **no** de que case una *ruta* que lo contenga: un script que buscaba
+> `slam_toolbox` se mató a sí mismo al pasarle
+> `/opt/ros/jazzy/share/slam_toolbox/config/…` como argumento. Filtra por algo que no pueda
+> estar en tu propia línea de comandos (`lib/slam_toolbox/async_slam_toolbox_node`) y excluye
+> `$$` y `$PPID`.
 
-**Cuando termines de trabajar, para el nodo.** Con el driver activo el RVR permanece
-despierto y consume batería.
+**Cuando termines de trabajar, para los nodos.** Con el driver activo el RVR permanece
+despierto y consume batería — y ahora además el keepalive lo mantiene despierto a propósito.
 
 ---
 
 ## Cuando algo falla
+
+### 🔴 El robot está «vivo» pero no publica nada — EMPIEZA POR AQUÍ
+
+Es el fallo más traicionero del sistema, porque **todo parece correcto**: el proceso vive, el
+nodo aparece en `ros2 node list`, los topics están registrados (`Publisher count: 1`) y **no
+hay ni un error en el log**.
+
+```bash
+ros2 topic hz /odom          # ¿16.7 Hz, o nada?
+```
+
+**Si no llega nada, el RVR se durmió.** Medido: se duerme a los **300.6 s = 5.01 min** exactos
+sin que nadie le hable. `/odom`, `/imu` y `/color` se callan **a la vez**.
+
+⚠️ **Y la pista fácil engaña:** `ros2 topic hz /tf` puede seguir dando 50 Hz, así que parece
+que «TF va bien». Esos 50 Hz son de `slam_toolbox` **a solas** — con el driver aportando
+serían ~67 Hz.
+
+**Arreglo inmediato: reinicia el driver.** `/odom` vuelve a 16.669 Hz.
+
+**Por qué no debería pasar ya:** el driver lleva desde el 2026-07-31 un keepalive que le habla
+al RVR cada 30 s y un detector de silencio que avisa y reanuda a los 3 s. Si vuelve a pasar,
+mira el log del driver:
+
+```
+[WARN] el RVR lleva 3.4 s sin enviar telemetría … Intentando reanudar (intento nº 1)…
+[INFO] streaming reanudado.
+```
+
+- Si **aparecen esos mensajes**, el detector funciona y algo está tirando el enlace repetidamente.
+- Si **no aparece ninguno** y `/odom` está mudo, el keepalive no está corriendo: comprueba que
+  no arrancaste con `keepalive_period:=0.0`.
+- 📝 Un `systemd` con `Restart=always` **no** arregla esto: el proceso no muere.
+
+### 🔴 SLAM no produce mapa, o el mapa no crece
+
+Por orden, y **los tres primeros ya han sido la causa real** en este proyecto:
+
+**1. ¿Está `slam_toolbox` activado?** Es un **nodo de ciclo de vida**: arranca en
+`unconfigured`, vivo y sin hacer absolutamente nada — no se suscribe a `/scan`, no publica
+`/map`, y su log se queda en «Node using stack size» sin un solo error.
+
+```bash
+ros2 lifecycle get /slam_toolbox      # debe decir: active [3]
+ros2 topic info /scan --verbose       # `Subscription count: 0` es el síntoma
+```
+
+**2. ¿Has movido el robot lo suficiente?** 🔴 **Girar sobre el eje NO hace crecer el mapa,
+nunca.** El X2 barre los 360°, así que girar en el sitio vuelve a ver lo mismo desde el mismo
+punto. Y no bastan 40 cm de avance: `slam_toolbox` cuenta la distancia desde el **último nodo
+del grafo**, no desde donde empezaste. Hicieron falta **~0.85 m**.
+
+```bash
+ros2 topic echo /slam_toolbox/graph_visualization   # si el nº de marcadores no sube,
+                                                    # no está añadiendo nodos
+```
+
+**3. ¿Son todos los barridos del mismo tamaño?**
+
+```bash
+grep fixed_resolution ~/atriz_ws/src/Atriz_rvr/atriz_rvr_bringup/config/ydlidar_x2.yaml
+# debe decir: true
+```
+
+Con `false` el X2 alterna 254/255 puntos y `slam_toolbox` **descarta** todos los que no midan
+como el primero, con una sola línea en su log:
+`LaserRangeScan contains 254 range readings, expected 255`.
+
+**4. ¿Coinciden `/scan` y `/odom` en el sentido de giro?**
+
+```bash
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/verificar_inverted_lidar.py
+```
+
+Si se contradicen, el emparejado de barridos pelea contra la odometría y **el mapa sale
+espejado o emborronado — y coherente consigo mismo, así que mirarlo no lo detecta.**
+
+**5. ¿Reiniciaste el driver con SLAM ya arrancado?** Reinicia también SLAM.
+
+### El robot chocó durante una prueba
+
+Las herramientas de banco **mueven el robot y no hay evitación de obstáculos**: solo existe el
+watchdog de `cmd_vel`, que para los motores si deja de recibir órdenes, no si hay algo delante.
+
+Antes de lanzar `medir_slam_ros2.py`, con el robot en el centro:
+
+```
+            ↑ 1 m por delante (hacia donde mira)
+    ┌───────────────────────┐
+40cm│      ┌─────┐          │40cm     el robot NO se desplaza
+←───┤      │ RVR │ →        ├───→     lateralmente: a los lados
+    │      └──┬──┘          │         solo hace falta el hueco
+    └───────────────────────┘         del giro (radio 14 cm)
+            ↓ 1 m por detrás
+```
+
+Y **nada a menos de 60 cm**. El LIDAR va a **17.5 cm** de altura barriendo en horizontal:
+pasa por encima de zócalos, cables y cajas bajas, y por debajo de mesas. «Parece despejado a
+ras de suelo» no basta.
+
+Con `--solo-giro` el robot **no se desplaza** y basta un círculo de 50 cm — pero recuerda que
+girando el mapa no crece, así que eso no vale como prueba de SLAM.
 
 ### El robot no responde
 
