@@ -1,0 +1,324 @@
+═══════════════════════════════════════════════════════════════════════════════
+FASE 4 — SLAM con slam_toolbox · Ubuntu Server 24.04 + ROS 2 Jazzy
+Robot: rvr-01 · 2026-07-30
+═══════════════════════════════════════════════════════════════════════════════
+Salida cruda de la sesión. Documentado en el manual, capítulo 9.
+Veredicto: 🟡 PARCIAL. Arranca, se activa, completa el árbol TF y publica /map.
+           SIN VERIFICAR que el mapa crezca al moverse (ver bloque 6).
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. 🔴 slam_toolbox ES UN NODO DE CICLO DE VIDA — arrancaba sin hacer nada
+───────────────────────────────────────────────────────────────────────────────
+Con un `Node` normal en el launch:
+
+    $ ros2 lifecycle get /slam_toolbox
+    unconfigured [1]
+
+    $ ros2 topic info /scan --verbose
+    Subscription count: 0
+
+El proceso vivo, en `ros2 node list`, sin suscribirse a nada y sin un solo error.
+
+Arreglado con LifecycleNode + eventos configure/activate en slam.launch.py
+(patrón del online_async_launch.py oficial). Resultado:
+
+    $ ros2 lifecycle get /slam_toolbox
+    active [3]
+
+Log del arranque automático:
+    [slam_toolbox]: Node using stack size 40000000
+    [slam_toolbox]: Configuring
+    [slam_toolbox]: Using solver plugin solver_plugins::CeresSolver
+    [slam_toolbox]: CeresSolver: Using SCHUR_JACOBI preconditioner.
+    [slam_toolbox]: Activating
+    Info: clipped range threshold to be within minimum and maximum range!
+    Registering sensor: [Custom Described Lidar]
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. ✅ QoS de /scan — el riesgo del cap. 8.5 era INFUNDADO
+───────────────────────────────────────────────────────────────────────────────
+    $ ros2 topic info /scan --verbose
+    Subscription count: 1
+      Node name: slam_toolbox
+      Node namespace: /
+      Topic type: sensor_msgs/msg/LaserScan
+      Endpoint type: SUBSCRIPTION
+      Reliability: BEST_EFFORT
+
+El driver del LIDAR publica BEST_EFFORT y slam_toolbox se suscribe BEST_EFFORT.
+Emparejan. Si hubiera pedido RELIABLE, DDS no habría emparejado y no habría
+llegado ni un barrido, SIN ERROR.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 base_link CON DOS PADRES — el bloqueante de la Fase 4 (error de diseño propio)
+───────────────────────────────────────────────────────────────────────────────
+Síntoma, repetido en bucle:
+
+    [WARN] [slam_toolbox]: Failed to compute odom pose
+
+Causa:
+
+    /tf         frame_id: odom            child_frame_id: base_link     <- driver
+    /tf_static  frame_id: base_footprint  child_frame_id: base_link     <- URDF
+
+En TF un frame solo puede tener UN padre.
+
+    $ ros2 run tf2_ros tf2_echo odom base_footprint
+    Could not find a connection between 'odom' and 'base_footprint' ...
+    Tf has two or more unconnected trees.
+
+⚠️ POR QUÉ LA FASE 3 NO LO DETECTÓ: su comprobación era
+   `tf2_echo odom laser`, y resolvía DE VERDAD por el camino equivocado
+   (odom -> base_link -> laser), dejando base_footprint en un árbol aparte.
+   Lección: comprueba el transform QUE PIDE EL CONSUMIDOR, con sus frames
+   exactos, no uno que se le parezca.
+
+ARREGLO: el driver publica odom -> base_footprint (REP-105, y es el `base_frame`
+que pide slam_toolbox). La IMU pasa a su propio imu_frame = imu_link.
+
+Estado tras el arreglo:
+
+    $ ros2 topic echo /tf --once | grep -E 'frame_id'
+        frame_id: odom
+      child_frame_id: base_footprint
+
+    $ ros2 topic echo /tf_static --once | grep -E 'frame_id'
+        frame_id: base_footprint
+      child_frame_id: base_link
+        frame_id: base_link
+      child_frame_id: imu_link
+        frame_id: base_link
+      child_frame_id: laser
+        frame_id: base_link
+      child_frame_id: wheel_left
+        frame_id: base_link
+      child_frame_id: wheel_right
+
+    $ ros2 run tf2_ros tf2_echo odom base_footprint
+    At time 1785387857.717885317
+    - Translation: [0.000, 0.000, 0.000]
+    - Rotation: in Quaternion (xyzw) [0.041, -0.043, -0.602, 0.797]
+    - Rotation: in RPY (degree) [6.698, -1.142, -74.188]
+
+    $ ros2 run tf2_ros tf2_echo odom laser
+    At time 1785387863.958669568
+    - Translation: [-0.021, -0.002, 0.173]
+    - Rotation: in RPY (degree) [6.718, -1.115, -74.197]
+      (z = 0.173 m; el URDF calcula 0.1745 · cos(6.7°) = 0.1733 -> coherente
+       con la inclinación de 7 grados sin resolver)
+
+    $ ros2 run tf2_ros tf2_echo map base_footprint
+    At time 1785387935.404474031
+    - Translation: [0.000, 0.000, 0.000]
+    - Rotation: in RPY (degree) [0.035, 0.022, -74.328]
+      (roll ~0: slam_toolbox absorbe los 6.7° dentro de map->odom, que deja de
+       ser una corrección plana. Funciona para mapear en 2D; hay que resolverlo
+       para Nav2.)
+
+    Apariciones de "Failed to compute odom pose" tras el arreglo:  0
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. /map SE PUBLICA
+───────────────────────────────────────────────────────────────────────────────
+    $ ros2 topic hz /map
+    average rate: 0.200
+        min: 4.999s max: 5.001s std dev: 0.00060s window: 2
+    (= map_update_interval: 5.0 exacto)
+
+    $ ros2 topic echo /map --once --field info
+    resolution: 0.05000000074505806
+    width: 83
+    height: 87
+    origin: x: -2.4214525612294704  y: -2.832646218674219  z: 0.0
+
+QoS de /map: RELIABLE + TRANSIENT_LOCAL (latched). Un suscriptor con el perfil
+por defecto de rclpy (VOLATILE) tendría que esperar hasta 5 s al siguiente mapa.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. GUARDAR EL MAPA: save_map FALLA, serialize_map FUNCIONA
+───────────────────────────────────────────────────────────────────────────────
+    $ ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap \
+        "{name: {data: .../mapas/mapa_fase4_banco}}"
+    response: SaveMap_Response(result=255)
+
+La causa NO está en la respuesta, está en el log de slam_toolbox:
+
+    [slam_toolbox]: SlamToolbox: Saving map as .../mapas/mapa_fase4_banco.
+    Package 'nav2_map_server' not found
+
+    $ dpkg -l | grep nav2
+    (nada — ros-jazzy-ros-base no trae Nav2; llega en la Fase 5)
+
+Alternativa nativa, sin Nav2:
+
+    $ ros2 service call /slam_toolbox/serialize_map \
+        slam_toolbox/srv/SerializePoseGraph "{filename: .../mapa_fase4_banco}"
+    response: SerializePoseGraph_Response(result=0)          <- 0 = OK
+
+    $ ls -l mapas/
+    -rw-rw-r-- 1 sphero sphero   11314 Jul 30 00:08 mapa_fase4_banco.data
+    -rw-rw-r-- 1 sphero sphero 3367625 Jul 30 00:08 mapa_fase4_banco.posegraph
+
+⚠️ 3.4 MB de .posegraph con el robot casi quieto. Vigilar antes de guardar
+   mapas en los 16 robots.
+
+
+───────────────────────────────────────────────────────────────────────────────
+6. 🔴 ROBOT QUIETO = MAPA CASI VACÍO, y NO es un fallo
+───────────────────────────────────────────────────────────────────────────────
+    rejilla      83 x 87 celdas a 5 cm  = 4.15 x 4.35 m
+    libre           458 (  6.3 %)
+    ocupado          57 (  0.8 %)   <- obstáculos
+    desconocido    6706 ( 92.9 %)
+    conocido        515 celdas = 1.29 m²
+
+CAUSA (dos parámetros del YAML de Atriz, ambos correctos):
+  · min_pass_through: 2         una celda necesita DOS rayos para marcarse. Un
+                                robot quieto barre desde un punto y los rayos
+                                divergen: solo las celdas cercanas reciben >=2.
+  · minimum_travel_distance 0.3 / minimum_travel_heading 0.5
+                                slam_toolbox no añade barridos al grafo hasta
+                                moverse 30 cm o girar 28.6°. Quieto: 1 nodo.
+
+
+───────────────────────────────────────────────────────────────────────────────
+7. ⏳ LA PRUEBA DE MAPEO CON MOVIMIENTO: NO VÁLIDA — hay que repetirla
+───────────────────────────────────────────────────────────────────────────────
+Se reinició SOLO el driver (había muerto, ver bloque 8), dejando el
+slam_toolbox viejo en marcha. Resultado:
+
+    ── árbol TF ──
+      ✅ odom -> base_footprint: yaw=-74.7°
+      ✅ map  -> base_footprint: yaw=-74.7°
+      ✅ base_link -> laser
+    ── MAPA ANTES ──   conocido 515 (7.1 %)  libre 458  ocupado 57
+    ▸ giro de 360°     -> conocido 515       libre 458  ocupado 57
+    ▸ avance 0.40 m
+    ▸ retroceso 0.40 m -> conocido 515       libre 458  ocupado 57
+
+    celdas conocidas: 515 -> 515 (+0)
+    pose en map: se desplazó 1.1 cm y giró 2.3°
+      (neto ~0 es lo ESPERADO: giro completo + ida y vuelta)
+
+Mapa IDÉNTICO celda a celda -> slam_toolbox no procesó ni un barrido nuevo.
+
+⚠️ REINICIAR EL DRIVER POR DEBAJO DE UN slam_toolbox YA ARRANCADO INVALIDA LA
+   PRUEBA: se queda con un hueco en su buffer TF y con el odom anterior.
+   Arrancar los dos juntos, robot.launch.py primero.
+
+PENDIENTE para la próxima sesión:
+    ros2 launch atriz_rvr_bringup robot.launch.py
+    ros2 launch atriz_rvr_bringup slam.launch.py
+    python3 .../mediciones_banco/medir_slam_ros2.py
+
+
+───────────────────────────────────────────────────────────────────────────────
+8. 🔴🔴 EL RVR SE DUERME Y EL NODO NO SE ENTERA — el hallazgo grave de la fase
+───────────────────────────────────────────────────────────────────────────────
+A mitad de sesión, sin tocar nada:
+
+    $ ros2 topic hz /tf
+    average rate: 50.193      <- 50 Hz = SOLO slam_toolbox (transform_publish_period 0.02)
+                                 el driver ya NO contribuía (sumarían ~67 Hz)
+    $ ros2 topic hz /odom
+    (nada)
+    $ ros2 topic hz /imu
+    (nada)
+    $ ros2 topic hz /color
+    (nada)
+
+    $ ros2 topic info /odom --verbose
+    Publisher count: 1
+      Node name: rvr_driver          <- registrado, publicando CERO
+
+    $ ps -p 56100 -o pid=,stat=,etime=,%cpu=,rss=
+    56100  Sl  08:06  12.3%  86.4 MB
+    nº de hilos: 17                  <- el proceso VIVE
+
+    Log del driver: última línea a los 0 s de arranque. NI UN ERROR.
+    [rvr_driver]: RVR presente (firmware comprobado en 0.00 s)
+    [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200
+                  interval=60ms frames=odom->base_footprint
+    [rvr_driver]: streaming a 60 ms (~16.7 Hz esperados)
+
+CAUSA, confirmada en el código:
+    $ grep -nE 'wake|sleep|inactivity|keepalive' rvr_driver_node.py
+    367:            await self._rvr.wake()          <- UNA sola vez, al arrancar
+
+    El SDK vendorizado NO tiene set_inactivity_timeout. Solo:
+      power.py: sleep(), wake(), get_battery_percentage(), get_battery_voltage_*
+      sphero_rvr_async.py:195 sleep()  :204 wake()  :213 get_battery_percentage()
+
+Reiniciar el driver lo revive por completo:
+
+    $ ros2 topic hz /odom     ->  average rate: 16.669
+    $ ros2 topic hz /imu      ->  average rate: 16.528
+    $ ros2 topic hz /scan     ->  average rate: 11.781
+
+⚠️ NO VERIFICADO: el tiempo exacto de inactividad.
+   Acotado entre ~2 y ~7.5 min:
+     00:03:43  arranca el driver
+     00:05:35  último dato confirmado (tf2_echo map base_footprint resolvía)
+     00:11:xx  los tres streams muertos
+   Encaja con los 5 min documentados del RVR, pero NO SE HA MEDIDO.
+
+CONSECUENCIAS PARA EL LABORATORIO:
+  · Un robot que espere 5 min a que el estudiante empiece estará MUDO al empezar,
+    y la web no verá error: el nodo vive y los topics existen.
+  · Cualquier medición larga se corta sin avisar.
+  · systemd con Restart=always NO lo arregla: el proceso no muere.
+
+ARREGLO PENDIENTE (dos partes):
+  1. Keepalive: temporizador cada 60 s con get_battery_percentage() -- es una
+     lectura y de paso da la batería, que hoy no se publica.
+  2. Detector de silencio: si no llega ninguna muestra en N s, WARN + intentar
+     reanudar el streaming, en vez de publicar nada con cara de estar sano.
+
+REGLA DE OPERACIÓN mientras no esté: si un robot no publica /odom, REINICIA EL
+DRIVER antes de buscar cualquier otra causa.
+
+
+───────────────────────────────────────────────────────────────────────────────
+9. COSTE EN EL PI 4 CON TODO A LA VEZ
+───────────────────────────────────────────────────────────────────────────────
+    rvr_driver_node             CPU  15.9 %   RSS  86.3 MB
+    async_slam_toolbox_node     CPU   4.5 %   RSS  49.3 MB
+    ydlidar_ros2_driver_node    CPU   2.6 %   RSS  31.3 MB
+    robot_state_publisher       CPU   0.5 %   RSS  32.6 MB
+                                    ~24 %        ~200 MB
+
+    loadavg 1/5/15: 0.62 0.92 0.87   (Pi 4 = 4 núcleos)
+    temp=62.3'C
+    throttled=0x0
+
+-> SLAM sale BARATO (4.5 %). El presupuesto de CPU lo consume el driver del RVR.
+   Subir throttle_scans o minimum_travel_distance para "aliviar el Pi" sería
+   optimizar lo que no cuesta.
+
+Aviso benigno, NO perseguir (4 veces en ~20 min):
+    [slam_toolbox]: Message Filter dropping message: frame 'laser' at time X
+                    for reason 'discarding message because the queue is full'
+Es el filtro de TF descartando un barrido mientras espera su transform.
+
+
+───────────────────────────────────────────────────────────────────────────────
+10. QUÉ QUEDA ABIERTO Y PUEDE ARRUINAR UN MAPA SIN DAR ERROR
+───────────────────────────────────────────────────────────────────────────────
+🔴 `inverted` del LIDAR SIN VERIFICAR. Si está al revés el mapa sale ESPEJADO:
+   parece correcto y tiene las paredes al otro lado. Comprobar con un objeto a
+   1 m delante del robot y mirar dónde aparece en /scan. HACERLO ANTES DE
+   CONFIAR EN CUALQUIER MAPA.
+
+🔴 El robot está inclinado ~7° (dos vías independientes: árbol TF y Roll de la
+   IMU). El LIDAR barre un plano inclinado. Causa sin determinar. slam_toolbox
+   lo absorbe en map->odom, que deja de ser plana. Para Nav2 hay que resolverlo:
+   por REP-105 odom->base_footprint debería ser plana (x, y, yaw) y el driver
+   mete roll y pitch.
+
+🔴 La VELOCIDAD de /odom sigue siendo basura (stream Velocity del RVR). Sin
+   decidir de dónde sacarla. No bloquea SLAM, sí bloquea Nav2.

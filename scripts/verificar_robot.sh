@@ -388,16 +388,56 @@ if [[ -d /opt/ros/jazzy ]]; then
 
 
     # ── Arbol TF ──────────────────────────────────────────────────────────
-    # La prueba que de verdad importa de la Fase 3: que odom y laser esten
-    # CONECTADOS. Antes del 2026-07-30 el arbol estaba partido en dos
-    # (odom->rvr_base_link y base_link->laser, sin puente) y era el bloqueante
-    # raiz de SLAM. Y falla en silencio: ningun nodo se cae.
+    # 🔴 LA comprobacion es `odom -> base_footprint`, NO `odom -> laser`.
+    #
+    # Hasta el 2026-07-30 este script comprobaba `odom -> laser`, y PASABA
+    # mientras el arbol estaba partido en dos: el driver publicaba
+    # odom->base_link y el URDF base_footprint->base_link, asi que base_link
+    # tenia DOS PADRES. `odom -> laser` resolvia por el camino equivocado
+    # (odom -> base_link -> laser) y base_footprint colgaba de otro arbol.
+    # slam_toolbox repetia "Failed to compute odom pose" y esta verificacion
+    # decia que todo estaba bien.
+    #
+    # La regla que queda: COMPRUEBA EL TRANSFORM QUE PIDE EL CONSUMIDOR, con
+    # sus frames exactos. slam_toolbox pide `base_frame: base_footprint`, asi
+    # que eso es lo que hay que comprobar. Un tf2_echo que resuelve prueba que
+    # hay UN camino, no que el arbol este bien.
     if command -v ros2 >/dev/null && [[ -n "${ROS_DISTRO:-}" ]]; then
-        if timeout 8 ros2 run tf2_ros tf2_echo odom laser >/dev/null 2>&1; then
-            _ok "arbol TF: odom -> laser resuelve (la cadena esta entera)"
+        if timeout 8 ros2 run tf2_ros tf2_echo odom base_footprint >/dev/null 2>&1; then
+            _ok "arbol TF: odom -> base_footprint resuelve (es lo que pide slam_toolbox)"
         else
-            _nota "arbol TF: odom -> laser no resuelve ahora mismo."
-            _nota "  Solo es un fallo si el driver Y description.launch.py estan corriendo."
+            _nota "arbol TF: odom -> base_footprint no resuelve ahora mismo."
+            _nota "  Solo es un fallo si robot.launch.py esta corriendo."
+            _nota "  Si el driver publica odom->base_link, base_link tiene dos padres"
+            _nota "  y el arbol esta partido: manual cap. 9.4."
+        fi
+        # La cadena completa, como comprobacion secundaria.
+        timeout 8 ros2 run tf2_ros tf2_echo odom laser >/dev/null 2>&1 \
+            && _ok "arbol TF: odom -> laser resuelve (la cadena hasta el sensor)"
+
+        # 🔴 EL RITMO de /odom, no que el topic exista.
+        #
+        # El 2026-07-30 el RVR se durmio solo y el driver siguio vivo al 12.3 %
+        # de CPU con /odom registrado (Publisher count: 1) publicando CERO, sin
+        # un solo error. Comprobar que el nodo o el topic existen NO detecta
+        # esto; hay que medir el ritmo. Ver manual, cap. 9.8.
+        if timeout 6 ros2 topic list 2>/dev/null | grep -qx '/odom'; then
+            HZ_ODOM="$(timeout 12 ros2 topic hz /odom --window 10 2>/dev/null \
+                       | grep -m1 -oE 'average rate: [0-9.]+' | grep -oE '[0-9.]+')"
+            HZ_ODOM="${HZ_ODOM:-0}"
+            # El firmware no baja de interval=60 ms => 16.5-16.7 Hz. Por debajo
+            # de 10 Hz algo va mal; a 0 el RVR esta dormido o el enlace caido.
+            if awk -v h="$HZ_ODOM" 'BEGIN{exit !(h > 10)}'; then
+                _ok "/odom a ${HZ_ODOM} Hz (esperado ~16.7)"
+            elif awk -v h="$HZ_ODOM" 'BEGIN{exit !(h > 0)}'; then
+                _mal "/odom solo a ${HZ_ODOM} Hz (esperado ~16.7)" \
+                     "revisa streaming_interval_ms=60 en robot.launch.py"
+            else
+                _mal "/odom EXISTE pero no publica NADA: el RVR esta dormido" \
+                     "reinicia el driver. El proceso no muere, asi que systemd no lo arregla. Manual cap. 9.8"
+            fi
+        else
+            _nota "/odom no esta publicado: robot.launch.py no esta corriendo."
         fi
     fi
 
@@ -436,9 +476,24 @@ else
     _nota "ROS 2 aún no instalado — es la Etapa E1 (manual, cap. 5.2)."
 fi
 
+# El QoS de slam_toolbox ya se comprobó (2026-07-30): se suscribe BEST_EFFORT,
+# igual que publica el LIDAR. Emparejan, el riesgo era infundado.
+if command -v ros2 >/dev/null && [[ -n "${ROS_DISTRO:-}" ]]; then
+    # slam_toolbox es un nodo de CICLO DE VIDA en Jazzy: arranca en
+    # `unconfigured`, vivo y sin hacer nada. Que exista no prueba nada.
+    if timeout 6 ros2 node list 2>/dev/null | grep -q 'slam_toolbox'; then
+        ESTADO="$(timeout 8 ros2 lifecycle get /slam_toolbox 2>/dev/null | head -1)"
+        case "$ESTADO" in
+            active*) _ok "slam_toolbox en '$ESTADO'" ;;
+            "")      _avi "slam_toolbox existe pero no responde a lifecycle get" "" ;;
+            *)       _mal "slam_toolbox en '$ESTADO': vivo pero NO mapea" \
+                          "arranca con slam.launch.py (autostart), o: ros2 lifecycle set /slam_toolbox configure && ... activate" ;;
+        esac
+    fi
+fi
+
 _nota "PENDIENTE de añadir aquí cuando exista: unidades systemd del stack,"
-_nota "rosbridge en :9090, slam_toolbox y el mapa. Y comprobar el QoS con que"
-_nota "se suscribe slam_toolbox: si pide RELIABLE no recibirá /scan."
+_nota "rosbridge en :9090, y el keepalive del driver (manual cap. 9.8)."
 
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ $HARDWARE -eq 1 ]]; then

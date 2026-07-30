@@ -10,10 +10,14 @@
 
 ## En una frase
 
-**🟢 GO: la migración es viable.** El sistema nuevo está instalado y a punto (Ubuntu Server
-24.04.4), el RVR y el LIDAR están verificados, y el **SDK de Sphero funciona en Python 3.12**
-entregando telemetría a 16.67 Hz — el mismo rendimiento que en Python 3.8. El siguiente paso
-es instalar ROS 2 Jazzy y portar el driver a `rclpy`.
+**🟢 La migración funciona: el robot corre sobre ROS 2 Jazzy y SLAM ya mapea.** Ubuntu Server
+24.04.4 + Jazzy instalados, driver portado a `rclpy` (`/odom` a 16.67 Hz), URDF y árbol TF
+enteros, LIDAR publicando `/scan`, y `slam_toolbox` activo publicando `/map`.
+
+**El siguiente paso es un arreglo de seguridad operativa, no una fase nueva: 🔴 el RVR se
+duerme solo a los pocos minutos y el driver no se entera** — sigue vivo publicando cero, sin
+un error. Un robot que espere a un estudiante llegará mudo a la práctica. Detalle en el
+manual, cap. 9.8.
 
 ---
 
@@ -36,23 +40,66 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 
 ## Qué está roto y confirmado
 
-| Problema | Gravedad |
-|---|---|
-| 🔴 **La parada de emergencia de la web no hace nada.** Publica en `/rvr/emergency_stop`, que no existe. Falla **en silencio** con `200 OK` | seguridad |
-| 🔴 **No hay watchdog de `cmd_vel`.** Si cae la red, el robot sigue con el último comando | seguridad |
-| 🔴 **No hay URDF** → árbol TF partido → SLAM imposible | bloqueante |
-| 🔴 **Driver ROS del LIDAR no instalado** (el sensor sí funciona) | bloqueante |
-| 🔴 **Sin SLAM ni navegación**: no hay `gmapping`, `slam_toolbox`, `move_base`, `amcl`, `robot_localization` | bloqueante |
-| **Sin arranque automático** — ninguna unidad systemd | operación |
-| **`imu.angular_velocity` en deg/s** (viola REP-103) | calidad de SLAM |
-| **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad |
+| Problema | Gravedad | Estado |
+|---|---|---|
+| 🔴 **El RVR se duerme solo y el driver no se entera.** `/odom`, `/imu` y `/color` mudos a la vez, proceso vivo al 12.3 % de CPU, **sin un error**. Un robot que espere a un estudiante llega mudo a la práctica | seguridad operativa | 🔴 **abierto** — es el siguiente paso |
+| 🔴 **La velocidad de `/odom` es basura.** El stream `Velocity` del RVR reporta 0.001 m/s a 0.147 m/s reales. La posición sí es buena | bloquea Nav2 | 🔴 abierto, 3 opciones sin probar |
+| 🔴 **`inverted` del LIDAR sin verificar.** Si está al revés **el mapa sale espejado** sin dar error | corrompe mapas | 🔴 abierto |
+| 🔴 **El robot está inclinado ~7°** (árbol TF y Roll de la IMU, dos vías independientes). `slam_toolbox` lo absorbe en `map → odom` | bloquea Nav2 | 🔴 abierto, causa sin determinar |
+| 🔴 **La parada de emergencia de la web no hace nada.** Publica en `/rvr/emergency_stop`, que no existe. Falla **en silencio** con `200 OK` | seguridad | ⏳ el topic ya existe en el driver ROS 2; falta el lado web (fase final) |
+| **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — acción del usuario |
+| **Sin arranque automático** — ninguna unidad systemd | operación | ⏳ pendiente |
+| 16 de 20 servicios y 4 topics sin portar | funcionalidad | ⏳ diferido por el usuario |
+| ~~No hay watchdog de `cmd_vel`~~ | seguridad | ✅ **resuelto**: para en 527 ms / 7.9 cm |
+| ~~No hay URDF → árbol TF partido~~ | bloqueante | ✅ **resuelto**: `atriz_rvr_description` |
+| ~~Driver ROS del LIDAR no instalado~~ | bloqueante | ✅ **resuelto**: `/scan` a 10.1 Hz |
+| ~~Sin SLAM~~ | bloqueante | 🟡 **`slam_toolbox` activo y publicando `/map`**; falta la prueba con movimiento |
+| ~~`imu.angular_velocity` en deg/s~~ | calidad de SLAM | ✅ **resuelto**: rad/s (REP-103) |
 
 ---
 
 ## El siguiente paso, exacto
 
-**Fase 2 del plan — portar el driver a `rclpy`.** Es el trabajo grande, y merece su propia
-sesión de trabajo.
+### 1. 🔴 Keepalive del driver — antes que cualquier fase nueva
+
+**El RVR se duerme y el nodo no se entera** (2026-07-30, manual cap. 9.8). `/odom`, `/imu` y
+`/color` dejan de publicar **a la vez** mientras el proceso sigue al 12.3 % de CPU con sus
+topics registrados y **ni un error**. Reiniciar el driver lo revive (`/odom` → 16.669 Hz).
+
+Causa: `rvr_driver_node.py:367` llama a `wake()` **una sola vez al arrancar**. El SDK no tiene
+`set_inactivity_timeout`. ⚠️ El tiempo exacto está **SIN MEDIR** (acotado entre ~2 y ~7.5 min).
+
+Arreglo, dos partes:
+
+1. Temporizador cada 60 s con `get_battery_percentage()` — es una lectura, y de paso da la
+   batería, que hoy no se publica.
+2. Detector de silencio: si no llega ninguna muestra del RVR en N s, **avisar** (`WARN`) e
+   intentar reanudar el streaming, en vez de publicar nada con cara de estar sano.
+
+Y de paso, **medir el timeout de verdad**, para poder documentarlo como hecho.
+
+### 2. Cerrar la Fase 4: repetir la prueba de mapeo
+
+La prueba con movimiento del 2026-07-30 **no es válida**: se reinició solo el driver dejando el
+`slam_toolbox` viejo en marcha, y ese dejó de procesar (mapa idéntico celda a celda tras 80 cm
+de recorrido). **Arrancar los dos launch juntos**, `robot.launch.py` primero:
+
+```bash
+ros2 launch atriz_rvr_bringup robot.launch.py     # terminal 1
+ros2 launch atriz_rvr_bringup slam.launch.py      # terminal 2
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_slam_ros2.py
+```
+
+### 3. 🔴 Verificar `inverted` del LIDAR antes de confiar en un mapa
+
+Si está al revés **el mapa sale espejado**: parece correcto y tiene las paredes al otro lado.
+Se comprueba con un objeto a 1 m delante del robot, mirando dónde aparece en `/scan`.
+
+---
+
+## Histórico de fases cerradas
+
+**Fase 2 del plan — portar el driver a `rclpy`.** Era el trabajo grande.
 
 ✅ **La Fase 2 está ARRANCADA y el núcleo funciona** (2026-07-30, rama **`ros2`**, commit
 `80e1cbf`). **Verificado contra el robot real** — no lo repitas:
@@ -63,7 +110,7 @@ sesión de trabajo.
 | `atriz_rvr_driver` | ✅ portado a `ament_python`, el nodo corre |
 | `/odom` | ✅ **16.671 Hz**, σ 0.47 ms (ROS 1 daba 16.59) |
 | `imu.angular_velocity` | ✅ rad/s (antes deg/s, violaba REP-103) |
-| árbol TF | ✅ `odom → base_link` (antes `rvr_base_link`, partido) |
+| árbol TF | ✅ `odom → base_footprint` (antes `rvr_base_link`, partido; y `base_link` fue mal hasta la Fase 4, ver abajo) |
 | `cmd_vel` | ✅ 34 cm a 0.15 m/s en 2 s |
 | watchdog | ✅ quieto en 527 ms, ~7.9 cm. **Primera vez que se prueba** |
 | Fase 2.1 limpieza | ✅ 79 ficheros y 700 KB menos |
@@ -75,9 +122,27 @@ sesión de trabajo.
 entero: `ros2 launch atriz_rvr_bringup robot.launch.py` → `/odom` 16.99 Hz, `/scan` 10.1 Hz,
 árbol TF resuelto.
 
-🔴 **Antes de montar SLAM: el driver del LIDAR publica `/scan` como BEST_EFFORT**, y `rclpy`
-pide RELIABLE por defecto. Si `slam_toolbox` pide RELIABLE **no recibirá un solo barrido y no
-dará ningún error**, solo un mapa vacío. Es lo primero que hay que comprobar en la Fase 4.
+✅ **El riesgo del QoS de `/scan` era infundado**, comprobado en la Fase 4: `slam_toolbox` se
+suscribe con **BEST_EFFORT**, igual que publica el driver del LIDAR. Emparejan. Sigue siendo
+cierto que **`rclpy` pide RELIABLE por defecto**, así que cualquier suscriptor propio a `/scan`
+tiene que pedir BEST_EFFORT explícitamente o no recibirá nada, sin error.
+
+✅ **Fase 4 PARCIAL** (manual cap. 9, evidencia `11_slam_fase4.txt`). `slam_toolbox` arranca,
+se activa y publica `/map` a 0.200 Hz; el árbol TF llega hasta `map`. Coste: **4.5 % de CPU**,
+y ~24 % con todo a la vez. Dos hallazgos que hubo que arreglar:
+
+- **Es un nodo de ciclo de vida**: arrancaba en `unconfigured`, vivo y sin hacer nada.
+  `slam.launch.py` ahora usa `LifecycleNode` + `configure`/`activate`.
+- **`base_link` tenía dos padres** (`odom → base_link` del driver y `base_footprint →
+  base_link` del URDF) → el árbol se partía y `slam_toolbox` repetía `Failed to compute odom
+  pose`. El driver publica ahora **`odom → base_footprint`** (REP-105).
+
+⚠️ **Y la Fase 3 lo había dado por bueno**: su comprobación `tf2_echo odom laser` **pasaba**,
+resolviendo por el camino equivocado. **Comprueba el transform que pide el consumidor, con sus
+frames exactos** — aquí `tf2_echo odom base_footprint`.
+
+📝 **`save_map` no funciona sin Nav2** (`result=255`, `Package 'nav2_map_server' not found`).
+Para guardar un mapa hoy: `serialize_map`, que es nativo (`result=0`).
 
 ✅ **Fase 3.1 cerrada** (commit `719c769`): el paquete `atriz_rvr_description` une el árbol TF, que
 estaba partido en dos y era el bloqueante raíz de SLAM. **Verificado sobre el robot:**

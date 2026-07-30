@@ -26,7 +26,11 @@ Los ficheros van **numerados en orden cronológico**, que es el mismo orden de l
 | `05_verificar_robot_…` | Salida completa de `verificar_robot.sh --hardware` | cualquiera |
 | `06_ros2_jazzy_instalado_…` | ROS 2 Jazzy: 201 paquetes, `ros2 doctor` 5/5, pub/sub a 9.997 Hz σ 0.35 ms | E1 |
 | `07_fase2_driver_ros2_…` | El driver en `rclpy`: `/odom` a 16.671 Hz, watchdog en 527 ms, y **el hallazgo del sensor `Velocity`** | Fase 2 |
-| `08_fase3_urdf_…` | El árbol TF entero: `odom → laser` resuelve | Fase 3 |
+| `08_fase3_urdf_…` | El árbol TF. ⚠️ Su comprobación (`odom → laser`) resultó ser **insuficiente**: ver el fichero 11 | Fase 3 |
+| `09_fase3_lidar_ros2_…` | El driver ROS del X2: `/scan` a 10.1 Hz, y **el QoS BEST_EFFORT** | Fase 3.2 |
+| `10_leds_sensores_…` | 37 comprobaciones: los LEDs uno a uno y los 17 sensores, sin ROS | 8bis |
+| `11_slam_fase4.txt` | SLAM: ciclo de vida, `base_link` con dos padres, y **🔴 el RVR se duerme solo** | Fase 4 |
+| `mapas/` | `mapa_fase4_banco.{data,posegraph}` — formato nativo de slam_toolbox | Fase 4 |
 | `lidar_x2_2026-07-30.txt` | Salida de `x2_parse.py` | B |
 | `raw_uart_2026-07-30.txt` | Salida de `raw_uart.py`: «el RVR CONTESTA» | B |
 
@@ -63,7 +67,7 @@ de higiene lo necesita para apagar el power-save del WiFi.
 **sí** identifica el puerto físico. Relevante para la regla udev de los 16 robots: ver
 `03_operacion/FLOTA.md`.
 
-## Y los dos hallazgos que más caros habrían salido
+## Y los hallazgos que más caros habrían salido
 
 **🔴 El stream `Velocity` del RVR no sirve** (fichero 07). Con el robot avanzando a
 **0.147 m/s** comprobados por desplazamiento, el sensor reportaba **0.001 m/s**. El driver
@@ -74,4 +78,15 @@ ahí comen SLAM y `robot_localization`. La **posición** sí es buena.
 desde un `static_transform_publisher` que la propia documentación admitía como suposición. El
 valor real es **0.1745 m**. Un error así inclina el mapa entero sin dar ningún error.
 
-Los dos se encontraron **midiendo**, no leyendo código.
+**🔴 El RVR se duerme solo y el nodo no se entera** (fichero 11). `/odom`, `/imu` y `/color`
+dejan de publicar **a la vez** mientras el proceso sigue vivo al 12.3 % de CPU con sus topics
+registrados y **sin un solo error**. Un robot que espere 5 minutos a que el estudiante empiece
+su práctica **estará mudo al empezar**, y la web no verá nada raro. `systemd` con
+`Restart=always` no lo arregla: el proceso no muere.
+
+**🔴 `base_link` tenía dos padres** (fichero 11) y partía el árbol TF en dos, con SLAM sin
+mapear. Lo grave no es el error: es que **la verificación de la Fase 3 lo dio por bueno**.
+Comprobaba `tf2_echo odom laser`, que resolvía por el camino equivocado. La regla que queda:
+**comprueba el transform que pide el consumidor, con sus frames exactos.**
+
+Todos se encontraron **midiendo**, no leyendo código.

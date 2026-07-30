@@ -87,6 +87,29 @@ idéntico a un cable mal puesto. **Pide al usuario que apague y encienda el robo
 tocar configuración.** Se perdió un buen rato persiguiendo un problema de device-tree
 inexistente.
 
+**🔴🔴 EL RVR SE DUERME SOLO Y EL NODO SIGUE «SANO».** Y es peor que lo anterior, porque
+aquí no hay nada que parezca roto. Medido el 2026-07-30: a mitad de sesión, sin tocar nada,
+`/odom`, `/imu` y `/color` dejaron de publicar **a la vez**, mientras el proceso seguía vivo
+al 12.3 % de CPU con 17 hilos, sus topics registrados (`Publisher count: 1`) y **ni un
+mensaje de error**.
+
+Y la pista fácil engaña: `ros2 topic hz /tf` daba **50 Hz**, así que «TF va bien». Pero 50 Hz
+es exactamente el `transform_publish_period` de `slam_toolbox` a solas — con el driver
+aportando serían ~67 Hz.
+
+**Causa:** `rvr_driver_node.py:367` llama a `wake()` **una sola vez al arrancar** y no vuelve
+a hablar con el RVR salvo cuando llega un `cmd_vel`. El SDK vendorizado **no tiene**
+`set_inactivity_timeout`.
+→ **Reiniciar el driver lo revive**: `/odom` vuelve a 16.669 Hz.
+→ ⚠️ **NO VERIFICADO** el tiempo exacto: acotado entre ~2 y ~7.5 min. Encaja con los 5 min
+  documentados del RVR, pero no se ha medido.
+→ **Regla:** si un robot no publica `/odom`, **reinicia el driver antes de buscar otra
+  causa.** No mires si el nodo existe; mira el **ritmo**.
+→ Un `systemd` con `Restart=always` **no** arregla esto: el proceso no muere.
+→ **Arreglo pendiente en el driver:** keepalive cada 60 s con `get_battery_percentage()` (es
+  una lectura, y de paso da la batería, que hoy no se publica) + un detector de silencio que
+  avise en vez de publicar nada con cara de sano.
+
 **Que el nodo arranque NO prueba que el enlace funcione.** `rvr_fw_check_async.py` captura
 `except (asyncio.TimeoutError, Exception)` y continúa en silencio: el nodo registra sus
 topics, parece sano, y no circula ni un dato.
@@ -153,8 +176,52 @@ suscriptor. El driver del LIDAR sí lo dice, y hay que leerlo:
 `New subscription discovered on topic '/scan', requesting incompatible QoS. No messages will be
 sent to it.`
 → Suscríbete con `QoSProfile(depth=10, reliability=QoSReliabilityPolicy.BEST_EFFORT)`.
-→ **Antes de montar SLAM, comprueba con qué QoS se suscribe `slam_toolbox`**: si pide RELIABLE,
-   no recibirá un solo barrido y solo verás un mapa vacío.
+→ ✅ **Con `slam_toolbox` NO hay problema**, comprobado el 2026-07-30: se suscribe también con
+  BEST_EFFORT (`ros2 topic info /scan --verbose`). El riesgo estaba documentado y era
+  infundado.
+→ Al revés también muerde: **`/map` es RELIABLE + TRANSIENT_LOCAL** (latched). Un suscriptor
+  con el perfil por defecto de `rclpy` (VOLATILE) no recibe el último mapa y espera hasta 5 s
+  al siguiente `map_update_interval`.
+
+**🔴 `slam_toolbox` es un NODO DE CICLO DE VIDA en Jazzy.** Arranca en `unconfigured`: el
+proceso vive, `ros2 node list` lo muestra, y **no hace nada** — no se suscribe a `/scan`, no
+publica `/map`, y su log se queda en `Node using stack size` sin un solo error.
+→ Se ve con `ros2 lifecycle get /slam_toolbox` (debe decir `active [3]`) y con
+  `ros2 topic info /scan --verbose` (`Subscription count: 0` es el síntoma).
+→ En el launch: `LifecycleNode` + eventos `configure`→`activate` encadenados con
+  `OnStateTransition`, **no con un `sleep`**. `slam.launch.py` ya lo hace, con `autostart`.
+
+**🔴 En TF un frame solo puede tener UN padre.** El driver publicaba `odom → base_link` y el
+URDF `base_footprint → base_link`: el árbol se partió en dos y `slam_toolbox` repetía
+`Failed to compute odom pose`. Arreglado publicando `odom → base_footprint` (que es además lo
+correcto por REP-105 y lo que pide el `base_frame` de slam_toolbox).
+→ **Y la lección de método, que es lo que importa:** la verificación de la Fase 3 era
+  `tf2_echo odom laser` y **pasaba**, resolviendo por el camino equivocado
+  (`odom → base_link → laser`) mientras `base_footprint` colgaba de otro árbol.
+  **Comprueba el transform QUE PIDE EL CONSUMIDOR, con sus frames exactos** — aquí
+  `tf2_echo odom base_footprint`. Un `tf2_echo` que resuelve prueba que hay *un* camino, no
+  que el árbol esté bien.
+
+**Un robot QUIETO produce un mapa 92.9 % desconocido, y no es un fallo.** Con
+`min_pass_through: 2` una celda necesita **dos rayos** para marcarse, y los rayos de un LIDAR
+quieto divergen: solo las celdas cercanas reciben dos. Además `minimum_travel_distance: 0.3`
+hace que el grafo tenga **un solo nodo** si el robot no se mueve. No ajustes el solver: mueve
+el robot, con `mediciones_banco/medir_slam_ros2.py`.
+
+**`/slam_toolbox/save_map` falla con `result=255` porque no está Nav2.** El error real no está
+en la respuesta del servicio, está en el log de slam_toolbox: `Package 'nav2_map_server' not
+found`. Este sistema tiene `ros-jazzy-ros-base` y Nav2 llega en la Fase 5.
+→ Usa **`serialize_map`** (`.posegraph` + `.data`), que es nativo y no necesita Nav2:
+  `result=0`. El `.pgm`+`.yaml` de `save_map` solo hace falta para dárselo a Nav2.
+
+**No reinicies el driver por debajo de un `slam_toolbox` ya arrancado.** Se queda con un hueco
+en su buffer TF y con el `odom` anterior, y **deja de procesar**: el mapa sale idéntico celda
+a celda tras mover el robot 80 cm. Invalidó una prueba entera de la Fase 4. Arranca los dos
+juntos, `robot.launch.py` primero.
+
+**Un `nohup ... &` desde una herramienta Bash muere con el shell.** Si necesitas dejar un
+launch corriendo entre llamadas, usa `setsid nohup … < /dev/null &` y `disown`. Sin eso el
+proceso desaparece y el diagnóstico siguiente miente.
 
 **El `frequency` del X2 no hace nada.** Se pide 10 Hz y gira a 10.1–11.75. Medido sin driver:
 11.48 Hz. Es de canal único y el motor va libre. **La mejora de resolución angular bajando el
@@ -195,6 +262,10 @@ x2_parse.py      # ¿funciona el LIDAR? (sin driver ROS)
 medir.py         # frecuencia y jitter de /odom e /imu
 sdk_full.py 60   # ritmo del SDK con los 8 sensores
 estabilidad.py   # 12 min: huecos, pérdidas, fugas de memoria
+
+verificar_leds_sensores.py   # 37 comprobaciones de LEDs y los 17 sensores (sin ROS)
+medir_watchdog_ros2.py       # ¿frena el watchdog? mide DESPLAZAMIENTO, no velocidad
+medir_slam_ros2.py           # ⚠️ MUEVE EL ROBOT: ¿crece el mapa al moverse?
 ```
 
 En `scripts/`:
@@ -222,6 +293,13 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | Puerto del LIDAR | `/dev/ydlidar` → `ttyUSB0` (CP2102, serie `0001` genérico) | regla udev por `ID_PATH` |
 | `/scan` | **10.1 Hz**, 255 puntos, 226 válidos (89 %), resolución **1.42°** | 2026-07-30, con el driver ROS 2 |
 | Firmware del RVR | 9.1.462 (Nordic) | |
+| `/map` | **0.200 Hz** exactos (= `map_update_interval` 5 s) | 2026-07-30 |
+| CPU de `slam_toolbox` | **4.5 %** de un núcleo, 49 MB | 2026-07-30, async |
+| Todo a la vez (driver+LIDAR+RSP+SLAM) | **~24 %** de un núcleo, ~200 MB, loadavg 0.62, 62.3 °C, `throttled=0x0` | 2026-07-30 |
+
+**SLAM sale barato.** El presupuesto de CPU de este robot lo consume el driver del RVR
+(15.9 %), no `slam_toolbox` (4.5 %). Subir `throttle_scans` o `minimum_travel_distance` para
+«aliviar el Pi 4» sería optimizar lo que no cuesta.
 
 **Línea base de Ubuntu Server 24.04 recién instalado** (2026-07-30, *antes* de la higiene del
 SO). Evidencia cruda en `00_auditoria/evidencia_24_04/`:
@@ -263,6 +341,9 @@ lo que produce deriva entre documentación y realidad.
 | **Imagen dorada** para los 16, no aprovisionar por red | ~300 MB y 15-20 min por robot, sobre la única AP. `FLOTA.md` |
 | La imagen dorada se **construye ejecutando `provision.sh`**, no a mano | Una imagen irreproducible es una caja negra. `FLOTA.md` |
 | **🟢 GO: el SDK funciona en Python 3.12** (16.67 Hz) | manual, cap. 5.1 · verificado 2026-07-30 |
+| El driver publica `odom → base_footprint`, **no** `odom → base_link` | manual, cap. 9.4 · REP-105 y un frame = un padre |
+| `async_slam_toolbox_node`, no el `sync` | no bloquea por barrido, y cuesta 4.5 % · manual cap. 9 |
+| SLAM va en un launch **aparte** de `robot.launch.py` | el robot tiene que arrancar sin SLAM, y SLAM reiniciarse sin soltar `/dev/rvr` |
 
 ---
 
