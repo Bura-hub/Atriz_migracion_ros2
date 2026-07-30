@@ -4,6 +4,59 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 (parte 5) — El modelo de marcos del RVR, completo
+
+Cierra la investigación de la parte 4. Evidencia: `15_velocidad_odom.txt`.
+**No se implementa el arreglo**, a propósito: ver el final.
+
+### Cinco medidas, y cada una descartó una hipótesis
+
+| | yaw en reposo | desplazamiento | qué descartó |
+|---|---|---|---|
+| sesión previa ×2 | −74.6° | −90.2°, −90.0° | hay desfase, no se sabe de qué depende |
+| tras apagar/encender | +64.9° | −90.0° | **no es constante** (−15° → −155°) |
+| tras girar 90° + apagar/encender | **+0.5°** | −90.0° | **el yaw se pone a cero AL ENCENDER** |
+| tras girar 90° a mano, sin apagar | −89.9° | −89.7° | el locator **se realinea al arrancar el driver** |
+| girando con `cmd_vel`, sin reiniciar | +89.4° (Δ) | **−88.8°** (Δ) | 🔴 **manos contrarias** |
+
+### El modelo que sale, y explica las cinco
+
+1. **El marco del locator es FIJO** y se **realinea en cada `reset_locator_x_and_y()`** — es
+   decir, al arrancar el driver. Su eje X queda **90° girado** respecto al «adelante» del
+   robot: por eso avanzar recto da siempre −90°.
+2. **El yaw se pone a cero al ENCENDER el RVR**, no con `reset_yaw()`, que no hace nada. Los
+   valores raros de antes eran de un robot manipulado *después* de encenderse.
+3. 🔴 **La posición y la orientación de `/odom` tienen manos contrarias.** El `−Y` que el
+   driver aplica al locator **sobra**.
+
+**El yaw es el bueno** — contrastado contra el LIDAR, un sensor físico con convención ROS
+conocida. Y el `−Y` vino de una **inferencia inválida**: se dedujo midiendo que «al curvar a la
+izquierda `dy` salía negativo», dando por hecho que el eje X del locator apuntaba adelante,
+cuando está 90° girado. Es el mismo patrón que ya falló otras veces hoy: **deducir en vez de
+medir**.
+
+### El arreglo, definido pero NO implementado
+
+| | Qué hacer |
+|---|---|
+| **Posición** | quitar el `−Y` del locator y **rotar −90°** |
+| **Velocidad** | la misma rotación, y proyectar sobre el rumbo |
+| **Orientación** | restar el yaw del arranque (`yaw − yaw₀`) |
+
+No se implementa hoy **a propósito**: toca posición, velocidad y orientación a la vez, y esta
+sesión ya acumuló tres errores por ir rápido (el choque, elegir 180° dos veces para una prueba
+de signo, y este `−Y` deducido en vez de medido). Se verifica cada pieza por separado.
+
+**Verificación cuando se haga:** una corrida recta debe dar la dirección del desplazamiento
+**igual** al yaw publicado, y girar el robot debe mover ambas en el **mismo** sentido.
+
+### 👤 El robot no quedó en su posición inicial
+
+La última prueba lo dejó ~26 cm adelantado y ~19 cm de lado respecto a la marca. Recolocarlo
+antes de retomar, y comprobar la orientación con un empujón de 10 cm.
+
+---
+
 ## 2026-07-31 (parte 4) — 🔴 RETRACTACIÓN: el stream `Velocity` NO era basura
 
 Manual, cap. 2 y 10. Evidencia: `00_auditoria/evidencia_24_04/15_velocidad_odom.txt`.

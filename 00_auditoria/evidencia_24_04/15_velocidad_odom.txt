@@ -171,33 +171,105 @@ Manual, cap. 2 y 10.
      -90° APUNTA a que el marco del locator es relativo al robot, pero NO LO
      DEMUESTRA: el pasillo obliga a colocarlo casi con la misma orientacion.
 
-  ── LO QUE FALTA POR DETERMINAR, Y COMO ──
+  ── ✅ RESUELTO: EL MODELO COMPLETO DE MARCOS DEL RVR ──
 
-  ¿Los 90° del locator son una propiedad FIJA del RVR, o dependen de hacia donde
-  miraba el robot al encenderse?
+  Cinco medidas, cada una eliminando una hipotesis. El modelo que sale explica
+  las cinco:
 
-     · FIJOS      -> el driver los corrige con una constante y deriva el rumbo
-                     del propio locator, ignorando el cuaternion para el yaw.
-                     Arreglo limpio.
-     · ARBITRARIOS-> el marco del locator es tan inutil como el yaw, y hay que
-                     construir la odometria de otra forma. La candidata son los
-                     ENCODERS, que no dependen de ningun marco y ya estan
-                     calibrados (7792 ticks/m).
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │ 1. El marco del LOCATOR es FIJO (no gira con el robot), y se          │
+    │    REALINEA cada vez que el driver llama a reset_locator_x_and_y().   │
+    │    Su eje X queda 90° girado respecto al "adelante" del robot en ese  │
+    │    instante: por eso avanzar recto SIEMPRE da -90°.                   │
+    │                                                                       │
+    │ 2. El yaw del CUATERNION se pone a cero al ENCENDER el RVR, no con    │
+    │    reset_yaw() — que no hace nada. Arrastra su origen desde el        │
+    │    encendido, asi que es arbitrario respecto al marco del locator.    │
+    │                                                                       │
+    │ 3. La posicion y la orientacion que publica /odom tienen MANOS        │
+    │    CONTRARIAS: el `-Y` que el driver aplica al locator SOBRA.         │
+    └──────────────────────────────────────────────────────────────────────┘
 
-  🔴 NO SE PUEDE DISTINGUIR POR SOFTWARE. Girar con `cmd_vel` no vale: el marco
-     se fija AL ARRANCAR, no despues.
+  LAS MEDIDAS, en orden, y que descarto cada una:
 
-  EL EXPERIMENTO: colocar el robot girado ~90° respecto a su orientacion
-  habitual (mirando a un lado del pasillo), arrancar el driver y avanzar 25 cm
-  —caben en los 40 cm laterales—. Si el desplazamiento vuelve a dar -90°, los
-  90° son fijos. Si da otro numero, hay que ir por los encoders.
-  👤 Requiere recolocar el robot a mano.
+    (a) sesion previa, 2 medidas:  yaw -74.6°, desplaz. -90.2° y -90.0°
+        -> hay un desfase, pero no se sabe de que depende
 
-  📝 Esto acota lo que se puede concluir de la deriva de SLAM medida antes
-     (1.0-2.7 cm): salio bien CON este desfase presente, porque slam_toolbox
-     corrige con emparejado de barridos. Para Nav2, que se fia de la pose, 15°
-     no valen.
+    (b) tras APAGAR Y ENCENDER:    yaw +64.9°, desplaz. -90.0°
+        -> el desfase NO es constante (-15° -> -155°). Descarta "corregir con
+           una constante". Y el desplazamiento no se mueve: -90° otra vez.
 
+    (c) tras GIRAR 90° A MANO + apagar y encender:  yaw +0.5°, desplaz. -90.0°
+        -> 🔴 EL YAW SI SE PONE A CERO, pero AL ENCENDER. Los valores raros de
+           (a) y (b) eran de un robot manipulado DESPUES de encenderse.
+        -> y el desplazamiento sigue en -90° con el robot fisicamente girado:
+           el marco del locator es relativo al robot.
+
+    (d) tras GIRAR 90° A MANO, SIN apagar:  yaw -89.9°, desplaz. -89.7°
+        -> 🔴 el modelo "rumbo = yaw - 90°" FALLA por 90°. El yaw siguio el
+           giro (+0.5 -> -89.9) pero el desplazamiento NO se movio.
+        -> el driver se habia REINICIADO antes de medir: el locator se realinea
+           en reset_locator_x_and_y(), no en el encendido.
+
+    (e) girando 90° con cmd_vel SIN reiniciar el driver:
+             antes:   yaw -89.9°   desplaz.  -90.0°
+             despues: yaw  -0.5°   desplaz. -178.8°
+             cambio:  yaw +89.4°   desplaz.  -88.8°
+        -> ✅ el marco del locator NO gira con el robot: es FIJO. Confirma (d).
+        -> 🔴 PERO LOS SIGNOS SON OPUESTOS. En un marco coherente los dos
+           cambios deberian ser iguales. La posicion y la orientacion de /odom
+           tienen manos contrarias.
+
+  ¿CUAL DE LAS DOS ESTA MAL? El YAW ES EL BUENO. Esta contrastado contra el
+  LIDAR, que es un sensor fisico con convencion ROS conocida:
+  `verificar_inverted_lidar.py` dio +48.5° contra -49.0°, opuestos, que es lo
+  que la fisica exige. Luego sobra el `-Y` de la posicion.
+
+  ⚠️ Y SE SABE DE DONDE VINO ESE ERROR: se dedujo el 2026-07-31 midiendo que
+     "al curvar a la izquierda, dy salia negativo". Ese razonamiento daba por
+     hecho que el eje X del locator apuntaba hacia ADELANTE — y esta 90°
+     girado. La inferencia era invalida. Ahora hay medida directa.
+
+  ── EL ARREGLO, TRES PIEZAS ──
+
+    POSICION     quitar el `-Y` del locator, y ROTAR -90° para alinear el eje X
+                 del odom con el "adelante" inicial (convencion de ROS).
+    VELOCIDAD    la misma rotacion, y despues PROYECTAR sobre el rumbo para
+                 pasarla del marco del mundo al del robot (bug A).
+    ORIENTACION  restar el yaw del arranque (yaw - yaw0), porque reset_yaw() no
+                 lo hace y el cuaternion arrastra su origen desde el encendido.
+
+  Las tres son constantes que se fijan al arrancar el driver.
+
+  ── COMO VERIFICARLO CUANDO SE IMPLEMENTE ──
+
+  Una sola corrida recta, y DOS comprobaciones que hoy fallan:
+
+    1. la direccion del desplazamiento debe COINCIDIR con el yaw publicado
+       (hoy difieren en 90° + un termino arbitrario)
+    2. girar el robot debe mover las dos en el MISMO sentido
+       (hoy se mueven en sentidos opuestos: medida (e))
+
+  Y despues, odom.twist.linear debe dar (+v, 0.000) avanzando recto, mire donde
+  mire el robot.
+
+  🔴 NO IMPLEMENTAR LAS TRES DE GOLPE. Tocan posicion, velocidad y orientacion
+     a la vez; verificar cada una por separado.
+
+  ── 👤 ESTADO FISICO DEL ROBOT AL CERRAR LA SESION (2026-07-31) ──
+
+  🔴 EL ROBOT NO QUEDO EN SU POSICION INICIAL. La ultima prueba (medida (e))
+     avanzo ~26 cm por el pasillo, giro 90°, avanzo ~19 cm de lado y deshizo el
+     giro. Asi que esta desplazado de la marca del suelo, aunque con la
+     orientacion aproximadamente original.
+
+  ANTES DE RETOMAR: recolocarlo en el centro del pasillo, sobre la marca y
+  alineado con el eje largo. Y comprobar la orientacion con un empujon de 10 cm
+  antes de lanzar nada, como se hizo al empezar — no darla por buena.
+
+  📝 Y recordar que reset_locator_x_and_y() pone a cero la ODOMETRIA, no
+     devuelve el robot al sitio: el cero de software se mueve CON el robot. Es
+     lo que hizo que chocara (seccion 5).
 
 ───────────────────────────────────────────────────────────────────────────────
 5. ⚠️ EL ROBOT CHOCO — y fue un error de metodo mio

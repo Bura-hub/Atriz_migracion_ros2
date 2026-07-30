@@ -300,13 +300,35 @@ del eje X del locator: ahí X vale ~0 mientras el robot cruza la habitación.
   poner `(+0.199, 0.000)`. Arreglo: proyectar sobre el rumbo —
   `vx = vx_w·cos(yaw) + vy_w·sin(yaw)`.
 
-**🔴 Y `reset_yaw()` NO pone a cero el yaw publicado.** Justo tras arrancar el driver, en
-reposo, `/odom` daba **−74.6°**. Consecuencia: la **orientación de `/odom` no concuerda con su
-propia posición** — el robot avanza recto hacia −90.0° y el mensaje dice que apunta a −74.5°.
-**~15° de desfase**, medido dos veces con el driver reiniciado entre medias.
-→ ⚠️ **SIN DETERMINAR** si ese desfase sobrevive a un apagado del RVR. Las dos medidas son de
-  la misma sesión de encendido.
-→ Los dos bugs se arreglan **juntos**: la proyección de la velocidad necesita un yaw fiable.
+**🔴🔴 EL MODELO DE MARCOS DEL RVR — medido con cinco pruebas el 2026-07-31.** Es lo que hay
+que tener en la cabeza antes de tocar `/odom`:
+
+1. **El marco del LOCATOR es FIJO** (no gira con el robot) y **se realinea en cada
+   `reset_locator_x_and_y()`**, o sea al arrancar el driver. Su eje X queda **90° girado**
+   respecto al «adelante» del robot: por eso **avanzar recto SIEMPRE da −90°**.
+2. **El yaw se pone a cero al ENCENDER el RVR, no con `reset_yaw()`** — que no hace nada.
+   Arrastra su origen desde el encendido, así que es arbitrario respecto al locator. Con un
+   encendido limpio y sin tocar el robot: **+0.5°**. Tras manipularlo: −74.6°, +64.9°.
+3. **La posición y la orientación de `/odom` tienen MANOS CONTRARIAS.** Girando el robot, el
+   yaw cambió **+89.4°** y el desplazamiento **−88.8°**. **El `−Y` que el driver aplica al
+   locator sobra.**
+
+**El yaw es el bueno**: está contrastado contra el LIDAR, un sensor físico con convención ROS
+conocida (`verificar_inverted_lidar.py`: +48.5° contra −49.0°, opuestos). El `−Y` vino de una
+**inferencia inválida** — se dedujo midiendo que «al curvar a la izquierda `dy` salía negativo»,
+dando por hecho que el eje X del locator apuntaba adelante, y está 90° girado.
+
+**ARREGLO, tres piezas, y NO se implementan de golpe:**
+
+| | Qué hacer |
+|---|---|
+| Posición | quitar el `−Y` del locator y **rotar −90°** |
+| Velocidad | la misma rotación, y proyectar sobre el rumbo |
+| Orientación | restar el yaw del arranque (`yaw − yaw₀`) |
+
+**Verificación:** una corrida recta debe dar la dirección del desplazamiento **igual** al yaw
+publicado, y girar el robot debe mover ambas en el **mismo** sentido. Hoy fallan las dos.
+Detalle completo en `00_auditoria/evidencia_24_04/15_velocidad_odom.txt`.
 
 **`Speed` (escalar) existe y es el módulo de `Velocity`.** Sirve como comprobación cruzada
 barata, pero no aporta nada nuevo.
