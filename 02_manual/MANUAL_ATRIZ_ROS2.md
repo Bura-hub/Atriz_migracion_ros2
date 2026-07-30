@@ -21,7 +21,7 @@
 > | 4 | Higiene del SO (headless, governor, journal) | ✅ **verificado 2026-07-30** |
 > | 5 | ROS 2 Jazzy y workspace colcon | ✅ **verificado 2026-07-30** (5.4 en espera del port) |
 > | 6 | Driver del RVR en `rclpy` | ⏳ **no escrito — EN CURSO** |
-> | 7 | URDF y árbol TF | ⏳ no escrito |
+> | 7 | URDF y árbol TF | 🟡 **escrito 2026-07-30** · estructura verificada, medidas del chasis sin medir |
 > | 8 | YDLIDAR X2 | 🟡 **hardware verificado en 20.04 y 24.04**; driver ROS pendiente |
 > | 9 | SLAM y Nav2 | ⏳ no escrito |
 > | 10 | rosbridge y plataforma web | ⏳ no escrito |
@@ -1180,7 +1180,137 @@ lo introduce el middleware.
 
 ---
 
-## Capítulos 6, 7 y 9–12
+## Capítulo 7 — URDF y árbol TF
+
+> 🟡 **Escrito el 2026-07-30 al crearlo.** La estructura está verificada; las
+> **medidas del chasis** vienen de la especificación del RVR y **no se han medido**
+> en esta unidad. Lo que sí está medido está marcado ✅.
+
+### 7.1 El problema: el árbol TF estaba partido en dos
+
+Antes de la Fase 3 **no existía ningún `.urdf` ni `.xacro`** en el proyecto. Los transforms se
+publicaban a mano, y no encajaban:
+
+```
+   odom ──────────► rvr_base_link          ← lo publicaba el driver
+   base_link ─────► laser                  ← un static_transform_publisher del launch
+```
+
+**Dos árboles inconexos.** Nada unía `rvr_base_link` con `base_link`, así que no había forma de
+saber dónde está el LIDAR respecto a la odometría. Y sin eso, SLAM y Nav2 son **imposibles**:
+el plan lo llama «el bloqueante raíz».
+
+Lo peor es cómo falla: `ros2 run tf2_ros tf2_echo odom laser` dice *«Could not find a
+connection»* y nada más. Ningún nodo se cae, ningún topic deja de publicar. **Silencioso.**
+
+### 7.2 La cadena canónica
+
+Según REP-105, y es lo que esperan `slam_toolbox` y Nav2 sin configuración extra:
+
+```
+   map ──► odom ──► base_footprint ──► base_link ──► laser
+                                                └──► imu_link
+                                                └──► wheel_left / wheel_right
+```
+
+**Quién publica qué, y esto es lo que más se confunde:**
+
+| Transform | Lo publica | Por qué |
+|---|---|---|
+| `map → odom` | `slam_toolbox` (Fase 4) | Es la corrección del mapa. Todavía no existe |
+| **`odom → base_link`** | **el driver** (`atriz_rvr_driver`) | Es el único que sabe dónde está el robot |
+| `base_footprint → base_link` | `robot_state_publisher` | Geometría fija, sale del URDF |
+| `base_link → laser`, `imu_link`, ruedas | `robot_state_publisher` | Idem |
+
+El driver publica `odom → base_link` con su parámetro `base_frame`, cuyo valor por defecto es
+`base_link`. **Si lo cambias, cambia también el URDF**, o el árbol se vuelve a partir.
+
+### 7.3 Las medidas, y cuáles son de fiar
+
+Todo lo geométrico está en propiedades `xacro` al principio del fichero, para cambiarlo en un
+solo sitio:
+
+| Propiedad | Valor | Procedencia |
+|---|---|---|
+| `laser_x`, `laser_y` | `0.0`, `0.0` | ✅ **medido**: el X2 está centrado (2026-07-30) |
+| `laser_gap` | `0.040` | ✅ **medido**: hueco entre la tapa del RVR y la base del LIDAR |
+| `base_length/width/height` | `0.218` / `0.185` / `0.114` | 📝 ficha del RVR, **sin medir en esta unidad** |
+| `x2_height` | `0.041` | 📝 ficha del YDLIDAR X2 |
+| `wheel_radius/width/separation` | `0.032` / `0.025` / `0.150` | 📝 **sin medir**. Solo geométricos |
+
+**La altura del plano de barrido se DERIVA:**
+
+```
+    base_height    0.114     alto del RVR        (ficha, sin medir)
+  + laser_gap      0.040     hueco               ✅ medido
+  + x2_height/2    0.0205    al centro del disco (ficha)
+  ─────────────────────────
+    laser_z        0.1745    = 17.45 cm sobre el suelo
+```
+
+🔴 **El valor que arrastraba el proyecto era `0.10`, y se queda 7.4 cm corto.** Venía del
+`static_transform_publisher` de `lidar_only.launch`, y la propia `GUIA_COMPLETA_LIDAR.md` del
+repositorio lo admitía: «se **asume** que el LIDAR está en el centro del RVR y 0,1 m por
+encima. Ajusta estos valores a tu montaje real». Nadie lo ajustó.
+
+**Por qué 7 cm no es un detalle.** Un error en `laser_z` inclina el mapa entero; un error en
+`laser_x` desplaza cada barrido respecto a la odometría, y SLAM lo interpreta como movimiento
+que no ocurrió. El mapa sale torcido **sin un solo mensaje de error**.
+
+👤 **Si el mapa sale mal, el primer sospechoso es `base_height`**, que es el único término de la
+suma que no está medido. Mide con una regla, con el robot en el suelo, del **suelo al centro del
+disco giratorio**, y pon ese número directo en `laser_z` ignorando la suma.
+
+### 7.4 Las ruedas son `fixed`, y es deliberado
+
+Un joint `continuous` obligaría a publicar `/joint_states` con el ángulo de cada rueda. **El RVR
+no expone la posición angular de las ruedas** — solo conteos de encoder acumulados. Declararlas
+móviles dejaría a `robot_state_publisher` esperando datos que nunca llegan, y el árbol se
+rompería con un aviso poco claro.
+
+Como el RVR entrega la odometría ya integrada por su locator interno, las ruedas son
+**decorativas**. `fixed` es lo honesto, y por eso este paquete **no arranca
+`joint_state_publisher`**.
+
+### 7.5 Ejecutar
+
+```bash
+# xacro NO viene en ros-base. Comprobado el 2026-07-30.
+sudo apt install -y ros-jazzy-xacro
+
+cd ~/atriz_ws && colcon build --packages-select atriz_rvr_description
+source install/setup.bash
+
+# En una terminal, el driver (publica odom -> base_link):
+ros2 run atriz_rvr_driver rvr_driver_node
+# En otra, la descripción (publica el resto):
+ros2 launch atriz_rvr_description description.launch.py
+```
+
+`robot_state_publisher` y `tf2_tools` **sí** vienen en `ros-base`; `xacro` no.
+
+### 7.6 Verificación — que el árbol esté ENTERO
+
+Es la única prueba que importa, y la que fallaba antes:
+
+```bash
+# La cadena completa debe resolver. Si dice «Could not find a connection»,
+# el árbol sigue roto.
+ros2 run tf2_ros tf2_echo odom laser
+
+# El árbol en PDF, para verlo de un vistazo
+ros2 run tf2_tools view_frames
+
+# Y que no haya dos publicadores del mismo transform, que produce saltos
+ros2 topic echo /tf_static --once
+```
+
+Esperado en `tf2_echo odom laser`: una translación cuya **z sea ~0.1745** más lo que se haya
+movido el robot, y `frame_id: odom` → `child_frame_id: laser` resolviendo sin errores.
+
+---
+
+## Capítulos 6, 9–12
 
 ⏳ **No escritos todavía.** Se redactan al ejecutar las fases 1–6 del
 [plan](../01_plan/PLAN_MIGRACION_ROS2.md), capítulo a capítulo, tras verificar cada paso.

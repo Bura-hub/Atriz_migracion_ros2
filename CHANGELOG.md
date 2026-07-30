@@ -4,6 +4,96 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-30 (parte 6) — Fase 3: el URDF, y el árbol TF deja de estar partido
+
+Paquete **nuevo** `atriz_rvr_description`, rama `ros2` commit `89be510`. Antes de esto el
+proyecto **no tenía ningún `.urdf` ni `.xacro`**.
+
+### El bloqueante raíz, y por qué era invisible
+
+```
+   odom      ──► rvr_base_link      ← lo publicaba el driver
+   base_link ──► laser              ← un static_transform_publisher del launch
+```
+
+**Nada unía `rvr_base_link` con `base_link`.** Dos árboles inconexos: no había forma de saber
+dónde está el LIDAR respecto a la odometría, y sin eso SLAM y Nav2 son imposibles.
+
+Lo peor es cómo falla: `tf2_echo odom laser` responde *«Could not find a connection»* y nada
+más. **Ningún nodo se cae, ningún topic deja de publicar.** Otro fallo silencioso.
+
+Ahora la cadena es una sola, canónica según REP-105:
+
+```
+   map ──► odom ──► base_footprint ──► base_link ──► { laser, imu_link, wheels }
+```
+
+Con el reparto explícito de quién publica qué — que es lo que más se confunde:
+
+| Transform | Lo publica |
+|---|---|
+| `map → odom` | `slam_toolbox` (Fase 4, aún no existe) |
+| **`odom → base_link`** | **el driver**, porque es el único que sabe dónde está el robot |
+| `base_footprint → base_link`, `→ laser`, `→ imu_link`, ruedas | `robot_state_publisher`, desde el URDF |
+
+### 🔴 El valor del LIDAR estaba 7.4 cm corto
+
+```
+  base_height    0.114     alto del RVR         📝 ficha, SIN MEDIR en esta unidad
++ laser_gap      0.040     hueco tapa→LIDAR     ✅ MEDIDO por el usuario
++ x2_height/2    0.0205    al centro del disco  📝 ficha del X2
+─────────────────────────
+  laser_z        0.1745  = 17.45 cm sobre el suelo
+```
+
+El proyecto arrastraba **`0.10`**. Venía del `static_transform_publisher` de
+`lidar_only.launch`, y la propia `GUIA_COMPLETA_LIDAR.md` lo admitía: «se **asume** que el LIDAR
+está en el centro del RVR y 0,1 m por encima. **Ajusta estos valores a tu montaje real**».
+Nadie lo ajustó en toda la vida del proyecto.
+
+**Por qué 7 cm no es cosmético:** un error en `laser_z` inclina el mapa entero; uno en `laser_x`
+desplaza cada barrido respecto a la odometría, y SLAM lo lee como movimiento que no ocurrió. El
+mapa sale torcido **sin un solo mensaje de error**.
+
+El término dudoso es `base_height`, el único sin medir. Queda documentado que si el mapa sale
+inclinado, ese es el primer sospechoso, y se resuelve con **una** medida del suelo al centro del
+disco.
+
+### Las ruedas son `fixed`, y es deliberado
+
+Un joint `continuous` obligaría a publicar `/joint_states` con el ángulo de cada rueda, y el RVR
+**no expone la posición angular** — solo conteos de encoder acumulados. Declararlas móviles
+dejaría a `robot_state_publisher` esperando datos que nunca llegan, y el árbol se rompería con
+un aviso poco claro. Como el RVR entrega la odometría ya integrada, son decorativas. Por eso el
+launch tampoco arranca `joint_state_publisher`.
+
+### Dos hallazgos menores pero reales
+
+**`xacro` NO viene en `ros-jazzy-ros-base`.** Hay que instalarlo aparte
+(`sudo apt install ros-jazzy-xacro`). `robot_state_publisher` y `tf2_tools` **sí** vienen.
+
+**Un fallo latente evitado:** `install(DIRECTORY … rviz)` con el directorio vacío habría roto el
+build **en un clon recién hecho**, porque git no versiona directorios vacíos. Se añadirá cuando
+haya una configuración de RViz2 de verdad (Fase 4).
+
+### Documentado
+
+- **Manual, capítulo 7** — escrito. No existía. Con la tabla de quién publica cada transform,
+  la procedencia de cada medida, y los comandos de verificación.
+- **`verificar_robot.sh`** — comprobación nueva del árbol TF (`tf2_echo odom laser`) y de que
+  `ros-jazzy-xacro` esté instalado.
+
+### Pendiente
+
+1. 👤 **`sudo apt install -y ros-jazzy-xacro`**, y con eso procesar el xacro y comprobar que
+   `odom → laser` resuelve. **La estructura está escrita pero NO se ha ejecutado.**
+2. **La velocidad de `/odom` sigue siendo basura** (parte 5). Bloquea SLAM de calidad, no la
+   estructura del árbol.
+3. Los 16 servicios del driver sin portar.
+4. Fase 4: `slam_toolbox`.
+
+---
+
 ## 2026-07-30 (parte 5) — El driver corre sobre ROS 2, y el watchdog se prueba por primera vez
 
 Rama **`ros2`** de `Atriz_rvr`, commit `80e1cbf`. **Verificado contra el robot real.**

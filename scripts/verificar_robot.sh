@@ -379,6 +379,27 @@ if [[ -d /opt/ros/jazzy ]]; then
              "en la flota lo pone /etc/profile.d/atriz-robot.sh; en el robot de referencia, ~/.bashrc"
     fi
 
+
+    # ── Arbol TF ──────────────────────────────────────────────────────────
+    # La prueba que de verdad importa de la Fase 3: que odom y laser esten
+    # CONECTADOS. Antes del 2026-07-30 el arbol estaba partido en dos
+    # (odom->rvr_base_link y base_link->laser, sin puente) y era el bloqueante
+    # raiz de SLAM. Y falla en silencio: ningun nodo se cae.
+    if command -v ros2 >/dev/null && [[ -n "${ROS_DISTRO:-}" ]]; then
+        if timeout 8 ros2 run tf2_ros tf2_echo odom laser >/dev/null 2>&1; then
+            _ok "arbol TF: odom -> laser resuelve (la cadena esta entera)"
+        else
+            _nota "arbol TF: odom -> laser no resuelve ahora mismo."
+            _nota "  Solo es un fallo si el driver Y description.launch.py estan corriendo."
+        fi
+    fi
+
+    # xacro NO viene en ros-base y hace falta para el URDF.
+    dpkg -l ros-jazzy-xacro 2>/dev/null | grep -q '^ii' \
+        && _ok "ros-jazzy-xacro instalado (no viene en ros-base)" \
+        || _avi "falta ros-jazzy-xacro: no se podra procesar el URDF" \
+                "sudo apt install -y ros-jazzy-xacro"
+
     # Si existen los dos, .bashrc gana (se lee despues) y deja el dominio fijo a 1
     # en un robot que deberia ser otro. Fallo silencioso: dos robots, un dominio.
     if [[ -f /etc/profile.d/atriz-robot.sh ]] \

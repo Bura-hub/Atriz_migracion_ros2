@@ -71,6 +71,14 @@ sesión de trabajo.
 **Lo que queda del nodo:** 16 de los 20 servicios y 4 topics, listados al final de
 `rvr_driver_node.py`.
 
+✅ **Fase 3 escrita** (commit `89be510`): paquete `atriz_rvr_description` con el URDF que
+**une el árbol TF**, que estaba partido en dos y era el bloqueante raíz de SLAM. La estructura
+está escrita y el paquete compila; **falta ejecutarlo** — requiere
+`sudo apt install ros-jazzy-xacro`, que no viene en `ros-base`.
+
+Medida del LIDAR: **17.45 cm** sobre el suelo (centrado, 4 cm de hueco medidos). El proyecto
+arrastraba `0.10`, que se quedaba **7.4 cm corto** y habría inclinado el mapa.
+
 🔴 **Y un bloqueante nuevo antes de SLAM: la velocidad de `/odom` es basura.** El stream
 `Velocity` del RVR reporta 0.001 m/s con el robot a 0.147 m/s reales (medido). La posición sí
 es buena. Hay que decidir de dónde sacar la velocidad —derivarla del locator, integrarla de los
