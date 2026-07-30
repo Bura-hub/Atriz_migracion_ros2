@@ -224,6 +224,15 @@ done
 comprobar_contiene "noatime en /" "$(findmnt -no OPTIONS / 2>/dev/null)" "noatime" \
                    "añade ',noatime' a la línea de / en /etc/fstab"
 
+# La imagen de 24.04 para Raspberry Pi viene SIN noble-updates, y eso impide
+# instalar cualquier paquete -dev (por tanto, colcon build). Ver manual 5.2.0.
+if grep -qhE '^Suites:.*noble-updates' /etc/apt/sources.list.d/*.sources 2>/dev/null; then
+    _ok "repositorio noble-updates habilitado"
+else
+    _mal "falta el repositorio 'noble-updates': no se podrán instalar paquetes -dev" \
+         "sudo sed -i '0,/^Suites: noble\$/s//Suites: noble noble-updates/' /etc/apt/sources.list.d/ubuntu.sources && sudo apt update"
+fi
+
 JOUR="$(journalctl --disk-usage 2>/dev/null | grep -oE '[0-9.]+[MG]' | head -1 || echo '?')"
 case "$JOUR" in
     *G) _mal "journal ocupa $JOUR: castiga la microSD" "SystemMaxUse=32M en /etc/systemd/journald.conf" ;;

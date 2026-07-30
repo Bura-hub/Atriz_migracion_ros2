@@ -128,6 +128,33 @@ espera_lock() {
     fuser -v /var/lib/dpkg/lock-frontend 2>&1 | sed 's/^/       /'
     return 1
 }
+# La imagen de Ubuntu Server 24.04 para Raspberry Pi viene SIN 'noble-updates':
+# solo trae 'noble' y 'noble-security'. Verificado el 2026-07-30 en rvr-01.
+#
+# Eso rompe la instalacion de ROS 2 mas adelante, y de forma nada obvia: las
+# bibliotecas de runtime SI se actualizan desde noble-security (a versiones con
+# sufijo .1), pero sus paquetes -dev, que exigen una version exacta de la
+# runtime, viven en noble-updates. Sin ese repo, 'apt install ros-dev-tools'
+# falla con 'held broken packages' en zlib1g-dev, libzstd-dev, liblz4-dev y
+# dpkg-dev. Y sin los -dev no hay colcon build.
+SRC=/etc/apt/sources.list.d/ubuntu.sources
+if [[ -f "$SRC" ]]; then
+    if grep -qE '^Suites:.*noble-updates' "$SRC"; then
+        salta "noble-updates ya está habilitado"
+    else
+        correr cp -a "$SRC" "${SRC}.bak-$(date +%Y%m%d-%H%M%S)"
+        # 0,/patron/s//…/ sustituye SOLO la primera aparicion: la del repo
+        # principal. No debe tocar la linea de noble-security.
+        correr sed -i '0,/^Suites: noble$/s//Suites: noble noble-updates/' "$SRC"
+        if [[ $SIMULAR -eq 0 ]]; then
+            grep -qE '^Suites: noble noble-updates$' "$SRC" \
+                && ok "noble-updates añadido (sin tocar noble-security)" \
+                || { mal "no se pudo añadir noble-updates a $SRC — añádelo a mano"
+                     FALLOS+=("noble-updates"); }
+        fi
+    fi
+fi
+
 espera_lock || true
 export DEBIAN_FRONTEND=noninteractive
 correr apt-get update -qq && ok "apt-get update" || { mal "apt-get update falló"; FALLOS+=("apt update"); }
@@ -226,15 +253,66 @@ if [[ $SIN_ROS -eq 1 ]]; then
 elif [[ -d /opt/ros/jazzy ]]; then
     salta "ROS 2 Jazzy ya está en /opt/ros/jazzy"
 else
-    avi "📝 PENDIENTE DE ESCRIBIR — la Etapa E no se ha ejecutado todavía en"
-    avi "   ningún robot, así que aquí NO hay comandos. Ponerlos sin haberlos"
-    avi "   probado es exactamente lo que este proyecto no hace."
-    avi ""
-    avi "   Sigue el capítulo 5.2-5.5 del manual a mano, y cuando funcione,"
-    avi "   trae los comandos exactos aquí y quita este aviso."
-    avi ""
-    avi "   Recuerda: ros-jazzy-ros-base, NO desktop (son 236 paquetes con"
-    avi "   Gazebo y RViz en un robot sin pantalla)."
+    # Se usa el paquete ros2-apt-source, no el curl del keyring a mano. Es el
+    # metodo oficial actual, y para una flota es el unico sensato: mantiene la
+    # clave GPG actualizada solo. Con la clave puesta a mano, el dia que caduque
+    # —y ya paso una vez, rompiendo apt en todas las instalaciones de ROS— se
+    # rompen los 16 robots a la vez.
+    #
+    # Auditado el 2026-07-30 (v1.2.0): sin scripts de mantenedor, solo coloca el
+    # keyring, el .sources y un symlink. Clave de Open Robotics, huella
+    # C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654, caduca 2030-06-01 (despues del
+    # fin de soporte de Jazzy, mayo 2029).
+    grep -qm1 universe /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null \
+        && ok "el componente 'universe' está habilitado" \
+        || correr add-apt-repository -y universe
+
+    DEB=/tmp/ros2-apt-source.deb
+    V="$(curl -s --max-time 30 https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest \
+         | grep -F '"tag_name"' | awk -F'"' '{print $4}')"
+    CN="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+    if [[ -z "$V" ]]; then
+        mal "no se pudo consultar la última versión de ros-apt-source (¿sin red?)"
+        avi "alternativa manual en el manual, cap. 5.2. NO uses apt-key add: está obsoleto."
+        FALLOS+=("ROS 2: repo")
+    else
+        ok "ros-apt-source $V para $CN"
+        if correr curl -fsSL --max-time 120 -o "$DEB" \
+              "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${V}/ros2-apt-source_${V}.${CN}_all.deb"; then
+            # Comprobar que no trae scripts que se ejecuten como root antes de instalarlo.
+            if [[ $SIMULAR -eq 0 ]]; then
+                SCR="$(dpkg-deb --ctrl-tarfile "$DEB" | tar -t 2>/dev/null | grep -E '/(pre|post)(inst|rm)$' || true)"
+                [[ -z "$SCR" ]] && ok "el .deb no trae scripts de mantenedor" \
+                                || avi "el .deb trae scripts: $SCR — revísalos antes de seguir"
+            fi
+            espera_lock || true
+            correr apt-get install -y -qq "$DEB" && ok "repositorio de ROS 2 configurado" \
+                || { mal "fallo instalando ros2-apt-source"; FALLOS+=("ROS 2: repo"); }
+            correr apt-get update -qq && ok "apt-get update con el repo de ROS" \
+                || { mal "apt-get update falló"; FALLOS+=("ROS 2: update"); }
+
+            # ros-base, NO desktop: son 236 paquetes con Gazebo y RViz en un robot
+            # sin pantalla. RViz2 se ejecuta desde un portatil.
+            espera_lock || true
+            correr apt-get install -y -qq ros-jazzy-ros-base ros-dev-tools \
+                && ok "ros-jazzy-ros-base + ros-dev-tools instalados" \
+                || { mal "fallo instalando ROS 2"; FALLOS+=("ROS 2: paquetes"); }
+        else
+            mal "fallo descargando ros2-apt-source"; FALLOS+=("ROS 2: descarga")
+        fi
+    fi
+
+    # rosdep, que hace falta para resolver dependencias del workspace.
+    if [[ $SIMULAR -eq 0 ]] && command -v rosdep >/dev/null; then
+        rosdep init >/dev/null 2>&1 || salta "rosdep ya estaba inicializado"
+        sudo -u "$USUARIO" rosdep update >/dev/null 2>&1 \
+            && ok "rosdep actualizado (como $USUARIO, no como root)" \
+            || avi "rosdep update falló; ejecútalo a mano como $USUARIO"
+    fi
+
+    avi "📝 El entorno del usuario (ROS_DOMAIN_ID, source del setup.bash) lo fija"
+    avi "   atriz-first-boot en /etc/profile.d/atriz-robot.sh, a partir de"
+    avi "   /boot/firmware/robot_id.txt. Ver manual cap. 5.3 y FLOTA.md."
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────

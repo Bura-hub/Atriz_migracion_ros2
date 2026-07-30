@@ -194,7 +194,7 @@ Eliminar: `src/*.cpp` y `src/rvr++/` (hardware_interface C++ nunca ejecutado), e
 
 | Paquete | Tipo | Contenido |
 |---|---|---|
-| `atriz_rvr_msgs` | `rosidl` | Los 6 msg + 19 srv actuales, portados. **Añadir `SetPosAndYaw.srv`**, que existe en disco pero nunca se registró en `add_service_files()` |
+| `atriz_rvr_msgs` | `rosidl` | Los **6 msg + 20 srv** actuales, portados. ✅ *Corregido el 2026-07-30: el hallazgo de que `SetPosAndYaw.srv` no estaba registrado en `add_service_files()` **ya no aplica** — se comprobó sobre `migracion-ros2` (`24c7749`) y los 20 `.srv` del disco están todos registrados, `SetPosAndYaw.srv` incluido.* |
 | `atriz_rvr_driver` | `ament_python` | Nodo `rvr_driver_node`, SDK vendorizado |
 | `atriz_rvr_description` | `ament_cmake` | URDF/xacro + `robot_state_publisher` |
 | `atriz_rvr_bringup` | `ament_python` | Launch files, params YAML |

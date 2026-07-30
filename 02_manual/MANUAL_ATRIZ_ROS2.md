@@ -898,25 +898,124 @@ mismo rendimiento. El análisis estático predecía un parche de ~4 líneas; res
 Evidencia cruda con todo el contexto en
 [`00_auditoria/evidencia_24_04/04_gonogo_sdk_py312_2026-07-30.txt`](../00_auditoria/evidencia_24_04/04_gonogo_sdk_py312_2026-07-30.txt).
 
-### 5.2 Instalar ROS 2 Jazzy
+### 5.2.0 🔴 ANTES de instalar ROS 2: falta `noble-updates` en la imagen
 
-⚠️ **COMPROBAR contra la documentación oficial** — el método de las claves GPG cambia entre
-versiones. `apt-key add`, que usaba el manual original, **está obsoleto**.
+**La imagen de Ubuntu Server 24.04 para Raspberry Pi viene sin el repositorio
+`noble-updates`.** Verificado el 2026-07-30 en `rvr-01`: `/etc/apt/sources.list.d/ubuntu.sources`
+(fechado en la creación de la imagen, no modificado por nadie) solo lista:
+
+```
+Suites: noble
+Suites: noble-security
+```
+
+**Por qué rompe la instalación de ROS 2.** Las bibliotecas de runtime *sí* se actualizan desde
+`noble-security` (a versiones con sufijo `.1`), pero sus paquetes `-dev`, que exigen una
+versión exacta de la runtime, viven en `noble-updates`. Sin ese repositorio, `apt` solo puede
+ofrecer el `-dev` de la versión original y la dependencia es insatisfacible:
+
+```
+The following packages have unmet dependencies:
+ dpkg-dev    : Depends: bzip2 but it is not installable
+ liblz4-dev  : Depends: liblz4-1 (= 1.9.4-1build1) but 1.9.4-1build1.1 is to be installed
+ libzstd-dev : Depends: libzstd1 (= 1.5.5+dfsg2-2build1) but 1.5.5+dfsg2-2build1.1 is to be installed
+ zlib1g-dev  : Depends: zlib1g (= 1:1.3.dfsg-3.1ubuntu2) but 1:1.3.dfsg-3.1ubuntu2.1 is to be installed
+E: Unable to correct problems, you have held broken packages.
+```
+
+`ros-dev-tools` arrastra esos `-dev`, y **sin ellos no hay `colcon build`**: no es un problema
+cosmético, impide compilar el workspace.
+
+**El arreglo** — añadir `noble-updates` a la *primera* sección, sin tocar `noble-security`:
+
+```bash
+sudo cp /etc/apt/sources.list.d/ubuntu.sources \
+        /etc/apt/sources.list.d/ubuntu.sources.bak-$(date +%Y%m%d)
+sudo sed -i '0,/^Suites: noble$/s//Suites: noble noble-updates/' \
+        /etc/apt/sources.list.d/ubuntu.sources
+sudo apt update
+```
+
+El `0,/patrón/s//…/` de `sed` sustituye **solo la primera aparición**, que es la del repositorio
+principal. Comprobado sobre una copia antes de aplicarlo: una única línea de diferencia.
+
+> **Compruébalo así:** tras el `apt update` deben aparecer **tres** repositorios de Ubuntu
+> (`noble`, `noble-updates`, `noble-security`), no dos. Y espera que el siguiente `apt upgrade`
+> ofrezca paquetes: eran los *bug fixes* que no son de seguridad, que hasta ahora no llegaban.
+
+⚠️ **Esto afecta a los 16 robots.** Va en `provision.sh` y por tanto queda dentro de la imagen
+dorada, así que solo hay que arreglarlo una vez — pero si algún día partes de una imagen limpia
+de Ubuntu, te lo encontrarás otra vez.
+
+---
+
+### 5.2 Instalar ROS 2 Jazzy — **método actualizado 2026-07-30**
+
+El ⚠️ COMPROBAR de este apartado estaba justificado: **el método de las claves GPG cambió**.
+Hay dos vías y no son equivalentes.
+
+#### ✅ Método recomendado: el paquete `ros2-apt-source`
+
+Es el método oficial actual, y **para una flota es el único sensato**: es un `.deb` mantenido
+por Open Robotics que instala el keyring y el fichero de sources, y **mantiene la clave
+actualizada por sí solo**. Con el método manual de abajo, el día que la clave caduque
+—**y ya pasó una vez, rompiendo `apt` en todas las instalaciones de ROS del mundo**— se rompen
+los 16 robots a la vez y hay que entrar en cada uno a mano.
+
+```bash
+# 'universe' hace falta. En Ubuntu Server 24.04 ya viene habilitado; compruébalo:
+grep -m1 Components /etc/apt/sources.list.d/ubuntu.sources    # debe incluir 'universe'
+
+# Última versión del paquete de sources (1.2.0 el 2026-07-30):
+V=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest \
+    | grep -F '"tag_name"' | awk -F'"' '{print $4}')
+CODENAME=$(. /etc/os-release && echo $VERSION_CODENAME)      # noble
+curl -L -o /tmp/ros2-apt-source.deb \
+  "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${V}/ros2-apt-source_${V}.${CODENAME}_all.deb"
+
+sudo apt install -y /tmp/ros2-apt-source.deb
+sudo apt update
+sudo apt install -y ros-jazzy-ros-base ros-dev-tools
+```
+
+> **Audítalo antes de instalarlo como root.** Es buena costumbre con cualquier `.deb` de
+> fuera de los repos, y con este cuesta diez segundos:
+> ```bash
+> dpkg-deb -c /tmp/ros2-apt-source.deb                       # qué ficheros coloca
+> dpkg-deb --ctrl-tarfile /tmp/ros2-apt-source.deb | tar -t   # ¿scripts como root?
+> ```
+> Comprobado el 2026-07-30 en la versión 1.2.0: **no tiene ningún script de mantenedor**
+> (solo `control` y `md5sums`), así que no ejecuta nada como root — únicamente coloca
+> `/usr/share/keyrings/ros2-archive-keyring.gpg`, `/usr/share/ros-apt-source/ros2.sources` y
+> un symlink en `/etc/apt/sources.list.d/`.
+>
+> La clave que trae, verificada con `gpg --show-keys`:
+> ```
+> pub   rsa4096 2019-05-30 [SC] [expires: 2030-06-01]
+>       C1CF 6E31 E6BA DE88 68B1  72B4 F42E D6FB AB17 C654
+> uid   Open Robotics <info@osrfoundation.org>
+> ```
+> **Caduca en junio de 2030**, después del fin de soporte de Jazzy (mayo 2029), así que no
+> caducará a mitad de la vida del proyecto.
+
+#### Método manual (solo si el paquete no estuviera disponible)
+
+Funciona, pero **la clave hay que renovarla a mano cuando caduque**, en los 16 robots:
 
 ```bash
 sudo apt install -y software-properties-common curl
 sudo add-apt-repository universe -y
-
 sudo curl -sSL -o /usr/share/keyrings/ros-archive-keyring.gpg \
   https://raw.githubusercontent.com/ros/rosdistro/master/ros.key
-
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] \
 http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
   | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
-
 sudo apt update
 sudo apt install -y ros-jazzy-ros-base ros-dev-tools
 ```
+
+> `apt-key add`, que usaba el manual original, **está obsoleto** y ya no debe usarse en
+> ninguna de las dos vías.
 
 > **`ros-base`, NO `desktop`.** En el sistema anterior estaban instalados `desktop-full`,
 > `desktop` **y** `ros-base` a la vez: **236 paquetes**, con Gazebo y RViz en un robot que
