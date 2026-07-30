@@ -1,17 +1,38 @@
 # Recuperación — volver al sistema ROS Noetic
 
-> **Estado: PARCIALMENTE VERIFICADO.** El procedimiento de respaldo de ficheros
-> (§3) se ejecutó el 2026-07-29. La imagen `dd` de la microSD (§1) **todavía no
-> se ha creado** — es la Fase 0.3 del plan y es **bloqueante** antes de reflashear.
+> ## ✅ La imagen de respaldo EXISTE y está verificada
+>
+> **Fase 0.3 completada.** La imagen `dd` de la microSD con el sistema Ubuntu 20.04 + ROS
+> Noetic se creó **y se verificó** antes de reflashear (confirmado el 2026-07-30). La **ruta
+> A** de esta página es por tanto viable.
+>
+> El respaldo de ficheros (§0 y §3) se ejecutó el 2026-07-29; su contenido está en
+> `~/respaldo_pre_migracion`, copiado fuera de la tarjeta.
+>
+> 👤 **Lo único que hace falta saber es dónde está guardada.** Anótalo abajo — una imagen
+> que nadie encuentra no es un respaldo:
+>
+> | | |
+> |---|---|
+> | Fichero | `atriz_noetic_fallback.img` (o `.img.gz`) |
+> | Copia 1 | *(anotar ruta / equipo)* |
+> | Copia 2 | *(anotar — una copia única en el mismo PC desde el que se reflasheó no es un respaldo)* |
+> | `sha256` | *(anotar, si se generó)* |
+>
+> Estado del resto de esta página: el procedimiento de **creación** (§1) se siguió con éxito;
+> el de **restauración** (§2) sigue 📝 **NO VERIFICADO** — nadie ha restaurado la imagen
+> todavía, y ojalá no haga falta.
 
 Existen dos rutas de vuelta, de muy distinto coste.
 
-| Ruta | Tiempo | Requiere |
-|---|---|---|
-| **A — Restaurar la imagen** | ~20 min | Haber hecho la imagen antes de reflashear |
-| **B — Rehacer desde el manual** | 3–5 h | Solo el manual original |
+| Ruta | Tiempo | Requiere | Estado |
+|---|---|---|---|
+| **A — Restaurar la imagen** | ~20 min | La imagen hecha antes de reflashear | ✅ **disponible** |
+| **B — Rehacer desde el manual** | 3–5 h | Solo el manual original | siempre disponible |
 
-**Haz la imagen.** Es la diferencia entre una tarde perdida y veinte minutos.
+**Haz la imagen.** Es la diferencia entre una tarde perdida y veinte minutos. Para los 16
+robots de la flota, el equivalente es la **imagen dorada** — ver
+[`FLOTA.md`](FLOTA.md).
 
 ---
 
