@@ -964,11 +964,13 @@ sudo pip3 install --break-system-packages pyserial-asyncio
 
 ```bash
 mkdir -p ~/atriz_ws/src && cd ~/atriz_ws/src
-git clone -b migracion-ros2 https://github.com/Bura-hub/Atriz_rvr.git
+git clone -b ros2 https://github.com/Bura-hub/Atriz_rvr.git
+#            ↑ `ros2`, NO `migracion-ros2`: esa es la rama VIEJA con código de
+#              ROS 1 (catkin), que no compila con colcon.
 
 # Regla nº1 del proyecto: fetch ANTES de mirar el código
 git -C ~/atriz_ws/src/Atriz_rvr fetch origin
-git -C ~/atriz_ws/src/Atriz_rvr status -sb        # esperado: migracion-ros2 = 24c7749
+git -C ~/atriz_ws/src/Atriz_rvr status -sb        # esperado: rama `ros2`
 ```
 
 #### Ejecutarlo
@@ -1186,9 +1188,14 @@ middleware se está usando cuando haya que depurar la red.
 
 ### 5.4 Compilar el workspace
 
-🔴 **En este punto NO intentes compilar.** El código de `migracion-ros2` es **ROS 1 (catkin)**:
-los tres `package.xml` declaran `catkin` y `Atriz_rvr_node.py` tiene **99 referencias a
-`rospy`**, que no existe en ROS 2. `colcon build` fallará, y es lo esperado.
+✅ **Con la rama `ros2` el workspace COMPILA** — es lo que hace `INSTALACION.md`, Etapa F1.
+
+🔴 **Lo que sigue describe la rama VIEJA `migracion-ros2`**, y se conserva porque explica por
+qué hubo que portar el driver. Si clonaste `ros2`, sáltatelo: `colcon build` funciona.
+
+Con `migracion-ros2` el código es **ROS 1 (catkin)**: los tres `package.xml` declaran `catkin`
+y `Atriz_rvr_node.py` tiene **99 referencias a `rospy`**, que no existe en ROS 2. `colcon
+build` fallará, y es lo esperado.
 
 Medido el 2026-07-30 sobre `migracion-ros2` (`24c7749`):
 

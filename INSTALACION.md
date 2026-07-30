@@ -336,7 +336,8 @@ sudo apt install -y python3-pip python3-venv
 pip install --break-system-packages pyserial pyserial-asyncio
 
 mkdir -p ~/atriz_ws/src && cd ~/atriz_ws/src
-git clone -b migracion-ros2 https://github.com/Bura-hub/Atriz_rvr.git
+git clone -b ros2 https://github.com/Bura-hub/Atriz_rvr.git
+#            ↑ `ros2`, NO `migracion-ros2`: esa es la rama vieja de ROS 1
 
 # Con el RVR ENCENDIDO:
 python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
@@ -368,12 +369,13 @@ repositorios:
 | Qué | Dónde |
 |---|---|
 | `dtoverlay=disable-bt` + regla udev `/dev/rvr` | `scripts/fase_0_1_fix_uart.sh` |
-| Código con `/dev/rvr` e `interval=60` | rama **`migracion-ros2`** de `Atriz_rvr` |
+| Código con `/dev/rvr` e `interval=60` | rama **`ros2`** de `Atriz_rvr` |
 | Higiene del SO | `scripts/fase_1_higiene_so.sh` |
 | Cómo verificar que funciona | manual, caps. 1.3, 2 y 8.2 |
 
-> El código de `migracion-ros2` es **ROS 1 (catkin)**. En ROS 2 no compilará hasta el port del
-> capítulo 6. En esta etapa solo interesa el **SDK**, que es Python puro.
+> 📝 En esta etapa solo interesa el **SDK**, que es Python puro y no depende de ROS. La rama
+> `ros2` ya trae el driver portado y compila; la rama vieja `migracion-ros2` es ROS 1 (catkin)
+> y **no** compila con colcon — no la uses.
 
 ### E3 · Verificar UART y telemetría
 

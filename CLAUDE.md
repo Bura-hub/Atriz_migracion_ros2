@@ -16,7 +16,7 @@ Tres repositorios:
 | Repo | Qué es |
 |---|---|
 | **este** (`Atriz_migracion_ros2`) | Auditoría, plan, manual, scripts, documentación de operación |
-| `Bura-hub/Atriz_rvr` | Código del robot. Rama de trabajo: **`migracion-ros2`** |
+| `Bura-hub/Atriz_rvr` | Código del robot. Rama de trabajo: **`ros2`**. ⚠️ `migracion-ros2` es la rama VIEJA con código de ROS 1: no compila con colcon |
 | `Bura-hub/Atriz_web_server` | Plataforma web. **Se aborda al final**, no antes |
 
 ---

@@ -320,7 +320,7 @@ if [[ -d "$WS/.git" ]]; then
         && _ok "streaming a interval=60 ms → 16.59 Hz (commit 24c7749)" \
         || _avi "el driver no tiene interval=60" "con 250 ms la odometría va a 3.85 Hz; falta 24c7749"
 else
-    _avi "no existe $WS" "git clone -b migracion-ros2 https://github.com/Bura-hub/Atriz_rvr.git ~/atriz_ws/src/"
+    _avi "no existe $WS" "git clone -b ros2 https://github.com/Bura-hub/Atriz_rvr.git ~/atriz_ws/src/"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
