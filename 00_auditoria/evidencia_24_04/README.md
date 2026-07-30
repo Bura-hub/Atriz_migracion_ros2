@@ -14,10 +14,21 @@ Salidas **crudas** de la instalación de 2026-07-30. Sirven para dos cosas:
 
 ## Ficheros
 
-| Fichero | Qué contiene | Momento |
+Los ficheros van **numerados en orden cronológico**, que es el mismo orden de las etapas de
+`INSTALACION.md`. Así se lee la instalación entera de arriba abajo.
+
+| Fichero | Qué contiene | Etapa |
 |---|---|---|
-| `01_estado_tras_instalar_2026-07-30.txt` | Estado completo: SO, boot, UART, LIDAR, rendimiento, red, actualizaciones automáticas | Tras el primer arranque, **antes** de la higiene del SO (cap. 4) |
-| `lidar_x2_2026-07-30.txt` | Salida de `x2_parse.py` | Idem |
+| `01_estado_tras_instalar_…` | SO, boot, UART, LIDAR, rendimiento, red, actualizaciones automáticas. **La línea base** | B, antes de la higiene |
+| `02_higiene_aplicada_pre_reboot_…` | Las 11 medidas del cap. 4 aplicadas, antes de reiniciar | C |
+| `03_etapa_C_verificada_post_reboot_…` | Las métricas con los contadores a cero: arranque **1min39s → 8.7 s** | C, tras reiniciar |
+| `04_gonogo_sdk_py312_…` | 🟢 **GO** del SDK en Python 3.12, con el contexto del NO-GO falso | D |
+| `05_verificar_robot_…` | Salida completa de `verificar_robot.sh --hardware` | cualquiera |
+| `06_ros2_jazzy_instalado_…` | ROS 2 Jazzy: 201 paquetes, `ros2 doctor` 5/5, pub/sub a 9.997 Hz σ 0.35 ms | E1 |
+| `07_fase2_driver_ros2_…` | El driver en `rclpy`: `/odom` a 16.671 Hz, watchdog en 527 ms, y **el hallazgo del sensor `Velocity`** | Fase 2 |
+| `08_fase3_urdf_…` | El árbol TF entero: `odom → laser` resuelve | Fase 3 |
+| `lidar_x2_2026-07-30.txt` | Salida de `x2_parse.py` | B |
+| `raw_uart_2026-07-30.txt` | Salida de `raw_uart.py`: «el RVR CONTESTA» | B |
 
 ## Lo que hay que leer de aquí
 
@@ -51,3 +62,16 @@ de higiene lo necesita para apagar el power-save del WiFi.
 **El CP2102 del LIDAR no tiene serial único** (`ID_SERIAL_SHORT=0001`), pero su `ID_PATH`
 **sí** identifica el puerto físico. Relevante para la regla udev de los 16 robots: ver
 `03_operacion/FLOTA.md`.
+
+## Y los dos hallazgos que más caros habrían salido
+
+**🔴 El stream `Velocity` del RVR no sirve** (fichero 07). Con el robot avanzando a
+**0.147 m/s** comprobados por desplazamiento, el sensor reportaba **0.001 m/s**. El driver
+publica `odom.twist.twist.linear` desde ahí, así que **la velocidad de `/odom` es basura** — y de
+ahí comen SLAM y `robot_localization`. La **posición** sí es buena.
+
+**🔴 La posición del LIDAR estaba 7.4 cm corta** (fichero 08). El proyecto arrastraba `0.10 m`
+desde un `static_transform_publisher` que la propia documentación admitía como suposición. El
+valor real es **0.1745 m**. Un error así inclina el mapa entero sin dar ningún error.
+
+Los dos se encontraron **midiendo**, no leyendo código.
