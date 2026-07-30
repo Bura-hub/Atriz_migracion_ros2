@@ -1,0 +1,20 @@
+puerto abierto: /dev/rvr @ 115200  (CTS=n/a)
+[1] bytes espontaneos en 1s: 0
+[2] enviado wake #1: 8d 3a 01 01 13 0d 01 a2 d8
+    <- RECIBIDO 19 bytes: 8d 00 39 21 01 13 0d 01 00 83 d8 8d 28 01 13 11 ff b3 d8
+[2] enviado wake #2: 8d 3a 01 01 13 0d 02 a1 d8
+    <- RECIBIDO 10 bytes: 8d 39 21 01 13 0d 02 00 82 d8
+[2] enviado wake #3: 8d 3a 01 01 13 0d 03 a0 d8
+    <- RECIBIDO 10 bytes: 8d 39 21 01 13 0d 03 00 81 d8
+[3] enviado get_version: 8d 3a 01 01 11 00 09 a9 d8
+    <- RECIBIDO 16 bytes: 8d 39 21 01 11 00 09 00 00 09 00 01 01 ce b1 d8
+
+============================================================
+RESULTADO: el RVR CONTESTA (55 bytes). El enlace UART funciona.
+
+# ── Contexto de esta medición ────────────────────────────────────────────────
+# Ubuntu Server 24.04.4 LTS · kernel 6.8.0-1047-raspi · Python 3.12.3
+# /dev/rvr -> ttyAMA0 (PL011) vía /etc/udev/rules.d/99-rvr.rules
+# uart0 -> /soc/serial@7e201000  (mini-UART 7e215040 en 'disabled')
+# serial-getty@ttyAMA0 y @ttyS0: disabled
+# Firmware del RVR en el payload de get_version: 09 00 01 01 = 9.1.462

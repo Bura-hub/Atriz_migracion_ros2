@@ -15,7 +15,7 @@
 > | Cap. | Contenido | Estado |
 > |---|---|---|
 > | 0 | Convenciones y hardware | ✅ verificado |
-> | 1 | Enlace UART Pi ↔ RVR | ✅ **verificado 2026-07-29** |
+> | 1 | Enlace UART Pi ↔ RVR | ✅ **verificado en 20.04 (2026-07-29) y en 24.04 (2026-07-30)** |
 > | 2 | Ritmo de telemetría | ✅ **medido 2026-07-29** |
 > | 3 | Flasheo de Ubuntu Server 24.04 | ✅ **verificado 2026-07-30** |
 > | 4 | Higiene del SO (headless, governor, journal) | 📝 **escrito · NO VERIFICADO** |
@@ -175,14 +175,29 @@ disabled                                      # <- el mini-UART, apartado
 ```bash
 python3 00_auditoria/evidencia/mediciones_banco/raw_uart.py
 ```
-Salida esperada:
+Salida real en **Ubuntu Server 24.04.4** (2026-07-30, kernel `6.8.0-1047-raspi`):
 ```
-→ 8d 3a 01 01 13 0d 01 a2 d8                          wake
-← 8d 39 21 01 13 0d 01 00 83 d8                       ACK, error=0x00
-→ 8d 3a 01 01 11 00 09 a9 d8                          get_version
-← 8d 39 21 01 11 00 09 00 00 09 00 01 01 ce b1 d8     con payload
-RESULTADO: el RVR CONTESTA (46 bytes). El enlace UART funciona.
+puerto abierto: /dev/rvr @ 115200  (CTS=n/a)
+[1] bytes espontaneos en 1s: 0
+[2] enviado wake #1: 8d 3a 01 01 13 0d 01 a2 d8
+    <- RECIBIDO 19 bytes: 8d 00 39 21 01 13 0d 01 00 83 d8 8d 28 01 13 11 ff b3 d8
+[3] enviado get_version: 8d 3a 01 01 11 00 09 a9 d8
+    <- RECIBIDO 16 bytes: 8d 39 21 01 11 00 09 00 00 09 00 01 01 ce b1 d8
+RESULTADO: el RVR CONTESTA (55 bytes). El enlace UART funciona.
 ```
+
+El número exacto de bytes varía entre ejecuciones (46 en 20.04, 55 aquí) porque el RVR
+intercala notificaciones asíncronas propias — lo que importa es que **haya** respuesta con
+checksum válido, no la cifra.
+
+> **Cómo leer la respuesta de `get_version`.** El payload `09 00 01 01` es la versión del
+> firmware: **9.1.462**. Coincide con el firmware documentado del robot, así que esta salida
+> confirma dos cosas a la vez: que el enlace funciona y que se está hablando con el robot
+> esperado.
+
+**Nota sobre `bytes espontaneos en 1s: 0`:** es lo normal con el robot en reposo. Cero bytes
+espontáneos **no** indica problema; cero bytes **tras el wake** sí — y en ese caso el primer
+sospechoso es el robot dormido, no el cable (ver 1.5).
 
 ### 1.4 Adaptar el código
 
