@@ -124,8 +124,13 @@ python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
 ```bash
 lsusb | grep -i "silicon\|cp210\|ftdi"      # debe salir el CP2102
 ls -l /dev/ttyUSB0
-dmesg | grep -i cp210x
+lsmod | grep cp210x                         # el módulo debe estar cargado
+sudo dmesg | grep -i cp210x                 # ⚠️ sudo: en 24.04 dmesg está restringido
+udevadm info -q property -n /dev/ttyUSB0 | grep -E 'ID_SERIAL_SHORT|ID_PATH='
 ```
+
+> En Ubuntu Server 24.04 el módulo `cp210x` viene en `linux-modules-*-raspi` y se carga solo
+> al conectar el adaptador — no hace falta instalar nada. Verificado el 2026-07-30.
 
 Si el dispositivo está pero no hay datos:
 ```bash
@@ -176,8 +181,14 @@ iw dev wlan0 get power_save                                    # debe decir: off
 Y descarta el hardware antes de culparlo:
 ```bash
 cat /sys/class/thermal/thermal_zone0/temp                      # /1000 = °C; <80 está bien
-dmesg | grep -iE "throttl|under.?volt"                         # vacío = alimentación correcta
+vcgencmd get_throttled                                        # 0x0 = ni throttling ni under-voltage
+sudo dmesg | grep -iE "throttl|under.?volt"                    # vacío = alimentación correcta
 ```
+
+> ⚠️ **`dmesg` necesita `sudo` en 24.04** (`kernel.dmesg_restrict=1`). Sin él responde
+> `Operation not permitted`, que **no** es un fallo de hardware. `vcgencmd get_throttled` da la
+> respuesta sin `sudo` y es más directo: `throttled=0x0` significa que nunca ha habido ni
+> throttling térmico ni caída de tensión desde el arranque.
 
 > En la auditoría original **el hardware estaba sano**: 59.9 °C, cero throttling, cero
 > under-voltage, 4.2 GB de RAM libre. La lentitud era 100 % configuración. Empieza siempre

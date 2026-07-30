@@ -173,7 +173,7 @@ Además, antes de reflashear, copiar fuera de la SD:
 
 1. Ubuntu **Server** 24.04.x LTS arm64 (no Desktop) con Raspberry Pi Imager; usuario `sphero`, SSH y WiFi preconfigurados en los ajustes del Imager.
 2. **Antes del primer arranque completo**, editar `/boot/firmware/cmdline.txt`: quitar `console=serial0,115200` (la imagen de Ubuntu 24.04 lo trae por defecto y roba el UART — es exactamente lo que el manual acierta en corregir). Dejar `console=tty1`.
-3. Aplicar **toda la Fase 0** (en 24.04 la configuración de arranque vive en un único `/boot/firmware/config.txt`; verificar si aún existen `usercfg.txt`/`syscfg.txt`).
+3. Aplicar **toda la Fase 0**. ✅ **Resuelto el 2026-07-30:** en 24.04 la configuración de arranque vive en un único `/boot/firmware/config.txt`, `usercfg.txt` y `syscfg.txt` **no existen** (Ubuntu abandonó el esquema de `pibootctl`), y las líneas nuevas necesitan cabecera `[all]`. Detalle en el manual, cap. 3.4.
 4. Instalar `ros-jazzy-ros-base` + `ros-dev-tools`. **No** `desktop` (hoy hay `desktop-full` + `desktop` + `ros-base` instalados a la vez: 236 paquetes).
 5. Longevidad de SD — imprescindible con 16 robots: `log2ram` o `/var/log` en tmpfs, journal volátil, sin swap.
 6. `~/.bashrc`: `source /opt/ros/jazzy/setup.bash`, `export ROS_DOMAIN_ID=<n>`, `export RMW_IMPLEMENTATION=rmw_fastrtps_cpp`.

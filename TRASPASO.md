@@ -4,28 +4,34 @@
 > Raspberry Pi ya se reflasheó. Está escrito para que no haga falta reconstruir el
 > contexto desde cero.
 >
-> Última actualización: **2026-07-29**.
+> Última actualización: **2026-07-30**.
 
 ---
 
 ## En una frase
 
-El hardware del robot está **verificado y funcionando** sobre ROS Noetic; el siguiente paso
-es hacer una imagen de respaldo de la microSD y reinstalar con Ubuntu 24.04 + ROS 2 Jazzy.
+**El sistema nuevo está instalado y a punto**: Ubuntu Server 24.04.4 con el RVR y el LIDAR
+verificados. Lo que falta es el **go/no-go del SDK en Python 3.12**, y con él la decisión de
+si la migración sigue adelante tal como está planteada.
 
 ---
 
 ## Qué está verificado (con mediciones, no suposiciones)
 
-| Componente | Estado | Evidencia |
-|---|---|---|
-| Raspberry Pi 4B 8 GB | ✅ sano: 57 °C, cero throttling, cero under-voltage | `evidencia/03_rendimiento.txt` |
-| Enlace UART Pi ↔ RVR | ✅ PL011 vía `/dev/rvr` | `raw_uart.py`, checksums válidos |
-| Sphero RVR | ✅ 12 min a **16.59 Hz**, 0 huecos, 0 pérdidas | `estabilidad_12min_2026-07-29.txt` |
-| YDLIDAR X2 | ✅ **100 %** checksums, 2998 muestras/s, 11.4 Hz | `lidar_x2_2026-07-29.txt` |
-| SDK de Sphero | ✅ GO en Python 3.8 · ⏳ **3.12 sin probar** | `scripts/fase_1_validar_sdk_py312.py` |
+| Componente | 20.04 + Noetic | **24.04** | Evidencia |
+|---|---|---|---|
+| Raspberry Pi 4B 8 GB | ✅ 57 °C, cero throttling | ✅ 63.7 °C, `throttled=0x0` | `evidencia*/` |
+| Enlace UART Pi ↔ RVR | ✅ PL011 vía `/dev/rvr` | ✅ **el RVR contesta**, firmware 9.1.462 | `raw_uart_2026-07-30.txt` |
+| YDLIDAR X2 | ✅ 100 % checksums, 11.4 Hz | ✅ **100 %, 11.48 Hz** | `lidar_x2_2026-07-30.txt` |
+| Higiene del SO | receta documentada | ✅ **aplicada** | `02_higiene_aplicada_*.txt` |
+| Telemetría del RVR a 16.59 Hz | ✅ 12 min, 0 huecos, 0 pérdidas | ⏳ requiere portar el driver | `estabilidad_12min_2026-07-29.txt` |
+| SDK de Sphero | ✅ GO en Python 3.8 | ⏳ **3.12 SIN PROBAR — es el siguiente paso** | `scripts/fase_1_validar_sdk_py312.py` |
 
-Firmware del RVR: **9.1.462** (Nordic). Batería en la última prueba: 79 %.
+Firmware del RVR: **9.1.462** (Nordic), confirmado también en 24.04 leyendo el payload de
+`get_version` (`09 00 01 01`).
+
+⚠️ Las dos líneas base son distintas y **no se mezclan**: `00_auditoria/evidencia/` es el
+sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 
 ## Qué está roto y confirmado
 
@@ -44,14 +50,37 @@ Firmware del RVR: **9.1.462** (Nordic). Batería en la última prueba: 79 %.
 
 ## El siguiente paso, exacto
 
-**Fase 0.3 — imagen de respaldo. Bloqueante.** Requiere apagar la Pi y un PC.
+**Etapa D — el GO/NO-GO del SDK en Python 3.12.** Es el punto de decisión de toda la
+migración. **No instales ROS 2 antes de pasarlo.**
 
 ```bash
-bash ~/atriz_migracion/scripts/fase_0_3_respaldo.sh
-# copiar ~/respaldo_pre_migracion a un USB (NO a git: contiene claves)
-sudo poweroff
-# con la SD en un PC, seguir 03_operacion/RECUPERACION.md
+sudo apt install -y python3-pip python3-venv
+pip install --break-system-packages pyserial-asyncio     # pyserial 3.5 ya está en el sistema
+                                                          # (24.04 aplica PEP 668)
+mkdir -p ~/atriz_ws/src && cd ~/atriz_ws/src
+git clone -b migracion-ros2 https://github.com/Bura-hub/Atriz_rvr.git
+
+# Regla nº1 del proyecto: fetch ANTES de auditar o leer código
+git -C ~/atriz_ws/src/Atriz_rvr fetch origin
+git -C ~/atriz_ws/src/Atriz_rvr status -sb    # esperado: migracion-ros2 = 24c7749
+
+# Con el RVR ENCENDIDO:
+python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
 ```
+
+- **GO** → seguir con la Etapa E (instalar `ros-jazzy-ros-base`), manual cap. 5.2.
+- **NO-GO** → **PARAR.** El script imprime las cuatro alternativas ordenadas por coste. Es una
+  decisión de arquitectura, no algo a improvisar. Documentar la salida cruda y consultar.
+
+### Ya hecho, no lo repitas
+
+| Etapa | Estado |
+|---|---|
+| **A** — imagen `dd` del sistema Noetic | ✅ hecha **y verificada**. La reversión existe |
+| **B** — instalar 24.04, `cmdline.txt`, `config.txt`, UART, `/dev/rvr` | ✅ verificado 2026-07-30 |
+| **B5** — actualizaciones cerradas y credenciales de git | ✅ 2026-07-30 |
+| **C** — higiene del SO | ✅ 2026-07-30 |
+| **E3/E4** — verificación de UART y LIDAR | ✅ hechas ya, sobre 24.04 |
 
 ✅ **El `stash@{0}` ya está rescatado.** Contenía tres scripts de estudiantes que solo
 existían en un stash local — y los stashes **no viajan a un remoto**, así que se habrían
@@ -71,14 +100,22 @@ Hay que decidir: **(a)** mover el seguidor a su propio fichero y restaurar el tu
 **(b)** descartarlo por estar superado por `seguidor_linea_pid_demo.py`. Por eso la rama es
 WIP y **no debe mezclarse con `main`** hasta resolverlo.
 
-⚠️ **Antes de apagar, comprueba que no queda nada sin subir.** Es lo que hace el propio
-script, pero conviene saber por qué: un commit local o un stash **no existen** para nadie
-más, y desaparecen con la tarjeta.
+⚠️ **Antes de apagar la Pi en cualquier momento, comprueba que no queda nada sin subir.** Es
+lo que hace `fase_0_3_respaldo.sh`, pero conviene saber por qué: un commit local o un stash
+**no existen** para nadie más, y desaparecen con la tarjeta.
 
 ```bash
-for r in ~/atriz_git/src/Atriz_rvr ~/atriz_migracion; do
+for r in ~/atriz_ws/src/Atriz_rvr ~/atriz_migracion; do
   echo "── $r"; git -C $r status -sb | head -1; git -C $r stash list
 done
+```
+
+🔴 **Y comprueba que PUEDES subir.** En un sistema recién instalado no hay credenciales y el
+repositorio es privado: `git fetch` falla con `could not read Username`, así que los commits se
+quedan solo en la tarjeta. Pasó el 2026-07-30 — ver `CLAUDE.md`, «Antes de subir nada».
+
+```bash
+git -C ~/atriz_migracion fetch origin && echo "OK: hay credenciales"
 ```
 
 ### Reinstalar con ayuda de un agente
@@ -89,17 +126,21 @@ en `~/atriz_migracion` y decirle:
 > Lee CLAUDE.md y sigue INSTALACION.md para poner el sistema a punto.
 
 `CLAUDE.md` se carga solo y le da las reglas, las trampas conocidas y los valores de
-referencia. Los capítulos **3, 4 y 5** del manual cubren flasheo, higiene del SO e
-instalación de ROS 2 — pero están **📝 NO VERIFICADOS**: se escribieron antes de ejecutarse.
-Hay que confirmar cada paso y corregir el manual sobre la marcha.
+referencia de **ambos** sistemas.
 
-**Después:** Fase 1 (reinstalación), y su primer paso es el go/no-go:
+**Estado de los capítulos del manual tras la sesión del 2026-07-30:**
 
-```bash
-python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
-```
+| Cap. | Contenido | Estado |
+|---|---|---|
+| 1 | Enlace UART | ✅ verificado en 20.04 **y en 24.04** |
+| 3 | Flasheo de 24.04, `cmdline.txt`, `config.txt` | ✅ **verificado** — dejó de ser NO VERIFICADO |
+| 4 | Higiene del SO | ✅ **verificado** — dejó de ser NO VERIFICADO |
+| 5 | ROS 2 Jazzy y workspace | 📝 **sigue NO VERIFICADO** — es lo próximo |
+| 8 | YDLIDAR X2 | ✅ hardware verificado en ambos; driver ROS pendiente |
 
-Si sale **NO-GO**, el propio script imprime las cuatro alternativas ordenadas por coste.
+Los capítulos 3 y 4 se recorrieron y **se corrigieron sobre la marcha**, que es lo que pedía
+la nota. El 5 sigue sin ejecutarse: al recorrerlo, corregirlo en el momento y cambiar su marca
+a ✅ con la fecha. **En el repositorio, no en un mensaje de chat.**
 
 ---
 

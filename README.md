@@ -20,13 +20,28 @@ reconstruir el sistema si algo sale mal.
 
 | | |
 |---|---|
-| **Fase actual** | **Fase 0.1 — completada** (2026-07-29). UART sobre PL011, odometría 3.85 → **16.59 Hz**, LIDAR X2 verificado. **Todo el hardware probado** |
-| **Siguiente paso** | Subir la rama `migracion-ros2` y hacer la **Fase 0.3** (imagen de respaldo) |
-| **Bloqueante antes de reinstalar** | **Fase 0.3** — imagen `dd` completa de la microSD. Ver [RECUPERACION.md](03_operacion/RECUPERACION.md) |
-| **Sistema hoy** | Raspberry Pi 4B 8 GB · Ubuntu 20.04.6 · ROS Noetic · Sphero RVR por UART · YDLIDAR X2 (driver **no instalado**) |
+| **Fase actual** | **Etapas A, B y C completadas** (2026-07-30). El sistema nuevo está instalado y puesto a punto: Ubuntu Server 24.04.4, UART sobre PL011 con el RVR contestando, LIDAR X2 verificado |
+| **Siguiente paso** | **Etapa D — el GO/NO-GO**: `scripts/fase_1_validar_sdk_py312.py`. Decide si el SDK de Sphero funciona en Python 3.12, y con ello si la migración es viable. **No instalar ROS 2 antes** |
+| **Sistema hoy** | Raspberry Pi 4B 8 GB · **Ubuntu Server 24.04.4 LTS** · Python 3.12.3 · `rvr-01` · Sphero RVR por `/dev/rvr` (PL011) · YDLIDAR X2 en `/dev/ttyUSB0` · **ROS todavía no instalado** |
 | **Sistema objetivo** | Ubuntu Server 24.04 LTS · ROS 2 Jazzy (soporte hasta mayo 2029) · rosbridge · SLAM + Nav2 · 16 robots |
+| **Vuelta atrás** | ✅ Disponible. La imagen `dd` del sistema Noetic está hecha **y verificada**. Ver [RECUPERACION.md](03_operacion/RECUPERACION.md) |
 
-Ver [CHANGELOG.md](CHANGELOG.md) para la bitácora detallada.
+Ver [CHANGELOG.md](CHANGELOG.md) para la bitácora detallada, e
+[INSTALACION.md](INSTALACION.md) para el estado exacto de cada etapa.
+
+### Qué está verificado sobre la máquina real
+
+| | 20.04 + Noetic | **24.04** |
+|---|---|---|
+| Enlace UART Pi ↔ RVR (`/dev/rvr` → PL011) | ✅ 2026-07-29 | ✅ **2026-07-30** |
+| Telemetría del RVR a 16.59 Hz, 12 min sin huecos | ✅ 2026-07-29 | ⏳ tras portar el driver |
+| YDLIDAR X2 (100 % checksums, ~2990 muestras/s, 11.48 Hz) | ✅ 2026-07-29 | ✅ **2026-07-30** |
+| Higiene del SO | receta documentada | ✅ **2026-07-30** |
+| SDK de Sphero en Python 3.12 | — | ⏳ **es el siguiente paso** |
+
+Evidencia cruda: [`00_auditoria/evidencia/`](00_auditoria/evidencia/) para 20.04,
+[`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) para 24.04. **Son dos líneas
+base distintas y no deben mezclarse.**
 
 ---
 
@@ -65,7 +80,8 @@ INSTALACION.md                ← LA RUTA: de formatear a robot funcionando
 TRASPASO.md                   ← EMPIEZA AQUÍ si retomas el proyecto
 00_auditoria/
 ├── INFORME_AUDITORIA.md      Diagnóstico completo con mediciones
-└── evidencia/                Salidas CRUDAS de los comandos (línea base)
+├── evidencia/                Salidas CRUDAS — línea base del sistema VIEJO (20.04 + Noetic)
+└── evidencia_24_04/          Salidas CRUDAS — línea base del sistema NUEVO (24.04)
 01_plan/
 └── PLAN_MIGRACION_ROS2.md    Plan por fases, de la Fase 00 a los 16 robots
 02_manual/
@@ -79,15 +95,19 @@ TRASPASO.md                   ← EMPIEZA AQUÍ si retomas el proyecto
 ├── ARQUITECTURA.md           Las 4 decisiones de diseño
 └── FLOTA.md                  Restricciones medidas y gestión de los 16 robots
 04_respaldo/
-├── configs/                  cmdline.txt, config.txt, udev, fstab, bashrc
+├── configs/                  cmdline.txt, config.txt, udev, fstab, bashrc (del sistema viejo)
 └── sin_commitear/            Los 6 ficheros de Atriz_rvr que se perderían al reflashear
 scripts/
-├── fase_0_1_fix_uart.sh      ✅ ejecutado — repara el UART
-├── diag_uart_pins.sh         diagnóstico de los pines GPIO14/15
-├── fase_0_3_respaldo.sh      ⏳ prepara la SD para la imagen (BLOQUEANTE)
-├── fase_1_validar_sdk_py312.py   GO/NO-GO de la migración
-└── fase_1_higiene_so.sh      📝 higiene del SO en 24.04 (NO VERIFICADO)
+├── fase_0_1_fix_uart.sh      ✅ repara el UART — verificado en 20.04 y 24.04
+├── diag_uart_pins.sh         diagnóstico de los pines GPIO14/15 (nunca ha hecho falta)
+├── fase_0_3_respaldo.sh      ✅ prepara la SD para la imagen
+├── fase_1_higiene_so.sh      ✅ higiene del SO — verificado en 24.04
+├── fase_1_validar_sdk_py312.py   ⏳ GO/NO-GO de la migración ← SIGUIENTE PASO
+├── fase_6_preparar_imagen_dorada.sh   📝 NO VERIFICADO — imagen dorada de la flota
+└── first-boot.sh / .service  📝 NO VERIFICADO — personaliza cada robot clonado
 ```
+
+Cada carpeta de evidencia y la de scripts tienen su propio `README.md` con el detalle.
 
 ---
 
@@ -128,7 +148,21 @@ Resumidos del [informe completo](00_auditoria/INFORME_AUDITORIA.md):
 - **Ninguna credencial en texto plano** en los ficheros de este repositorio.
   La contraseña del manual aparece redactada como `«CONTRASEÑA»`.
 - ⚠️ **`MANUAL_SPHERO_original.docx` sí la contiene** (es una copia intacta, y es
-  el procedimiento de reversión). Por eso **este repositorio debería ser privado**.
+  el procedimiento de reversión). Por eso **este repositorio es privado** —
+  confirmado el 2026-07-30: `git ls-remote` sin credenciales es rechazado.
+- 🔴 **La credencial del usuario `sphero` está expuesta** en el repositorio público
+  `Atriz_web_server` (`swarm_lab_api/app/core/raspberry_config.py`) y **debe considerarse
+  comprometida**. Ver §5.1 del plan.
+  - ⏳ **SIN CONFIRMAR:** si la contraseña que se puso al grabar la imagen de 24.04 es
+    **nueva** o la misma de antes. `INSTALACION.md` §B1 pide que sea nueva, pero eso lo
+    decidió quien manejó el Raspberry Pi Imager y no hay forma de comprobarlo desde el
+    sistema. **Preguntarlo y anotarlo aquí.**
+  - ⏳ **Pendiente en todo caso:** purgar el fichero del historial de `Atriz_web_server`
+    (`git filter-repo`) y migrar a claves SSH. Rotar la contraseña de la Pi no arregla que la
+    antigua siga en un repositorio público.
+- ⚠️ **No metas el token de GitHub en el repositorio.** Va en `~/.git-credentials` con
+  permisos `600`, y `.gitignore` lo excluye explícitamente junto a `*.token` y
+  `authorized_keys`.
 - ⚠️ La credencial **ya está expuesta** en el repositorio público
   `Atriz_web_server` (`swarm_lab_api/app/core/raspberry_config.py`).
   **Debe considerarse comprometida y rotarse.** Ver §5.1 del plan.

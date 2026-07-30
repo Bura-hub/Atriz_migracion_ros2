@@ -4,6 +4,152 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-30 — Instalación de 24.04: etapas A, B y C recorridas y verificadas
+
+**El sistema nuevo está instalado y a punto.** Ubuntu Server 24.04.4 LTS · aarch64 ·
+Python 3.12.3 · `rvr-01`. Los capítulos **1, 3, 4 y 8** del manual dejan de estar
+NO VERIFICADO. Falta el go/no-go del SDK (Etapa D), que es el siguiente paso.
+
+### Los dos scripts fallaban justo donde tocaba usarlos
+
+Ambos con la misma raíz: **fallo silencioso**.
+
+**`fase_0_1_fix_uart.sh` abortaba en el paso 1/4.** Tenía
+`USERCFG=/boot/firmware/usercfg.txt` fijo. En 24.04 ese fichero no existe, así que el `grep`
+fallaba, caía al `else`, y el `cp -a` sobre un fichero inexistente mataba el script por
+`set -euo pipefail` — **antes de escribir la regla udev**. Síntoma: `/dev/rvr` no aparecía.
+
+**`fase_1_higiene_so.sh` no apagaba el power-save del WiFi.** El `ExecStart` era
+`iw ... || true`, y **`iw` no viene instalado en Ubuntu Server 24.04**. El
+`wifi-no-powersave.service` quedaba en verde sin hacer nada, para siempre. Ahora instala `iw`
+(esperando el lock de dpkg, que en un robot recién grabado lo tiene `unattended-upgrades`),
+quita el `|| true`, **comprueba el efecto real**, y acumula los pasos no aplicados para
+imprimirlos al final y salir con código 1. Antes terminaba en verde pasara lo que pasara.
+
+### Por qué no existe `usercfg.txt` — la respuesta, con evidencia
+
+No falta: **Ubuntu abandonó el esquema en 24.04.** En 20.04, `config.txt` decía «DO NOT
+modify» y terminaba en `include syscfg.txt` + `include usercfg.txt`, gestionados por
+**`pibootctl`**. En 24.04 `pibootctl` **no se instala**, `config.txt` es la plantilla upstream
+de Raspberry Pi OS (`vc4-kms-v3d`, `camera_auto_detect`, `[pi02]`, `[cm4]`) y **no tiene
+ninguna línea `include`**. Búsqueda en todo el sistema: cero resultados.
+
+**Crear `usercfg.txt` a mano sería un fichero fantasma** que el firmware nunca lee.
+
+Y **la cabecera `[all]` es obligatoria**: la imagen termina en `[cm4]`, así que lo añadido al
+final sin `[all]` quedaría restringido a esa placa y **no se aplicaría en un Pi 4** — existiría
+en el fichero sin hacer nada. El script ahora respeta las secciones al comprobar si una clave
+está activa; un `grep` normal habría dado por bueno un `disable-bt` colgando bajo `[cm4]`.
+
+Dato colateral útil: `enable_uart=1` estaba en **ambas** versiones. Lo único que faltó siempre
+fue `disable-bt`.
+
+### `unattended-upgrades` viene activo y actualizó el kernel solo
+
+Durante la propia sesión instaló 8 lotes de paquetes en 4 minutos, incluido
+`linux-image-6.8.0-1060-raspi` sobre un sistema corriendo el `1047`, dejando
+`/var/run/reboot-required`.
+
+Obligó a reordenar el plan: **cerrar las actualizaciones y reiniciar antes de tocar el
+device-tree**, o un mismo reinicio aplica dos cambios y un fallo posterior no es atribuible
+(regla nº4). Nuevo apartado 3.5.1 del manual. El capítulo 4 lo deshabilita.
+
+También aprovechó que `dtoverlay=disable-bt` **ya estaba en efecto** (editado desde Windows
+antes del primer arranque) para ahorrarse un reinicio: la regla udev y los `systemctl` surten
+efecto al instante, así que el script ahora solo pide reiniciar cuando de verdad hace falta.
+
+### Verificado sobre el robot real
+
+| Prueba | Resultado |
+|---|---|
+| `uart0` | `/soc/serial@7e201000` (PL011) · mini-UART `disabled` |
+| `/dev/rvr` | → `ttyAMA0` |
+| `raw_uart.py` | **el RVR CONTESTA (55 bytes)** · firmware `09 00 01 01` = **9.1.462** |
+| `x2_parse.py` | **1144/1144 checksums = 100 %**, 2970 muestras/s, **11.48 Hz**, 1.39° |
+| Higiene | `multi-user.target`, governor `performance`, `Power save: off`, `cloud-init` fuera, timers de `apt` fuera, `noatime`, `systemctl --failed` vacío |
+
+El número de bytes de `raw_uart.py` varía entre ejecuciones (46 en 20.04, 55 aquí) porque el
+RVR intercala notificaciones asíncronas. Lo que importa es que haya respuesta con checksum
+válido, no la cifra.
+
+### `x2_parse.py` mentía, y ya no
+
+Imprimía **480 Hz** de frecuencia de giro en 20.04 y **741 Hz** en 24.04, para un sensor cuya
+especificación son 6–12 Hz. Calculaba la mediana de los intervalos de llegada de paquetes, que
+salen del buffer USB **a ráfagas** de ~1.3 ms. Ahora divide vueltas entre duración: **11.48
+Hz**, coincidiendo con las 138 vueltas contadas a mano el 2026-07-29.
+
+Queda la lección general: **un timestamp tomado al leer de un buffer no mide cuándo ocurrió el
+evento.** `CLAUDE.md` pasa de «dos herramientas mienten» a una.
+
+### Un falso positivo propio, y por qué se deja escrito
+
+El mecanismo de fallo ruidoso que se añadió al script de higiene **reportó
+`power-save NO quedó apagado` cuando sí lo estaba**. La causa era el verificador: buscaba
+`power save:` en minúsculas e `iw 6.7` imprime `Power save: off`. Corregido con `grep -oi`.
+
+Se documenta porque es el resultado honesto: el mecanismo funcionó a la primera y lo primero
+que encontró fue a sí mismo. Sigue siendo preferible a un verificador que da verde mintiendo,
+que es exactamente lo que hacía el script antes.
+
+Segundo defecto del mismo estilo: `systemctl is-enabled` de una unidad ausente imprime
+`not-found` **y** sale con código ≠ 0, así que el `|| echo no` concatenaba ambas cosas en la
+misma variable.
+
+### No se podía hacer `git push`
+
+El sistema nuevo no tenía credenciales: `git fetch` fallaba con `could not read Username`, sin
+credential helper, sin `~/.git-credentials` y con `~/.ssh/authorized_keys` **vacío**. El
+respaldo de la Fase 0.3 copiaba `~/.ssh` pero **no el token**.
+
+Corregido en `fase_0_3_respaldo.sh` (respalda `~/.git-credentials` y `~/.gitconfig`), y
+documentado en `CLAUDE.md` e `INSTALACION.md` §B5 como paso propio de toda instalación nueva.
+El script también deja de crear un `estado_sistema_*.txt` nuevo cuando el contenido no ha
+cambiado: seis ejecuciones dejaron seis ficheros idénticos salvo la fecha.
+
+### Estado de los tres repositorios — nada se perdió al reflashear
+
+Verificado con `git ls-remote` contra GitHub:
+
+| Repo | Rama | Commit |
+|---|---|---|
+| `Atriz_rvr` | `main` | `6f48ae1` |
+| `Atriz_rvr` | `migracion-ros2` | `24c7749` |
+| `Atriz_rvr` | `wip/scripts-estudiantes` | `62e0313` |
+| `Atriz_web_server` | `pruebas` | `924d659` |
+
+Coinciden exactamente con lo documentado en `TRASPASO.md`. El stash rescatado sobrevivió.
+
+### Nueva carpeta de evidencia
+
+`00_auditoria/evidencia_24_04/`, con su `README.md`, separada de `00_auditoria/evidencia/`
+(el sistema viejo). **Comparar 24.04 contra los números de 20.04 es la deriva que este
+repositorio existe para evitar**, así que la separación es deliberada y está avisada en los
+seis sitios donde el manual pide «comparar con la línea base».
+
+Línea base de 24.04 recién instalado: userspace **1 min 39 s** (`cloud-final` = 1 min 7 s),
+187 tareas, journal 17.7 MB, `io.full total` 74.6 s / 34 min, governor `ondemand`,
+`graphical.target`, 63.7 °C sin throttling.
+
+### Pendiente
+
+1. **Etapa D — el GO/NO-GO del SDK en Python 3.12.** Es el siguiente paso y el punto de
+   decisión de toda la migración. No instalar ROS 2 antes.
+2. **Medir la Etapa C con contadores a cero:** arranque, tareas y presión de I/O tras el
+   reinicio. Los números pre-reinicio incluyen todo el trabajo de `apt` y no sirven.
+3. **Confirmar si la contraseña de `sphero` se rotó de verdad** al grabar la imagen. No se
+   puede comprobar desde el sistema; hay que preguntarlo. En cualquier caso sigue pendiente
+   purgarla del historial de `Atriz_web_server`.
+4. **Anotar dónde está guardada la imagen `dd`** (dos copias). Hay una tabla vacía esperándolo
+   en `RECUPERACION.md`. Una imagen que nadie encuentra no es un respaldo.
+5. La regla udev de `/dev/ydlidar` por `ID_PATH` está **propuesta y NO VERIFICADA**. Falta
+   comprobar que el `ID_PATH` coincide entre dos robots distintos; si no, no es clonable en la
+   imagen dorada y habría que generarla en `first-boot.sh`.
+6. Siguen abiertas las decisiones de `01_avanzar.py` / `wip/scripts-estudiantes` y de
+   `carro.py` / `prueba.py`.
+
+---
+
 ## 2026-07-29 (tarde) — Fase 0.1 completada y auditoría corregida
 
 **Fase 0.1 — completada y verificada sobre el robot real.**

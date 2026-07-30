@@ -13,36 +13,39 @@ y luego recorre esta ruta. Los pasos marcados 👤 los ejecuta la persona, no t�
 
 ## Resumen de la ruta
 
+Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la persona
+
 ```
-  ETAPA A — Cerrar el sistema actual        ← estás aquí
-     A1  Preparar la Pi                     scripts/fase_0_3_respaldo.sh
-     A2  Apagar                          👤
-     A3  Imagen dd de la microSD          👤 RECUPERACION.md §1
-     A4  Verificar la imagen              👤 RECUPERACION.md §1
+  ETAPA A — Cerrar el sistema actual                              ✅ 2026-07-29/30
+     A1  Preparar la Pi                     scripts/fase_0_3_respaldo.sh    ✅
+     A2  Apagar                          👤                                 ✅
+     A3  Imagen dd de la microSD          👤 RECUPERACION.md §1              ✅
+     A4  Verificar la imagen              👤 RECUPERACION.md §1              ✅
 
-  ETAPA B — Instalar el sistema nuevo
-     B1  Flashear Ubuntu Server 24.04     👤 manual, cap. 3.1-3.2
-     B2  Editar cmdline.txt ANTES de arrancar  👤 manual, cap. 3.3   ⚠️ CRÍTICO
-     B3  Configuración de arranque + UART     manual, cap. 3.4 y 1.2
-     B4  Primer arranque y verificación       manual, cap. 3.5-3.6
+  ETAPA B — Instalar el sistema nuevo                             ✅ 2026-07-30
+     B1  Flashear Ubuntu Server 24.04     👤 manual, cap. 3.1-3.2            ✅
+     B2  Editar cmdline.txt ANTES de arrancar 👤 manual, cap. 3.3  ⚠️ CRÍTICO ✅
+     B3  Configuración de arranque + UART    manual, cap. 3.4 y 1.2          ✅
+     B4  Primer arranque y verificación      manual, cap. 3.5-3.6            ✅
+     B5  Cerrar actualizaciones + credenciales de git  cap. 3.5.1            ✅
 
-  ETAPA C — Poner el sistema a punto
-     C1  Higiene del SO                       scripts/fase_1_higiene_so.sh
-     C2  Verificar contra la línea base       manual, cap. 4.3
+  ETAPA C — Poner el sistema a punto                              ✅ 2026-07-30
+     C1  Higiene del SO                       scripts/fase_1_higiene_so.sh   ✅
+     C2  Verificar contra la línea base       manual, cap. 4.3               ✅
 
-  ETAPA D — GO / NO-GO
+  ETAPA D — GO / NO-GO                                            ⏳ SIGUIENTE PASO
      D1  Clonar el código                     manual, cap. 5.1
      D2  Validar el SDK en Python 3.12        scripts/fase_1_validar_sdk_py312.py
          ├── GO     → sigue en E
          └── NO-GO  → PARA. Decisión de arquitectura
 
-  ETAPA E — ROS 2 y el robot
+  ETAPA E — ROS 2 y el robot                                      ⏳
      E1  Instalar ROS 2 Jazzy                 manual, cap. 5.2-5.5
      E2  Recuperar el estado actual           ver "Cómo volver a donde estábamos"
-     E3  Verificar UART y telemetría          manual, cap. 1.3 y 2
-     E4  Verificar el LIDAR                   manual, cap. 8.2
+     E3  Verificar UART y telemetría          manual, cap. 1.3 y 2   ← UART ✅ ya hecho
+     E4  Verificar el LIDAR                   manual, cap. 8.2       ← ✅ ya hecho
 
-  ETAPA F — Seguir construyendo (sin escribir todavía)
+  ETAPA F — Seguir construyendo (sin escribir todavía)            ⏳
      F1  Driver a rclpy                       plan, Fase 2
      F2  URDF y árbol TF                      plan, Fase 3
      F3  Driver ROS del LIDAR                 plan, Fase 3
@@ -50,6 +53,13 @@ y luego recorre esta ruta. Los pasos marcados 👤 los ejecuta la persona, no t�
      F5  Plataforma web                       plan, Fase 5
      F6  Clonar a los 16 robots               FLOTA.md
 ```
+
+> **Etapas A, B y C están recorridas y verificadas sobre la máquina real.** Los capítulos 1,
+> 3, 4 y 8 del manual dejaron de ser NO VERIFICADO. La evidencia cruda de cada paso está en
+> [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
+> comparar cuando un robot nuevo de la flota no dé lo mismo.
+>
+> **El siguiente paso es D2, el go/no-go.** No instales ROS 2 antes.
 
 ---
 
@@ -136,42 +146,101 @@ dejándolo inutilizable para el RVR.
 
 Es el único acierto importante del manual original y hay que repetirlo en cada instalación.
 
-### B3 · Configuración de arranque y UART
+### B3 ✅ · Configuración de arranque y UART — **verificado 2026-07-30**
 
 **Manual, capítulo 3.4** (qué ficheros existen en 24.04) **y capítulo 1.2** (el razonamiento
 completo del UART).
 
-En el fichero de configuración que corresponda:
+**Se parte en dos, y la primera mitad se puede hacer desde Windows** con la tarjeta en el PC:
+
+**(a) La configuración de arranque** — en la partición FAT, con el Bloc de notas. En
+**24.04 el fichero es `/boot/firmware/config.txt`**: `usercfg.txt` **no existe** y crearlo no
+sirve de nada (Ubuntu abandonó el esquema de `pibootctl`; el porqué está en el cap. 3.4).
+Añade al final, **con la cabecera `[all]`**:
+
 ```
+[all]
 dtoverlay=disable-bt
-enable_uart=1
 ```
 
-Y la regla udev de `/dev/rvr`. Lo automatiza:
+`enable_uart=1` **ya viene** en la imagen de 24.04. Y `[all]` es obligatorio: la imagen
+termina en `[cm4]`, así que sin esa cabecera la línea quedaría dentro de `[cm4]` y **no se
+aplicaría en un Pi 4** — existiría en el fichero sin hacer nada.
+
+**(b) La regla udev y los `systemctl`** — necesitan el sistema arrancado, así que van por SSH:
+
 ```bash
 sudo bash ~/atriz_migracion/scripts/fase_0_1_fix_uart.sh
-sudo reboot
 ```
 
-⚠️ **COMPROBAR:** en 20.04 la configuración iba en `usercfg.txt`; **en 24.04 puede ser un
-único `config.txt`**. El script lo detecta, pero verifica el resultado.
+El script detecta el fichero correcto, **respeta las secciones de placa** al comprobar si la
+clave ya está activa, crea `/dev/rvr`, y apaga Bluetooth y `serial-getty`. Si `disable-bt` ya
+estaba en efecto (porque hiciste (a) desde Windows y ya has arrancado), **te dirá que no hace
+falta reiniciar** — y es cierto: udev y systemctl surten efecto al instante.
 
-### B4 · Primer arranque y verificación
+### B4 ✅ · Primer arranque y verificación — **verificado 2026-07-30**
 
 **Manual, capítulo 3.5–3.6.**
 
 ```bash
-lsb_release -a && uname -m && python3 --version
+lsb_release -a && uname -m && python3 --version   # 24.04.4 · aarch64 · 3.12.3
 grep -o "console=[^ ]*" /boot/firmware/cmdline.txt      # solo console=tty1
 ls -l /dev/rvr                                          # -> ttyAMA0
-dmesg | grep -i ttyAMA                                  # "is a PL011 rev2"
+cat /proc/device-tree/aliases/uart0                     # /soc/serial@7e201000 (PL011)
+sudo dmesg | grep -i ttyAMA                             # "is a PL011 rev2"
 ```
+
+⚠️ **`dmesg` necesita `sudo` en 24.04** (`kernel.dmesg_restrict=1`). Sin él responde
+`Operation not permitted`, y leído con prisa parece que el UART no existe. El
+`cat /proc/device-tree/aliases/uart0` de la línea anterior da la misma información **sin
+`sudo`** y es el atajo preferible.
+
+**Y la prueba que de verdad importa**, con el RVR **encendido**:
+```bash
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/raw_uart.py
+# esperado: "el RVR CONTESTA"
+```
+Si da 0 bytes: **apaga y enciende el robot antes de tocar configuración.** Un RVR dormido da
+el síntoma idéntico a un cable mal puesto.
+
+### B5 ✅ · Cerrar actualizaciones y credenciales de git — **verificado 2026-07-30**
+
+Dos cosas que no estaban en la ruta y que hacen falta en toda instalación nueva.
+
+**(a) Termina las actualizaciones ANTES de seguir.** Manual, cap. 3.5.1. La imagen trae
+`unattended-upgrades` **activo**, y en cuanto el robot tiene red instala por su cuenta —
+incluido un kernel nuevo. Si te lo dejas para después, un mismo reinicio aplicará dos cambios
+y un fallo posterior no será atribuible.
+
+```bash
+sudo apt update && sudo apt full-upgrade -y
+sudo apt install -y iw                  # no viene, y el cap. 4 lo necesita
+cat /var/run/reboot-required.pkgs 2>/dev/null    # ¿qué paquete pide reinicio?
+```
+
+**(b) Credenciales de git.** El repositorio es privado y un sistema recién instalado **no
+tiene credenciales**: `git fetch` falla con `could not read Username` y todo lo que commitees
+se queda solo en la tarjeta. 👤 Lo hace la persona, porque el token es un secreto:
+
+```bash
+git config --global credential.helper 'store --file ~/.git-credentials'
+cd ~/atriz_migracion && git fetch origin    # Username: Bura-hub · Password: el PAT
+chmod 600 ~/.git-credentials
+git config --global user.name  "Tu Nombre"
+git config --global user.email "tu@correo"  # sin esto, git no deja commitear
+```
+
+⚠️ **No pegues los tres comandos de golpe.** Si `git fetch` pide usuario, se comerá la línea
+siguiente como respuesta. Uno a uno.
+
+`fase_0_3_respaldo.sh` respalda `~/.git-credentials` desde el 2026-07-30, para no repetir esto
+en el siguiente reflasheo — su pérdida es lo que obligó a rehacerlo aquí.
 
 ---
 
 ## ETAPA C — Poner el sistema a punto
 
-### C1 · Higiene del sistema operativo
+### C1 ✅ · Higiene del sistema operativo — **verificado 2026-07-30**
 
 **Manual, capítulo 4** (el por qué de cada medida, con la evidencia medida).
 
@@ -180,18 +249,46 @@ sudo bash ~/atriz_migracion/scripts/fase_1_higiene_so.sh
 sudo reboot
 ```
 
-### C2 · Verificar contra la línea base
+El script **termina en rojo y con código 1 si algún paso no se pudo aplicar** — no lo des por
+hecho solo porque haya terminado. Lee la sección «PASOS NO APLICADOS» del final.
 
-**Manual, capítulo 4.3.** Compara con `00_auditoria/evidencia/` — el sistema *antes* de
-optimizar:
+⚠️ **Este reinicio te deja sin SSH un par de minutos, y esta máquina no tiene pantalla.** El
+paso 9/9 comprueba `netplan generate` antes de dejarte reiniciar, porque el paso 5 deshabilita
+`cloud-init` y el WiFi vive en un netplan que generó `cloud-init`. Ten el cable de `eth0` a
+mano por si acaso.
 
-| Métrica | Antes | Objetivo |
+**A partir de aquí las actualizaciones de seguridad son manuales** (`unattended-upgrades`
+queda deshabilitado). Es lo que se quiere en un robot de laboratorio, pero hay que saberlo.
+
+### C2 ✅ · Verificar contra la línea base — **verificado 2026-07-30**
+
+**Manual, capítulo 4.3.** Compara con
+[`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — **este mismo sistema antes
+de optimizar**:
+
+| Métrica | Antes (24.04 recién instalado) | Objetivo |
 |---|---|---|
-| `systemd-analyze` (userspace) | 29.5 s | **< 15 s** |
-| `ps -e \| wc -l` | 273 tareas | **< 120** |
-| CPU a 600 MHz | 59.6 % del tiempo | governor `performance` |
-| `journalctl --disk-usage` | 784 MB | decenas de MB |
-| `iw dev wlan0 get power_save` | on | **off** |
+| `systemd-analyze` (userspace) | **1 min 39 s** (`cloud-final` = 1 min 7 s) | **< 15 s** |
+| `ps -e \| wc -l` | **187 tareas** | **< 120** |
+| governor | `ondemand` | `performance` |
+| `journalctl --disk-usage` | 17.7 MB | decenas de MB (con tope de 32M) |
+| `cat /proc/pressure/io` | `full total` 74.6 s / 34 min | mucho menor |
+| `iw dev wlan0 get power_save` | (`iw` no instalado) | **`Power save: off`** |
+| `systemctl get-default` | `graphical.target` | `multi-user.target` |
+| `systemctl --failed` | — | vacío |
+
+🔴 **No compares con `00_auditoria/evidencia/`.** Esa es la línea base del sistema **viejo**
+(20.04 + Noetic, 29.5 s y 273 tareas). Son dos sistemas distintos, y mezclar sus números es
+exactamente la deriva documentación-realidad que este repositorio existe para evitar.
+
+**Y confirma que el UART sobrevivió al cambio de kernel**, que es lo que este reinicio
+introduce además de la higiene:
+
+```bash
+uname -r                                     # ¿cambió el kernel?
+ls -l /dev/rvr                               # -> ttyAMA0
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/raw_uart.py
+```
 
 ---
 
@@ -313,6 +410,14 @@ Orden y bloqueantes:
 
 ## Recordatorio final
 
-**Los capítulos 3, 4 y 5 están 📝 NO VERIFICADOS**: se escribieron antes de ejecutarse en
-24.04. Al recorrerlos, **corrige el manual en el mismo momento** y cambia su marca a ✅ con la
-fecha. No en un mensaje de chat: en el repositorio.
+**Los capítulos 3 y 4 ya están ✅ VERIFICADOS** (2026-07-30): se recorrieron sobre la máquina
+real y se corrigieron sobre la marcha. El 3.4 estaba equivocado en su suposición principal
+(daba por hecho que existiría `usercfg.txt`) y el capítulo 4 escondía un paso que no hacía
+nada. Ambas correcciones están donde ocurrieron, no en un mensaje.
+
+**El capítulo 5 sigue 📝 NO VERIFICADO** — es el siguiente, y con él la Etapa D. Al recorrerlo,
+**corrige el manual en el mismo momento** y cambia su marca a ✅ con la fecha. No en un mensaje
+de chat: en el repositorio.
+
+Y la regla que hizo falta en esta instalación, por si sirve en la siguiente: **un cambio por
+reinicio.** Si aplicas dos cosas y algo se rompe, no sabrás cuál fue.

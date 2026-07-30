@@ -18,7 +18,7 @@
 > | 1 | Enlace UART Pi ↔ RVR | ✅ **verificado en 20.04 (2026-07-29) y en 24.04 (2026-07-30)** |
 > | 2 | Ritmo de telemetría | ✅ **medido 2026-07-29** |
 > | 3 | Flasheo de Ubuntu Server 24.04 | ✅ **verificado 2026-07-30** |
-> | 4 | Higiene del SO (headless, governor, journal) | 📝 **escrito · NO VERIFICADO** |
+> | 4 | Higiene del SO (headless, governor, journal) | ✅ **verificado 2026-07-30** |
 > | 5 | ROS 2 Jazzy y workspace colcon | 📝 **escrito · NO VERIFICADO** |
 > | 6 | Driver del RVR en `rclpy` | ⏳ no escrito |
 > | 7 | URDF y árbol TF | ⏳ no escrito |
@@ -436,16 +436,24 @@ Jazzy), con `params/X2.yaml`.
 
 ## Capítulos 3, 4 y 5 — la instalación
 
-> 📝 **ESCRITO PERO NO VERIFICADO.** Estos tres capítulos se redactaron **antes** de
-> ejecutarlos, a partir de lo aprendido en Ubuntu 20.04 y de la documentación oficial de
-> Ubuntu y ROS 2. **Nadie los ha ejecutado todavía en 24.04.**
+> | Cap. | Estado |
+> |---|---|
+> | **3** — Flasheo, `cmdline.txt`, `config.txt` | ✅ **RECORRIDO Y VERIFICADO 2026-07-30** |
+> | **4** — Higiene del SO | ✅ **RECORRIDO Y VERIFICADO 2026-07-30** |
+> | **5** — ROS 2 Jazzy y workspace | 📝 **ESCRITO, NO VERIFICADO** — nadie lo ha ejecutado |
 >
-> Al recorrerlos por primera vez: **verifica cada paso y corrige este documento en el
-> mismo momento**. Cuando un apartado quede confirmado, cambia su marca a ✅ y anota la
-> fecha. Si algo no funciona como está escrito, **corrígelo aquí antes de seguir** — no en
-> un mensaje de chat.
+> Los tres se redactaron **antes** de ejecutarlos, a partir de lo aprendido en Ubuntu 20.04 y
+> de la documentación oficial. Los capítulos 3 y 4 ya se recorrieron sobre la máquina real y
+> **se corrigieron sobre la marcha**: el 3.4 estaba equivocado en su suposición principal, y
+> el 4 escondía un paso que no hacía nada. Ambas cosas están explicadas donde ocurrieron.
 >
-> Los puntos con más probabilidad de diferir están marcados **⚠️ COMPROBAR**.
+> **El capítulo 5 sigue sin ejecutarse.** Al recorrerlo: **verifica cada paso y corrige este
+> documento en el mismo momento**, cambia su marca a ✅ con la fecha, y si algo no funciona
+> como está escrito, **corrígelo aquí antes de seguir** — no en un mensaje de chat.
+>
+> Los puntos con más probabilidad de diferir están marcados **⚠️ COMPROBAR**. Los ya
+> resueltos conservan la explicación de qué se encontró, porque el *por qué* es lo que evita
+> que el siguiente robot repita el problema.
 
 ---
 
@@ -482,7 +490,7 @@ En **«Editar ajustes»**:
 
 > Dejar que el Imager configure el WiFi ahorra tener que escribir netplan a mano.
 
-### 3.3 ⚠️ COMPROBAR — antes del primer arranque, editar `cmdline.txt`
+### 3.3 ✅ Antes del primer arranque, editar `cmdline.txt` — **verificado 2026-07-30**
 
 **Este paso es crítico y fácil de olvidar.** Con la tarjeta aún en el PC, monta la partición
 FAT (`system-boot` o `boot/firmware`) y edita **`cmdline.txt`**:
@@ -490,6 +498,13 @@ FAT (`system-boot` o `boot/firmware`) y edita **`cmdline.txt`**:
 **Quitar `console=serial0,115200`.** La imagen de Ubuntu lo trae por defecto y **reserva el
 UART para la consola del sistema**, dejándolo inutilizable para el RVR. Debe quedar
 `console=tty1`.
+
+Resultado real en esta instalación (2026-07-30) — se hizo desde Windows, con el Bloc de notas:
+```
+multipath=off dwc_otg.lpm_enable=0 console=tty1 root=LABEL=writable rootfstype=ext4 rootwait fixrtc cfg80211.ieee80211_regdom=CO
+```
+`cmdline.txt` es **una sola línea**: no metas saltos de línea al editarlo. Y no toques el resto
+de parámetros.
 
 Es el único acierto importante del manual original, y hay que repetirlo en cada instalación.
 
@@ -651,27 +666,80 @@ GNOME ni xrdp), pero `cloud-init`, `snapd`, los timers de `apt` y el conflicto d
 > semanal**. La medición que lo justifica: **47 segundos de bloqueo global por I/O en 42
 > minutos** con el sistema ocioso, causados sobre todo por el journal.
 
-### 4.2 Ejecutar
+### 4.2 ✅ Ejecutar — **verificado 2026-07-30**
 
 ```bash
+sudo apt install -y iw      # NO viene en Server 24.04, y el paso 4/9 lo necesita
 sudo bash ~/atriz_migracion/scripts/fase_1_higiene_so.sh
 sudo reboot
 ```
 
-### 4.3 Verificación del capítulo 4
+**El script termina en rojo y con código 1 si algún paso no se pudo aplicar.** Lee la sección
+«PASOS NO APLICADOS» del final: haber llegado hasta el final no significa que esté todo hecho.
 
-Compara con la línea base de `00_auditoria/evidencia/` (el sistema **antes** de optimizar):
+⚠️ **Este reinicio te deja sin SSH un par de minutos, y el robot no tiene pantalla.** El paso
+9/9 valida `netplan generate` antes de dejarte reiniciar, porque el paso 5 deshabilita
+`cloud-init` y en esta imagen el WiFi vive en un netplan que generó `cloud-init`. El fichero
+persiste y `systemd-networkd` lo sigue leyendo, pero ten un cable de `eth0` a mano.
+
+⚠️ **A partir de aquí las actualizaciones de seguridad son MANUALES.** El paso 7/9 deshabilita
+`unattended-upgrades`, que es lo que se quiere en un robot de laboratorio (no queremos que se
+actualice solo a mitad de un experimento), pero hay que saberlo:
+`sudo apt update && sudo apt upgrade`.
+
+> ℹ️ **`snapd` queda deshabilitado pero sigue instalado.** El script lo avisa e imprime el
+> comando para purgarlo del todo. No lo hace por su cuenta porque `apt purge snapd` es
+> irreversible sin reinstalar.
+
+### 4.3 ✅ Verificación del capítulo 4 — **verificado 2026-07-30**
+
+Compara con la línea base de
+[`00_auditoria/evidencia_24_04/`](../00_auditoria/evidencia_24_04/) — **este mismo sistema
+antes de optimizar**.
+
+🔴 **NO compares con `00_auditoria/evidencia/`**: esa es la línea base del sistema **viejo**
+(20.04 + Noetic, 29.5 s de userspace y 273 tareas). Son dos sistemas distintos y mezclar sus
+números es exactamente la deriva que este repositorio existe para evitar.
 
 ```bash
-systemd-analyze                     # antes: 29.5 s de userspace -> objetivo < 15 s
-ps -e | wc -l                       # antes: 273 tareas -> objetivo < 120
-cat /proc/pressure/io               # 'full total' debe ser mucho menor
+systemd-analyze                     # antes: 1 min 39 s de userspace -> objetivo < 15 s
+ps -e | wc -l                       # antes: 187 tareas -> objetivo < 120
+cat /proc/pressure/io               # antes: 'full total' 74.6 s en 34 min
 cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor   # performance
-iw dev wlan0 get power_save         # off
+iw dev wlan0 get power_save         # Power save: off
 journalctl --disk-usage             # decenas de MB, no cientos
 systemctl get-default               # multi-user.target
 systemctl --failed                  # vacío
+uname -r                            # ¿cambió el kernel en este reinicio?
 ```
+
+**Resultado de esta ejecución, comprobado inmediatamente (sin reiniciar):**
+
+| Medida | Antes | Después |
+|---|---|---|
+| Default target | `graphical.target` | ✅ `multi-user.target` |
+| Governor | `ondemand` | ✅ `performance` |
+| Journal | sin tope | ✅ `SystemMaxUse=32M`, recortado |
+| WiFi power-save | (`iw` no instalado) | ✅ `Power save: off` |
+| `cloud-init` | habilitado | ✅ `/etc/cloud/cloud-init.disabled` |
+| Timers de `apt` | habilitados | ✅ `apt-daily`, `apt-daily-upgrade`, `motd-news`, `fstrim`: disabled |
+| Servicios inútiles | activos | ✅ `snapd`, `ModemManager`, `avahi`, `multipathd`, `open-iscsi`, `iscsid`, `lvm2-monitor`, `unattended-upgrades`: disabled |
+| `noatime` | no | ✅ en la raíz |
+| netplan | 600 | ✅ 600, y `netplan generate` correcto |
+| `systemctl --failed` | — | ✅ vacío |
+| `/dev/rvr` | `→ ttyAMA0` | ✅ intacto: el script no toca el UART |
+
+> ⏳ **Las métricas de arranque, tareas y presión de I/O se miden DESPUÉS del reinicio**, con
+> los contadores a cero. Los valores tomados antes de reiniciar no sirven: incluyen todo el
+> trabajo de `cloud-init` y de `apt` de la instalación, así que dirían que no ha mejorado nada
+> cuando la causa ya está desactivada.
+
+> 🐛 **El paso 4/9 tenía un bug que lo hacía inútil, y su verificador otro.** Está contado en
+> el `CHANGELOG.md` del 2026-07-30. En resumen: el `ExecStart` era `iw ... || true` y `iw` no
+> estaba instalado, así que el servicio quedaba en verde sin hacer nada. Al arreglarlo, el
+> nuevo verificador dio un **falso positivo** por buscar `power save:` en minúsculas cuando
+> `iw` imprime `Power save:`. Las dos cosas están corregidas. Se cuentan porque son el tipo de
+> fallo que este proyecto persigue: **el que no se ve.**
 
 ---
 
