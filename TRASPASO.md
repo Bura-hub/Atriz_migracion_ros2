@@ -4,7 +4,7 @@
 > Raspberry Pi ya se reflasheó. Está escrito para que no haga falta reconstruir el
 > contexto desde cero.
 >
-> Última actualización: **2026-07-30**.
+> Última actualización: **2026-07-31**.
 
 ---
 
@@ -14,10 +14,13 @@
 24.04.4 + Jazzy instalados, driver portado a `rclpy` (`/odom` a 16.67 Hz), URDF y árbol TF
 enteros, LIDAR publicando `/scan`, y `slam_toolbox` activo publicando `/map`.
 
-**El siguiente paso es un arreglo de seguridad operativa, no una fase nueva: 🔴 el RVR se
-duerme solo a los pocos minutos y el driver no se entera** — sigue vivo publicando cero, sin
-un error. Un robot que espere a un estudiante llegará mudo a la práctica. Detalle en el
-manual, cap. 9.8.
+✅ **Y el enlace ya aguanta solo.** El RVR se dormía a los **300.6 s** y el nodo no se
+enteraba; desde el 2026-07-31 el driver le habla cada 30 s, publica `/battery_state`, y avisa
+y reanuda si aun así deja de llegar telemetría. Verificado: 12 min sin un hueco, contra 2
+huecos sin el arreglo (manual, cap. 9.8).
+
+**El siguiente paso es cerrar la Fase 4**: repetir la prueba de mapeo con los dos launch
+arrancados juntos, que es lo único que falta para dar SLAM por bueno.
 
 ---
 
@@ -29,8 +32,9 @@ manual, cap. 9.8.
 | Enlace UART Pi ↔ RVR | ✅ PL011 vía `/dev/rvr` | ✅ **el RVR contesta**, firmware 9.1.462 | `raw_uart_2026-07-30.txt` |
 | YDLIDAR X2 | ✅ 100 % checksums, 11.4 Hz | ✅ **100 %, 11.48 Hz** | `lidar_x2_2026-07-30.txt` |
 | Higiene del SO | receta documentada | ✅ **aplicada** | `02_higiene_aplicada_*.txt` |
-| Telemetría del RVR a 16.59 Hz | ✅ 12 min, 0 huecos, 0 pérdidas | ⏳ requiere portar el driver | `estabilidad_12min_2026-07-29.txt` |
-| SDK de Sphero | ✅ GO en Python 3.8 | ⏳ **3.12 SIN PROBAR — es el siguiente paso** | `scripts/fase_1_validar_sdk_py312.py` |
+| Telemetría del RVR a 16.59 Hz | ✅ 12 min, 0 huecos, 0 pérdidas | ✅ **12 min, 0 huecos** con el driver ROS 2 y keepalive | `12_keepalive_rvr.txt` |
+| SDK de Sphero | ✅ GO en Python 3.8 | 🟢 **GO en 3.12**, 16.67 Hz | `04_gonogo_sdk_py312_*.txt` |
+| Enlace estable sin tocar nada | — | ✅ el RVR se dormía a los **300.6 s**; arreglado | `12_keepalive_rvr.txt` |
 
 Firmware del RVR: **9.1.462** (Nordic), confirmado también en 24.04 leyendo el payload de
 `get_version` (`09 00 01 01`).
@@ -42,7 +46,7 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 
 | Problema | Gravedad | Estado |
 |---|---|---|
-| 🔴 **El RVR se duerme solo y el driver no se entera.** `/odom`, `/imu` y `/color` mudos a la vez, proceso vivo al 12.3 % de CPU, **sin un error**. Un robot que espere a un estudiante llega mudo a la práctica | seguridad operativa | 🔴 **abierto** — es el siguiente paso |
+| ~~El RVR se duerme solo y el driver no se entera~~ | seguridad operativa | ✅ **resuelto 2026-07-31**: timeout medido en **300.6 s**, keepalive cada 30 s + detector de silencio. 2 huecos → 0 |
 | 🔴 **La velocidad de `/odom` es basura.** El stream `Velocity` del RVR reporta 0.001 m/s a 0.147 m/s reales. La posición sí es buena | bloquea Nav2 | 🔴 abierto, 3 opciones sin probar |
 | 🔴 **`inverted` del LIDAR sin verificar.** Si está al revés **el mapa sale espejado** sin dar error | corrompe mapas | 🔴 abierto |
 | 🔴 **El robot está inclinado ~7°** (árbol TF y Roll de la IMU, dos vías independientes). `slam_toolbox` lo absorbe en `map → odom` | bloquea Nav2 | 🔴 abierto, causa sin determinar |
@@ -60,25 +64,20 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 
 ## El siguiente paso, exacto
 
-### 1. 🔴 Keepalive del driver — antes que cualquier fase nueva
+### ✅ Hecho el 2026-07-31: el keepalive del driver
 
-**El RVR se duerme y el nodo no se entera** (2026-07-30, manual cap. 9.8). `/odom`, `/imu` y
-`/color` dejan de publicar **a la vez** mientras el proceso sigue al 12.3 % de CPU con sus
-topics registrados y **ni un error**. Reiniciar el driver lo revive (`/odom` → 16.669 Hz).
+**El RVR se dormía a los 300.6 s = 5.01 min** y el nodo no se enteraba. Medido y arreglado
+(manual cap. 9.8a–9.8c). Se durmió **dos veces** en 12 min sin keepalive, y las dos aguantó
+300.6 s **exactos**: es un temporizador del firmware.
 
-Causa: `rvr_driver_node.py:367` llama a `wake()` **una sola vez al arrancar**. El SDK no tiene
-`set_inactivity_timeout`. ⚠️ El tiempo exacto está **SIN MEDIR** (acotado entre ~2 y ~7.5 min).
+- **`_keepalive`** cada 30 s con `get_battery_percentage()` — y publica **`/battery_state`**,
+  que no existía ni en ROS 1.
+- **`_vigilar_silencio`** a 1 Hz: si pasan 3 s sin muestras, avisa e intenta reanudar.
+  Verificado: detectó a los 3.4 s y reanudó en 4 ms, las dos veces, 0 fallos.
 
-Arreglo, dos partes:
+Contraste: **2 huecos sin keepalive, 0 con él**, en 12 min cada prueba.
 
-1. Temporizador cada 60 s con `get_battery_percentage()` — es una lectura, y de paso da la
-   batería, que hoy no se publica.
-2. Detector de silencio: si no llega ninguna muestra del RVR en N s, **avisar** (`WARN`) e
-   intentar reanudar el streaming, en vez de publicar nada con cara de estar sano.
-
-Y de paso, **medir el timeout de verdad**, para poder documentarlo como hecho.
-
-### 2. Cerrar la Fase 4: repetir la prueba de mapeo
+### 1. Cerrar la Fase 4: repetir la prueba de mapeo
 
 La prueba con movimiento del 2026-07-30 **no es válida**: se reinició solo el driver dejando el
 `slam_toolbox` viejo en marcha, y ese dejó de procesar (mapa idéntico celda a celda tras 80 cm
@@ -90,7 +89,7 @@ ros2 launch atriz_rvr_bringup slam.launch.py      # terminal 2
 python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_slam_ros2.py
 ```
 
-### 3. 🔴 Verificar `inverted` del LIDAR antes de confiar en un mapa
+### 2. 🔴 Verificar `inverted` del LIDAR antes de confiar en un mapa
 
 Si está al revés **el mapa sale espejado**: parece correcto y tiene las paredes al otro lado.
 Se comprueba con un objeto a 1 m delante del robot, mirando dónde aparece en `/scan`.

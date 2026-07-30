@@ -97,18 +97,28 @@ Y la pista fácil engaña: `ros2 topic hz /tf` daba **50 Hz**, así que «TF va 
 es exactamente el `transform_publish_period` de `slam_toolbox` a solas — con el driver
 aportando serían ~67 Hz.
 
-**Causa:** `rvr_driver_node.py:367` llama a `wake()` **una sola vez al arrancar** y no vuelve
-a hablar con el RVR salvo cuando llega un `cmd_vel`. El SDK vendorizado **no tiene**
+**Causa:** el `wake()` del arranque se llamaba **una sola vez** y el nodo no volvía a hablarle
+al RVR salvo cuando llegaba un `cmd_vel`. El SDK vendorizado **no tiene**
 `set_inactivity_timeout`.
-→ **Reiniciar el driver lo revive**: `/odom` vuelve a 16.669 Hz.
-→ ⚠️ **NO VERIFICADO** el tiempo exacto: acotado entre ~2 y ~7.5 min. Encaja con los 5 min
-  documentados del RVR, pero no se ha medido.
-→ **Regla:** si un robot no publica `/odom`, **reinicia el driver antes de buscar otra
-  causa.** No mires si el nodo existe; mira el **ritmo**.
-→ Un `systemd` con `Restart=always` **no** arregla esto: el proceso no muere.
-→ **Arreglo pendiente en el driver:** keepalive cada 60 s con `get_battery_percentage()` (es
-  una lectura, y de paso da la batería, que hoy no se publica) + un detector de silencio que
-  avise en vez de publicar nada con cara de sano.
+
+✅ **El timeout son 300.6 s = 5.01 min**, medido el 2026-07-31 arrancando con
+`keepalive_period:=0.0`: se durmió **dos veces** y las dos aguantó **300.6 s exactos**. Es un
+temporizador del firmware, no una heurística. Coincide con los 5 min documentados del RVR.
+
+✅ **ARREGLADO** en el driver (bloque «SALUD DEL ENLACE»), con dos piezas que hacen falta las
+dos:
+- **`_keepalive`** — cada **30 s** llama a `get_battery_percentage()` (una lectura, inocua) y
+  publica **`/battery_state`**, que no existía ni en ROS 1. 10× de margen sobre los 5 min.
+- **`_vigilar_silencio`** — a 1 Hz mira **cuánto hace que llegó la última muestra**. A los 3 s
+  avisa e intenta reanudar (`wake` + `stop` + `start`). Verificado: detectó a los 3.4 s y
+  reanudó en 4 ms, las dos veces, sin un solo fallo.
+
+Los dos se desactivan con `keepalive_period:=0.0` / `silence_timeout:=0.0`, que es como se
+reproduce el fallo a propósito.
+
+→ **La regla de diagnóstico sigue valiendo:** si un robot no publica `/odom`, mira el
+  **ritmo**, no si el nodo o el topic existen — las dos cosas eran ciertas mientras estaba
+  mudo. Y un `systemd` con `Restart=always` no habría arreglado nada: el proceso no muere.
 
 **Que el nodo arranque NO prueba que el enlace funcione.** `rvr_fw_check_async.py` captura
 `except (asyncio.TimeoutError, Exception)` y continúa en silencio: el nodo registra sus
@@ -266,6 +276,7 @@ estabilidad.py   # 12 min: huecos, pérdidas, fugas de memoria
 verificar_leds_sensores.py   # 37 comprobaciones de LEDs y los 17 sensores (sin ROS)
 medir_watchdog_ros2.py       # ¿frena el watchdog? mide DESPLAZAMIENTO, no velocidad
 medir_slam_ros2.py           # ⚠️ MUEVE EL ROBOT: ¿crece el mapa al moverse?
+medir_keepalive_ros2.py      # ¿se duerme el RVR? vigila el RITMO de /odom, no el topic
 ```
 
 En `scripts/`:
@@ -294,6 +305,9 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | `/scan` | **10.1 Hz**, 255 puntos, 226 válidos (89 %), resolución **1.42°** | 2026-07-30, con el driver ROS 2 |
 | Firmware del RVR | 9.1.462 (Nordic) | |
 | `/map` | **0.200 Hz** exactos (= `map_update_interval` 5 s) | 2026-07-30 |
+| **Timeout de inactividad del RVR** | **300.6 s = 5.01 min** (dos medidas idénticas) | 2026-07-31 |
+| `/battery_state` | cada **30.0 s** exactos — es el latido del keepalive | 2026-07-31 |
+| Enlace con keepalive | **12 min, 0 huecos** en `/odom`, 16.54 Hz | 2026-07-31 |
 | CPU de `slam_toolbox` | **4.5 %** de un núcleo, 49 MB | 2026-07-30, async |
 | Todo a la vez (driver+LIDAR+RSP+SLAM) | **~24 %** de un núcleo, ~200 MB, loadavg 0.62, 62.3 °C, `throttled=0x0` | 2026-07-30 |
 

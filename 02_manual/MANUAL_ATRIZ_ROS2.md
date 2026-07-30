@@ -1818,9 +1818,11 @@ Y sigue abierto, del capítulo 8.5, lo que puede arruinar un mapa **sin dar ning
   resolverlo**, porque la odometría del driver mete roll y pitch en
   `odom → base_footprint` cuando por REP-105 debería ser plana (x, y, yaw).
 
-### 9.8 🔴 EL RVR SE DUERME Y EL NODO NO SE ENTERA
+### 9.8 EL RVR SE DUERME A LOS 5 MIN — ✅ medido y arreglado
 
-El hallazgo más importante de la Fase 4, y no es de SLAM.
+El hallazgo más importante de la Fase 4, y no es de SLAM. Encontrado el 2026-07-30,
+**medido y corregido el 2026-07-31** (9.8a–9.8c). Se cuenta entero, incluido el síntoma,
+porque es el patrón de fallo que este proyecto persigue en todas partes.
 
 A mitad de sesión, con todo arrancado y sin tocar nada:
 
@@ -1854,12 +1856,6 @@ $ ros2 topic hz /odom
 average rate: 16.669              # <- vuelve exactamente al ritmo esperado
 ```
 
-**⚠️ NO VERIFICADO: el tiempo exacto de inactividad.** Los datos que hay lo acotan entre
-~2 y ~7.5 min (arranque 00:03:43, último dato confirmado 00:05:35, muerto a las 00:11).
-Encaja con los 5 min documentados del RVR, pero **no se ha medido**, y no se va a escribir
-como hecho. El SDK vendorizado **no tiene** `set_inactivity_timeout`: solo `wake()`,
-`sleep()` y las de batería.
-
 **Consecuencias para el laboratorio, que son serias:**
 
 - Un robot que espere 5 minutos a que un estudiante empiece su práctica **estará mudo
@@ -1868,18 +1864,94 @@ como hecho. El SDK vendorizado **no tiene** `set_inactivity_timeout`: solo `wake
 - Cualquier medición larga (estabilidad, mapeo, docencia) se corta sin avisar.
 - Un `systemd` con `Restart=always` **no** lo arregla: el proceso no muere.
 
-**Arreglo pendiente**, dos partes:
+### 9.8a ✅ El timeout medido: 300.6 s = 5.01 min
 
-1. **Keepalive en el driver.** Un temporizador que llame a `wake()` o a
-   `get_battery_percentage()` cada 60 s. La segunda es preferible: es una lectura, y de
-   paso da la batería, que hoy no se publica.
-2. **Detector de silencio.** Si no llega ninguna muestra del RVR en N segundos, el driver
-   debe **decirlo** (`WARN`) e intentar reanudar el streaming, en vez de seguir publicando
-   nada con cara de estar sano.
+Medido el **2026-07-31** arrancando el driver con el keepalive desactivado a propósito y
+vigilando el **ritmo** de `/odom` durante 12 minutos:
 
-Hasta que esté, la regla de operación es: **si un robot no publica `/odom`, reinicia el
-driver antes de buscar cualquier otra causa.** Y `verificar_robot.sh --hardware`
-comprueba el ritmo de `/odom`, no solo que el nodo exista.
+```bash
+ros2 launch atriz_rvr_bringup robot.launch.py lidar:=false keepalive_period:=0.0
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_keepalive_ros2.py --minutos 12
+```
+
+El robot se durmió **dos veces**, y las dos aguantó **exactamente lo mismo**:
+
+| | Aguantó | Detectado tras | Reanudado en |
+|---|---|---|---|
+| Sueño 1 (a los 3.9 min) | **300.6 s** | 3.4 s | 0.004 s |
+| Sueño 2 (a los 9.0 min) | **300.6 s** | 3.4 s | 0.004 s |
+
+**300.6 s idénticos a la décima de segundo no es una heurística difusa: es un
+temporizador del firmware.** Coincide con los 5 min documentados del RVR, y cae dentro
+del intervalo 2–7.5 min que los timestamps del fallo original solo permitían acotar.
+
+📝 El SDK vendorizado **no tiene** `set_inactivity_timeout` para cambiarlo: solo `wake()`,
+`sleep()` y las de batería. Hay que hablarle, no configurarlo.
+
+### 9.8b ✅ El arreglo: keepalive + detector de silencio
+
+Están en `rvr_driver_node.py`, bloque «SALUD DEL ENLACE». **Hacen falta los dos**, y
+cubren cosas distintas:
+
+| | Qué hace | Cubre |
+|---|---|---|
+| **`_keepalive`** | cada **30 s** llama a `get_battery_percentage()` | la causa conocida: que se duerma |
+| **`_vigilar_silencio`** | a 1 Hz mira cuánto hace que llegó la última muestra; a los 3 s avisa y reanuda | **todo lo demás**: cable flojo, `sensor_control` caído, firmware atascado |
+
+Tres decisiones de diseño que conviene no deshacer:
+
+- **Se usa una LECTURA (`get_battery_percentage`), no `wake()` a secas.** Una lectura no
+  cambia ningún estado del robot, así que no puede interferir con una maniobra en curso ni
+  con la parada de emergencia. Y devuelve un dato que hacía falta: **`/battery_state`**,
+  que no se publicaba ni en el driver de ROS 1.
+- **El vigilante mide el SILENCIO, no el estado del proceso ni la existencia del topic.**
+  Es toda la diferencia: durante el fallo el proceso estaba vivo y el topic registrado.
+- **30 s con un timeout de 300 s son 10× de margen.** Se podría subir a 120 s sin riesgo,
+  pero no hay motivo: un comando cada 30 s son ~2 bytes/s sobre un enlace de 115200
+  baudios que ya lleva 16.7 Hz de telemetría.
+
+Los dos se desactivan con `keepalive_period:=0.0` y `silence_timeout:=0.0`, que es como se
+reproduce el fallo a propósito para medirlo.
+
+### 9.8c ✅ Verificado: las dos pruebas, una al lado de la otra
+
+Mismo robot, misma duración, mismo binario. Lo único que cambia es `keepalive_period`:
+
+| | A (`keepalive=0`) | B (`keepalive=30 s`) |
+|---|---|---|
+| duración | 12.0 min | 12.0 min |
+| muestras de `/odom` | 11795 | 11909 |
+| ritmo medio | 16.38 Hz | **16.54 Hz** |
+| **huecos en `/odom`** | **2** (a los 3.9 y 9.0 min) | **0** |
+| duración de los huecos | 3.5 s y 3.7 s | — |
+| avisos de silencio | 2 | 0 |
+| reanudaciones | 2, **0 fallos** | 0 |
+| lecturas de batería | 0 | **24**, cada 30.0 s exactos |
+
+**Se durmió dos veces sin keepalive y ninguna con él.** En la prueba B el detector no tuvo
+nada que detectar, que es justo el objetivo: el keepalive impidió que llegara a haber un
+problema. Y el ritmo medio sube de 16.38 a 16.54 Hz — la diferencia es exactamente el
+tiempo que estuvo mudo en la prueba A.
+
+Lo que el driver dice cuando el detector sí actúa (prueba A):
+
+```
+[WARN] el RVR lleva 3.4 s sin enviar telemetría (se esperan ~16.7 muestras/s).
+       Lo más probable es que se haya dormido. Intentando reanudar (intento nº 1)…
+[INFO] streaming reanudado. Si esto se repite cada pocos minutos, el keepalive
+       no está llegando: revisa keepalive_period y el enlace.
+```
+
+Antes de esto, el mismo suceso dejaba el robot mudo **indefinidamente y sin una línea en
+el log**.
+
+### 9.8d La regla de diagnóstico, que sigue valiendo
+
+**Si un robot no publica `/odom`, mira el RITMO, no si el nodo o el topic existen** — las
+dos cosas eran ciertas mientras estaba mudo. `verificar_robot.sh --hardware` comprueba el
+ritmo desde el 2026-07-30, precisamente por esto.
+
+Evidencia cruda: `00_auditoria/evidencia_24_04/12_keepalive_rvr.txt`.
 
 ### 9.9 Coste en el Pi 4 con todo a la vez
 
@@ -1915,9 +1987,12 @@ ros2 lifecycle get /slam_toolbox                 # active [3]
 ros2 run tf2_ros tf2_echo odom base_footprint    # ← LA prueba: es lo que pide SLAM
 ros2 run tf2_ros tf2_echo map base_footprint     # lo que añade SLAM
 ros2 topic hz /map                               # 0.200 Hz (map_update_interval 5 s)
-ros2 topic hz /odom                              # 16.7 Hz  ← si es 0, el RVR se durmió (9.8)
+ros2 topic hz /odom                              # 16.7 Hz  ← si es 0, ver 9.8
 ros2 topic info /scan --verbose | grep -i reliab  # BEST_EFFORT en publicador y suscriptor
+ros2 topic echo /battery_state --once            # llega cada 30 s: es el keepalive (9.8b)
 python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_slam_ros2.py
+# 12 min sin tocar nada, para probar que el enlace aguanta:
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_keepalive_ros2.py
 ```
 
 Evidencia cruda: `00_auditoria/evidencia_24_04/11_slam_fase4.txt` y `mapas/`.

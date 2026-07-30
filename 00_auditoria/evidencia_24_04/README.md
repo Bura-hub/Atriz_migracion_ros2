@@ -30,6 +30,7 @@ Los ficheros van **numerados en orden cronológico**, que es el mismo orden de l
 | `09_fase3_lidar_ros2_…` | El driver ROS del X2: `/scan` a 10.1 Hz, y **el QoS BEST_EFFORT** | Fase 3.2 |
 | `10_leds_sensores_…` | 37 comprobaciones: los LEDs uno a uno y los 17 sensores, sin ROS | 8bis |
 | `11_slam_fase4.txt` | SLAM: ciclo de vida, `base_link` con dos padres, y **🔴 el RVR se duerme solo** | Fase 4 |
+| `12_keepalive_rvr.txt` | El timeout del RVR **medido en 300.6 s**, y el arreglo verificado: 2 huecos → **0** | Fase 4 |
 | `mapas/` | `mapa_fase4_banco.{data,posegraph}` — formato nativo de slam_toolbox | Fase 4 |
 | `lidar_x2_2026-07-30.txt` | Salida de `x2_parse.py` | B |
 | `raw_uart_2026-07-30.txt` | Salida de `raw_uart.py`: «el RVR CONTESTA» | B |
@@ -78,11 +79,13 @@ ahí comen SLAM y `robot_localization`. La **posición** sí es buena.
 desde un `static_transform_publisher` que la propia documentación admitía como suposición. El
 valor real es **0.1745 m**. Un error así inclina el mapa entero sin dar ningún error.
 
-**🔴 El RVR se duerme solo y el nodo no se entera** (fichero 11). `/odom`, `/imu` y `/color`
-dejan de publicar **a la vez** mientras el proceso sigue vivo al 12.3 % de CPU con sus topics
-registrados y **sin un solo error**. Un robot que espere 5 minutos a que el estudiante empiece
-su práctica **estará mudo al empezar**, y la web no verá nada raro. `systemd` con
+**🔴 El RVR se duerme solo y el nodo no se entera** (ficheros 11 y 12). `/odom`, `/imu` y
+`/color` dejan de publicar **a la vez** mientras el proceso sigue vivo al 12.3 % de CPU con sus
+topics registrados y **sin un solo error**. Un robot que espere 5 minutos a que el estudiante
+empiece su práctica **estará mudo al empezar**, y la web no verá nada raro. `systemd` con
 `Restart=always` no lo arregla: el proceso no muere.
+→ ✅ **Medido en 300.6 s exactos** (dos veces) **y arreglado** con keepalive + detector de
+silencio: 2 huecos en 12 min pasan a **0**. Fichero 12.
 
 **🔴 `base_link` tenía dos padres** (fichero 11) y partía el árbol TF en dos, con SLAM sin
 mapear. Lo grave no es el error: es que **la verificación de la Fase 3 lo dio por bueno**.

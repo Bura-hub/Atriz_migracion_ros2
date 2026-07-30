@@ -4,6 +4,84 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — El RVR se dormía a los 300.6 s: medido y arreglado
+
+Cierra el fallo grave que abrió la Fase 4. Manual: **cap. 9.8a–9.8d**. Evidencia:
+`00_auditoria/evidencia_24_04/12_keepalive_rvr.txt`.
+
+### ✅ El timeout, medido: 300.6 s = 5.01 min
+
+Arrancando el driver con el keepalive desactivado a propósito (`keepalive_period:=0.0`) y
+vigilando el **ritmo** de `/odom` 12 minutos, el robot se durmió **dos veces**:
+
+| | Aguantó | Detectado tras | Reanudado en |
+|---|---|---|---|
+| Sueño 1 (a los 3.9 min) | **300.6 s** | 3.4 s | 0.004 s |
+| Sueño 2 (a los 9.0 min) | **300.6 s** | 3.4 s | 0.004 s |
+
+**300.6 s idénticos a la décima de segundo no es una heurística: es un temporizador del
+firmware.** Coincide con los 5 min documentados del RVR y cae dentro del intervalo 2–7.5 min
+que los timestamps del fallo original solo permitían acotar. **Deja de estar NO VERIFICADO.**
+
+### El arreglo: dos piezas, y hacen falta las dos
+
+En `rvr_driver_node.py`, bloque nuevo «SALUD DEL ENLACE»:
+
+- **`_keepalive`** — timer cada **30 s** que llama a `get_battery_percentage()`. Se eligió una
+  **lectura** y no `wake()` a secas porque no cambia ningún estado del robot: no puede
+  interferir con una maniobra en curso ni con la parada de emergencia. Y de paso publica
+  **`/battery_state`** (`sensor_msgs/BatteryState`, RELIABLE + TRANSIENT_LOCAL), que no existía
+  ni en el driver de ROS 1, con avisos al cruzar el 25 % y el 10 %.
+- **`_vigilar_silencio`** — timer a 1 Hz que mira **cuánto hace que llegó la última muestra**,
+  no si el nodo existe ni si el topic está registrado: las dos cosas eran ciertas mientras el
+  robot estaba mudo. A los 3 s avisa e intenta reanudar (`wake` + `stop` + `start`).
+
+El keepalive cubre la causa conocida; el vigilante cubre el resto (un cable flojo, un
+`sensor_control` caído, un firmware atascado) y **convierte un fallo silencioso en uno
+ruidoso**.
+
+30 s frente a un timeout de 300 s son **10× de margen**. Se podría subir a 120 s sin riesgo,
+pero un comando cada 30 s son ~2 bytes/s sobre un enlace que ya lleva 16.7 Hz.
+
+Parámetros nuevos: `keepalive_period` y `silence_timeout`, expuestos también como argumentos
+de `robot.launch.py`. A 0 se desactivan — que es como se reproduce el fallo para medirlo.
+
+### ✅ Verificado: las dos pruebas, una al lado de la otra
+
+Mismo robot, misma duración, mismo binario. Solo cambia `keepalive_period`:
+
+| | A (`keepalive=0`) | B (`keepalive=30 s`) |
+|---|---|---|
+| duración | 12.0 min | 12.0 min |
+| muestras de `/odom` | 11795 | 11909 |
+| ritmo medio | 16.38 Hz | **16.54 Hz** |
+| **huecos en `/odom`** | **2** (3.9 y 9.0 min) | **0** |
+| avisos de silencio | 2 | 0 |
+| reanudaciones | 2, **0 fallos** | 0 |
+| lecturas de batería | 0 | **24**, cada 30.0 s exactos |
+
+Se durmió **dos veces sin keepalive y ninguna con él**. En la prueba B el detector no tuvo
+nada que detectar, que es el objetivo. El ritmo medio sube de 16.38 a 16.54 Hz: la diferencia
+es exactamente el tiempo que estuvo mudo en la A.
+
+### Herramienta nueva
+
+`00_auditoria/evidencia/mediciones_banco/medir_keepalive_ros2.py` — vigila el **ritmo** de
+`/odom`, no la existencia del topic. Se suscribe con **BEST_EFFORT** a propósito: con el
+perfil por defecto de `rclpy` (RELIABLE) DDS no emparejaría y la herramienta no recibiría
+nada, concluyendo que el robot está mudo cuando no lo está. Sería un falso positivo perfecto.
+
+### Detalle de implementación que conviene no deshacer
+
+El `finally` que libera `_recuperando` pase lo que pase. Sin él, una excepción durante la
+recuperación dejaría la vigilancia muerta para siempre: **el fallo silencioso otra vez, esta
+vez dentro del código escrito para evitarlo.**
+
+Y `cerrar()` apaga la vigilancia **antes** de parar nada, para que una parada normal no
+dispare un WARN alarmante en cada apagado.
+
+---
+
 ## 2026-07-30 (parte 9) — Fase 4: SLAM arranca y mapea, pero aparece un fallo grave del driver
 
 🟡 **Fase 4 PARCIAL.** `slam_toolbox` arranca, se activa, completa el árbol TF y publica

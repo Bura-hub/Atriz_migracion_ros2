@@ -439,6 +439,24 @@ if [[ -d /opt/ros/jazzy ]]; then
         else
             _nota "/odom no esta publicado: robot.launch.py no esta corriendo."
         fi
+
+        # El keepalive publica /battery_state cada 30 s. Que ese topic tenga un
+        # mensaje reciente es la prueba MAS BARATA de que el keepalive corre: sin
+        # el, el RVR se duerme a los 300.6 s (medido) y el nodo no se entera.
+        # Es TRANSIENT_LOCAL, asi que el ultimo valor llega al instante.
+        if timeout 6 ros2 topic list 2>/dev/null | grep -qx '/battery_state'; then
+            BAT="$(timeout 10 ros2 topic echo /battery_state --once 2>/dev/null \
+                   | grep -m1 -oE 'percentage: [0-9.]+' | grep -oE '[0-9.]+')"
+            if [[ -n "$BAT" ]]; then
+                PCT="$(awk -v b="$BAT" 'BEGIN{printf "%.0f", b*100}')"
+                _ok "keepalive vivo · bateria ${PCT} % (/battery_state)"
+                awk -v b="$BAT" 'BEGIN{exit !(b < 0.25)}' \
+                    && _avi "bateria por debajo del 25 %" "ponlo a cargar antes de una practica"
+            else
+                _avi "/battery_state existe pero no llega valor" \
+                     "el keepalive puede estar desactivado (keepalive_period=0): manual 9.8b"
+            fi
+        fi
     fi
 
     # El driver del LIDAR y su SDK se compilan desde fuentes: no hay paquete apt.
