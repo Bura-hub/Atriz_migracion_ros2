@@ -23,6 +23,7 @@
 > | 6 | Driver del RVR en `rclpy` | ⏳ **no escrito — EN CURSO** |
 > | 7 | URDF y árbol TF | ✅ **verificado 2026-07-30** · `odom → laser` resuelve. Medidas del chasis 📝 sin medir |
 > | 8 | YDLIDAR X2 | ✅ **verificado 2026-07-30** — hardware Y driver ROS 2, `/scan` a 10.1 Hz |
+> | 8bis | LEDs y sensores del RVR | ✅ **verificado 2026-07-30** — 11 grupos de LED a la vista, 10/11 sensores |
 > | 9 | SLAM y Nav2 | ⏳ no escrito |
 > | 10 | rosbridge y plataforma web | ⏳ no escrito |
 > | 11 | Arranque automático con systemd | ⏳ no escrito |
@@ -1468,6 +1469,109 @@ la marca de `/tf_static`, que no se republica sino que se retiene—, y `base_li
 > El fichero **ya llevaba un comentario explicando justamente eso** — se documentó la solución
 > y no se implementó. `robot_description` es XML, y `launch` intenta interpretarlo como YAML si
 > no se le dice el tipo.
+
+---
+
+## Capítulo 8bis — LEDs y sensores del RVR
+
+> ✅ **Verificado el 2026-07-30.** Los 11 grupos de LED confirmados **a la vista**, y 10 de los
+> 11 sensores por streaming más los 7 puntuales verificados con datos reales.
+> Herramienta: `00_auditoria/evidencia/mediciones_banco/verificar_leds_sensores.py`
+
+### 8bis.1 Los 11 grupos de LED
+
+```bash
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/verificar_leds_sensores.py --solo-leds
+```
+
+Enciende cada grupo en azul, uno a uno, con 1.2 s de pausa para mirarlo:
+
+| Grupo | Dónde está |
+|---|---|
+| `status_indication_left` / `_right` | indicadores |
+| `headlight_left` / `_right` | faros delanteros |
+| `battery_door_front` / `_rear` | puerta de la batería |
+| `power_button_front` / `_rear` | botón de encendido |
+| `brakelight_left` / `_right` | luces de freno |
+| `undercarriage_white` | bajos — **blanco de un solo canal, no acepta RGB** |
+
+Y los cinco métodos de conjunto: `set_all_leds_rgb`, `set_all_leds_color`,
+`set_multiple_leds_with_rgb`, `set_multiple_leds_with_enums`, `turn_leds_off`.
+
+> ⚠️ **Los LEDs no se pueden verificar por software.** El SDK no ofrece forma de leer el estado
+> de un LED, así que un script solo puede comprobar que el comando **se acepta**. Que se
+> enciendan **lo tiene que ver una persona**. Si uno no se enciende, el script dirá ✓ y será un
+> fallo real.
+
+### 8bis.2 🔴 El LED del sensor de color no se apaga con `turn_leds_off()`
+
+**No es un grupo de `RvrLedGroups`.** Se controla con `enable_color_detection()`, y si no se
+desactiva **se queda encendido indefinidamente**, gastando batería después de que el programa
+termine.
+
+```python
+await rvr.enable_color_detection(is_enabled=True)    # necesario para leer color
+...
+await rvr.enable_color_detection(is_enabled=False)   # ← IMPRESCINDIBLE al terminar
+```
+
+Lo detectó el usuario **mirando el robot**, no el script. Cada `(True)` necesita su `(False)`,
+también en el camino de error.
+
+> Y al revés: **el sensor de color no transmite sin su LED.** Sin
+> `enable_color_detection(True)` devuelve ceros y *parece* roto.
+
+### 8bis.3 Los sensores, con datos reales
+
+4 s a `interval=60 ms`, robot quieto:
+
+| Stream | Muestras | Dato |
+|---|---|---|
+| `color_detection` | 52 | `R=193 G=167 B=149` |
+| `ambient_light` | 52 | `Light=12.487` |
+| `quaternion` | 65 | `W=0.998 X=0.007 Y=-0.062` |
+| `imu` | 65 | `Pitch=1.089 Roll=-7.040 Yaw=-3.051` |
+| `accelerometer` | 65 | `X=-0.123 Y=-0.016 Z=0.959` |
+| `gyroscope` | 65 | `X=0.057 Y=-0.263 Z=0.000` |
+| `locator` · `velocity` · `speed` | 65 | ceros, robot quieto |
+| `encoders` | 65 | `LeftTicks=15359 RightTicks=17258` |
+| `core_time` | **0** | 🔴 **no lo transmite el firmware** |
+
+**Dos señales de que los datos son buenos y no ruido:** el acelerómetro marca **Z = 0.959 g**
+—la gravedad, con el robot horizontal— y el **`Roll = −7.040°` coincide con el pitch de −7°**
+medido de forma independiente en el árbol TF (cap. 7.6). **Dos sensores distintos dicen lo
+mismo: el robot está inclinado unos 7°.** Sin determinar si es del suelo o del montaje.
+
+**Puntuales, los siete funcionan:** batería (100 %), estado de tensión, RGBC
+(`red=271 green=488 blue=193 clear=857`), luz ambiente (9.99), encoders, y las dos versiones de
+firmware.
+
+### 8bis.4 🔴 `core_time` no existe en el firmware 9.1.462
+
+Está declarado en el enum del SDK y **el RVR no lo entrega**. Verificado aislándolo: **0
+muestras solo y 0 acompañado**, mientras `quaternion` daba 30 en la misma configuración — así
+que **no es un conflicto de slots**, es el firmware.
+
+No lo usa nada del driver, así que no bloquea. Se documenta para que nadie pierda tiempo.
+
+### 8bis.5 ⚠️ `get_main_application_version()` exige `target`
+
+El RVR tiene **dos procesadores**, y hay que decir cuál:
+
+```bash
+target=1  Nordic  ->  9.1.462
+target=2  ST      ->  9.2.482
+```
+
+Sin el argumento: `TypeError`. De aquí sale la versión del **ST (9.2.482)**, que el proyecto no
+tenía documentada — solo conocía la Nordic.
+
+### 8bis.6 Qué de esto expone el driver de ROS 2
+
+**Solo `/color`.** Los 16 servicios que faltan por portar (LEDs, IR, encoders, system info,
+motores crudos…) tienen **el hardware detrás ya verificado**, así que portarlos es trabajo de
+`rclpy`, no de averiguar si el sensor funciona. Están listados al final de
+`rvr_driver_node.py`.
 
 ---
 

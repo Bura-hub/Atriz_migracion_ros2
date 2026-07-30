@@ -1,0 +1,100 @@
+# LEDs y sensores del RVR — verificados uno a uno, sin ROS
+# 2026-07-30 · rvr-01 · SDK Sphero sobre Python 3.12 · bateria 100%
+# Herramienta: mediciones_banco/verificar_leds_sensores.py
+
+# POR QUE SIN ROS: de los 20 servicios del driver de ROS 1 solo 4 estan
+# portados. Aislar el SDK es la unica forma de saber si un fallo es del
+# hardware, del SDK o del port. Regla nº4 del proyecto.
+
+════════════════════════════════════════════════════════════════════════
+## LEDs — LOS 11 GRUPOS FUNCIONAN
+════════════════════════════════════════════════════════════════════════
+  ✅ CONFIRMADO A LA VISTA POR EL USUARIO el 2026-07-30: 'todos los leds
+     encendieron bien'.
+
+  El SDK NO permite LEER el estado de un LED, asi que el script solo puede
+  comprobar que el comando se acepta. La verificacion real es visual.
+
+  Los 11 grupos de RvrLedGroups, en azul uno a uno:
+    status_indication_left / _right     (indicadores)
+    headlight_left / _right             (faros)
+    battery_door_front / _rear          (puerta de bateria)
+    power_button_front / _rear          (boton de encendido)
+    brakelight_left / _right            (luces de freno)
+    undercarriage_white                 (bajos, BLANCO de un solo canal:
+                                        NO acepta RGB, se le manda brillo)
+
+  Metodos de conjunto, los 5:
+    set_all_leds_rgb(255,0,0)          -> todo rojo
+    set_all_leds_rgb(0,255,0)          -> todo verde
+    set_all_leds_color(Colors.blue)    -> todo azul
+    set_multiple_leds_with_rgb         -> faros rojo + verde
+    set_multiple_leds_with_enums       -> frenos amarillo
+    turn_leds_off                      -> todo apagado
+
+  🔴 TRAMPA: turn_leds_off() NO apaga el LED EMISOR del sensor de color.
+     No es un grupo de RvrLedGroups: se controla con
+     enable_color_detection(). Si no se desactiva SE QUEDA ENCENDIDO
+     indefinidamente gastando bateria.
+     Lo detecto EL USUARIO mirando el robot, no el script. La herramienta
+     ahora lo apaga siempre, incluso por el camino de error.
+
+════════════════════════════════════════════════════════════════════════
+## SENSORES POR STREAMING — 10 de 11 funcionan
+════════════════════════════════════════════════════════════════════════
+  Datos reales, 4 s a interval=60 ms, robot quieto:
+
+  color_detection  52 muestras  is_valid=True R=193 G=167 B=149
+  ambient_light    52 muestras  is_valid=True Light=12.487
+  quaternion       65 muestras  W=0.998 X=0.007 Y=-0.062
+  imu              65 muestras  Pitch=1.089 Roll=-7.040 Yaw=-3.051
+  accelerometer    65 muestras  X=-0.123 Y=-0.016 Z=0.959
+  gyroscope        65 muestras  X=0.057 Y=-0.263 Z=0.000
+  locator          65 muestras  X=0.000 Y=0.000
+  velocity         65 muestras  X=0.000 Y=0.000
+  speed            65 muestras  Speed=0.000
+  encoders         65 muestras  LeftTicks=15359 RightTicks=17258
+  core_time        0 muestras   <- NO LO TRANSMITE EL FIRMWARE
+
+  DOS SEÑALES DE QUE LOS DATOS SON BUENOS Y NO RUIDO:
+    · accelerometer Z = 0.959 g  -> es la gravedad, robot horizontal
+    · imu Roll = -7.040 grados   -> COINCIDE con el pitch de -7 grados
+      medido independientemente en el arbol TF (fichero 08). Dos sensores
+      distintos dicen lo mismo: EL ROBOT ESTA INCLINADO unos 7 grados.
+      Sin determinar si es del suelo o del montaje.
+
+  🔴 core_time NO EXISTE en el firmware 9.1.462. Esta declarado en el enum
+     del SDK y el RVR no lo entrega. VERIFICADO AISLANDOLO: 0 muestras solo
+     y 0 acompañado, mientras quaternion daba 30 en la misma configuracion.
+     No es conflicto de slots. No lo usa nada del driver, asi que no
+     bloquea — pero habria costado tiempo a quien lo intentara.
+
+  ⚠️ El sensor de color NECESITA enable_color_detection(True) antes de
+     transmitir. Sin eso devuelve ceros y PARECE roto.
+
+════════════════════════════════════════════════════════════════════════
+## SENSORES PUNTUALES (peticion/respuesta) — los 7 funcionan
+════════════════════════════════════════════════════════════════════════
+  bateria              {'percentage': 100}
+  estado de tension    {'state': 1}
+  RGBC del color       {'red_channel_value': 271, 'green_channel_value': 488,
+                        'blue_channel_value': 193, 'clear_channel_value': 857}
+  luz ambiente         {'ambient_light_value': 9.99}
+  encoders             {'encoder_counts': [15359, 17258]}
+  firmware Nordic      {'major': 9, 'minor': 1, 'revision': 462}   target=1
+  firmware ST          {'major': 9, 'minor': 2, 'revision': 482}   target=2
+
+  ⚠️ get_main_application_version() EXIGE el argumento 'target': el RVR
+     tiene DOS procesadores. Sin el: TypeError. De aqui sale la version del
+     ST (9.2.482), que el proyecto no tenia documentada — solo la Nordic.
+
+════════════════════════════════════════════════════════════════════════
+## RESUMEN
+════════════════════════════════════════════════════════════════════════
+  37 comprobaciones correctas · 0 fallos · 2 avisos
+  Los 2 avisos son: core_time (firmware) y el recordatorio de que los LEDs
+  se verifican a la vista.
+
+  TODO lo que el SDK ofrece de LEDs y sensores FUNCIONA, salvo core_time.
+  El driver de ROS 2 solo expone /color de todo esto: los 16 servicios que
+  faltan por portar tienen el hardware detras ya verificado.

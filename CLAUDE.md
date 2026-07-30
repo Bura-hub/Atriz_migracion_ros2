@@ -128,6 +128,25 @@ posterior. `fase_1_higiene_so.sh` lo deshabilita.
 plano. En 20.04 estaba así; en la imagen de **Server 24.04 ya viene `600`**. Compruébalo, no
 lo asumas en ninguna de las dos direcciones. `fase_1_higiene_so.sh` lo corrige si hace falta.
 
+**El LED del sensor de color NO se apaga con `turn_leds_off()`.** No es un grupo de
+`RvrLedGroups`: se controla con `enable_color_detection`, y si no lo desactivas **se queda
+encendido indefinidamente** gastando batería. Cada `enable_color_detection(True)` necesita su
+`(False)`, también en el camino de error.
+
+**Construir `SpheroRvrAsync` desde dentro de una corrutina FALLA.** `sphero_rvr_async.py:35`
+hace `asyncio.get_event_loop().run_until_complete(...)` en el constructor, así que hacerlo
+desde una corrutina que ya corre en ese loop da
+`RuntimeError: This event loop is already running` — y el nodo arranca con todos los topics
+registrados y **cero datos**. Constrúyelo con el loop **parado**, antes de arrancar el hilo.
+Es el único `get_event_loop()` de la ruta usada, el que la auditoría señaló como el riesgo del
+port. Ha mordido **dos veces**: al escribir el driver y al escribir una herramienta de banco.
+
+**`core_time` no existe en el firmware 9.1.462.** Está en el enum del SDK y el RVR **no lo
+transmite** — 0 muestras aislado y acompañado, mientras `quaternion` sí llega. No lo usa nada.
+
+**`get_main_application_version()` exige `target`.** El RVR tiene dos procesadores:
+`target=1` es Nordic (**9.1.462**) y `target=2` es ST (**9.2.482**). Sin el argumento: `TypeError`.
+
 **🔴 El QoS de `/scan` es BEST_EFFORT, y `rclpy` pide RELIABLE por defecto.** Si no coinciden,
 **DDS no empareja publicador y suscriptor y no llega NADA** — sin error, sin aviso en el
 suscriptor. El driver del LIDAR sí lo dice, y hay que leerlo:
