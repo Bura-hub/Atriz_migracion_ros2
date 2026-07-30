@@ -307,26 +307,74 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-sec "8 · ROS 2 — PENDIENTE"
+sec "8 · ROS 2"
 
 if [[ -d /opt/ros/jazzy ]]; then
-    _ok "ROS 2 Jazzy instalado en /opt/ros/jazzy"
+    # OJO: que exista /opt/ros/jazzy y que 'source setup.bash' funcione NO prueba
+    # que la instalacion haya terminado. apt desempaqueta primero y configura
+    # despues; entre las dos fases setup.bash ya existe y dpkg dice 'unpacked'.
+    # Verificado el 2026-07-30: setup.bash presente, ROS_DISTRO=jazzy, y CERO
+    # paquetes en estado 'ii'. Se comprueba el estado de dpkg, no el fichero.
+    N_II="$(dpkg -l 'ros-jazzy-*' 2>/dev/null | grep -c '^ii' || echo 0)"
+    if (( N_II > 50 )); then
+        _ok "ROS 2 Jazzy: $N_II paquetes instalados y configurados"
+    elif (( N_II > 0 )); then
+        _mal "solo $N_II paquetes ros-jazzy configurados: la instalación está a medias" \
+             "espera a que apt termine, o: sudo dpkg --configure -a"
+    else
+        _mal "/opt/ros/jazzy existe pero NINGÚN paquete está configurado" \
+             "apt desempaquetó y no ha configurado. Espera a que termine, o: sudo dpkg --configure -a"
+    fi
+
+    # ¿Queda algo a medio instalar en TODO el sistema?
+    A_MEDIAS="$(dpkg -l 2>/dev/null | grep -vE '^(ii|rc|un)' | grep -cE '^[a-z]{2} ' || echo 0)"
+    (( A_MEDIAS == 0 )) && _ok "ningún paquete a medio instalar" \
+        || _avi "$A_MEDIAS paquete(s) en estado intermedio" \
+                "dpkg -l | grep -vE '^(ii|rc)' — puede hacer falta: sudo dpkg --configure -a"
+
+    # ros-base, no desktop: son ~236 paquetes con Gazebo y RViz en un robot sin
+    # pantalla, y fue una de las causas de lentitud del sistema anterior.
+    dpkg -l ros-jazzy-desktop 2>/dev/null | grep -q '^ii' \
+        && _mal "ros-jazzy-desktop instalado: Gazebo y RViz en un robot sin pantalla" \
+                "debe ser ros-jazzy-ros-base. RViz2 va en un portátil" \
+        || _ok "sin ros-jazzy-desktop (correcto: ros-base)"
+
+    for p in ros-jazzy-ros-base ros-jazzy-rclpy ros-dev-tools; do
+        EST="$(dpkg-query -W -f='${Status}' "$p" 2>/dev/null || echo 'ausente')"
+        case "$EST" in
+            *"ok installed") _ok "$p instalado y configurado" ;;
+            *unpacked)       _mal "$p desempaquetado pero SIN configurar" "sudo dpkg --configure -a" ;;
+            *)               _avi "$p: $EST" ;;
+        esac
+    done
+    command -v colcon >/dev/null && _ok "colcon disponible" \
+        || _mal "falta colcon: no se podrá compilar el workspace" "apt install ros-dev-tools"
+
+    # ROS_DOMAIN_ID: uno por robot. Es la Decisión 1 de ARQUITECTURA.md, no un
+    # detalle: dos robots en el mismo dominio se ven entre si en DDS.
     if [[ -n "${ROS_DOMAIN_ID:-}" ]]; then
         ESPERADO="$(hostname | grep -oE '[0-9]+$' | sed 's/^0*//')"
         comprobar "ROS_DOMAIN_ID" "$ROS_DOMAIN_ID" "$ESPERADO" \
-                  "un dominio por robot; ver ARQUITECTURA.md D1. Lo fija /etc/profile.d/atriz-robot.sh"
+                  "un dominio por robot; ARQUITECTURA.md D1. Lo fija /etc/profile.d/atriz-robot.sh"
     else
-        _avi "ROS_DOMAIN_ID no está definido en este shell" "source /etc/profile.d/atriz-robot.sh"
+        _avi "ROS_DOMAIN_ID no definido en este shell" \
+             "en la flota lo pone /etc/profile.d/atriz-robot.sh; en el robot de referencia, ~/.bashrc"
     fi
-    dpkg -l ros-jazzy-desktop 2>/dev/null | grep -q '^ii' \
-        && _avi "ros-jazzy-desktop instalado: son ~236 paquetes con Gazebo y RViz en un robot sin pantalla" \
-                "debe ser ros-jazzy-ros-base" \
-        || _ok "sin ros-jazzy-desktop (correcto: ros-base)"
+
+    # Si existen los dos, .bashrc gana (se lee despues) y deja el dominio fijo a 1
+    # en un robot que deberia ser otro. Fallo silencioso: dos robots, un dominio.
+    if [[ -f /etc/profile.d/atriz-robot.sh ]] \
+       && grep -q 'ROS_DOMAIN_ID' "$HOME/.bashrc" 2>/dev/null; then
+        _mal "ROS_DOMAIN_ID está definido en ~/.bashrc Y en /etc/profile.d/atriz-robot.sh" \
+             "el .bashrc gana y pisa la identidad del robot: quítalo del .bashrc"
+    fi
 else
-    _nota "ROS 2 aún no instalado — es la Etapa E. Nada que comprobar todavía."
+    _nota "ROS 2 aún no instalado — es la Etapa E1 (manual, cap. 5.2)."
 fi
-_nota "PENDIENTE de añadir aquí: /dev/ydlidar, unidades systemd del stack,"
-_nota "rosbridge en :9090, árbol TF conectado, y frecuencias de /odom y /scan."
+
+_nota "PENDIENTE de añadir aquí cuando exista: /dev/ydlidar, el driver en rclpy,"
+_nota "unidades systemd del stack, rosbridge en :9090, árbol TF conectado y"
+_nota "las frecuencias de /odom (~16.5 Hz) y /scan (~10 Hz)."
 
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ $HARDWARE -eq 1 ]]; then

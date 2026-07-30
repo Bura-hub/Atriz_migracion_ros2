@@ -147,15 +147,35 @@ más trampas de las que caben en una lista de pasos.
 
 ### Por qué imagen dorada y no aprovisionar 15 robots por red
 
-Es una decisión de **ancho de banda**, no de comodidad.
+Es una decisión de **ancho de banda**, no de comodidad. Y esta vez con cifras medidas, no
+estimadas.
 
-Aprovisionar un robot desde cero descarga **~1.5 GB**: `full-upgrade` + kernel nuevo +
-`iw` + `python3-pip` + `python3-aiohttp` + `pyserial-asyncio` + ROS 2 Jazzy y sus
-dependencias. Multiplicado por 15 robots son **~22 GB sobre la única AP del laboratorio** —
-que es justo el [riesgo nº4 de esta página](#4--el-riesgo-de-red-sigue-sin-medir-y-es-el-principal),
-el que sigue sin medir y el más probable.
+**Medido el 2026-07-30 aprovisionando `rvr-01`:**
 
-Con imagen dorada, esos 22 GB son **0 GB de red**: se escriben por SD desde el PC.
+| Paso | Descarga | En disco |
+|---|---|---|
+| `ros-jazzy-ros-base` + `ros-dev-tools` | **157 MB** (509 paquetes) | 703 MB |
+| `apt full-upgrade` inicial + kernel nuevo | ~120 MB | — |
+| `iw`, `python3-pip`, `python3-aiohttp`, `pyserial-asyncio` | ~2.5 MB | ~11 MB |
+| Las 46 actualizaciones pendientes de `noble-updates` | pendiente de medir | — |
+
+**Del orden de 300 MB de descarga por robot**, y eso *antes* de compilar el workspace o de
+instalar el driver del LIDAR y Nav2, que vendrán después.
+
+> ⚠️ Una versión anterior de este documento decía «~1.5 GB por robot». Era una **estimación
+> presentada como dato**, y estaba inflada unas cinco veces. Corregido el 2026-07-30 con las
+> cifras reales de `apt`. La conclusión no cambia, pero el número sí: **mide antes de
+> afirmar.**
+
+Con 15 robots eso es del orden de **4-5 GB sobre la única AP del laboratorio**, que es justo el
+[riesgo nº4 de esta página](#4--el-riesgo-de-red-sigue-sin-medir-y-es-el-principal) — el que
+sigue sin medir y el más probable. Con imagen dorada son **0 GB de red**: se escriben por SD
+desde el PC.
+
+Y hay un segundo argumento, más fuerte que el ancho de banda: **el tiempo**. En el Pi 4, esos
+509 paquetes tardan del orden de 15-20 minutos en desempaquetarse e instalarse. Por 15 robots
+son varias horas de espera; grabar una imagen son ~8 minutos desatendidos por tarjeta, y se
+pueden grabar varias en paralelo con varios lectores USB.
 
 **Pero una imagen que nadie sabe reconstruir es una caja negra**, y ese es exactamente el
 problema del `MANUAL SPHERO.docx` original: describía un sistema que nadie podía rehacer. De

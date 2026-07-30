@@ -1023,30 +1023,107 @@ sudo apt install -y ros-jazzy-ros-base ros-dev-tools
 
 ### 5.3 Entorno
 
-En `~/.bashrc`:
+🔴 **`ROS_DOMAIN_ID` distinto por robot no es un detalle, es la Decisión 1 de la arquitectura.**
+Si dos robots comparten dominio, se ven entre sí en DDS y el descubrimiento multicast entre
+~160 participantes sobre WiFi satura la red. Ver `ARQUITECTURA.md`, Decisión 1.
+
+**En la flota lo fija `atriz-first-boot`**, leyendo `/boot/firmware/robot_id.txt` y escribiendo
+`/etc/profile.d/atriz-robot.sh`. Ese es el mecanismo bueno: un fichero por robot, generado, no
+editado a mano. Ver `FLOTA.md`.
+
+**Pero ese servicio no está instalado en el robot de referencia** hasta que se ejecute
+`fase_6_preparar_imagen_dorada.sh`. Mientras tanto, a mano en `~/.bashrc`:
+
 ```bash
+cat >> ~/.bashrc <<'EOF'
+
+# ── ROS 2 Jazzy ──────────────────────────────────────────────────────────────
 source /opt/ros/jazzy/setup.bash
 export ROS_DOMAIN_ID=1                       # ← el número de ESTE robot (1..16)
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 [ -f ~/atriz_ws/install/setup.bash ] && source ~/atriz_ws/install/setup.bash
+EOF
+exec bash          # o cierra y abre la sesión SSH
 ```
 
-**`ROS_DOMAIN_ID` distinto por robot** es una decisión de arquitectura, no un detalle: aísla
-completamente cada robot en DDS. Ver `ARQUITECTURA.md`, Decisión 1.
+> ⚠️ **Si algún día existen los dos** (`~/.bashrc` y `/etc/profile.d/atriz-robot.sh`), el
+> `.bashrc` gana porque se lee después — y te quedarás con un `ROS_DOMAIN_ID` fijo a 1 en un
+> robot que debería ser otro. Al preparar la imagen dorada, **quita estas líneas del
+> `.bashrc`** y deja solo el `source` del setup, o tendrás dos robots en el mismo dominio sin
+> que nada avise. `verificar_robot.sh` compara `ROS_DOMAIN_ID` con el número del hostname
+> precisamente para cazar eso.
+
+**`RMW_IMPLEMENTATION=rmw_fastrtps_cpp`** se fija de forma explícita aunque sea el valor por
+defecto de Jazzy: así el comportamiento no cambia si un día lo cambian, y queda documentado qué
+middleware se está usando cuando haya que depurar la red.
 
 ### 5.4 Compilar el workspace
 
+🔴 **En este punto NO intentes compilar.** El código de `migracion-ros2` es **ROS 1 (catkin)**:
+los tres `package.xml` declaran `catkin` y `Atriz_rvr_node.py` tiene **99 referencias a
+`rospy`**, que no existe en ROS 2. `colcon build` fallará, y es lo esperado.
+
+Medido el 2026-07-30 sobre `migracion-ros2` (`24c7749`):
+
+| | |
+|---|---|
+| `Atriz_rvr_node.py` | **1704 líneas** |
+| referencias a `rospy.*` | **99** |
+| llamadas a `asyncio.run()` | **48**, cada una crea y destruye un event loop |
+| paquetes | 3, los tres **catkin** (no `ament`) |
+| interfaces | 6 `.msg` + 20 `.srv`, todas registradas correctamente |
+
+**Lo que sí está validado en este punto es el SDK**, que es Python puro, no necesita compilarse,
+y es la pieza insustituible. El driver es código propio y por tanto reescribible.
+
+El port es la **Fase 2 del plan** y el capítulo 6 de este manual. Cuando exista, aquí irá:
+
 ```bash
 cd ~/atriz_ws
-rosdep init 2>/dev/null; rosdep update
 rosdep install --from-paths src --ignore-src -r -y
 colcon build --symlink-install
 source install/setup.bash
 ```
 
-> ⚠️ **El código de `migracion-ros2` es todavía ROS 1 (catkin).** No compilará con colcon
-> hasta el port del capítulo 6. En este punto solo interesa tener el **SDK** accesible, que
-> es Python puro y no necesita compilación.
+> `rosdep` ya viene inicializado por `provision.sh`. Si lo haces a mano, **`rosdep update` se
+> ejecuta como tu usuario, NO con `sudo`**: con `sudo` deja ficheros de root en `~/.ros` y
+> después falla en silencio.
+
+### 5.4.1 ⚠️ «Existe `setup.bash`» NO significa «ROS 2 está instalado»
+
+En un Pi 4, instalar 509 paquetes tarda del orden de **15-20 minutos**, y `apt` los procesa en
+dos fases: primero desempaqueta y luego configura. Entre una y otra, el sistema está en un
+estado engañoso:
+
+```
+$ ls /opt/ros/jazzy/setup.bash        # existe ✓
+$ source /opt/ros/jazzy/setup.bash; echo $ROS_DISTRO
+jazzy                                  # responde ✓
+
+$ dpkg-query -W -f='${Package} ${Status}\n' ros-jazzy-ros-base
+ros-jazzy-ros-base install ok unpacked      # ← NO configurado
+$ dpkg -l 'ros-jazzy-*' | grep -c '^ii'
+0                                            # ← CERO paquetes terminados
+```
+
+**El fichero existe, la variable responde, y no hay ni un paquete configurado.** Pasó el
+2026-07-30: se dio por terminada la instalación mirando `setup.bash` y `dpkg` decía otra cosa.
+
+**Cómo saber de verdad si terminó:**
+```bash
+pgrep -af 'apt install|^dpkg'                    # vacío = apt ha soltado el sistema
+dpkg -l 'ros-jazzy-*' | grep -c '^ii'            # debe ser un número grande, no 0
+dpkg -l | grep -vE '^(ii|rc)' | grep -E '^[a-z]{2} '   # vacío = nada a medias
+```
+
+Los dos primeros caracteres de `dpkg -l` son el estado: **`ii` = instalado y configurado**.
+`iU` o `it` significan «a medio hacer», y `apt` puede necesitar
+`sudo dpkg --configure -a` si algo se interrumpió.
+
+> **La lección, que es la de siempre en este proyecto:** un artefacto presente no prueba que el
+> proceso haya terminado. Igual que un nodo que arranca no prueba que el enlace UART funcione
+> (cap. 1.5), o que un servicio en verde no prueba que haya hecho su trabajo (cap. 4.3).
+> **Comprueba el efecto, no el indicio.**
 
 ### 5.5 Verificación del capítulo 5
 
