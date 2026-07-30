@@ -32,6 +32,14 @@ Sirven para responder «¿es culpa del robot o de mi código?», que es la prime
 | 🚗 `verificar_inverted_lidar.py` | ¿coinciden `/scan` y `/odom` en el sentido de giro? | ±48°, opuestos, calidad 0.93 |
 | 🚗 `caracterizar_deriva_slam.py` | Repite la prueba de SLAM N veces y da la **distribución** de la deriva | mediana 1.0 / 2.7 cm, n=6 |
 
+Y sin ROS, pero moviendo el robot:
+
+| Script | Qué mide | Referencia medida |
+|---|---|---|
+| 🚗 `medir_velocidad_rvr.py --calibrar` | Avanza 1 m y para, para medirlo **con cinta métrica** | locator 101.1 vs 101.0 reales |
+| 🚗 `medir_velocidad_rvr.py --marco` | ¿`Velocity` viene en marco mundo o robot? | **mundo**, 0.1° de coincidencia |
+| 🚗 `medir_velocidad_rvr.py` | Las 4 fuentes de velocidad a la vez contra el desplazamiento | `Velocity` y `Speed`: 1 % de error |
+
 ## Cuánto espacio hace falta
 
 `medir_slam_ros2.py` es la más exigente: gira 360° y luego avanza y retrocede en tramos.
@@ -53,9 +61,12 @@ encima de zócalos y cajas bajas, y por debajo de mesas. «Despejado a ras de su
 
 ## Tres reglas que estas herramientas aprendieron a base de fallar
 
-1. **Mide POSICIÓN, nunca velocidad.** El stream `Velocity` del RVR es basura: reportaba
-   0.001 m/s con el robot a 0.147 m/s reales. Una herramienta concluyó «el robot NUNCA se
-   movió» mientras cruzaba la habitación.
+1. **Mide POSICIÓN, nunca velocidad — y sobre todo, mira EN QUÉ MARCO viene lo que lees.**
+   Una herramienta concluyó «el robot NUNCA se movió» mientras cruzaba la habitación, porque
+   leía `Velocity.X` y el robot iba encarado a ~90° del eje X del locator. De ahí salió el
+   hallazgo «el stream `Velocity` es basura», que estuvo un día en la documentación y
+   **se retractó el 2026-07-31**: el stream es exacto (0 % de error), viene en el marco del
+   MUNDO, y quien estaba mal era el driver.
 2. **Suscríbete a `/scan` y `/odom` con BEST_EFFORT.** `rclpy` pide RELIABLE por defecto, DDS
    no empareja, y **no llega nada, sin error**. Sería un falso positivo perfecto.
 3. **Pregúntate si lo que mides PUEDE cambiar.** `medir_slam_ros2.py` comprobaba si el mapa

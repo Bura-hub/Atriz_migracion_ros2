@@ -516,8 +516,12 @@ Resultado esperado: **el mapa crece**. En `rvr-01`, 2367 → 3299 celdas (5.92 �
 2. **La inclinación de ~8°** del robot, confirmada por tres vías independientes (árbol TF,
    `Roll` de la IMU y acelerómetro). Causa sin determinar. Para SLAM 2D funciona; para Nav2 hay
    que resolverla.
-3. **La velocidad de `/odom`** — el stream `Velocity` del RVR es basura (0.001 m/s con el robot
-   a 0.147 real). No bloquea SLAM, sí Nav2. Tres opciones, ninguna probada.
+3. **Dos bugs de marcos de referencia** (medidos el 2026-07-31, evidencia
+   `15_velocidad_odom.txt`). No bloquean SLAM, sí Nav2, y se arreglan juntos:
+   - la velocidad de `/odom` sale en el marco del **mundo** metida en un campo que ROS define
+     en el marco del **robot**. 🔴 El sensor está bien: `Velocity` es **exacto**;
+   - `reset_yaw()` no pone a cero el yaw, y la orientación de `/odom` queda **~15° desfasada**
+     respecto a su propia posición.
 4. **Nav2** (plan, Fase 4b) y los **16 servicios y 4 topics** del driver sin portar.
 5. **Plataforma web** (Fase 5) — al final. **Arreglar primero la parada de emergencia**, que
    está confirmada como no funcional.

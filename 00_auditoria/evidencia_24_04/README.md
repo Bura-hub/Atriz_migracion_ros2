@@ -33,6 +33,7 @@ Los ficheros van **numerados en orden cronológico**, que es el mismo orden de l
 | `12_keepalive_rvr.txt` | El timeout del RVR **medido en 300.6 s**, y el arreglo verificado: 2 huecos → **0** | Fase 4 |
 | `13_fase4_cerrada.txt` | **Fase 4 cerrada**: el mapa crece al moverse. Tres arreglos y dos herramientas propias corregidas | Fase 4 |
 | `14_deriva_slam_caracterizada.txt` | La deriva, con 6 corridas: mediana **1.0 / 2.7 cm**. Los 87.8 cm eran una anomalía | Fase 4 |
+| `15_velocidad_odom.txt` | 🔴 **Retracta el fichero 07**: `Velocity` es exacto. Dos bugs de marcos en el driver | Fase 4b |
 | `mapas/` | `mapa_fase4_banco` (robot casi quieto) y `mapa_fase4_cerrada` (8.25 m² mapeados) — formato nativo de slam_toolbox | Fase 4 |
 | `lidar_x2_2026-07-30.txt` | Salida de `x2_parse.py` | B |
 | `raw_uart_2026-07-30.txt` | Salida de `raw_uart.py`: «el RVR CONTESTA» | B |
@@ -72,10 +73,17 @@ de higiene lo necesita para apagar el power-save del WiFi.
 
 ## Y los hallazgos que más caros habrían salido
 
-**🔴 El stream `Velocity` del RVR no sirve** (fichero 07). Con el robot avanzando a
-**0.147 m/s** comprobados por desplazamiento, el sensor reportaba **0.001 m/s**. El driver
-publica `odom.twist.twist.linear` desde ahí, así que **la velocidad de `/odom` es basura** — y de
-ahí comen SLAM y `robot_localization`. La **posición** sí es buena.
+**🔴 La velocidad de `/odom` sale mal, pero NO por el sensor** (ficheros 07 y **15**). El
+fichero 07 concluyó que el stream `Velocity` era basura, porque reportaba **0.001 m/s** con el
+robot a **0.147 m/s** reales.
+
+→ ⚠️ **Esa conclusión se RETRACTÓ el 2026-07-31** (fichero 15). `Velocity` es **exacto**: 0 % de
+error en módulo y 0.1° en dirección. Viene en el marco del **mundo**, y la medición original
+leyó solo su componente X con el robot encarado a ~90° de ese eje. Lo que hay es un **bug en el
+driver**, que copia esa X a un campo que ROS define en el marco del **robot**.
+
+→ 🔴 Y al medirlo apareció otro: **`reset_yaw()` no pone a cero el yaw**, así que la orientación
+de `/odom` está **~15° desfasada** de su propia posición.
 
 **🔴 La posición del LIDAR estaba 7.4 cm corta** (fichero 08). El proyecto arrastraba `0.10 m`
 desde un `static_transform_publisher` que la propia documentación admitía como suposición. El

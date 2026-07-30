@@ -341,8 +341,13 @@ celdas del mapa— y no que un proceso exista o un comando devuelva 0.
 
 1. **La deriva de la localización no está caracterizada.** Dos corridas dieron 87.8 cm y
    0.9 cm de error al volver al punto de partida. Repetir varias veces en espacio despejado.
-2. **La velocidad de `/odom` es basura** (el stream `Velocity` del RVR reporta 0.001 m/s con el
-   robot a 0.147 real). No bloquea SLAM, sí Nav2. Tres opciones, ninguna probada.
+2. **Dos bugs de marcos de referencia en `/odom`**, medidos el 2026-07-31. 🔴 **El sensor está
+   bien** — `Velocity` es exacto (0 % de error). Lo que falla es el driver:
+   - copia una velocidad del marco del **mundo** a `twist.linear.x`, que ROS define en el marco
+     del **robot**;
+   - `reset_yaw()` no pone a cero el yaw, y la orientación queda **~15° desfasada** de la
+     posición del mismo mensaje.
+   Se arreglan juntos, y son pocas líneas. Evidencia: `15_velocidad_odom.txt`.
 3. **El robot está inclinado ~8°**, confirmado por tres vías independientes (árbol TF, `Roll`
    de la IMU y acelerómetro). Causa sin determinar. Para SLAM 2D funciona; para Nav2 hay que
    resolverlo, porque por REP-105 `odom → base_footprint` debería ser plana (x, y, yaw) y el

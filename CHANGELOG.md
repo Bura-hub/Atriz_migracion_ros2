@@ -4,6 +4,86 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 (parte 4) — 🔴 RETRACTACIÓN: el stream `Velocity` NO era basura
+
+Manual, cap. 2 y 10. Evidencia: `00_auditoria/evidencia_24_04/15_velocidad_odom.txt`.
+Herramienta nueva: `mediciones_banco/medir_velocidad_rvr.py`.
+
+### Lo que este proyecto daba por firme, y era falso
+
+Desde el 2026-07-30, en `CLAUDE.md`, el manual, `TRASPASO.md`, el CHANGELOG y en comentarios
+del propio driver:
+
+> «El stream `Velocity` del RVR no refleja la velocidad real. Con el robot avanzando a
+> 0.147 m/s comprobados por desplazamiento, el sensor reportaba 0.001 m/s.»
+
+Se usó para declarar la velocidad de `/odom` un **bloqueante de Nav2**.
+
+### Lo medido
+
+```
+dirección del desplazamiento del locator:  +90.2°
+dirección del vector Velocity:             +90.1°     ← 0.1° de diferencia
+módulo real 0.199 m/s  ·  Velocity 0.200              ← 0 % de error
+```
+
+**`Velocity` es EXACTO.** La observación original era cierta, pero la conclusión no: el stream
+viene en el marco del **MUNDO**, y se leyó solo su componente X con el robot encarado a ~90° de
+ese eje. Ahí X vale ~0 aunque el robot cruce la habitación.
+
+### 🔴 Bug A — el driver mete una velocidad del mundo en un campo del robot
+
+`odom.twist` va expresado en `child_frame_id`, o sea en el marco del **robot**. Medido a través
+de ROS con el robot avanzando recto a 0.199 m/s:
+
+```
+odom.twist.linear publicado:  (-0.000, -0.200)
+debería ser:                  (+0.199, +0.000)
+```
+
+Solo coincide cuando el robot mira al eje X del odom — que es justo el caso en el que se probó.
+
+### 🔴 Bug B (nuevo) — la orientación de `/odom` no concuerda con su posición
+
+```
+yaw en reposo justo tras arrancar el driver:  -74.6°   ← reset_yaw() NO lo pone a cero
+desplazamiento -90.2°  ·  yaw publicado -76.0°  ->  desfase -14.2°
+desplazamiento -90.0°  ·  yaw publicado -74.5°  ->  desfase -15.5°   (driver reiniciado)
+```
+
+**~15° entre la orientación y la posición del mismo mensaje.** ⚠️ **SIN DETERMINAR** si
+sobrevive a un apagado del RVR: las dos medidas son de la misma sesión de encendido. 👤 Hace
+falta apagar y encender el robot y repetir.
+
+### No se arregla ninguno todavía, a propósito
+
+El arreglo de A es proyectar sobre el rumbo, así que **depende de B**. Aplicarlo ahora daría un
+3 % de error en la proyección y dejaría los 15° intactos. Los dos se documentan en el código y
+se arreglan juntos.
+
+### Lo demás que salió
+
+| | |
+|---|---|
+| **Locator validado con cinta métrica** | 101.1 medidos contra **101.0 reales** — 1 mm en 1 m |
+| **Encoders calibrados** | **7792 ticks/m**, contra la cinta y no contra otro sensor |
+| `Speed` (escalar) | existe, y es el módulo de `Velocity`. Comprobación cruzada barata |
+| **El robot no alcanza la velocidad comandada** | 0.10→87 %, 0.20→76 %, **0.40→63 %**. Limitador de aceleración del firmware. Importa para Nav2 |
+
+### Dos errores de método míos
+
+- **Choqué el robot.** Ejecuté `--calibrar` (avanza 1 m y para) y después el barrido **sin
+  recolocarlo**. La herramienta hace `reset_locator_x_and_y()`, así que su cero decía 0 mientras
+  el robot estaba un metro adelantado. 🔴 **Poner a cero la odometría no es devolver el robot al
+  inicio**: el cero de software se mueve con el robot. Sin daños. Arreglado en la herramienta —
+  cada modo vuelve al punto de partida y el barrido va y vuelve en cada velocidad.
+- **Elegí 180° para una prueba de signo. Dos veces.** 180° es exactamente el ángulo donde el
+  signo de un giro es ambiguo, y ya me había pasado al determinar el yaw. La prueba buena no
+  gira nada: compara la dirección de `Velocity` con la del desplazamiento del locator, que ya
+  están en el mismo marco.
+
+---
+
 ## 2026-07-31 (parte 3) — La deriva de SLAM, caracterizada: es pequeña
 
 Cierra la única incógnita que dejó la Fase 4. Manual, cap. 9.12. Evidencia:
@@ -720,6 +800,13 @@ Medido aislando el SDK, sin ROS de por medio:
 |---|---|---|---|
 | `drive_rc_si_units(0.15)` | **29.4 cm** = 0.147 m/s | **0.001 m/s** | **1.1 cm** |
 | `drive_with_heading(64)` | 45.6 cm | 0.028 m/s | **11.3 cm** |
+
+> ⚠️ **RETRACTADO el 2026-07-31.** Lo que sigue se conserva como registro de lo que se midió
+> aquel día, pero **la conclusión era falsa**: el stream `Velocity` es **exacto** (0 % de error
+> en módulo, 0.1° en dirección). Viene en el marco del **mundo**, y aquí se leyó solo su
+> componente X con el robot encarado a ~90° de ese eje. El fallo está en el **driver**, que la
+> copia a un campo que ROS define en el marco del **robot**.
+> Detalle en `00_auditoria/evidencia_24_04/15_velocidad_odom.txt`.
 
 **Consecuencia grave:** el driver publica `odom.twist.twist.linear` desde ese sensor, así que
 **la velocidad de `/odom` es basura**. Afecta a SLAM y a `robot_localization`. La **posición**

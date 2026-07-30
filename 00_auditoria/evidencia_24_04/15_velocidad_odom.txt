@@ -1,0 +1,196 @@
+═══════════════════════════════════════════════════════════════════════════════
+LA VELOCIDAD DE /odom — el stream NO era basura: el driver la usa mal
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Herramienta: mediciones_banco/medir_velocidad_rvr.py
+Manual, cap. 2 y 10.
+
+🔴🔴 ESTE FICHERO RETRACTA UN HALLAZGO DOCUMENTADO DESDE EL 2026-07-30.
+
+    Lo que decia el proyecto:
+      "El stream `Velocity` del RVR NO refleja la velocidad real. Con el robot
+       avanzando a 0.147 m/s comprobados por desplazamiento, el sensor
+       reportaba 0.001 m/s."
+    Estaba en CLAUDE.md, el manual, TRASPASO.md, el CHANGELOG y en comentarios
+    del propio driver. Se uso para declarar la velocidad de /odom un BLOQUEANTE
+    de Nav2.
+
+    LO MEDIDO HOY:
+      `Velocity` acierta el modulo con un 0 % de error y la direccion con 0.1°.
+      NO es basura. ES EXACTO.
+
+    La observacion original era CIERTA, pero la conclusion era falsa: se leyo
+    solo la componente X de un vector que viene en el marco del MUNDO, con el
+    robot encarado a ~90° de ese eje. X valia ~0 mientras el robot cruzaba la
+    habitacion.
+
+
+───────────────────────────────────────────────────────────────────────────────
+0. LA VERDAD FISICA — validada con cinta metrica, no con otro sensor
+───────────────────────────────────────────────────────────────────────────────
+  El robot avanzo en linea recta y una persona lo midio con cinta:
+
+      locator:  101.1 cm
+      cinta:    101.0 cm        -> 1 mm de error en 1 m  (0.1 %)
+
+  ✅ El locator queda VALIDADO como referencia de todo lo demas.
+  ✅ Y de paso calibra los encoders contra la cinta, no contra otro sensor:
+         7870 ticks / 1.010 m = 7792 ticks/m
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. LAS CUATRO FUENTES, MEDIDAS A LA VEZ EN LA MISMA CORRIDA
+───────────────────────────────────────────────────────────────────────────────
+   comandada     REAL   Velocity      Speed    deriv  σ deriv   encoders
+        0.10    0.087      0.088      0.088    0.087    0.035    680.7 t/s
+        0.15    0.121      0.121      0.121    0.121    0.061    947.5
+        0.20    0.151      0.153      0.153    0.151    0.086   1189.7
+        0.30    0.196      0.200      0.200    0.196    0.141   1551.6
+        0.40    0.251      0.256      0.256    0.251    0.190   1993.0
+
+  `Velocity` : error mediano del 1 %   ✅ USABLE
+  `Speed`    : error mediano del 1 %   ✅ USABLE  (es el modulo de Velocity)
+  derivar el locator: σ = 0.086 m/s de RUIDO muestra a muestra
+  encoders   : llegan bien; 7792 ticks/m
+
+  Los cuatro streams caben a la vez en el mismo slot: ~140 muestras en 8 s.
+
+  ⚠️ La ultima fila (0.40 m/s) puede estar contaminada: es donde el robot choco
+     (ver seccion 5). Los demas valores son limpios.
+
+  📝 EL ROBOT NO ALCANZA LA VELOCIDAD COMANDADA, y el deficit crece:
+         0.10 -> 87 %    0.15 -> 81 %    0.20 -> 76 %
+         0.30 -> 65 %    0.40 -> 63 %
+     No es un fallo de medida: las cuatro fuentes coinciden entre si. Es el
+     limitador de aceleracion del firmware sobre tramos cortos. Importa para
+     Nav2: pedirle 0.4 m/s no da 0.4 m/s.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. 🔴 LA PRUEBA QUE LO DECIDE — `Velocity` esta en el marco del MUNDO
+───────────────────────────────────────────────────────────────────────────────
+  Un solo tramo recto hacia delante. Se comparan dos direcciones que ya estan
+  en el mismo marco, asi que NO hace falta girar ni conocer el yaw:
+
+      direccion del DESPLAZAMIENTO del locator:  +90.2°
+      direccion del vector Velocity:             +90.1°
+      diferencia:                                  0.1°
+
+      modulo real 0.199 m/s  ·  modulo de Velocity 0.200 m/s  ->  0 % de error
+
+      Velocity medido:            (-0.000, +0.200)
+      si fuera marco del ROBOT:   (+0.199, +0.000)
+
+  -> `Velocity` apunta a donde SE MUEVE el robot en el marco del locator, no a
+     lo largo de su propio eje de avance.
+
+  ⚠️ DOS VERSIONES ANTERIORES DE ESTA PRUEBA GIRABAN 180° para comparar signos,
+     y 180° es EXACTAMENTE el angulo donde el signo de un giro es ambiguo
+     (+180 y -180 son el mismo giro). El mismo error se habia cometido ya al
+     determinar el signo del yaw. Dos veces.
+     La version buena no gira nada.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 BUG A — el driver copia una velocidad del MUNDO a un campo del ROBOT
+───────────────────────────────────────────────────────────────────────────────
+  `rvr_driver_node.py`, `_h_velocity`:
+
+      self._odom.twist.twist.linear.x = float(v['X'])
+      self._odom.twist.twist.linear.y = -float(v['Y'])
+
+  En ROS, `odom.twist` va expresado en `child_frame_id`, o sea en el marco del
+  ROBOT: avanzar da linear.x positivo SIEMPRE, mire donde mire.
+
+  Medido a traves de ROS, con el robot avanzando recto a 0.199 m/s:
+
+      odom.twist.linear publicado:  (-0.000, -0.200)
+      deberia ser:                  (+0.199, +0.000)
+
+  Solo coincide cuando el robot mira al eje X del odom — que es justo el caso en
+  el que se probo en su dia y por lo que parecio funcionar antes de fallar.
+
+  ARREGLO: proyectar sobre el rumbo.
+      vx_robot =  vx*cos(yaw) + vy*sin(yaw)
+      vy_robot = -vx*sin(yaw) + vy*cos(yaw)
+
+  ⚠️ PERO NO SE PUEDE APLICAR TODAVIA: depende del yaw, y el yaw tiene el
+     bug B.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. 🔴 BUG B (NUEVO) — la orientacion de /odom no concuerda con su posicion
+───────────────────────────────────────────────────────────────────────────────
+  El robot avanza perfectamente recto (locator y Velocity coinciden en 0.1°) y
+  sin embargo:
+
+      medicion 1:  desplazamiento -90.2°   yaw publicado -76.0°   DESFASE -14.2°
+      medicion 2:  desplazamiento -90.0°   yaw publicado -74.5°   DESFASE -15.5°
+                   (con el driver REINICIADO entre las dos)
+
+  ~15° de desfase entre la orientacion y la posicion DEL MISMO MENSAJE /odom.
+
+  Y la causa raiz, medida directamente:
+
+      yaw en reposo justo despues de arrancar el driver: -74.6°
+
+  🔴 **`reset_yaw()` NO PONE A CERO EL YAW PUBLICADO.** El driver lo llama en el
+     arranque y el cuaternion sigue dando -74.6°. Lo mismo pasa en el banco sin
+     ROS: tras `reset_yaw()`, el yaw crudo valia +75.8°.
+
+  Es decir: el marco del LOCATOR y el marco del CUATERNION tienen origenes
+  distintos, y el driver los mezcla en un mismo mensaje — posicion de uno,
+  orientacion del otro.
+
+  ⚠️ SIN DETERMINAR: si el desfase es constante tras un apagado y encendido del
+     RVR, o si es arbitrario en cada arranque. Las dos medidas de arriba son de
+     la MISMA sesion de encendido del robot, asi que no responden la pregunta.
+     Hace falta apagar y encender el RVR y repetir. Es accion del usuario.
+
+  📝 Esto acota lo que se puede concluir de la deriva de SLAM medida antes
+     (1.0-2.7 cm): salio bien CON este desfase presente, porque slam_toolbox
+     corrige con emparejado de barridos. Para Nav2, que se fia de la pose, 15°
+     no valen.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. ⚠️ EL ROBOT CHOCO — y fue un error de metodo mio
+───────────────────────────────────────────────────────────────────────────────
+  Se ejecuto `--calibrar` (avanza 1 m y para) y despues, SIN recolocar el robot,
+  el barrido de velocidades. La herramienta llama a `reset_locator_x_and_y()` al
+  arrancar, asi que su cero interno decia 0 mientras el robot estaba fisicamente
+  un metro adelantado.
+
+  🔴 PONER A CERO LA ODOMETRIA NO ES DEVOLVER EL ROBOT AL INICIO. El cero de
+     software se mueve CON el robot: todos los numeros parecen correctos
+     mientras se sale del pasillo.
+
+  Sumado a la deriva del propio barrido (+76 cm netos, porque los tramos de
+  distintas velocidades no se compensaban entre si), acabo a ~1.8 m del centro
+  de un pasillo de 3 m. Sin daños.
+
+  ARREGLADO en la herramienta:
+    · `--calibrar` vuelve al punto de partida al terminar.
+    · el barrido va Y VUELVE en CADA velocidad, en vez de alternar el sentido
+      entre velocidades. Neto ~0 siempre.
+    · aviso al arrancar de que hay que colocar el robot antes de cada modo.
+
+
+───────────────────────────────────────────────────────────────────────────────
+QUE HACER AHORA
+───────────────────────────────────────────────────────────────────────────────
+1. 👤 APAGAR Y ENCENDER EL RVR y repetir la medida del desfase (seccion 4). Es
+   lo que decide si el bug B se arregla con una constante o hay que cambiar de
+   fuente de orientacion.
+
+2. Arreglar los dos bugs JUNTOS: el de la velocidad depende del yaw.
+
+3. Cuando esten, la velocidad de /odom deja de ser un bloqueante de Nav2, y el
+   arreglo es de pocas lineas: el dato bueno ya lo manda el robot.
+
+📝 `Speed` (escalar) resulto ser el modulo de `Velocity`, asi que no aporta nada
+   que no tengamos — pero es util como comprobacion cruzada barata.
+
+📝 Los encoders funcionan y estan calibrados (7792 ticks/m). No hacen falta para
+   la velocidad, pero son la unica fuente que NO depende del marco de
+   referencia: utiles si el bug B resulta ser dificil.

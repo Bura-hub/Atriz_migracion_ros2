@@ -27,7 +27,10 @@ dos herramientas propias, y **ninguno de los fallos daba un error** (manual, cap
 **1.0 cm** (recorridos de 1.6 m) y **2.7 cm** (2.4 m), con un peor caso de 3.2 cm. El error
 cabe en una celda del mapa, así que **la pose ya no bloquea Nav2**.
 
-**El siguiente paso es la velocidad de `/odom`**, que sigue siendo basura y sí bloquea Nav2.
+**El siguiente paso son dos bugs de marcos de referencia** que bloquean Nav2 y se arreglan
+juntos: la velocidad de `/odom` sale en el marco equivocado, y `reset_yaw()` no funciona, lo
+que deja la orientación desfasada ~15° respecto a la posición. 🔴 **El sensor está bien**: el
+stream `Velocity` es exacto.
 
 ---
 
@@ -54,7 +57,8 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 | Problema | Gravedad | Estado |
 |---|---|---|
 | ~~El RVR se duerme solo y el driver no se entera~~ | seguridad operativa | ✅ **resuelto 2026-07-31**: timeout medido en **300.6 s**, keepalive cada 30 s + detector de silencio. 2 huecos → 0 |
-| 🔴 **La velocidad de `/odom` es basura.** El stream `Velocity` del RVR reporta 0.001 m/s a 0.147 m/s reales. La posición sí es buena | bloquea Nav2 | 🔴 abierto, 3 opciones sin probar — **es el siguiente paso** |
+| 🔴 **La velocidad de `/odom` sale mal, pero el sensor está bien.** `Velocity` es EXACTO (0 % de error); viene en marco MUNDO y el driver lo copia a un campo que ROS define en marco ROBOT | bloquea Nav2 | 🔴 abierto — arreglo de pocas líneas, atado al bug del yaw |
+| 🔴 **`reset_yaw()` no pone a cero el yaw**, y la orientación de `/odom` no concuerda con su posición: **~15° de desfase** | bloquea Nav2 | 🔴 **NUEVO 2026-07-31** |
 | ~~`inverted` del LIDAR sin verificar~~ | corrompe mapas | ✅ **verificado 2026-07-31**: `true` es CORRECTO. El equivocado era el yaw de `/odom` |
 | 🔴 **El robot está inclinado ~8°** (árbol TF, Roll de la IMU y acelerómetro: **tres** vías) | bloquea Nav2 | 🔴 abierto, causa sin determinar |
 | 🔴 **La parada de emergencia de la web no hace nada.** Publica en `/rvr/emergency_stop`, que no existe. Falla **en silencio** con `200 OK` | seguridad | ⏳ el topic ya existe en el driver ROS 2; falta el lado web (fase final) |
@@ -113,11 +117,24 @@ bloqueante para Nav2.** Los 87.8 cm de la Fase 4 fueron una anomalía, 30 veces 
 normal a distancia comparable — muy probablemente por rozar obstáculos, aunque **no se
 reprodujo a propósito**, así que no es una causa demostrada.
 
-### 1. 🔴 La velocidad de `/odom` — el bloqueante que queda para Nav2
+### 1. 🔴 Los dos bugs de marcos de referencia — se arreglan JUNTOS
 
-El stream `Velocity` del RVR reporta 0.001 m/s con el robot a 0.147 real. Tres opciones,
-**ninguna probada**: derivarla del locator, integrarla de los encoders, o dejarla a cero y que
-la estime `robot_localization`.
+**Medido el 2026-07-31** (evidencia `15_velocidad_odom.txt`). El sensor está bien; lo que falla
+es cómo lo usa el driver.
+
+- **Bug A — la velocidad.** `Velocity` es **exacto** (0 % de error en módulo, 0.1° en
+  dirección) pero viene en el marco del **mundo**. El driver copia su `X` a
+  `odom.twist.twist.linear.x`, que ROS define en el marco del **robot**. Publica
+  `(-0.000, -0.200)` donde debería ir `(+0.199, 0.000)`.
+- **Bug B — el yaw.** `reset_yaw()` **no pone a cero el yaw publicado** (−74.6° en reposo justo
+  tras arrancar), y la orientación de `/odom` no concuerda con su propia posición: **~15° de
+  desfase**, medido dos veces con el driver reiniciado entre medias.
+
+El arreglo de A es proyectar sobre el rumbo, así que **depende de B**.
+
+👤 **Y antes hace falta una acción tuya: apagar y encender el RVR** y repetir la medida del
+desfase. Es lo que decide si B se corrige con una constante o hay que cambiar de fuente de
+orientación. Las dos medidas que hay son de la misma sesión de encendido.
 
 ### 2. 🔴 La inclinación de ~8°, confirmada por TRES vías
 
@@ -184,10 +201,15 @@ estaba partido en dos y era el bloqueante raíz de SLAM. **Verificado sobre el r
 Medida del LIDAR: **17.45 cm** sobre el suelo (centrado, 4 cm de hueco medidos). El proyecto
 arrastraba `0.10`, que se quedaba **7.4 cm corto** y habría inclinado el mapa.
 
-🔴 **Y un bloqueante nuevo antes de SLAM: la velocidad de `/odom` es basura.** El stream
-`Velocity` del RVR reporta 0.001 m/s con el robot a 0.147 m/s reales (medido). La posición sí
-es buena. Hay que decidir de dónde sacar la velocidad —derivarla del locator, integrarla de los
-encoders, o dejarla a cero para `robot_localization`— y **ninguna opción está probada.**
+⚠️ **RETRACTADO el 2026-07-31 — se conserva porque explica cómo se llegó al error.**
+
+Esto decía: «un bloqueante nuevo antes de SLAM: la velocidad de `/odom` es basura. El stream
+`Velocity` del RVR reporta 0.001 m/s con el robot a 0.147 m/s reales».
+
+**La observación era cierta; la conclusión, falsa.** `Velocity` es **exacto** (0 % de error en
+módulo, 0.1° en dirección) y viene en el marco del **mundo**. Se leyó solo su componente X con
+el robot encarado a ~90° de ese eje, donde X vale ~0 aunque el robot cruce la habitación.
+El fallo está en el **driver**, no en el sensor. Ver `15_velocidad_odom.txt`.
 
 🔴 **Hasta que esto se haga, el driver del robot NO se ha ejecutado nunca en este sistema — y
 no puede.** No es «pendiente de probar», es **imposible**: `Atriz_rvr_node.py` es ROS 1.
