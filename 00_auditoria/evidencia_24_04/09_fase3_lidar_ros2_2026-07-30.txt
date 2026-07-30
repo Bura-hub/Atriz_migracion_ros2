@@ -1,0 +1,94 @@
+# Fase 3.2 — driver ROS del YDLIDAR X2: instalado, configurado y verificado
+# 2026-07-30 · rvr-01 · ROS 2 Jazzy
+
+## NO HAY PAQUETE APT. Hay que compilar desde fuentes.
+  Comprobado: ros-jazzy-ydlidar-ros2-driver, ros-jazzy-ydlidar y
+  ros-jazzy-ydlidar-sdk NO existen en el repositorio de ROS.
+  'apt-cache search ydlidar' -> 0 resultados.
+
+## 1. YDLidar-SDK (C++, cmake)
+  git clone --depth 1 https://github.com/YDLIDAR/YDLidar-SDK
+  commit 01cdda4 (2026-07-01)
+  cmake .. -DCMAKE_BUILD_TYPE=Release && make -j3
+    -> libydlidar_sdk.a  (estatica)
+    Solo avisos de formato %llu en los ejemplos. Nada que afecte a la libreria.
+    SWIG no esta instalado -> sin bindings de Python. No hacen falta.
+  sudo make install && sudo ldconfig
+    -> 132 ficheros, TODO bajo /usr/local/. Comprobado en seco con DESTDIR
+       antes de ejecutarlo: NO PISA NADA existente.
+       /usr/local/lib/libydlidar_sdk.a
+       /usr/local/include/{core,src}/  (39 cabeceras)
+       /usr/local/lib/cmake/ydlidar_sdk/  (para find_package)
+
+  📝 RUIDO A LIMPIAR EN LA IMAGEN DORADA: instala 17 binarios de prueba en
+     /usr/local/bin (gs_test, tof_test, tri_test, tea_test...) que no se
+     usan. No hacen dano, pero sobran en 16 robots.
+
+## 2. ydlidar_ros2_driver, rama humble
+  git clone -b humble https://github.com/YDLIDAR/ydlidar_ros2_driver
+  commit 4ef70d3 (2025-06-20) · ROS Driver Version 1.0.1 · SDK 1.2.20
+  Copiado a ~/atriz_ws/src/ (SIN .git: es codigo de terceros, no se mezcla
+  con Atriz_rvr).
+  colcon build -> Finished en 47.9s. Avisos de parametros sin usar en el
+  codigo de YDLIDAR, ningun error.
+  TRAE params/X2.yaml de fabrica: el X2 esta soportado.
+
+## 3. La regla udev de /dev/ydlidar
+  ID_PATH real de rvr-01:
+    platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.2:1.0
+  Comprobada EN SECO antes de instalarla (las 3 condiciones casan), y
+  despues en caliente:
+    /dev/ydlidar -> ttyUSB0
+  Se usa ID_PATH y no el serie porque el CP2102 reporta 0001, generico.
+  📝 SIN VERIFICAR entre robots: si en otro el lidar va en otro puerto
+     fisico, el ID_PATH sera distinto y la regla NO casara.
+
+## 4. VERIFICACION del robot completo
+  ros2 launch atriz_rvr_bringup robot.launch.py
+    -> 3 nodos: rvr_driver, robot_state_publisher, ydlidar_ros2_driver_node
+
+  tf2_echo odom laser:
+    Translation: [-0.018, -0.002, 0.141]     <- los 0.1425 del URDF
+    Rotation RPY (degree): [0.461, -7.195, 2.885]
+
+  /tf         odom -> base_link                      (el driver, 16.989 Hz)
+  /tf_static  base_footprint -> base_link
+              base_link -> {laser, imu_link, wheel_left, wheel_right}
+
+  /scan  10.1 Hz · frame_id: laser
+         255 puntos por barrido, 226 validos (89%)
+         distancias 0.326 - 3.134 m  (rango configurado 0.1 - 8.0)
+         arco -180 a 180 grados · resolucion angular 1.42 grados
+
+## 🔴 EL HALLAZGO MAS IMPORTANTE: QoS de /scan
+  El driver publica /scan como BEST_EFFORT. Un suscriptor que pida
+  RELIABLE —QUE ES EL VALOR POR DEFECTO EN rclpy— NO RECIBE NADA.
+
+  El driver lo dice, y es un mensaje excelente:
+    New subscription discovered on topic '/scan', requesting incompatible
+    QoS. No messages will be sent to it.
+    Last incompatible policy: RELIABILITY_QOS_POLICY
+
+  El primer test de esta sesion cayo justo en eso y concluyo que /scan no
+  llegaba. Con BEST_EFFORT llegan 81 barridos en 8 s.
+
+  🔴 RIESGO DIRECTO PARA LA FASE 4: si slam_toolbox se suscribe con
+     RELIABLE, no recibira ni un barrido y NO DARA NINGUN ERROR — solo un
+     mapa vacio. HAY QUE COMPROBARLO ANTES DE MAPEAR.
+
+## ⚠️ 'frequency' NO FUNCIONA en el X2 — ahora CONFIRMADO
+  Se pidio frequency: 10.0 y salieron 10.1 - 11.75 Hz segun la ventana.
+  Sin driver, con x2_parse.py, se midieron 11.48 Hz.
+  El plan marcaba como NO VERIFICADO si un X2 de canal unico acepta que se
+  le fije la velocidad del motor. CONFIRMADO: NO.
+
+  CONSECUENCIA: el apartado 8.3 del manual proponia bajar a 7 Hz para
+  ganar resolucion angular (0.84 grados en vez de 1.37). ESA VIA DE MEJORA
+  NO EXISTE si la velocidad no se puede fijar. La resolucion real medida
+  con el driver es 1.42 grados, coherente con los 1.39 de x2_parse.py.
+
+## Avisos benignos del driver, para no perseguirlos
+  [error] Fail to get baseplate device information!
+     Aparece siempre. El X2 de canal unico no responde a esa consulta.
+     El scan funciona igual. NO es un fallo.
+  Single Fixed Size: 270 / Sample Rate: 3.00K   <- informativo, correcto

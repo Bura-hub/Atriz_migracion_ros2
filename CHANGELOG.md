@@ -4,6 +4,106 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-30 (parte 7) — Fase 3 COMPLETA: `/scan` funciona y el robot arranca con un comando
+
+Paquete **nuevo** `atriz_rvr_bringup`, rama `ros2` commit `b117791`.
+
+```bash
+ros2 launch atriz_rvr_bringup robot.launch.py
+```
+
+Tres nodos que se reparten el árbol TF, verificado contra el hardware:
+
+```
+tf2_echo odom laser -> Translation: [-0.018, -0.002, 0.141]
+
+/tf         odom -> base_link                              (driver, 16.989 Hz)
+/tf_static  base_footprint -> base_link
+            base_link -> {laser, imu_link, wheel_left, wheel_right}
+/scan       10.1 Hz · frame_id: laser · 255 puntos, 226 válidos (89 %)
+            0.326 – 3.134 m · arco −180° a 180° · resolución 1.42°
+```
+
+### No hay paquete apt del driver: se compila desde fuentes
+
+Comprobado antes de compilar nada: `ros-jazzy-ydlidar-ros2-driver`, `ros-jazzy-ydlidar` y
+`ros-jazzy-ydlidar-sdk` **no existen**, y `apt-cache search ydlidar` da 0 resultados.
+
+**`YDLidar-SDK`** con cmake → 132 ficheros bajo `/usr/local`. Comprobado **en seco** con
+`make install DESTDIR=/tmp/prueba` antes de ejecutarlo: **no pisa nada** del sistema de
+paquetes. 📝 Instala 17 binarios de prueba en `/usr/local/bin` que sobran en la imagen dorada.
+
+**`ydlidar_ros2_driver` rama `humble` compila en Jazzy sin cambios** (47.9 s). Driver 1.0.1,
+SDK 1.2.20. Y **trae `params/X2.yaml` de fábrica**. Va en `~/atriz_ws/src/` **sin `.git`**: es
+código de terceros y no se mezcla con `Atriz_rvr`.
+
+### 🔴 El hallazgo más importante: el QoS de `/scan`
+
+**El driver publica `/scan` como BEST_EFFORT, y `rclpy` pide RELIABLE por defecto.** Si no
+coinciden, **DDS no empareja publicador y suscriptor y no llega nada** — sin error en el
+suscriptor.
+
+```
+New subscription discovered on topic '/scan', requesting incompatible QoS.
+No messages will be sent to it. Last incompatible policy: RELIABILITY_QOS_POLICY
+```
+
+**El primer test de esta sesión cayó justo ahí** y concluyó que `/scan` no llegaba. Con
+BEST_EFFORT llegan 81 barridos en 8 s.
+
+🔴 **Riesgo directo para la Fase 4:** si `slam_toolbox` se suscribe con RELIABLE, **no recibirá
+un solo barrido y no dará ningún error** — solo un mapa vacío. **Comprobarlo antes de mapear.**
+
+### ⚠️ `frequency` no funciona en el X2 — y eso cierra una vía de mejora
+
+Se pidió `frequency: 10.0` y `/scan` salió a **10.1–11.75 Hz**. Sin driver, con `x2_parse.py`,
+se midieron **11.48 Hz**. **El X2 de canal único ignora el parámetro:** el motor va libre.
+
+**Consecuencia:** el apartado 8.3 del manual proponía bajar a 7 Hz para ganar resolución angular
+(0.84° en vez de 1.37°). **Esa vía no existe por software.** La resolución real medida con el
+driver es **1.42°**, coherente con los 1.39° de `x2_parse.py`. Corregido en el manual.
+
+### Lo que queda sin verificar, y por qué importa
+
+**`inverted`.** El `X2.yaml` oficial trae `false`; el launch de ROS 1 de Atriz tenía `true`.
+Pero **ese launch nunca se ejecutó**, porque el driver del LIDAR no estaba instalado (hallazgo
+nº3 de la auditoría). Así que `true` es una suposición heredada, no un valor validado.
+
+**Si está mal, el mapa sale espejado** — y es de los fallos más desconcertantes de SLAM: parece
+que funciona, y las paredes están en el lado contrario. Documentado cómo comprobarlo en
+`config/ydlidar_x2.yaml`: un objeto plano a 1 m justo delante, y el mínimo de `ranges` debe caer
+en el índice del ángulo 0.
+
+**La regla udev entre robots.** Va por `ID_PATH` (el puerto USB físico) porque el CP2102
+reporta serie `0001`, genérico. Comprobada en seco y en caliente en `rvr-01`, pero **si en otro
+robot el lidar va en otro puerto físico, el `ID_PATH` será distinto y la regla no casará.**
+
+### Avisos benignos, documentados para que nadie los persiga
+
+`[error] Fail to get baseplate device information!` aparece **siempre**: el X2 de canal único no
+responde a esa consulta, y el scan funciona igual. Y `Single Fixed Size: 270 / Sample Rate:
+3.00K` es informativo y correcto.
+
+### Documentado
+
+- **Manual, cap. 8.5** — escrito completo: los dos pasos de compilación, la comprobación en
+  seco del `make install`, la regla udev, **el QoS**, y la verificación con la salida real.
+- **Manual, cap. 8.3** — corregido: la mejora de resolución bajando el giro **no es
+  alcanzable**.
+- **`CLAUDE.md`** — dos trampas nuevas: el QoS de `/scan` y el `frequency` inútil.
+- **`verificar_robot.sh`** — comprueba el SDK, el driver compilado y `/dev/ydlidar`.
+
+### Pendiente
+
+1. **Fase 4: `slam_toolbox`.** Y lo PRIMERO es comprobar con qué QoS se suscribe a `/scan`.
+2. 👤 **Comprobar `inverted`** con un objeto a 1 m delante del robot, antes de mapear.
+3. **La velocidad de `/odom` sigue siendo basura** (parte 5). Afecta a `robot_localization` y a
+   los controladores de Nav2, no a `slam_toolbox`, que usa el TF.
+4. Los 16 servicios del driver sin portar.
+5. 📝 El pitch de −7° del robot, sin determinar si es del suelo o del montaje.
+
+---
+
 ## 2026-07-30 (parte 6) — Fase 3: el URDF, y el árbol TF deja de estar partido
 
 Paquete **nuevo** `atriz_rvr_description`, rama `ros2` commit `89be510`. Antes de esto el

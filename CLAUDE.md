@@ -128,6 +128,19 @@ posterior. `fase_1_higiene_so.sh` lo deshabilita.
 plano. En 20.04 estaba así; en la imagen de **Server 24.04 ya viene `600`**. Compruébalo, no
 lo asumas en ninguna de las dos direcciones. `fase_1_higiene_so.sh` lo corrige si hace falta.
 
+**🔴 El QoS de `/scan` es BEST_EFFORT, y `rclpy` pide RELIABLE por defecto.** Si no coinciden,
+**DDS no empareja publicador y suscriptor y no llega NADA** — sin error, sin aviso en el
+suscriptor. El driver del LIDAR sí lo dice, y hay que leerlo:
+`New subscription discovered on topic '/scan', requesting incompatible QoS. No messages will be
+sent to it.`
+→ Suscríbete con `QoSProfile(depth=10, reliability=QoSReliabilityPolicy.BEST_EFFORT)`.
+→ **Antes de montar SLAM, comprueba con qué QoS se suscribe `slam_toolbox`**: si pide RELIABLE,
+   no recibirá un solo barrido y solo verás un mapa vacío.
+
+**El `frequency` del X2 no hace nada.** Se pide 10 Hz y gira a 10.1–11.75. Medido sin driver:
+11.48 Hz. Es de canal único y el motor va libre. **La mejora de resolución angular bajando el
+giro a 7 Hz, que propone el manual 8.3, no es alcanzable por software.**
+
 **🔴 El stream `Velocity` del RVR NO refleja la velocidad real.** Medido el 2026-07-30
 aislando el SDK: con el robot avanzando a **0.147 m/s** comprobados por desplazamiento, el
 sensor reportaba **0.001 m/s**. Con `drive_with_heading` reportaba 0.028 m/s a 0.23 m/s reales.
@@ -187,7 +200,8 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | RAM del driver | ~53 MB, plana | sin fugas en 12 min |
 | Temperatura | 55–58 °C | con el driver activo |
 | Puerto del RVR | `/dev/rvr` → `ttyAMA0` (PL011) | |
-| Puerto del LIDAR | `/dev/ttyUSB0` (CP2102, `ID_SERIAL_SHORT=0001`) | |
+| Puerto del LIDAR | `/dev/ydlidar` → `ttyUSB0` (CP2102, serie `0001` genérico) | regla udev por `ID_PATH` |
+| `/scan` | **10.1 Hz**, 255 puntos, 226 válidos (89 %), resolución **1.42°** | 2026-07-30, con el driver ROS 2 |
 | Firmware del RVR | 9.1.462 (Nordic) | |
 
 **Línea base de Ubuntu Server 24.04 recién instalado** (2026-07-30, *antes* de la higiene del

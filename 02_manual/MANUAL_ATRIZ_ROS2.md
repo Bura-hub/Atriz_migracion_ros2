@@ -22,7 +22,7 @@
 > | 5 | ROS 2 Jazzy y workspace colcon | ✅ **verificado 2026-07-30** (5.4 en espera del port) |
 > | 6 | Driver del RVR en `rclpy` | ⏳ **no escrito — EN CURSO** |
 > | 7 | URDF y árbol TF | ✅ **verificado 2026-07-30** · `odom → laser` resuelve. Medidas del chasis 📝 sin medir |
-> | 8 | YDLIDAR X2 | 🟡 **hardware verificado en 20.04 y 24.04**; driver ROS pendiente |
+> | 8 | YDLIDAR X2 | ✅ **verificado 2026-07-30** — hardware Y driver ROS 2, `/scan` a 10.1 Hz |
 > | 9 | SLAM y Nav2 | ⏳ no escrito |
 > | 10 | rosbridge y plataforma web | ⏳ no escrito |
 > | 11 | Arranque automático con systemd | ⏳ no escrito |
@@ -417,8 +417,16 @@ Para mapear un laboratorio fijo, donde el robot se mueve despacio, **la resoluci
 importa más que la frecuencia de refresco**. Merece la pena probar 7 Hz y comparar la nitidez
 del mapa.
 
-> **NO VERIFICADO:** si el driver consigue fijar la velocidad del motor en un X2 de canal
-> único, o si viene fija por hardware. Los launch del repo piden `frequency: 10.0`.
+> 🔴 **VERIFICADO EL 2026-07-30, Y LA RESPUESTA ES NO: esta vía de mejora NO EXISTE.**
+>
+> Se pidió `frequency: 10.0` al driver y `/scan` salió a **10.1–11.75 Hz** según la ventana de
+> medición. Sin driver, decodificando el protocolo a mano con `x2_parse.py`, se midieron
+> **11.48 Hz**. **El X2 de canal único ignora el parámetro** y gira libre.
+>
+> La resolución angular real, medida con el driver, es **1.42°** (255 puntos por vuelta),
+> coherente con los 1.39° de `x2_parse.py`. **La tabla de arriba se queda como referencia
+> teórica de la relación giro↔resolución, pero los 7 Hz / 0.84° no son alcanzables** por
+> software con este sensor.
 
 ### 8.4 Si el lidar no gira
 
@@ -427,10 +435,117 @@ El X2 alimenta su motor por la línea **DTR** del adaptador USB (de ahí el
 
 **El adaptador es el primer sospechoso, no el lidar.**
 
-### 8.5 Driver ROS
+### 8.5 ✅ Driver ROS 2 — **instalado y verificado 2026-07-30**
 
-⏳ **Pendiente, Fase 3.** `YDLidar-SDK` + `ydlidar_ros2_driver` (rama `humble`, funciona en
-Jazzy), con `params/X2.yaml`.
+**No hay paquete apt.** Comprobado: `ros-jazzy-ydlidar-ros2-driver`, `ros-jazzy-ydlidar` y
+`ros-jazzy-ydlidar-sdk` no existen, y `apt-cache search ydlidar` da 0 resultados. Hay que
+compilar desde fuentes, en dos pasos.
+
+#### a) `YDLidar-SDK` — la librería C++
+
+```bash
+mkdir -p ~/src_externos && cd ~/src_externos
+git clone --depth 1 https://github.com/YDLIDAR/YDLidar-SDK
+cd YDLidar-SDK && mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j3                      # en un Pi 4 tarda unos minutos
+sudo make install && sudo ldconfig
+```
+
+Instala **132 ficheros, todo bajo `/usr/local/`**, y no pisa nada del sistema de paquetes.
+Comprobado antes de ejecutarlo con `make install DESTDIR=/tmp/prueba`, que es buena costumbre
+con cualquier `make install` de fuentes:
+
+```bash
+make install DESTDIR=/tmp/prueba   # simula, sin tocar el sistema
+find /tmp/prueba -type f | wc -l   # ¿cuántos ficheros?
+```
+
+> 📝 **Ruido a limpiar en la imagen dorada.** Instala **17 binarios de prueba** en
+> `/usr/local/bin` (`gs_test`, `tof_test`, `tri_test`, `tea_test`…) que no se usan. No hacen
+> daño, pero sobran en 16 robots.
+
+> SWIG no está instalado, así que no genera los bindings de Python (`pyydlidar`). **No hacen
+> falta:** el driver de ROS 2 usa la librería C++.
+
+#### b) `ydlidar_ros2_driver` — el nodo ROS 2
+
+```bash
+cd ~/src_externos
+git clone -b humble https://github.com/YDLIDAR/ydlidar_ros2_driver
+cp -a ydlidar_ros2_driver ~/atriz_ws/src/
+rm -rf ~/atriz_ws/src/ydlidar_ros2_driver/.git   # es código de terceros
+cd ~/atriz_ws && colcon build --packages-select ydlidar_ros2_driver
+```
+
+**La rama `humble` compila en Jazzy sin cambios** (47.9 s). Los avisos son de parámetros sin
+usar en el código de YDLIDAR, no errores. Versiones verificadas: driver **1.0.1**, SDK
+**1.2.20**. Y **trae `params/X2.yaml` de fábrica**: el X2 está soportado.
+
+Se copia **fuera** de `Atriz_rvr`: es código de terceros y no debe mezclarse con el del
+proyecto.
+
+#### c) La regla udev de `/dev/ydlidar`
+
+```bash
+sudo cp ~/atriz_ws/src/Atriz_rvr/atriz_rvr_bringup/udev/99-ydlidar.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=tty
+ls -l /dev/ydlidar          # -> ttyUSB0
+```
+
+Va por **`ID_PATH`** (el puerto USB físico), no por número de serie: el CP2102 reporta
+`ID_SERIAL_SHORT=0001`, genérico, así que con 16 adaptadores una regla por serie casaría con
+todos. Detalle en [`FLOTA.md`](../03_operacion/FLOTA.md), restricción 1.
+
+**Consecuencia práctica: el lidar debe ir siempre en el mismo puerto USB de cada Pi.**
+
+#### d) 🔴 El QoS de `/scan` — la trampa que más caro sale
+
+**El driver publica `/scan` como BEST_EFFORT.** Un suscriptor que pida **RELIABLE** —que es el
+**valor por defecto en `rclpy`**— **no recibe absolutamente nada.** DDS no los empareja.
+
+El driver lo avisa, y es uno de los mensajes buenos de ROS 2:
+
+```
+New subscription discovered on topic '/scan', requesting incompatible QoS.
+No messages will be sent to it. Last incompatible policy: RELIABILITY_QOS_POLICY
+```
+
+Un suscriptor correcto:
+
+```python
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy
+qos = QoSProfile(depth=10, reliability=QoSReliabilityPolicy.BEST_EFFORT)
+node.create_subscription(LaserScan, 'scan', cb, qos)
+```
+
+> 🔴 **Riesgo directo para la Fase 4:** si `slam_toolbox` se suscribe con RELIABLE, **no
+> recibirá ni un barrido y no dará ningún error** — solo un mapa vacío. **Comprobarlo antes de
+> mapear.** La primera prueba de esta sesión cayó justo en esto y concluyó que `/scan` no
+> llegaba.
+
+#### e) Verificación
+
+```bash
+ros2 launch atriz_rvr_bringup robot.launch.py
+ros2 topic hz /scan                     # ~10 Hz
+ros2 run tf2_ros tf2_echo odom laser    # debe resolver
+```
+
+**Resultado real (2026-07-30):**
+
+| | |
+|---|---|
+| `/scan` | **10.1 Hz** · `frame_id: laser` |
+| Puntos por barrido | **255**, de los cuales **226 válidos (89 %)** |
+| Distancias | 0.326 – 3.134 m *(rango configurado 0.1 – 8.0)* |
+| Arco | −180° a 180° · resolución angular **1.42°** |
+| `tf2_echo odom laser` | `Translation: [-0.018, -0.002, 0.141]` |
+
+> **Avisos benignos, para no perseguirlos:**
+> `[error] Fail to get baseplate device information!` aparece **siempre** — el X2 de canal
+> único no responde a esa consulta, y el scan funciona igual. Y
+> `Single Fixed Size: 270 / Sample Rate: 3.00K` es informativo y correcto.
 
 ---
 

@@ -37,6 +37,7 @@ Ver [CHANGELOG.md](CHANGELOG.md) para la bitácora detallada, e
 | Telemetría del RVR | ✅ 16.59 Hz, 12 min sin huecos | ✅ **16.671 Hz** sobre ROS 2, σ 0.47 ms |
 | Driver en `rclpy` · `cmd_vel` · watchdog | — | ✅ **2026-07-30**, verificado en banco |
 | Árbol TF conectado (`odom → laser`) | 🔴 partido en dos | ✅ **2026-07-30** — era el bloqueante raíz de SLAM |
+| Driver ROS del LIDAR · `/scan` | 🔴 nunca instalado | ✅ **2026-07-30** — 10.1 Hz, 89 % de puntos válidos |
 | YDLIDAR X2 (100 % checksums, ~2990 muestras/s, 11.48 Hz) | ✅ 2026-07-29 | ✅ **2026-07-30** |
 | Higiene del SO | receta documentada | ✅ **2026-07-30** — arranque 1min39s → **8.7 s** |
 | SDK de Sphero | ✅ GO en Python 3.8 | ✅ 🟢 **GO en Python 3.12** — 16.67 Hz |

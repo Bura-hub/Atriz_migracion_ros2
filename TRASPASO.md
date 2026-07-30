@@ -71,7 +71,15 @@ sesión de trabajo.
 **Lo que queda del nodo:** 16 de los 20 servicios y 4 topics, listados al final de
 `rvr_driver_node.py`.
 
-✅ **Fase 3 CERRADA** (commit `719c769`): el paquete `atriz_rvr_description` une el árbol TF, que
+✅ **Fase 3 COMPLETA, incluido el LIDAR** (commit `b117791`). Un comando arranca el robot
+entero: `ros2 launch atriz_rvr_bringup robot.launch.py` → `/odom` 16.99 Hz, `/scan` 10.1 Hz,
+árbol TF resuelto.
+
+🔴 **Antes de montar SLAM: el driver del LIDAR publica `/scan` como BEST_EFFORT**, y `rclpy`
+pide RELIABLE por defecto. Si `slam_toolbox` pide RELIABLE **no recibirá un solo barrido y no
+dará ningún error**, solo un mapa vacío. Es lo primero que hay que comprobar en la Fase 4.
+
+✅ **Fase 3.1 cerrada** (commit `719c769`): el paquete `atriz_rvr_description` une el árbol TF, que
 estaba partido en dos y era el bloqueante raíz de SLAM. **Verificado sobre el robot:**
 `tf2_echo odom laser` resuelve con `Translation: [-0.018, -0.002, 0.141]`, y antes respondía
 «Could not find a connection».

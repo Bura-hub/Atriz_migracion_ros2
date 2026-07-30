@@ -401,6 +401,24 @@ if [[ -d /opt/ros/jazzy ]]; then
         fi
     fi
 
+    # El driver del LIDAR y su SDK se compilan desde fuentes: no hay paquete apt.
+    [[ -f /usr/local/lib/libydlidar_sdk.a ]] \
+        && _ok "YDLidar-SDK instalado en /usr/local" \
+        || _avi "falta YDLidar-SDK (no hay paquete apt: se compila)" "ver manual, cap. 8.5a"
+    if [[ -d "$HOME/atriz_ws/install/ydlidar_ros2_driver" ]]; then
+        _ok "ydlidar_ros2_driver compilado en el workspace"
+    else
+        _avi "falta ydlidar_ros2_driver: no habra /scan" "ver manual, cap. 8.5b"
+    fi
+    # /dev/ydlidar: nombre estable por regla udev. Sin el, /dev/ttyUSB0 no es
+    # determinista con dos dispositivos USB-serie.
+    if [[ -L /dev/ydlidar ]]; then
+        _ok "/dev/ydlidar -> $(readlink /dev/ydlidar)"
+    else
+        _avi "/dev/ydlidar no existe (el driver lo espera)" \
+             "sudo cp .../atriz_rvr_bringup/udev/99-ydlidar.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules"
+    fi
+
     # xacro NO viene en ros-base y hace falta para el URDF.
     dpkg -l ros-jazzy-xacro 2>/dev/null | grep -q '^ii' \
         && _ok "ros-jazzy-xacro instalado (no viene en ros-base)" \
@@ -418,9 +436,9 @@ else
     _nota "ROS 2 aún no instalado — es la Etapa E1 (manual, cap. 5.2)."
 fi
 
-_nota "PENDIENTE de añadir aquí cuando exista: /dev/ydlidar, el driver en rclpy,"
-_nota "unidades systemd del stack, rosbridge en :9090, árbol TF conectado y"
-_nota "las frecuencias de /odom (~16.5 Hz) y /scan (~10 Hz)."
+_nota "PENDIENTE de añadir aquí cuando exista: unidades systemd del stack,"
+_nota "rosbridge en :9090, slam_toolbox y el mapa. Y comprobar el QoS con que"
+_nota "se suscribe slam_toolbox: si pide RELIABLE no recibirá /scan."
 
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ $HARDWARE -eq 1 ]]; then
