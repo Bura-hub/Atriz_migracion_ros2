@@ -4,6 +4,126 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-30 (parte 5) — El driver corre sobre ROS 2, y el watchdog se prueba por primera vez
+
+Rama **`ros2`** de `Atriz_rvr`, commit `80e1cbf`. **Verificado contra el robot real.**
+
+```
+/odom              16.671 Hz · sigma 0.47 ms      (ROS 1 daba 16.59 Hz)
+angular_velocity   rad/s                          (antes deg/s, violaba REP-103)
+árbol TF           odom -> base_link              (antes rvr_base_link, partido)
+cmd_vel            34.0 cm a 0.15 m/s en 2 s      (esperado ~30 cm)
+watchdog           quieto en 527 ms, ~7.9 cm      PRIMERA VEZ QUE SE PRUEBA
+```
+
+### Fase 2.1 — limpieza: 79 ficheros y 700 KB menos
+
+Cada borrado verificado antes de hacerlo, no por lo que decía el plan:
+
+| Borrado | Comprobación |
+|---|---|
+| `atriz_rvr_driver/src/` (38 ficheros) | El CMakeLists **sí** lo construía, pero **ningún launch lo invocaba** |
+| `atriz_rvr_serial/` | Solo lo dependía el driver, y solo para ese C++ |
+| `rvr-ros.py` (722 líneas) | Sin bit de ejecución, y su launch invocaba `rvr-ros-sim.py`, que **no existe** |
+| `sphero_rvr_hw/` | Sin `package.xml`, huérfana |
+| 3 `.launch` | Cadena entera colgando del C++ borrado |
+
+### Fase 2.2 — `atriz_rvr_driver` a `ament_python`
+
+Se van `roscpp`, `message_generation/runtime`, `transmission_interface`, `cv_bridge` (sin
+cámara) y `joint_limit_interface` — que además estaba **mal escrito** (el real es
+`joint_limits_interface`) y por eso `rosdep` fallaba.
+
+**El SDK no se mueve** de `scripts/`: sus 196 ficheros usan imports absolutos y es la única
+pieza validada en Python 3.12. Con `package_dir={'': 'scripts'}` sigue importándose igual.
+
+### Fase 2.3/2.4 — el nodo: 1704 líneas → ~490 con el núcleo
+
+Lo que se arregló, y lo que **ya estaba bien**. Ver la corrección del plan más abajo.
+
+- **`imu.angular_velocity` a rad/s, convertido una sola vez.** El original lo asignaba en
+  deg/s, publicaba, y solo después convertía — incrementando el contador de componentes **dos
+  veces por muestra**, así que `/odom` podía salir con la velocidad angular en grados.
+- **`run_coroutine_threadsafe`** en vez de las 48 `asyncio.run()`. Sin afirmar que fuera el
+  cuello de botella: **no se ha medido**.
+- **`odom → base_link`**, el bloqueante raíz de SLAM.
+- Todo parametrizado, watchdog a 20 Hz (antes ~6 Hz), y la parada de emergencia con QoS
+  *reliable + transient local* escuchando **los dos** nombres de topic.
+
+### 🔴 Dos puntos del plan eran FALSOS — la misma causa de siempre
+
+Verificado antes de escribir código: el plan decía que **no había watchdog de `cmd_vel`** y que
+el **event loop avanzaba en ráfagas** dentro del bucle de ROS. **Las dos cosas ya estaban
+resueltas** en `migracion-ros2`.
+
+Se añadieron en `4ae8467` y `d8f182d`/`659364c`, que están **entre los 5 últimos commits de
+`origin/main`** — exactamente el rango que le faltaba al clon desactualizado sobre el que se
+hizo la auditoría. **Es la misma causa que los tres hallazgos ya retirados**, y van cinco.
+
+Corregido en el plan, apartados 2.3 y 2.4, con la explicación completa.
+
+### 🔴 HALLAZGO NUEVO: el stream `Velocity` del RVR no sirve
+
+Medido aislando el SDK, sin ROS de por medio:
+
+| Método | Recorrido real (locator) | `Velocity` reportada | Deriva tras `drive_stop` |
+|---|---|---|---|
+| `drive_rc_si_units(0.15)` | **29.4 cm** = 0.147 m/s | **0.001 m/s** | **1.1 cm** |
+| `drive_with_heading(64)` | 45.6 cm | 0.028 m/s | **11.3 cm** |
+
+**Consecuencia grave:** el driver publica `odom.twist.twist.linear` desde ese sensor, así que
+**la velocidad de `/odom` es basura**. Afecta a SLAM y a `robot_localization`. La **posición**
+sí es buena (29.4 cm contra 30.0 esperados).
+
+Dato colateral: `drive_rc_si_units` frena diez veces mejor que `drive_with_heading`.
+
+**Pendiente decidir** de dónde sacar la velocidad: derivarla del locator, integrarla de los
+encoders, o dejarla a cero y que la estime `robot_localization`. **Ninguna probada. No tocar
+`/odom` hasta medirlo.**
+
+### El watchdog, probado por primera vez en la historia del proyecto
+
+Existía desde `d8f182d` y nunca se había verificado. Herramienta nueva:
+`mediciones_banco/medir_watchdog_ros2.py`.
+
+```
+tiempo hasta quedar quieto      527 ms
+  timeout del driver           ~300 ms   <- exactamente cmd_vel_timeout
+  frenada + latencia + detección ~227 ms <- físico, no software
+distancia tras el corte        ~7.9 cm
+```
+
+### Cuatro errores propios de esta sesión
+
+1. **`_enviar()` tiraba los errores a la basura.** Encolaba la corrutina y se olvidaba del
+   `Future`, así que una excepción de `drive_rc_si_units` moría en silencio. Corregido con
+   `add_done_callback` y una etiqueta por comando.
+2. **Falta `setup.cfg` → `ros2 run` dice «No executable found»** aunque `colcon build` diga
+   *Finished*. El `console_script` acaba en `bin/`, que `ros2` no mira. Documentado en el
+   propio fichero.
+3. **Mi herramienta midió por velocidad y concluyó «el robot NUNCA se movió»** mientras el
+   robot cruzaba la habitación. **Lo corrigió el usuario, mirándolo.** La herramienta ahora
+   mide desplazamiento.
+4. **Mi umbral de éxito del watchdog (350 ms) estaba mal calculado**: no contaba la frenada
+   física ni que `/odom` llega cada 60 ms. Ahora es `timeout + 300 ms` y lo que se juzga es la
+   **distancia recorrida**, que es lo que importa con obstáculos cerca.
+
+Y un artefacto del test: publicaba un `Twist()` vacío «de cortesía» al terminar, que reactivaba
+el watchdog y lo hacía disparar dos veces. Quitado.
+
+### Pendiente
+
+1. **Los 16 servicios que faltan** (LEDs, IR, encoders, system info, streaming, motores crudos,
+   `move_to_pose`) y 4 topics. Listados al final de `rvr_driver_node.py`. **No se portan a
+   ciegas.**
+2. **Decidir la velocidad de `/odom`** — ver el hallazgo de arriba. Bloquea SLAM de calidad.
+3. **Fase 3: el URDF**, que el plan llama el bloqueante raíz. El driver ya publica
+   `odom → base_link`, así que la mitad del problema está resuelta.
+4. Decidir `ir_messages` vs `infrared_messages` (dos topics para lo mismo) y el namespace.
+5. ⚠️ **Antes de la imagen dorada:** quitar `ROS_DOMAIN_ID` de `~/.bashrc`.
+
+---
+
 ## 2026-07-30 (parte 4) — Fase 2 arrancada: `atriz_rvr_msgs` corre sobre ROS 2
 
 **El primer código del proyecto que compila sobre ROS 2 Jazzy.** Rama nueva **`ros2`** en

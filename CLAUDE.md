@@ -128,6 +128,21 @@ posterior. `fase_1_higiene_so.sh` lo deshabilita.
 plano. En 20.04 estaba así; en la imagen de **Server 24.04 ya viene `600`**. Compruébalo, no
 lo asumas en ninguna de las dos direcciones. `fase_1_higiene_so.sh` lo corrige si hace falta.
 
+**🔴 El stream `Velocity` del RVR NO refleja la velocidad real.** Medido el 2026-07-30
+aislando el SDK: con el robot avanzando a **0.147 m/s** comprobados por desplazamiento, el
+sensor reportaba **0.001 m/s**. Con `drive_with_heading` reportaba 0.028 m/s a 0.23 m/s reales.
+
+→ **Consecuencia:** el driver publica `odom.twist.twist.linear` desde ahí, así que **la
+velocidad de `/odom` es basura**. La **posición** (locator) sí es buena: 29.4 cm medidos contra
+30.0 esperados. Para saber si el robot se mueve, **mide desplazamiento, no velocidad** — una
+herramienta de esta sesión concluyó «el robot NUNCA se movió» mientras cruzaba la habitación.
+
+→ Pendiente decidir de dónde sacar la velocidad de `/odom`: derivarla del locator, integrarla
+de los encoders, o dejarla a cero y que la estime `robot_localization`. **Ninguna probada.**
+
+**`drive_rc_si_units` frena mucho mejor que `drive_with_heading`.** Deriva tras `drive_stop`:
+**1.1 cm** contra **11.3 cm**. Por eso el driver usa el primero.
+
 **Una herramienta miente** (antes eran dos). `scripts/lydar/test_lidar.py` (en `Atriz_rvr`)
 reporta «Tipo de LIDAR: Desconocido» con datos perfectamente válidos — mira «bytes recibidos»
 y «tasa de datos», no el tipo.

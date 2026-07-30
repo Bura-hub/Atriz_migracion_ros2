@@ -242,7 +242,8 @@ Nodo con `MultiThreadedExecutor` y callback groups separados para comandos y tel
 - **REP-103:** `gyroscope_handler` (`Atriz_rvr_node.py:911-922`) llama a `check_if_need_to_send_msg('gyroscope')` **dos veces**, primero en deg/s y luego en rad/s — puede publicar `/odom` con velocidad angular en grados. Y `imu.angular_velocity` queda **siempre** en deg/s. Publicar todo en rad/s, una sola vez.
 - `light_handler` usa `rospy.Time()` (cero) como timestamp → usar el reloj del nodo.
 - `wait_until_motion_complete()` no tiene timeout → puede colgar el hilo de servicio indefinidamente. Añadir timeout y devolver fallo.
-- **Watchdog de `cmd_vel` (seguridad, imprescindible en un laboratorio remoto):** si no llega `cmd_vel` en 500 ms, parar motores. Hoy no existe nada así: si el WebSocket se cae (y hay 797 reintentos WiFi en 42 min), el robot sigue conduciendo.
+- ⚠️ **Watchdog de `cmd_vel` — CORREGIDO EL 2026-07-30: YA EXISTE.** Este plan decía «hoy no existe nada así». Es **falso** sobre `migracion-ros2`: `handle_ros()` (`Atriz_rvr_node.py:1127-1128`) para los motores si pasan más de `cmd_vel_timeout = 0.3 s` sin comando, y se comprueba cada ~0.17 s. Se añadió en `d8f182d` y se refinó en `659364c`, ambos **posteriores al commit auditado** — la misma causa que los otros hallazgos retirados.
+  **Lo que queda por hacer:** conservarlo en el port (no perderlo por el camino), parametrizar el timeout con `declare_parameter` en vez de dejarlo fijo, y **verificarlo en banco**: soltar el publicador de `cmd_vel` y comprobar con un cronómetro que el robot para. Nunca se ha probado.
 - ✅ **Frecuencia de sensores — RESUELTO Y MEDIDO** (Fase 0.1, commit `24c7749`).
   `interval` de 250 → **60 ms**, con las **8** corrientes de sensores activas:
 

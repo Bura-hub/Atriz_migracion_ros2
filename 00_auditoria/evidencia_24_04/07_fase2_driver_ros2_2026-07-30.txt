@@ -1,0 +1,67 @@
+# Fase 2 — driver ROS 2: telemetria, cmd_vel y watchdog verificados en banco
+# 2026-07-30 · rvr-01 · Ubuntu 24.04.4 · kernel 6.8.0-1060 · ROS 2 Jazzy
+# Rama ros2 de Atriz_rvr. Robot en el SUELO, bateria al 100%.
+
+## 1. Arranque del nodo
+  RVR presente (firmware comprobado en 2.48 s)   <- 0 s = responde; ~10 s = dos timeouts
+  rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_link
+  streaming a 60 ms (~16.7 Hz esperados)
+
+## 2. Telemetria
+  ros2 topic hz /odom  ->  16.671 Hz · min 0.059s max 0.061s · sigma 0.47 ms
+  (el nodo de ROS 1 daba 16.59 Hz: mismo rendimiento)
+
+  angular_velocity en /imu:
+    x: 0.0005035120210308527
+    y: -0.0011609636606536079
+    z: 8.127322662595332e-09
+  -> rad/s. En ROS 1 esto salia en deg/s y violaba REP-103.
+
+  arbol TF:  frame_id: odom  ->  child_frame_id: base_link
+  -> ya NO rvr_base_link. Era el arbol partido que impedia SLAM.
+
+## 3. cmd_vel: el robot se mueve
+  cmd_vel linear.x=0.15 m/s durante 2.0 s
+  recorrido medido en /odom: 34.0 cm   (esperado ~30 cm)
+
+## 4. WATCHDOG DE cmd_vel — PRIMERA VEZ QUE SE PRUEBA EN EL PROYECTO
+  Existia desde el commit d8f182d y nunca se habia verificado.
+
+  tiempo hasta quedar quieto          : 527 ms
+    de los cuales, timeout del driver : ~300 ms   <- exactamente cmd_vel_timeout
+    frenada + latencia + deteccion    : ~227 ms   <- fisico, no software
+  distancia recorrida tras el corte   : ~7.9 cm
+  disparos del watchdog               : 1
+  codigo de salida de la medicion     : 0
+
+  VEREDICTO: si se cae la red a 0.15 m/s, el robot recorre ~8 cm mas y para.
+  A mayor velocidad la distancia escala: bajar cmd_vel_timeout la reduce.
+
+## 5. 🔴 HALLAZGO NUEVO: el stream Velocity del RVR NO SIRVE
+  Medido aislando el SDK, sin ROS de por medio:
+
+    drive_rc_si_units(0.15) durante 2 s
+      recorrido real (locator)       : 29.4 cm  = 0.147 m/s
+      v_max del sensor 'Velocity'    : 0.001 m/s   <- BASURA
+      deriva tras drive_stop         : 1.1 cm
+
+    drive_with_heading(64) durante 2 s
+      recorrido real (locator)       : 45.6 cm
+      v_max del sensor 'Velocity'    : 0.028 m/s   <- tambien basura
+      deriva tras drive_stop         : 11.3 cm   <- frena MUCHO peor
+
+  CONSECUENCIA GRAVE: el driver publica odom.twist.twist.linear desde ese
+  sensor, asi que LA VELOCIDAD DE /odom ES BASURA. Afecta a SLAM y a
+  robot_localization, que se alimentan de ahi. La POSICION (locator) si es
+  buena: 29.4 cm medidos contra 30.0 esperados.
+
+  Y explica un error de esta sesion: la primera version de
+  medir_watchdog_ros2.py media por velocidad y concluyo 'el robot NUNCA se
+  movio' mientras el robot cruzaba la habitacion. Lo corrigio el usuario
+  mirandolo. La herramienta ahora mide DESPLAZAMIENTO.
+
+  PENDIENTE: decidir de donde sacar la velocidad para /odom. Opciones:
+    a) derivarla de la posicion del locator (numericamente)
+    b) integrarla de los encoders
+    c) dejarla a cero y que robot_localization la estime
+  Ninguna probada. NO tocar /odom hasta medirlo.

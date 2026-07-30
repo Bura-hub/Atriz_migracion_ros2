@@ -21,7 +21,7 @@ reconstruir el sistema si algo sale mal.
 | | |
 |---|---|
 | **Fase actual** | **Etapas A, B, C, D y E1 completadas** (2026-07-30). 🟢 **GO: la migración es viable** — el SDK de Sphero funciona en Python 3.12 y entrega telemetría a **16.67 Hz**, el mismo rendimiento que en Python 3.8 |
-| **Siguiente paso** | **Portar el driver a `rclpy`** (plan, Fase 2 · manual, cap. 6). `atriz_rvr_msgs` ✅ ya portado (rama `ros2`, `1b1239a`); queda el nodo: 1704 líneas, 99 referencias a `rospy`, más el watchdog de `cmd_vel` y las unidades en rad/s |
+| **Siguiente paso** | **Fase 3 — el URDF** (el bloqueante raíz de SLAM), y decidir de dónde sale la velocidad de `/odom`: el stream `Velocity` del RVR **es basura** (0.001 m/s con el robot a 0.147 real) |
 | **Sistema hoy** | Raspberry Pi 4B 8 GB · **Ubuntu Server 24.04.4 LTS** · Python 3.12.3 · `rvr-01` · arranque en **8.7 s** · Sphero RVR por `/dev/rvr` (PL011) · YDLIDAR X2 en `/dev/ttyUSB0` · **ROS 2 Jazzy** (201 paquetes, `ros-base`) |
 | **Sistema objetivo** | Ubuntu Server 24.04 LTS · ROS 2 Jazzy (soporte hasta mayo 2029) · rosbridge · SLAM + Nav2 · 16 robots |
 | **Vuelta atrás** | ✅ Disponible. La imagen `dd` del sistema Noetic está hecha **y verificada**. Ver [RECUPERACION.md](03_operacion/RECUPERACION.md) |
@@ -34,7 +34,8 @@ Ver [CHANGELOG.md](CHANGELOG.md) para la bitácora detallada, e
 | | 20.04 + Noetic | **24.04** |
 |---|---|---|
 | Enlace UART Pi ↔ RVR (`/dev/rvr` → PL011) | ✅ 2026-07-29 | ✅ **2026-07-30** |
-| Telemetría del RVR a 16.59 Hz, 12 min sin huecos | ✅ 2026-07-29 | ⏳ tras portar el driver |
+| Telemetría del RVR | ✅ 16.59 Hz, 12 min sin huecos | ✅ **16.671 Hz** sobre ROS 2, σ 0.47 ms |
+| Driver en `rclpy` · `cmd_vel` · watchdog | — | ✅ **2026-07-30**, verificado en banco |
 | YDLIDAR X2 (100 % checksums, ~2990 muestras/s, 11.48 Hz) | ✅ 2026-07-29 | ✅ **2026-07-30** |
 | Higiene del SO | receta documentada | ✅ **2026-07-30** — arranque 1min39s → **8.7 s** |
 | SDK de Sphero | ✅ GO en Python 3.8 | ✅ 🟢 **GO en Python 3.12** — 16.67 Hz |

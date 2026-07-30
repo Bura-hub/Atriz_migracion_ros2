@@ -54,9 +54,27 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 **Fase 2 del plan — portar el driver a `rclpy`.** Es el trabajo grande, y merece su propia
 sesión de trabajo.
 
-✅ **`atriz_rvr_msgs` YA está portado** (2026-07-30, rama **`ros2`** de `Atriz_rvr`, commit
-`1b1239a`): compila con `colcon`, y las 6 interfaces de mensaje y 20 de servicio son usables
-desde ROS 2 y desde Python. **No lo repitas.** Lo que queda es el nodo.
+✅ **La Fase 2 está ARRANCADA y el núcleo funciona** (2026-07-30, rama **`ros2`**, commit
+`80e1cbf`). **Verificado contra el robot real** — no lo repitas:
+
+| | |
+|---|---|
+| `atriz_rvr_msgs` | ✅ portado a `ament_cmake` + `rosidl`, 6 msg + 20 srv |
+| `atriz_rvr_driver` | ✅ portado a `ament_python`, el nodo corre |
+| `/odom` | ✅ **16.671 Hz**, σ 0.47 ms (ROS 1 daba 16.59) |
+| `imu.angular_velocity` | ✅ rad/s (antes deg/s, violaba REP-103) |
+| árbol TF | ✅ `odom → base_link` (antes `rvr_base_link`, partido) |
+| `cmd_vel` | ✅ 34 cm a 0.15 m/s en 2 s |
+| watchdog | ✅ quieto en 527 ms, ~7.9 cm. **Primera vez que se prueba** |
+| Fase 2.1 limpieza | ✅ 79 ficheros y 700 KB menos |
+
+**Lo que queda del nodo:** 16 de los 20 servicios y 4 topics, listados al final de
+`rvr_driver_node.py`.
+
+🔴 **Y un bloqueante nuevo antes de SLAM: la velocidad de `/odom` es basura.** El stream
+`Velocity` del RVR reporta 0.001 m/s con el robot a 0.147 m/s reales (medido). La posición sí
+es buena. Hay que decidir de dónde sacar la velocidad —derivarla del locator, integrarla de los
+encoders, o dejarla a cero para `robot_localization`— y **ninguna opción está probada.**
 
 🔴 **Hasta que esto se haga, el driver del robot NO se ha ejecutado nunca en este sistema — y
 no puede.** No es «pendiente de probar», es **imposible**: `Atriz_rvr_node.py` es ROS 1.
