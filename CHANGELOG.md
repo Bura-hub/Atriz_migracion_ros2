@@ -83,10 +83,44 @@ haya una configuración de RViz2 de verdad (Fase 4).
 - **`verificar_robot.sh`** — comprobación nueva del árbol TF (`tf2_echo odom laser`) y de que
   `ros-jazzy-xacro` esté instalado.
 
-### Pendiente
+### ✅ CERRADA — `odom → laser` resuelve
 
-1. 👤 **`sudo apt install -y ros-jazzy-xacro`**, y con eso procesar el xacro y comprobar que
-   `odom → laser` resuelve. **La estructura está escrita pero NO se ha ejecutado.**
+```
+$ ros2 run tf2_ros tf2_echo odom laser
+- Translation: [-0.018, -0.002, 0.141]
+- Rotation: in RPY (degree) [1.603, -7.013, -5.000]
+
+base_link   parent: odom        rate 16.699 Hz    <- el driver
+laser       parent: base_link   rate 10000 Hz    <- robot_state_publisher
+imu_link, wheel_*                rate 10000 Hz
+```
+
+La **z = 0.141** coincide con los 0.1425 del URDF, los 10000 Hz son la marca de `/tf_static`, y
+`base_link` va al ritmo de la telemetría. **El bloqueante raíz de SLAM está resuelto.**
+
+📝 **Dato colateral sin medir:** el RPY sale **[1.6°, −7.0°, −5.0°]**. Un pitch de −7° significa
+chasis inclinado o suelo con pendiente. **El LIDAR lo está viendo.** No se ha determinado la
+causa, y conviene recordarlo cuando salga el primer mapa.
+
+### 🐛 Dos fallos propios más
+
+**El launch falló con un error de los útiles**, y el fichero **ya llevaba un comentario
+explicando la solución** que no se había implementado:
+
+```
+Unable to parse the value of parameter robot_description as yaml. If the parameter
+is meant to be a string, try wrapping it in ParameterValue(value, value_type=str)
+```
+
+`robot_description` es XML y `launch` lo interpreta como YAML si no se le dice el tipo.
+
+**Y un respaldo mal colocado hizo que `apt` avisara en cada ejecución.** Al añadir
+`noble-updates` se dejó `ubuntu.sources.bak-…` **dentro** de `sources.list.d/`, y desde entonces
+todo `apt install` terminaba con `N: Ignoring file … invalid filename extension`. Inofensivo,
+pero en 16 robots es ruido permanente. Corregido en `provision.sh` (los respaldos van a
+`/root/respaldos-apt/`), en el manual, y **`verificar_robot.sh` ahora lo detecta**.
+
+### Pendiente
 2. **La velocidad de `/odom` sigue siendo basura** (parte 5). Bloquea SLAM de calidad, no la
    estructura del árbol.
 3. Los 16 servicios del driver sin portar.

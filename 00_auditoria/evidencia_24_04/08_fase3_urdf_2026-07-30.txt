@@ -1,53 +1,46 @@
-# Fase 3 — URDF: estructura del arbol TF validada
-# 2026-07-30 · rvr-01 · Atriz_rvr rama ros2 commit 89be510
+# Fase 3 CERRADA — el arbol TF esta entero
+# 2026-07-30 · rvr-01 · ROS 2 Jazzy · xacro 2.1.1
 
-## check_urdf sobre el URDF expandido
-  robot name is: atriz_rvr
-  ---------- Successfully Parsed XML ---------------
-  root Link: base_footprint has 1 child(ren)
-      child(1):  base_link
-          child(1):  imu_link
-          child(2):  laser
-          child(3):  wheel_left
-          child(4):  wheel_right
+## LA PRUEBA: ros2 run tf2_ros tf2_echo odom laser
+  At time 1785384203.737502674
+  - Translation: [-0.018, -0.002, 0.141]
+  - Rotation: in Quaternion (xyzw) [0.011, -0.062, -0.043, 0.997]
+  - Rotation: in RPY (degree) [1.603, -7.013, -5.000]
 
-  UNA sola raiz, UN solo arbol, todos los links la alcanzan.
-  Antes de la Fase 3 habia DOS arboles inconexos:
-     odom -> rvr_base_link   y   base_link -> laser
+  RESUELVE. Antes de hoy este comando respondia 'Could not find a
+  connection' porque el arbol estaba partido en dos, y era el bloqueante
+  raiz de SLAM.
 
-## Joints y sus offsets
-  base_footprint   -> base_link     xyz=(0 0 0.032)
-  base_link        -> laser         xyz=(0 0 0.1425)
-  base_link        -> imu_link      xyz=(0 0 0.018)
-  base_link        -> wheel_left    xyz=(0 0.075 0)
-  base_link        -> wheel_right   xyz=(0 -0.075 0)
+  La z=0.141 coincide con los 0.1425 del URDF (la diferencia es el robot
+  inclinandose: ver el RPY).
 
-## La altura del LIDAR, con la procedencia de cada termino
-  base_height        0.114    alto del RVR         📝 ficha, SIN MEDIR
-+ laser_gap          0.040    hueco tapa->LIDAR    ✅ MEDIDO 2026-07-30
-+ x2_height/2        0.0205   al centro del disco  📝 ficha del X2
-----------------------------
-  laser_z            0.1745   = 17.45 cm sobre el SUELO
+## El arbol, via view_frames
+  base_link     parent: odom        rate 16.699 Hz   <- el driver
+  laser         parent: base_link   rate 10000 Hz    <- robot_state_publisher
+  imu_link      parent: base_link   rate 10000 Hz
+  wheel_left    parent: base_link   rate 10000 Hz
+  wheel_right   parent: base_link   rate 10000 Hz
 
-  offset del joint (relativo a base_link, que esta a 0.032 del suelo):
-     0.1745 - 0.032 = 0.1425 m   <- coincide con el joint de arriba
+  Los 10000 Hz son la marca de /tf_static: no se republica, se retiene.
+  Los 16.699 Hz del driver coinciden con el ritmo de la telemetria.
 
-  🔴 El valor que arrastraba el proyecto era 0.10 -> 7.4 cm CORTO.
-     Venia del static_transform_publisher de lidar_only.launch, y la
-     propia GUIA_COMPLETA_LIDAR.md lo admitia como suposicion.
+## xacro procesa, y coincide con el calculo a mano
+  xacro 2.1.1 · check_urdf: 'Successfully Parsed XML'
+  root Link: base_footprint has 1 child(ren) -> base_link -> {imu_link,
+  laser, wheel_left, wheel_right}
 
-## LO QUE NO SE HA PODIDO EJECUTAR TODAVIA
-  ros-jazzy-xacro NO esta instalado. Comprobado:
-    dpkg -l | grep xacro        -> (nada)
-    apt-cache policy            -> Installed: (none)
-    /var/log/apt/history.log    -> ninguna entrada
-    find /opt/ros/jazzy -name 'xacro*' -> nada
+## DATO COLATERAL: el robot no esta horizontal
+  RPY = [1.6, -7.0, -5.0] grados. Un pitch de -7 grados significa que el
+  chasis esta inclinado, o el suelo tiene pendiente. El LIDAR lo va a
+  ver, asi que hay que tenerlo presente cuando salga el primer mapa.
+  NO MEDIDO si es del suelo o del montaje.
 
-  Asi que NO se ha ejecutado:
-    · el procesado del .xacro con la herramienta oficial
-    · robot_state_publisher con el URDF
-    · 'ros2 run tf2_ros tf2_echo odom laser' con los dos nodos vivos
+## 🐛 UN FALLO PROPIO, Y DE LOS BUENOS
+  El launch fallo la primera vez con:
+    Unable to parse the value of parameter robot_description as yaml.
+    If the parameter is meant to be a string, try wrapping it in
+    launch_ros.parameter_descriptions.ParameterValue(value, value_type=str)
 
-  La estructura SI esta validada: el URDF se expandio a mano (resolviendo
-  las propiedades y la macro de las ruedas) y check_urdf lo acepta. Pero
-  eso NO es lo mismo que haberlo ejecutado, y no se presenta como tal.
+  Y el fichero YA LLEVABA UN COMENTARIO explicando exactamente eso. Se
+  documento la solucion y no se implemento. El mensaje de error de launch
+  es de los utiles: dice literalmente que hacer.

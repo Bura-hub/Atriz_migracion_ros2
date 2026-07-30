@@ -142,7 +142,12 @@ if [[ -f "$SRC" ]]; then
     if grep -qE '^Suites:.*noble-updates' "$SRC"; then
         salta "noble-updates ya está habilitado"
     else
-        correr cp -a "$SRC" "${SRC}.bak-$(date +%Y%m%d-%H%M%S)"
+        # El respaldo va FUERA de sources.list.d/: apt avisa en CADA ejecucion
+        # de los ficheros con extension que no reconoce, y en 16 robots eso es
+        # ruido permanente. Verificado el 2026-07-30:
+        #   N: Ignoring file 'ubuntu.sources.bak-...' ... invalid filename extension
+        correr install -d /root/respaldos-apt
+        correr cp -a "$SRC" "/root/respaldos-apt/$(basename "$SRC").bak-$(date +%Y%m%d-%H%M%S)"
         # 0,/patron/s//…/ sustituye SOLO la primera aparicion: la del repo
         # principal. No debe tocar la linea de noble-security.
         correr sed -i '0,/^Suites: noble$/s//Suites: noble noble-updates/' "$SRC"

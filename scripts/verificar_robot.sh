@@ -221,6 +221,13 @@ for t in apt-daily.timer apt-daily-upgrade.timer unattended-upgrades; do
     esac
 done
 
+# Ficheros con extension no reconocida en sources.list.d/ hacen que apt imprima
+# un aviso en CADA ejecucion. Suele ser un respaldo mal colocado.
+RUIDO="$(ls /etc/apt/sources.list.d/ 2>/dev/null | grep -vE '\.(list|sources)$' | tr '\n' ' ')"
+[[ -z "$RUIDO" ]] && _ok "sources.list.d/ limpio (sin ficheros que apt ignore)" \
+    || _avi "apt avisara en cada ejecucion por: $RUIDO" \
+            "muevelos fuera: sudo mkdir -p /root/respaldos-apt && sudo mv /etc/apt/sources.list.d/*.bak-* /root/respaldos-apt/"
+
 comprobar_contiene "noatime en /" "$(findmnt -no OPTIONS / 2>/dev/null)" "noatime" \
                    "añade ',noatime' a la línea de / en /etc/fstab"
 

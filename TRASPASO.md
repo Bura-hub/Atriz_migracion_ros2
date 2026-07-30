@@ -71,10 +71,10 @@ sesión de trabajo.
 **Lo que queda del nodo:** 16 de los 20 servicios y 4 topics, listados al final de
 `rvr_driver_node.py`.
 
-✅ **Fase 3 escrita** (commit `89be510`): paquete `atriz_rvr_description` con el URDF que
-**une el árbol TF**, que estaba partido en dos y era el bloqueante raíz de SLAM. La estructura
-está escrita y el paquete compila; **falta ejecutarlo** — requiere
-`sudo apt install ros-jazzy-xacro`, que no viene en `ros-base`.
+✅ **Fase 3 CERRADA** (commit `719c769`): el paquete `atriz_rvr_description` une el árbol TF, que
+estaba partido en dos y era el bloqueante raíz de SLAM. **Verificado sobre el robot:**
+`tf2_echo odom laser` resuelve con `Translation: [-0.018, -0.002, 0.141]`, y antes respondía
+«Could not find a connection».
 
 Medida del LIDAR: **17.45 cm** sobre el suelo (centrado, 4 cm de hueco medidos). El proyecto
 arrastraba `0.10`, que se quedaba **7.4 cm corto** y habría inclinado el mapa.

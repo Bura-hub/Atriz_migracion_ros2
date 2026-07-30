@@ -21,7 +21,7 @@
 > | 4 | Higiene del SO (headless, governor, journal) | ✅ **verificado 2026-07-30** |
 > | 5 | ROS 2 Jazzy y workspace colcon | ✅ **verificado 2026-07-30** (5.4 en espera del port) |
 > | 6 | Driver del RVR en `rclpy` | ⏳ **no escrito — EN CURSO** |
-> | 7 | URDF y árbol TF | 🟡 **escrito 2026-07-30** · estructura verificada, medidas del chasis sin medir |
+> | 7 | URDF y árbol TF | ✅ **verificado 2026-07-30** · `odom → laser` resuelve. Medidas del chasis 📝 sin medir |
 > | 8 | YDLIDAR X2 | 🟡 **hardware verificado en 20.04 y 24.04**; driver ROS pendiente |
 > | 9 | SLAM y Nav2 | ⏳ no escrito |
 > | 10 | rosbridge y plataforma web | ⏳ no escrito |
@@ -929,12 +929,23 @@ cosmético, impide compilar el workspace.
 **El arreglo** — añadir `noble-updates` a la *primera* sección, sin tocar `noble-security`:
 
 ```bash
+# ⚠️ El respaldo va FUERA de sources.list.d/. Si se deja dentro, apt imprime
+#    «Ignoring file … invalid filename extension» en CADA ejecución. Es
+#    inofensivo pero es ruido permanente, y en 16 robots molesta de verdad.
+sudo install -d /root/respaldos-apt
 sudo cp /etc/apt/sources.list.d/ubuntu.sources \
-        /etc/apt/sources.list.d/ubuntu.sources.bak-$(date +%Y%m%d)
+        /root/respaldos-apt/ubuntu.sources.bak-$(date +%Y%m%d)
 sudo sed -i '0,/^Suites: noble$/s//Suites: noble noble-updates/' \
         /etc/apt/sources.list.d/ubuntu.sources
 sudo apt update
 ```
+
+> 🐛 **Aprendido a base de meter la pata el 2026-07-30:** el respaldo se dejó
+> dentro de `sources.list.d/` y desde entonces cada `apt install` terminaba con
+> ese aviso. Se mueve con:
+> ```bash
+> sudo mv /etc/apt/sources.list.d/ubuntu.sources.bak-* /root/respaldos-apt/
+> ```
 
 El `0,/patrón/s//…/` de `sed` sustituye **solo la primera aparición**, que es la del repositorio
 principal. Comprobado sobre una copia antes de aplicarlo: una única línea de diferencia.
@@ -1182,9 +1193,11 @@ lo introduce el middleware.
 
 ## Capítulo 7 — URDF y árbol TF
 
-> 🟡 **Escrito el 2026-07-30 al crearlo.** La estructura está verificada; las
-> **medidas del chasis** vienen de la especificación del RVR y **no se han medido**
-> en esta unidad. Lo que sí está medido está marcado ✅.
+> ✅ **VERIFICADO el 2026-07-30 sobre el robot real.** `tf2_echo odom laser`
+> resuelve la cadena completa, que antes respondía «Could not find a connection».
+>
+> Las **medidas del chasis** vienen de la especificación del RVR y **no se han
+> medido** en esta unidad; lo que sí está medido está marcado ✅.
 
 ### 7.1 El problema: el árbol TF estaba partido en dos
 
@@ -1305,8 +1318,41 @@ ros2 run tf2_tools view_frames
 ros2 topic echo /tf_static --once
 ```
 
-Esperado en `tf2_echo odom laser`: una translación cuya **z sea ~0.1745** más lo que se haya
-movido el robot, y `frame_id: odom` → `child_frame_id: laser` resolviendo sin errores.
+**Resultado real (2026-07-30):**
+
+```
+$ ros2 run tf2_ros tf2_echo odom laser
+- Translation: [-0.018, -0.002, 0.141]
+- Rotation: in RPY (degree) [1.603, -7.013, -5.000]
+
+$ ros2 run tf2_tools view_frames
+base_link   parent: odom        rate 16.699 Hz     <- el driver
+laser       parent: base_link   rate 10000 Hz     <- robot_state_publisher
+imu_link    parent: base_link   rate 10000 Hz
+wheel_*     parent: base_link   rate 10000 Hz
+```
+
+Tres señales de que es correcto y no casualidad: la **z = 0.141** coincide con los 0.1425 del
+URDF (la diferencia es la inclinación del robot), los transforms fijos van a **10000 Hz** —
+la marca de `/tf_static`, que no se republica sino que se retiene—, y `base_link` va a
+**16.699 Hz**, el ritmo de la telemetría del driver.
+
+> El `Invalid frame ID "odom"` de la primera línea es normal: `tf2_echo` arranca antes de que
+> llegue el primer transform. Un segundo después resuelve.
+
+> 📝 **Dato colateral sin medir:** el RPY sale **[1.6°, −7.0°, −5.0°]**. Un pitch de −7° significa
+> que el chasis está inclinado o el suelo tiene pendiente. **El LIDAR lo está viendo**, así que
+> conviene tenerlo presente cuando salga el primer mapa. No se ha determinado si es del suelo o
+> del montaje.
+
+> 🐛 **El launch falló la primera vez**, y con un error de los útiles:
+> ```
+> Unable to parse the value of parameter robot_description as yaml. If the parameter
+> is meant to be a string, try wrapping it in ParameterValue(value, value_type=str)
+> ```
+> El fichero **ya llevaba un comentario explicando justamente eso** — se documentó la solución
+> y no se implementó. `robot_description` es XML, y `launch` intenta interpretarlo como YAML si
+> no se le dice el tipo.
 
 ---
 
