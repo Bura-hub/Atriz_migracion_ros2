@@ -181,15 +181,34 @@ avis "las actualizaciones de seguridad pasan a ser MANUALES: sudo apt update && 
 
 # ─────────────────────────────────────────────────────────────────────────────
 say "7/9 · Purgar servicios sin función en un robot"
-for u in snapd lxd-agent bluetooth ModemManager cups cups-browsed \
+
+# OJO con snapd: deshabilitar snapd.service NO SIRVE DE NADA por sí solo, porque
+# snapd.socket lo reactiva (TriggeredBy=snapd.socket). Verificado el 2026-07-30:
+# tras un reinicio, `systemctl is-enabled snapd` decía "disabled" y el demonio
+# estaba corriendo. Hay que apagar el SOCKET y las unidades acompañantes.
+# snapd.seeded.service era, con 3.5 s, el servicio más lento del arranque.
+for u in snapd.socket snapd.seeded.service snapd.apparmor.service \
+         snapd.autoimport.service snapd.recovery-chooser-trigger.service snapd \
+         lxd-agent bluetooth ModemManager cups cups-browsed \
          whoopsie kerneloops switcheroo-control avahi-daemon \
          multipathd open-iscsi iscsid lvm2-monitor unattended-upgrades; do
     systemctl disable --now "$u" 2>/dev/null && ok "$u deshabilitado" || true
 done
-# snapd instalado ocupa 6 loop devices y ~11 s de arranque
+
+# Comprobar el efecto REAL, no que 'is-enabled' diga disabled.
+if systemctl is-active snapd.service >/dev/null 2>&1; then
+    NO_APLICADO+=("snapd SIGUE ACTIVO. Mira quién lo dispara:")
+    NO_APLICADO+=("    systemctl show snapd.service -p TriggeredBy")
+    printf '  \033[1;31m✗\033[0m %s\n' "snapd sigue activo pese a deshabilitarlo"
+else
+    ok "verificado: snapd.service no está activo"
+fi
+
+# snapd instalado ocupa loop devices y varios segundos de arranque
 if dpkg -l snapd 2>/dev/null | grep -q '^ii'; then
-    avis "snapd sigue INSTALADO. Para eliminarlo del todo:"
+    avis "snapd sigue INSTALADO (deshabilitado, pero en disco). Para eliminarlo del todo:"
     avis "    sudo apt purge -y snapd && sudo rm -rf /var/cache/snapd /snap ~/snap"
+    avis "No lo hace este script: 'apt purge' es irreversible sin reinstalar."
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -267,8 +286,18 @@ cat <<EOF
       lo que produce deriva entre la documentación y la realidad.
 
     systemd-analyze              # antes 1min39s userspace -> objetivo < 15 s
-    ps -e | wc -l                # antes 187 tareas        -> objetivo < 120
-    cat /proc/pressure/io        # antes 'full total' 74.6 s en 34 min
+
+    # Procesos de USUARIO, no 'ps -e': ese cuenta ~129 hilos de kernel, que son
+    # el suelo del sistema y no se pueden bajar. Objetivo: < 30 (sin contar tu
+    # propia sesion SSH, que son ~16 procesos entre sshd, bash y el agente).
+    ps -e -o ppid= | awk '\$1!=2' | wc -l
+    systemctl list-units --type=service --state=running --no-legend | wc -l   # objetivo < 20
+
+    # Presion de I/O: mide el RITMO EN REPOSO, no el acumulado. El 'total' de
+    # justo tras arrancar esta dominado por cloud-init y apt, y diria que no ha
+    # mejorado nada cuando la causa ya esta desactivada. Toma dos lecturas:
+    #   grep full /proc/pressure/io; sleep 60; grep full /proc/pressure/io
+    # antes: 2.19 s por minuto  ->  objetivo: casi cero en reposo
     cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor   # performance
     iw dev wlan0 get power_save  # off
     journalctl --disk-usage      # decenas de MB, no cientos

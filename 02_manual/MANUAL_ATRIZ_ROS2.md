@@ -729,10 +729,70 @@ uname -r                            # ¿cambió el kernel en este reinicio?
 | `systemctl --failed` | — | ✅ vacío |
 | `/dev/rvr` | `→ ttyAMA0` | ✅ intacto: el script no toca el UART |
 
-> ⏳ **Las métricas de arranque, tareas y presión de I/O se miden DESPUÉS del reinicio**, con
-> los contadores a cero. Los valores tomados antes de reiniciar no sirven: incluyen todo el
-> trabajo de `cloud-init` y de `apt` de la instalación, así que dirían que no ha mejorado nada
-> cuando la causa ya está desactivada.
+**Medido DESPUÉS del reinicio, con los contadores a cero** (2026-07-30, kernel
+`6.8.0-1060-raspi`):
+
+| Métrica | 24.04 recién instalado | Tras la higiene | Objetivo |
+|---|---|---|---|
+| Arranque, userspace | 1 min 39 s | **8.7 s** | < 15 s ✅ |
+| `multi-user.target` alcanzado | 31.8 s | **8.6 s** | — |
+| Servicio más lento | `cloud-final` 1 min 7 s | `snapd.seeded` 3.5 s | — |
+| Journal | 17.7 MB | 14.1 MB, con tope de 32M | decenas de MB ✅ |
+| Governor | `ondemand` | `performance` | ✅ |
+| WiFi power-save | (`iw` no instalado) | `Power save: off` | ✅ |
+| Default target | `graphical.target` | `multi-user.target` | ✅ |
+| `systemctl --failed` | — | vacío | ✅ |
+| Temperatura | 63.7 °C | 58.4 °C, `throttled=0x0` | < 70 °C ✅ |
+| **Presión de I/O en reposo** | 2.19 s/min | **~0.00 s/min** (3 ms en 45 s) | casi cero ✅ |
+
+**El arranque baja de 1 min 39 s a 8.7 s: 11 veces más rápido.** La causa era `cloud-init`,
+tal como decía la auditoría.
+
+#### ⚠️ Dos correcciones de metodología que salieron al medir
+
+**1. La presión de I/O hay que medirla como RITMO, no como acumulado.** El `total` de
+`/proc/pressure/io` cuenta desde el arranque, así que justo tras instalar está dominado por
+`cloud-init` y `apt` y no dice nada del estado en reposo. Se mide con dos lecturas:
+
+```bash
+grep full /proc/pressure/io; sleep 60; grep full /proc/pressure/io
+```
+En reposo dio **3 ms en 45 segundos**. Antes, el ritmo equivalente era 2.19 s/min. La mejora es
+real y grande, pero comparar los dos `total` a pelo la habría escondido.
+
+**2. El objetivo «< 120 tareas» estaba mal planteado y se retira.** `ps -e` cuenta los hilos de
+kernel, que son el suelo del sistema y no se pueden bajar:
+
+```
+ps -e total             : 168
+hilos de kernel (PPID 2): 129     <- intocable
+procesos de usuario     :  39     <- de los cuales ~16 son la sesión SSH y el agente
+servicios en ejecución  :  15
+```
+
+Las 273 tareas de 20.04 incluían ~120 procesos de GNOME, así que allí el número sí medía algo.
+En un Server headless, no. **Las métricas que sí sirven** y sustituyen a la vieja:
+
+```bash
+ps -e -o ppid= | awk '$1!=2' | wc -l                                   # procesos de usuario -> < 30
+systemctl list-units --type=service --state=running --no-legend | wc -l  # servicios -> < 20
+```
+
+#### 🐛 `snapd` no se apagaba, y `systemctl` decía que sí
+
+Tras el reinicio, `systemctl is-enabled snapd` respondía `disabled` **y el demonio estaba
+corriendo**, siendo `snapd.seeded.service` el servicio más lento del arranque (3.5 s).
+
+La causa: `snapd.service` tiene `TriggeredBy=snapd.socket`, y el script solo deshabilitaba el
+servicio. **Activación por socket: apagar el servicio no sirve de nada si el socket sigue
+en pie.** Hay que apagar también `snapd.socket`, `snapd.seeded.service`,
+`snapd.apparmor.service` y `snapd.autoimport.service`. Corregido en el script, que además
+comprueba con `is-active` en vez de fiarse de `is-enabled`.
+
+> ℹ️ **`cloud-init` sigue diciendo `enabled` y es correcto.** Se desactiva con el fichero
+> `/etc/cloud/cloud-init.disabled`, no con `systemctl`. Lo que hay que comprobar es que está
+> **`inactive`**, no que esté `disabled`. Si buscas `is-enabled` te llevarás un susto y
+> perseguirás un problema que no existe.
 
 > 🐛 **El paso 4/9 tenía un bug que lo hacía inútil, y su verificador otro.** Está contado en
 > el `CHANGELOG.md` del 2026-07-30. En resumen: el `ExecStart` era `iw ... || true` y `iw` no

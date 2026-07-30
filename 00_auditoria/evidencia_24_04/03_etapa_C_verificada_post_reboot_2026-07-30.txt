@@ -1,0 +1,82 @@
+# Etapa C verificada — DESPUES del reinicio, con los contadores a cero
+# 2026-07-30 · kernel 6.8.0-1060-raspi (antes 6.8.0-1047-raspi) · uptime al medir: 2 min
+
+## Las siete metricas del capitulo 4.3
+Startup finished in 5.698s (kernel) + 8.691s (userspace) = 14.390s 
+multi-user.target reached after 8.618s in userspace.
+
+-- 10 servicios mas lentos del arranque:
+3.537s snapd.seeded.service
+2.365s apport.service
+2.165s e2scrub_reap.service
+2.054s snapd.service
+1.594s dev-mmcblk0p2.device
+1.257s rpi-eeprom-update.service
+ 985ms user@1000.service
+ 935ms apparmor.service
+ 906ms systemd-udev-trigger.service
+ 705ms systemd-fsck@dev-disk-by\x2dlabel-system\x2dboot.service
+
+governor       : performance
+wifi power_save: Power save: off
+journal        : Archived and active journals take up 14.1M in the file system.
+default target : multi-user.target
+noatime        : rw,noatime
+temp/throttled : temp=55.5'C throttled=0x0
+systemctl --failed:
+
+## Recuento de tareas — la metrica corregida
+# 'ps -e' cuenta hilos de kernel, que son el suelo del sistema. El objetivo
+# '< 120 tareas' del plan se fijo con esa metrica y es INALCANZABLE: solo los
+# hilos de kernel son 129. Lo que si se puede medir y bajar son los procesos
+# de usuario y los servicios en ejecucion.
+ps -e total            : 156
+hilos de kernel (PPID 2): 117
+procesos de usuario    : 39   (de los cuales ~16 son la sesion SSH+agente)
+servicios en ejecucion : 15
+  cron.service
+  dbus.service
+  getty@tty1.service
+  netplan-wpa-wlan0.service
+  rsyslog.service
+  snapd.service
+  ssh.service
+  systemd-journald.service
+  systemd-logind.service
+  systemd-networkd.service
+  systemd-resolved.service
+  systemd-timesyncd.service
+  systemd-udevd.service
+  user@1000.service
+  wpa_supplicant.service
+
+## Presion de I/O — ritmo EN REPOSO, no el acumulado del arranque
+# medido con dos lecturas separadas 45 s, con el sistema ocioso:
+#   delta de 'full' = 3 ms en 45 s  ->  ~0.00 s por minuto
+#   antes (24.04 recien instalado)  ->  74.6 s / 34 min = 2.19 s/min
+# El acumulado de justo tras instalar estaba dominado por cloud-init y apt.
+some avg10=0.00 avg60=0.04 avg300=0.54 total=5451584
+full avg10=0.00 avg60=0.03 avg300=0.42 total=4217983
+
+## snapd: deshabilitar el .service NO BASTA
+# snapd.socket lo reactiva. Estado en esta medicion:
+    snapd.apparmor.service  loaded active exited  Load AppArmor profiles managed internally by snapd
+    snapd.seeded.service    loaded active exited  Wait until snapd is fully seeded
+    snapd.service           loaded active running Snap Daemon
+    snapd.socket            loaded active running Socket activation for snappy daemon
+    snapd.mounts-pre.target loaded active active  Mounting snaps
+    snapd.mounts.target     loaded active active  Mounted snaps
+  snapd.service TriggeredBy: snapd.socket
+
+## UART y LIDAR: sobreviven al cambio de kernel
+lrwxrwxrwx 1 root root         7 Jun  5 10:36 /dev/rvr -> ttyAMA0
+crw-rw---- 1 root dialout 188, 0 Jun  5 10:36 /dev/ttyUSB0
+uart0 -> /soc/serial@7e201000
+mini-UART -> disabled
+
+## Nota sobre cloud-init
+# 'systemctl is-enabled cloud-init' sigue diciendo 'enabled' y es CORRECTO:
+# se desactiva con el fichero /etc/cloud/cloud-init.disabled, no con systemctl.
+# Lo que importa es que este INACTIVO:
+  is-enabled: enabled  |  is-active: inactive
+  /etc/cloud/cloud-init.disabled: presente
