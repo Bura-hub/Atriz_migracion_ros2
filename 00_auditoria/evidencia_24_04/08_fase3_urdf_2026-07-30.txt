@@ -1,0 +1,53 @@
+# Fase 3 — URDF: estructura del arbol TF validada
+# 2026-07-30 · rvr-01 · Atriz_rvr rama ros2 commit 89be510
+
+## check_urdf sobre el URDF expandido
+  robot name is: atriz_rvr
+  ---------- Successfully Parsed XML ---------------
+  root Link: base_footprint has 1 child(ren)
+      child(1):  base_link
+          child(1):  imu_link
+          child(2):  laser
+          child(3):  wheel_left
+          child(4):  wheel_right
+
+  UNA sola raiz, UN solo arbol, todos los links la alcanzan.
+  Antes de la Fase 3 habia DOS arboles inconexos:
+     odom -> rvr_base_link   y   base_link -> laser
+
+## Joints y sus offsets
+  base_footprint   -> base_link     xyz=(0 0 0.032)
+  base_link        -> laser         xyz=(0 0 0.1425)
+  base_link        -> imu_link      xyz=(0 0 0.018)
+  base_link        -> wheel_left    xyz=(0 0.075 0)
+  base_link        -> wheel_right   xyz=(0 -0.075 0)
+
+## La altura del LIDAR, con la procedencia de cada termino
+  base_height        0.114    alto del RVR         📝 ficha, SIN MEDIR
++ laser_gap          0.040    hueco tapa->LIDAR    ✅ MEDIDO 2026-07-30
++ x2_height/2        0.0205   al centro del disco  📝 ficha del X2
+----------------------------
+  laser_z            0.1745   = 17.45 cm sobre el SUELO
+
+  offset del joint (relativo a base_link, que esta a 0.032 del suelo):
+     0.1745 - 0.032 = 0.1425 m   <- coincide con el joint de arriba
+
+  🔴 El valor que arrastraba el proyecto era 0.10 -> 7.4 cm CORTO.
+     Venia del static_transform_publisher de lidar_only.launch, y la
+     propia GUIA_COMPLETA_LIDAR.md lo admitia como suposicion.
+
+## LO QUE NO SE HA PODIDO EJECUTAR TODAVIA
+  ros-jazzy-xacro NO esta instalado. Comprobado:
+    dpkg -l | grep xacro        -> (nada)
+    apt-cache policy            -> Installed: (none)
+    /var/log/apt/history.log    -> ninguna entrada
+    find /opt/ros/jazzy -name 'xacro*' -> nada
+
+  Asi que NO se ha ejecutado:
+    · el procesado del .xacro con la herramienta oficial
+    · robot_state_publisher con el URDF
+    · 'ros2 run tf2_ros tf2_echo odom laser' con los dos nodos vivos
+
+  La estructura SI esta validada: el URDF se expandio a mano (resolviendo
+  las propiedades y la macro de las ruedas) y check_urdf lo acepta. Pero
+  eso NO es lo mismo que haberlo ejecutado, y no se presenta como tal.
