@@ -82,6 +82,17 @@ if [[ -d "$HOME/.ssh" ]]; then
     cp -a "$HOME/.ssh" "$DEST/ssh"; chmod -R go-rwx "$DEST/ssh"
     ok "claves SSH → $DEST/ssh   (¡contienen material privado, no subir a git!)"
 fi
+
+# Credenciales de git. Sin esto, tras reflashear NO SE PUEDE HACER PUSH y hay que
+# generar un token nuevo. Pasó exactamente eso el 2026-07-30: el respaldo llevaba
+# ~/.ssh (que además estaba vacío) pero no ~/.git-credentials, así que el sistema
+# nuevo se quedó sin forma de subir a un repositorio privado.
+for f in "$HOME/.git-credentials" "$HOME/.gitconfig"; do
+    [[ -f "$f" ]] || continue
+    cp -a "$f" "$DEST/$(basename "$f")" && chmod 600 "$DEST/$(basename "$f")"
+    ok "$(basename "$f") → $DEST   (¡contiene un token, no subir a git!)"
+done
+[[ -f "$HOME/.git-credentials" ]] || avis "no hay ~/.git-credentials: comprueba cómo autenticas con GitHub antes de apagar"
 if cp /etc/netplan/*.yaml "$DEST/" 2>/dev/null; then
     ok "netplan copiado (contiene la PSK del WiFi)"
 elif sudo -n cp /etc/netplan/*.yaml "$DEST/" 2>/dev/null; then
@@ -92,13 +103,34 @@ else
     avis "(no cuenta como trabajo en riesgo: es reconstruible, ver NETPLAN_OMITIDO.md)"
 fi
 cp "$HOME/.bashrc" "$DEST/bashrc" 2>/dev/null && ok ".bashrc copiado"
-{ echo "# Estado del sistema justo antes del respaldo — $STAMP"; echo
-  echo "## /dev/rvr"; ls -l /dev/rvr 2>&1
-  echo; echo "## ROS"; rosversion -d 2>&1
+
+# Inventario del sistema. Se escribe SIN la fecha en la cabecera para poder
+# compararlo con el anterior: si no ha cambiado nada, no se crea otro fichero.
+# (Ejecutar el script 6 veces dejó 6 ficheros byte a byte idénticos salvo la
+#  fecha, que es ruido disfrazado de historial.)
+TMP_INV="$(mktemp)"
+{ echo "## sistema"; lsb_release -ds 2>/dev/null; uname -srm; python3 --version 2>&1
+  echo; echo "## /dev/rvr"; ls -l /dev/rvr 2>&1
+  echo; echo "## /dev/ttyUSB*"; ls -l /dev/ttyUSB* 2>&1
+  echo; echo "## ROS"
+  if command -v rosversion >/dev/null; then rosversion -d 2>&1        # ROS 1
+  elif [[ -n "${ROS_DISTRO:-}" ]]; then echo "$ROS_DISTRO"            # ROS 2
+  else echo "(sin ROS)"; fi
   echo; echo "## paquetes pip3"; pip3 list 2>/dev/null
-  echo; echo "## paquetes ros-noetic"; dpkg -l | awk '/ros-noetic/{print $2, $3}'
-} > "$DEST/estado_sistema_${STAMP}.txt"
-ok "inventario del sistema → estado_sistema_${STAMP}.txt"
+  echo; echo "## paquetes ROS de apt"; dpkg -l | awk '/ros-(noetic|jazzy)/{print $2, $3}'
+} > "$TMP_INV"
+
+ULTIMO="$(ls -1t "$DEST"/estado_sistema_*.txt 2>/dev/null | head -1 || true)"
+if [[ -n "$ULTIMO" ]] && diff -q <(tail -n +2 "$ULTIMO") "$TMP_INV" >/dev/null 2>&1; then
+    salta_inv="$(basename "$ULTIMO")"
+    ok "el inventario no ha cambiado desde $salta_inv — no se duplica"
+    rm -f "$TMP_INV"
+else
+    { echo "# Estado del sistema justo antes del respaldo — $STAMP"; cat "$TMP_INV"; } \
+        > "$DEST/estado_sistema_${STAMP}.txt"
+    rm -f "$TMP_INV"
+    ok "inventario del sistema → estado_sistema_${STAMP}.txt"
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 say "3/5 · Respaldar el historial de Claude Code (para intentar reanudar sesión)"
