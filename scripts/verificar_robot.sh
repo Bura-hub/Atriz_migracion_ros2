@@ -315,7 +315,14 @@ if [[ -d /opt/ros/jazzy ]]; then
     # despues; entre las dos fases setup.bash ya existe y dpkg dice 'unpacked'.
     # Verificado el 2026-07-30: setup.bash presente, ROS_DISTRO=jazzy, y CERO
     # paquetes en estado 'ii'. Se comprueba el estado de dpkg, no el fichero.
-    N_II="$(dpkg -l 'ros-jazzy-*' 2>/dev/null | grep -c '^ii' || echo 0)"
+    # OJO: 'grep -c' imprime 0 Y ADEMAS sale con codigo 1 cuando no hay
+    # coincidencias, asi que un '|| echo 0' concatena un segundo cero y la
+    # variable queda como "0\n0", rompiendo la aritmetica. Es el mismo patron
+    # que rompio la comprobacion de 'systemctl is-enabled' este mismo dia.
+    # Solucion: no poner el '|| echo 0' (grep -c ya imprime 0) y quedarse con
+    # la primera linea por seguridad.
+    N_II="$(dpkg -l 'ros-jazzy-*' 2>/dev/null | grep -c '^ii' | head -1)"
+    N_II=${N_II:-0}
     if (( N_II > 50 )); then
         _ok "ROS 2 Jazzy: $N_II paquetes instalados y configurados"
     elif (( N_II > 0 )); then
@@ -327,7 +334,8 @@ if [[ -d /opt/ros/jazzy ]]; then
     fi
 
     # ¿Queda algo a medio instalar en TODO el sistema?
-    A_MEDIAS="$(dpkg -l 2>/dev/null | grep -vE '^(ii|rc|un)' | grep -cE '^[a-z]{2} ' || echo 0)"
+    A_MEDIAS="$(dpkg -l 2>/dev/null | grep -vE '^(ii|rc|un)' | grep -cE '^[a-z]{2} ' | head -1)"
+    A_MEDIAS=${A_MEDIAS:-0}
     (( A_MEDIAS == 0 )) && _ok "ningún paquete a medio instalar" \
         || _avi "$A_MEDIAS paquete(s) en estado intermedio" \
                 "dpkg -l | grep -vE '^(ii|rc)' — puede hacer falta: sudo dpkg --configure -a"

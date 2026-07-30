@@ -212,7 +212,7 @@ lo que produce deriva entre documentación y realidad.
 | **Sin cámara** en los robots | confirmado por el usuario |
 | La plataforma web **al final** | decisión del usuario |
 | `ros-jazzy-ros-base`, **NO** `desktop` | Server headless; RViz2 va en un portátil |
-| **Imagen dorada** para los 16, no aprovisionar por red | ~1.5 GB por robot = ~22 GB sobre la única AP. `FLOTA.md` |
+| **Imagen dorada** para los 16, no aprovisionar por red | ~300 MB y 15-20 min por robot, sobre la única AP. `FLOTA.md` |
 | La imagen dorada se **construye ejecutando `provision.sh`**, no a mano | Una imagen irreproducible es una caja negra. `FLOTA.md` |
 | **🟢 GO: el SDK funciona en Python 3.12** (16.67 Hz) | manual, cap. 5.1 · verificado 2026-07-30 |
 
@@ -240,7 +240,7 @@ lo que produce deriva entre documentación y realidad.
 bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
 ```
 
-**39 aserciones**, código de salida ≠ 0 si algo falla, y cada fallo viene con el comando que lo
+**48 aserciones**, código de salida ≠ 0 si algo falla, y cada fallo viene con el comando que lo
 arregla. Existe porque el 2026-07-30 se verificó este robot a mano con ~25 comandos y
 aparecieron **cinco fallos silenciosos**. No repitas eso: pásalo al empezar y al cerrar.
 

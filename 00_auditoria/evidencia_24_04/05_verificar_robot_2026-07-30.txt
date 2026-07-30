@@ -1,7 +1,7 @@
 ======================================================================
   verificar_robot.sh — ¿está este robot como debe estar?
 ======================================================================
-  · host rvr-01 · 2026-07-29T20:53:55-05:00 · kernel 6.8.0-1060-raspi
+  · host rvr-01 · 2026-07-29T21:25:52-05:00 · kernel 6.8.0-1060-raspi
 
 ▶ 1 · Sistema base
   ✓ arquitectura: aarch64
@@ -37,16 +37,17 @@
   ✓ apt-daily-upgrade.timer: disabled
   ✓ unattended-upgrades: disabled
   ✓ noatime en /: rw,noatime
+  ✓ repositorio noble-updates habilitado
   ✓ journal: 14.1M
   ✓ servicios en fallo: 0
 
 ▶ 5 · Salud del hardware
-  ✓ temperatura: 56 °C
+  ✓ temperatura: 60 °C
   ✓ throttling / under-voltage: throttled=0x0
-  · espacio en /: 24G libres (12% usado)
+  · espacio en /: 23G libres (15% usado)
   · swap: 0B (0B es lo correcto: desgasta la SD)
-  · procesos de usuario: 44 (hilos de kernel: 122, que no se pueden bajar)
-  ✓ servicios en ejecución: 16
+  · procesos de usuario: 48 (hilos de kernel: 120, que no se pueden bajar)
+  ✓ servicios en ejecución: 18
 
 ▶ 6 · Dependencias de Python del SDK
   ✓ serial 3.5
@@ -59,16 +60,24 @@
   ✓ SDK usa /dev/rvr por defecto (commit 67c8776)
   ✓ streaming a interval=60 ms → 16.59 Hz (commit 24c7749)
 
-▶ 8 · ROS 2 — PENDIENTE
-  · ROS 2 aún no instalado — es la Etapa E. Nada que comprobar todavía.
-  · PENDIENTE de añadir aquí: /dev/ydlidar, unidades systemd del stack,
-  · rosbridge en :9090, árbol TF conectado, y frecuencias de /odom y /scan.
+▶ 8 · ROS 2
+  ✓ ROS 2 Jazzy: 201 paquetes instalados y configurados
+  ✓ ningún paquete a medio instalar
+  ✓ sin ros-jazzy-desktop (correcto: ros-base)
+  ✓ ros-jazzy-ros-base instalado y configurado
+  ✓ ros-jazzy-rclpy instalado y configurado
+  ✓ ros-dev-tools instalado y configurado
+  ✓ colcon disponible
+  ✓ ROS_DOMAIN_ID: 1
+  · PENDIENTE de añadir aquí cuando exista: /dev/ydlidar, el driver en rclpy,
+  · unidades systemd del stack, rosbridge en :9090, árbol TF conectado y
+  · las frecuencias de /odom (~16.5 Hz) y /scan (~10 Hz).
 
 ▶ 9 · Hablar con el hardware de verdad
   · esto DESPIERTA el robot: enciende sus LEDs y gasta batería
   ✓ el RVR contesta por /dev/rvr
-  ✓ LIDAR X2: 100.0% validos checksums, 11.48 Hz
+  ✓ LIDAR X2: 100.0% validos checksums, 11.57 Hz
 
 ======================================================================
-  39 comprobaciones correctas
+  48 comprobaciones correctas
 ======================================================================

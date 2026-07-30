@@ -38,28 +38,32 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      D2  Validar el SDK en Python 3.12        scripts/fase_1_validar_sdk_py312.py
          └── 🟢 GO: 16.67 Hz, firmware 9.1.462, los 103 ficheros compilan     ✅
 
-  ETAPA E — ROS 2 y el robot                                      ⏳ SIGUIENTE PASO
-     E1  Instalar ROS 2 Jazzy                 manual, cap. 5.2-5.5   ← AQUÍ
-     E2  Recuperar el estado actual           ver "Cómo volver a donde estábamos"
-     E3  Verificar UART y telemetría          manual, cap. 1.3 y 2   ← UART ✅ ya hecho
-     E4  Verificar el LIDAR                   manual, cap. 8.2       ← ✅ ya hecho
+  ETAPA E — ROS 2 y el robot
+     E1  Instalar ROS 2 Jazzy                 manual, cap. 5.2-5.5            ✅
+         └── 201 paquetes · ros2 doctor: 5/5 · pub/sub 9.997 Hz, σ 0.35 ms
+     E2  Recuperar el estado actual           ver "Cómo volver a donde estábamos"  ✅
+     E3  Verificar UART y telemetría          manual, cap. 1.3 y 2            ✅
+     E4  Verificar el LIDAR                   manual, cap. 8.2                ✅
 
-  ETAPA F — Seguir construyendo (sin escribir todavía)            ⏳
-     F1  Driver a rclpy                       plan, Fase 2
-     F2  URDF y árbol TF                      plan, Fase 3
+  ETAPA F — Seguir construyendo                                   ⏳ SIGUIENTE PASO
+     F1  Driver a rclpy                       plan, Fase 2   ← AQUÍ. El trabajo grande:
+         1704 líneas, 99 referencias a rospy, 48 asyncio.run(), 3 paquetes catkin
+
+     F2  URDF y árbol TF                      plan, Fase 3  ← el bloqueante raíz de SLAM
      F3  Driver ROS del LIDAR                 plan, Fase 3
      F4  SLAM y Nav2                          plan, Fase 4
      F5  Plataforma web                       plan, Fase 5
      F6  Clonar a los 16 robots               FLOTA.md
 ```
 
-> **Etapas A, B, C y D están recorridas y verificadas sobre la máquina real.** Los capítulos 1,
-> 3, 4, 5.1 y 8 del manual dejaron de ser NO VERIFICADO. La evidencia cruda de cada paso está
+> **Etapas A, B, C, D y E1 están recorridas y verificadas sobre la máquina real.** Los capítulos
+> 1, 3, 4, 5 y 8 del manual dejaron de ser NO VERIFICADO. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
 > comparar cuando un robot nuevo de la flota no dé lo mismo.
 >
-> **🟢 El go/no-go salió GO**, así que la migración sigue adelante tal como está planteada. El
-> siguiente paso es **E1: instalar `ros-jazzy-ros-base`**.
+> **🟢 El go/no-go salió GO** y ROS 2 Jazzy ya está instalado. El siguiente paso es **F1:
+> portar el driver a `rclpy`** — el driver es todavía ROS 1 y por tanto **no se ha podido
+> ejecutar nunca** en este sistema. Ver plan, Fase 2.
 >
 > ### Un solo comando para saber si el robot está bien
 >
@@ -67,8 +71,8 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 > bash scripts/verificar_robot.sh --hardware
 > ```
 >
-> **39 comprobaciones**, y sale con código ≠ 0 si algo falla. Pásalo al final de cada etapa en
-> lugar de recordar qué había que mirar. En `rvr-01`, el 2026-07-30: 39 correctas, 0 fallos.
+> **48 comprobaciones**, y sale con código ≠ 0 si algo falla. Pásalo al final de cada etapa en
+> lugar de recordar qué había que mirar. En `rvr-01`, el 2026-07-30: 48 correctas, 0 fallos.
 >
 > ### Y si estás instalando el robot 2, 3… 16
 >
@@ -82,7 +86,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 > | `verificar_robot.sh` | en el robot | Decide si quedó bien |
 >
 > Esta ruta a mano es **para el primer robot** y para entender *por qué* hace cada cosa. A
-> partir del segundo, la imagen dorada ahorra ~1.5 GB de descarga **por robot**.
+> partir del segundo, la imagen dorada ahorra ~300 MB de descarga y 15-20 min **por robot**.
 
 ---
 

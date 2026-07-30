@@ -93,7 +93,7 @@ Su bloque 8 ya sabe comprobar ROS 2 y avisará si se instaló `desktop` por erro
 | **E3/E4** — verificación de UART y LIDAR | ✅ hechas ya, sobre 24.04 |
 
 Y para no repetir la verificación a mano: **`bash scripts/verificar_robot.sh --hardware`**
-hace 39 comprobaciones y sale con código ≠ 0 si algo falla. En `rvr-01`, el 2026-07-30: **39
+hace 48 comprobaciones y sale con código ≠ 0 si algo falla. En `rvr-01`, el 2026-07-30: **48
 correctas, 0 fallos**.
 
 ✅ **El `stash@{0}` ya está rescatado.** Contenía tres scripts de estudiantes que solo

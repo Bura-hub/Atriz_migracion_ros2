@@ -1,0 +1,75 @@
+# Etapa E1 — ROS 2 Jazzy instalado y verificado
+# 2026-07-30 · Ubuntu 24.04.4 LTS · kernel 6.8.0-1060-raspi
+
+## Metodo del repositorio: paquete oficial ros2-apt-source (NO el curl del keyring)
+ros2-apt-source 1.2.0~noble install ok installed
+-- clave GPG que instala:
+pub   rsa4096 2019-05-30 [SC] [expires: 2030-06-01]
+      C1CF 6E31 E6BA DE88 68B1  72B4 F42E D6FB AB17 C654
+uid                      Open Robotics <info@osrfoundation.org>
+
+-- repositorio:
+Types: deb deb-src
+URIs: http://packages.ros.org/ros2/ubuntu
+Suites: noble
+Components: main
+
+## PROBLEMA RESUELTO: faltaba noble-updates en la imagen
+# Sin el, 'apt install ros-dev-tools' fallaba con 'held broken packages' en
+# zlib1g-dev, libzstd-dev, liblz4-dev y dpkg-dev. Ver manual cap. 5.2.0.
+-- repositorios activos ahora (deben ser 3 de Ubuntu + 1 de ROS):
+   Suites: noble noble-updates
+   Suites: noble-security
+   Suites: noble
+
+## Instalacion
+paquetes ros-jazzy configurados (ii): 201
+paquetes a medio instalar en el sistema: 0
+  ros-jazzy-ros-base                   0.11.0-1noble.20260614.091815  install ok installed
+  ros-jazzy-rclpy                      7.1.11-1noble.20260612.095634  install ok installed
+  ros-dev-tools                        1.0.1  install ok installed
+  ros-jazzy-robot-state-publisher      3.3.4-1noble.20260614.055403  install ok installed
+  ros-jazzy-tf2-ros                    0.36.21-1noble.20260614.051508  install ok installed
+  ros-jazzy-desktop (NO debe estar): ausente (correcto)
+disco: 4.0G usado, 23G libres (15%)
+
+## Entorno
+  ROS_DISTRO=jazzy  ROS_VERSION=2
+  ROS_DOMAIN_ID=1  (rvr-01 -> 1; ARQUITECTURA.md D1)
+  RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+  ros2 -> /opt/ros/jazzy/bin/ros2
+  colcon -> /usr/bin/colcon
+# Fijado en ~/.bashrc. TEMPORAL: en la flota lo genera atriz-first-boot en
+# /etc/profile.d/atriz-robot.sh. Hay que BORRARLO del .bashrc antes de la
+# imagen dorada, o los 16 clones quedarian con ROS_DOMAIN_ID=1.
+
+## ros2 doctor
+
+All 5 checks passed
+
+
+## Prueba pub/sub sobre DDS
+# NOTA: el manual pedia 'ros2 run demo_nodes_cpp talker', pero demo_nodes_cpp
+# NO viene en ros-base ('Package not found'). Se usa ros2 topic pub/echo/hz,
+# que vienen en ros2cli. Verifica lo mismo sin anadir un paquete a 16 robots.
+   $ ros2 topic pub -r 10 /prueba_atriz std_msgs/String '{data: "hola desde rvr-01"}'
+   $ ros2 topic echo /prueba_atriz --once
+   data: hola desde rvr-01
+   ---
+   $ ros2 topic hz /prueba_atriz
+   average rate: 9.997
+	min: 0.099s max: 0.101s std dev: 0.00035s window: 11
+   $ ros2 topic info /prueba_atriz
+   Type: std_msgs/msg/String
+   Publisher count: 1
+# sigma de 0.35 ms sobre 10 Hz: el jitter NO lo introduce el middleware.
+# Dato de referencia para cuando la odometria real vaya a 16.5 Hz.
+
+## LO QUE SIGUE SIN PODER PROBARSE
+# El driver del robot NO se ha ejecutado, y no puede: Atriz_rvr_node.py es
+# ROS 1 (99 referencias a rospy, 3 paquetes catkin). No es 'sin probar', es
+# imposible hasta el port a rclpy (Fase 2 del plan, cap. 6 del manual).
+#   Atriz_rvr_node.py       1704 lineas
+#   referencias a rospy.*   99
+#   asyncio.run()           48
+#   interfaces              6 .msg + 20 .srv (todas registradas)

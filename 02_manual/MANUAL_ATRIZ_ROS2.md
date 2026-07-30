@@ -19,7 +19,7 @@
 > | 2 | Ritmo de telemetría | ✅ **medido 2026-07-29** |
 > | 3 | Flasheo de Ubuntu Server 24.04 | ✅ **verificado 2026-07-30** |
 > | 4 | Higiene del SO (headless, governor, journal) | ✅ **verificado 2026-07-30** |
-> | 5 | ROS 2 Jazzy y workspace colcon | 🟡 **5.1 verificado (GO) 2026-07-30** · 5.2-5.5 NO VERIFICADO |
+> | 5 | ROS 2 Jazzy y workspace colcon | ✅ **verificado 2026-07-30** (5.4 en espera del port) |
 > | 6 | Driver del RVR en `rclpy` | ⏳ no escrito |
 > | 7 | URDF y árbol TF | ⏳ no escrito |
 > | 8 | YDLIDAR X2 | 🟡 **hardware verificado en 20.04 y 24.04**; driver ROS pendiente |
@@ -440,7 +440,7 @@ Jazzy), con `params/X2.yaml`.
 > |---|---|
 > | **3** — Flasheo, `cmdline.txt`, `config.txt` | ✅ **RECORRIDO Y VERIFICADO 2026-07-30** |
 > | **4** — Higiene del SO | ✅ **RECORRIDO Y VERIFICADO 2026-07-30** |
-> | **5** — ROS 2 Jazzy y workspace | 🟡 **5.1 (go/no-go) VERIFICADO: GO.** 5.2-5.5 sin ejecutar |
+> | **5** — ROS 2 Jazzy y workspace | ✅ **VERIFICADO 2026-07-30.** 201 paquetes, ros2 doctor OK |
 >
 > Los tres se redactaron **antes** de ejecutarlos, a partir de lo aprendido en Ubuntu 20.04 y
 > de la documentación oficial. Los capítulos 3 y 4 ya se recorrieron sobre la máquina real y
@@ -1125,16 +1125,58 @@ Los dos primeros caracteres de `dpkg -l` son el estado: **`ii` = instalado y con
 > (cap. 1.5), o que un servicio en verde no prueba que haya hecho su trabajo (cap. 4.3).
 > **Comprueba el efecto, no el indicio.**
 
-### 5.5 Verificación del capítulo 5
+### 5.5 ✅ Verificación del capítulo 5 — **verificado 2026-07-30**
+
+> 🐛 **La versión anterior de este apartado no se podía ejecutar.** Pedía
+> `ros2 run demo_nodes_cpp talker`, y **`demo_nodes_cpp` NO viene en `ros-base`**: es el paquete
+> aparte `ros-jazzy-demo-nodes-cpp`. Resultado real: `Package 'demo_nodes_cpp' not found`.
+>
+> Se sustituye por una prueba equivalente con `ros2 topic pub`/`echo`/`hz`, que vienen en
+> `ros2cli` y por tanto **ya están instaladas**. Mejor para la flota: verifica lo mismo (ida y
+> vuelta completa sobre DDS) sin añadir un paquete a 16 robots.
 
 ```bash
-ros2 doctor
-echo $ROS_DOMAIN_ID
-# En dos terminales:
-ros2 run demo_nodes_cpp talker
-ros2 run demo_nodes_cpp listener
-ros2 topic hz /chatter              # estable
+source /opt/ros/jazzy/setup.bash
+export ROS_DOMAIN_ID=1 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+
+# 1. Salud general
+ros2 doctor                          # -> All 5 checks passed
+echo $ROS_DOMAIN_ID                  # -> el número de este robot
+
+# 2. Que la instalación esté COMPLETA (ver 5.4.1: setup.bash no basta)
+dpkg -l 'ros-jazzy-*' | grep -c '^ii'                 # -> 201, no 0
+dpkg -l | grep -vE '^(ii|rc)' | grep -cE '^[a-z]{2} '  # -> 0, nada a medias
+
+# 3. Ida y vuelta sobre DDS. En una terminal:
+ros2 topic pub -r 10 /prueba_atriz std_msgs/String '{data: "hola"}'
+#    y en otra:
+ros2 topic echo /prueba_atriz --once
+ros2 topic hz /prueba_atriz
+ros2 topic info /prueba_atriz
 ```
+
+**Resultado real en `rvr-01`:**
+
+| Comprobación | Resultado |
+|---|---|
+| `ros2 doctor` | **All 5 checks passed** |
+| Paquetes `ros-jazzy` configurados | **201**, y 0 a medio instalar |
+| `ros2 topic echo --once` | `data: hola desde rvr-01` |
+| `ros2 topic hz` | **9.997 Hz** · min 0.099 s · max 0.101 s · **σ 0.35 ms** |
+| `ros2 topic info` | `std_msgs/msg/String`, 1 publicador |
+
+**σ de 0.35 ms sobre un objetivo de 10 Hz**: DDS funciona con precisión en este Pi 4. Es un
+dato útil de referencia — cuando la odometría real vaya a 16.5 Hz, ya sabemos que el jitter no
+lo introduce el middleware.
+
+> ℹ️ **`ros2 doctor` avisará de versiones más nuevas** (`local: 0.36.21 < latest: 0.36.22`).
+> Es cosmético: el repositorio de ROS publica versiones continuamente y el índice local se
+> queda atrás entre `apt update`s. No es un fallo.
+
+> ⚠️ **Al matar procesos de ROS, usa el PID, nunca `pkill -f`.** El patrón coincide con la
+> línea de comando del propio shell que lo ejecuta, y **mata tu terminal** — pasó dos veces con
+> el driver de ROS 1. Y ojo con los falsos positivos: un `pgrep -f 'listener'` en este robot
+> encuentra **`sshd`**, cuya línea de comando contiene literalmente `[listener]`.
 
 ---
 

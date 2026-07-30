@@ -4,6 +4,130 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-30 (parte 3) — ROS 2 Jazzy instalado y verificado (Etapa E1)
+
+```
+ros2 doctor            All 5 checks passed
+paquetes ros-jazzy     201 en estado 'ii', 0 a medio instalar
+pub/sub sobre DDS      9.997 Hz · min 0.099 s · max 0.101 s · sigma 0.35 ms
+entorno                ROS_DISTRO=jazzy · ROS_DOMAIN_ID=1 · rmw_fastrtps_cpp
+disco                  4.0 GB usados de 29 GB
+```
+
+**σ de 0.35 ms sobre 10 Hz.** Dato de referencia útil: cuando la odometría real vaya a
+16.5 Hz, ya sabemos que el jitter **no** lo introduce el middleware.
+
+### 🔴 La imagen de 24.04 para Raspberry Pi viene sin `noble-updates`
+
+El `apt install` falló con `held broken packages` en `zlib1g-dev`, `libzstd-dev`,
+`liblz4-dev` y `dpkg-dev`. La pista estaba en el `apt update`: **dos** repositorios de Ubuntu
+donde deberían haber tres.
+
+`/etc/apt/sources.list.d/ubuntu.sources` solo lista `noble` y `noble-security`. El fichero
+está fechado en la creación de la imagen y nadie lo había tocado: **es como se distribuye**.
+
+El mecanismo no es obvio: las bibliotecas de runtime *sí* se actualizan desde
+`noble-security` (a versiones con sufijo `.1`), pero sus `-dev`, que exigen una versión
+**exacta** de la runtime, viven en `noble-updates`. Sin ese repositorio la dependencia es
+insatisfacible. Y `ros-dev-tools` arrastra esos `-dev`, así que **sin ellos no hay
+`colcon build`**: no es cosmético.
+
+Tras el arreglo aparecieron además **46 paquetes actualizables** que llevaban sin llegar —
+eran los bug fixes que no son de seguridad.
+
+Atacado en los tres sitios: **manual 5.2.0** (nuevo, antes del 5.2, con el mensaje de error
+literal para que sea encontrable), **`provision.sh`** (lo arregla antes del primer `apt
+update`, así que queda dentro de la imagen dorada) y **`verificar_robot.sh`** (comprobación
+nueva, probada: lo detecta y da el comando de arreglo).
+
+### El método de las claves GPG había cambiado — el ⚠️ COMPROBAR estaba justificado
+
+Se usa el paquete oficial **`ros2-apt-source` 1.2.0**, no el `curl` del keyring a mano,
+porque **mantiene la clave actualizada por sí solo**. Con la clave puesta a mano, el día que
+caduque —y ya pasó una vez, rompiendo `apt` en todas las instalaciones de ROS del mundo— se
+rompen los 16 robots a la vez y hay que entrar en cada uno.
+
+Auditado antes de instalarlo como root: **sin scripts de mantenedor** (solo `control` y
+`md5sums`), solo coloca el keyring, el `.sources` y un symlink. Clave de Open Robotics,
+huella `C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654`, **caduca 2030-06-01** — después del fin de
+soporte de Jazzy (mayo 2029), así que no caducará a mitad del proyecto.
+
+### 🐛 «Existe `setup.bash`» NO significa «ROS 2 está instalado»
+
+Estuve a punto de dar la instalación por terminada mirando el fichero. `dpkg` decía otra cosa:
+
+```
+ls /opt/ros/jazzy/setup.bash            -> existe
+source setup.bash; echo $ROS_DISTRO     -> jazzy
+dpkg-query -W ros-jazzy-ros-base        -> install ok UNPACKED
+dpkg -l 'ros-jazzy-*' | grep -c '^ii'   -> 0          <- CERO configurados
+```
+
+En un Pi 4, 509 paquetes tardan 15-20 min y `apt` los procesa en dos fases. Entre
+desempaquetar y configurar, el sistema **parece** listo.
+
+Es la misma lección que ya estaba dos veces en este repositorio: un nodo que arranca no
+prueba que el UART funcione (cap. 1.5), y un servicio en verde no prueba que haya hecho su
+trabajo (cap. 4.3). **Comprueba el efecto, no el indicio.** Documentado como cap. 5.4.1.
+
+`verificar_robot.sh`, bloque 8 reescrito a partir de eso: cuenta paquetes en estado `ii` y
+consulta `dpkg-query` por paquete distinguiendo `ok installed` de `unpacked`. **Probado en
+vivo durante la propia instalación:** detectó «solo 35 paquetes configurados: la instalación
+está a medias».
+
+### 🐛 El capítulo 5.5 pedía algo imposible
+
+`ros2 run demo_nodes_cpp talker` → **`Package 'demo_nodes_cpp' not found`**. No viene en
+`ros-base`, es un paquete aparte. Sustituido por `ros2 topic pub`/`echo`/`hz`, que vienen en
+`ros2cli` y verifican lo mismo **sin añadir un paquete a 16 robots**.
+
+### Tres defectos propios más, todos del mismo patrón
+
+1. **`grep -c` imprime `0` Y sale con código 1**, así que un `|| echo 0` concatenaba un
+   segundo cero y la variable quedaba `"0\n0"`, rompiendo la aritmética. Es **el mismo patrón
+   que rompió `systemctl is-enabled`** esta misma mañana. Tercera aparición del día.
+2. Mi `pgrep -f 'listener'` encontró **`sshd`**, cuya línea de comando contiene literalmente
+   `[listener]`. Falso positivo inofensivo porque matamos por PID, pero es exactamente la
+   trampa del `pkill -f` ya documentada.
+3. `bash -lc` no ejecuta `~/.bashrc` (el de Ubuntu tiene un `return` si no es interactivo),
+   así que mi primera comprobación del entorno dio vacío y **parecía** que la configuración
+   había fallado. Era la prueba, no la configuración.
+
+### Un dato mío corregido
+
+`FLOTA.md` decía **«~1.5 GB por robot»** como si fuera medido. Era una estimación **inflada
+unas cinco veces**: el `apt` real dice **157 MB** de descarga para ROS 2 (509 paquetes,
+703 MB en disco), del orden de **300 MB por robot** en total. La conclusión (imagen dorada) no
+cambia, pero el número sí. Y se añade el argumento que de verdad pesa más: **el tiempo**,
+15-20 min de instalación por robot contra ~8 min de grabar una tarjeta, en paralelo.
+
+### El driver sigue sin poder ejecutarse, y eso es lo esperado
+
+`Atriz_rvr_node.py` es **ROS 1**: 1704 líneas, **99 referencias a `rospy`**, 48
+`asyncio.run()`, 3 paquetes **catkin**. No es «sin probar», es **imposible** hasta el port.
+`colcon build` fallará y debe fallar. Lo validado es el **SDK**, que es la pieza
+insustituible; el driver es código propio y por tanto reescribible.
+
+**`verificar_robot.sh` pasa de 39 a 48 aserciones. En `rvr-01`: 48 correctas, 0 fallos,
+código de salida 0.**
+
+### Pendiente
+
+1. **Fase 2 del plan — portar el driver a `rclpy`.** El trabajo grande, y merece su propia
+   sesión: incluye el **watchdog de `cmd_vel`** (hoy si cae la red el robot sigue con el
+   último comando), `imu.angular_velocity` a **rad/s** (hoy viola REP-103), sacar el event
+   loop de asyncio a su propio hilo, y borrar el lastre de C++ que nunca se ejecutó.
+2. **Fase 3 — URDF.** El plan lo llama **el bloqueante raíz**: el árbol TF está partido, y sin
+   un árbol conectado SLAM es imposible por mucho que el driver funcione.
+3. ⚠️ **Antes de la imagen dorada: quitar `ROS_DOMAIN_ID` de `~/.bashrc`.** Está puesto a mano
+   ahí porque `atriz-first-boot` no está instalado todavía. El `.bashrc` se lee **después** de
+   `/etc/profile.d/`, así que si se clona tal cual, **los 16 robots quedarían en el dominio 1**
+   sin que nada avise. `verificar_robot.sh` ya comprueba esa colisión.
+4. 👤 Reserva DHCP de `rvr-01`, dónde está guardada la imagen `dd`, y si la contraseña de
+   `sphero` se rotó. Siguen abiertos de la parte 2.
+
+---
+
 ## 2026-07-30 (parte 2) — 🟢 GO, y la infraestructura para los 15 robots restantes
 
 ### 🟢 GO — el SDK de Sphero funciona en Python 3.12
@@ -73,7 +197,7 @@ no mira `config.txt` para saber si `disable-bt` está aplicado sino el device-tr
 `systemctl is-enabled snapd`, que hoy mintió; lee el power-save con `grep -oi` porque `iw`
 imprime `Power save:` con mayúsculas; sabe que `is-enabled cloud-init` dice `enabled` aunque
 esté desactivado y lo dice en voz alta; y no usa `ps -e | wc -l` como métrica.
-**Probado en `rvr-01`: 39 correctas, 0 fallos.**
+**Probado en `rvr-01`: 39 correctas, 0 fallos.** (Ampliado a **48** al instalar ROS 2 — ver la entrada de la parte 3.)
 
 **`provision.sh`** — de un 24.04 limpio a robot terminado, idempotente. No duplica nada:
 orquesta `fase_0_1_fix_uart.sh` y `fase_1_higiene_so.sh`. Su bloque de ROS 2 está
@@ -89,7 +213,7 @@ que el `awk` distingue secciones de verdad.
 
 ### Por qué imagen dorada: es ancho de banda, no comodidad
 
-Aprovisionar un robot descarga **~1.5 GB**. Quince robots serían **~22 GB sobre la única AP del
+Aprovisionar un robot descarga ~1.5 GB *(⚠️ estimación, corregida a ~300 MB medidos en la parte 3)*. Quince robots serían ~22 GB sobre la única AP del
 laboratorio**, que es el riesgo nº4 de `FLOTA.md` — el que sigue sin medir y el más probable.
 Con imagen dorada son **0 GB de red**.
 

@@ -20,9 +20,9 @@ reconstruir el sistema si algo sale mal.
 
 | | |
 |---|---|
-| **Fase actual** | **Etapas A, B, C y D completadas** (2026-07-30). 🟢 **GO: la migración es viable** — el SDK de Sphero funciona en Python 3.12 y entrega telemetría a **16.67 Hz**, el mismo rendimiento que en Python 3.8 |
-| **Siguiente paso** | **Etapa E1 — instalar `ros-jazzy-ros-base`** (manual, cap. 5.2), y después portar el driver a `rclpy` (plan, Fase 2) |
-| **Sistema hoy** | Raspberry Pi 4B 8 GB · **Ubuntu Server 24.04.4 LTS** · Python 3.12.3 · `rvr-01` · arranque en **8.7 s** · Sphero RVR por `/dev/rvr` (PL011) · YDLIDAR X2 en `/dev/ttyUSB0` · **ROS todavía no instalado** |
+| **Fase actual** | **Etapas A, B, C, D y E1 completadas** (2026-07-30). 🟢 **GO: la migración es viable** — el SDK de Sphero funciona en Python 3.12 y entrega telemetría a **16.67 Hz**, el mismo rendimiento que en Python 3.8 |
+| **Siguiente paso** | **Portar el driver a `rclpy`** (plan, Fase 2 · manual, cap. 6). Es el trabajo grande: 1704 líneas, 99 referencias a `rospy`, y de paso el watchdog de `cmd_vel` y las unidades en rad/s |
+| **Sistema hoy** | Raspberry Pi 4B 8 GB · **Ubuntu Server 24.04.4 LTS** · Python 3.12.3 · `rvr-01` · arranque en **8.7 s** · Sphero RVR por `/dev/rvr` (PL011) · YDLIDAR X2 en `/dev/ttyUSB0` · **ROS 2 Jazzy** (201 paquetes, `ros-base`) |
 | **Sistema objetivo** | Ubuntu Server 24.04 LTS · ROS 2 Jazzy (soporte hasta mayo 2029) · rosbridge · SLAM + Nav2 · 16 robots |
 | **Vuelta atrás** | ✅ Disponible. La imagen `dd` del sistema Noetic está hecha **y verificada**. Ver [RECUPERACION.md](03_operacion/RECUPERACION.md) |
 
@@ -49,8 +49,8 @@ base distintas y no deben mezclarse.**
 bash scripts/verificar_robot.sh --hardware
 ```
 
-**39 comprobaciones** y código de salida ≠ 0 si algo falla. Es lo que hace que 16 robots sean
-manejables: no se pueden revisar a ojo. En `rvr-01`, el 2026-07-30: **39 correctas, 0 fallos**.
+**48 comprobaciones** y código de salida ≠ 0 si algo falla. Es lo que hace que 16 robots sean
+manejables: no se pueden revisar a ojo. En `rvr-01`, el 2026-07-30: **48 correctas, 0 fallos**.
 
 ---
 
@@ -112,7 +112,7 @@ scripts/
 ├── fase_0_3_respaldo.sh      ✅ prepara la SD para la imagen
 ├── fase_1_higiene_so.sh      ✅ higiene del SO — verificado en 24.04
 ├── fase_1_validar_sdk_py312.py   ✅ GO/NO-GO de la migración — 🟢 GO (2026-07-30)
-├── verificar_robot.sh        ✅ 39 aserciones: ¿está este robot bien? ← ÚSALO SIEMPRE
+├── verificar_robot.sh        ✅ 48 aserciones: ¿está este robot bien? ← ÚSALO SIEMPRE
 ├── provision.sh              🟡 de un 24.04 limpio a robot terminado (probado en seco)
 ├── preparar_tarjeta.sh       🟡 en el PC: prepara la tarjeta de cada robot (en seco)
 ├── fase_6_preparar_imagen_dorada.sh   📝 NO VERIFICADO — imagen dorada de la flota
