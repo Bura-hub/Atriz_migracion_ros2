@@ -80,3 +80,21 @@ mini-UART -> disabled
 # Lo que importa es que este INACTIVO:
   is-enabled: enabled  |  is-active: inactive
   /etc/cloud/cloud-init.disabled: presente
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SEGUNDA EJECUCION del script, con el arreglo de snapd (20:28)
+# El script es idempotente: los 8 pasos ya aplicados dijeron "ya esta" y solo
+# actuo el 7/9.
+snapd.service : inactive
+snapd.socket  : inactive
+servicios en ejecucion: 14   (antes del arreglo: 15)
+procesos de usuario   : 0
+# El verificador del power-save ya NO da falso positivo:
+#   ✓ verificado: Power save: off
+# Y el de snapd confirma el efecto real:
+#   ✓ verificado: snapd.service no esta activo
+# El script termino sin ningun paso en NO_APLICADO.
+#
+# PENDIENTE DE MEDIR: el arranque tras el proximo reinicio. snapd.seeded.service
+# era el servicio mas lento (3.5 s de los 8.7 s de userspace), asi que deberia
+# bajar. No se anota ninguna cifra hasta medirla.
