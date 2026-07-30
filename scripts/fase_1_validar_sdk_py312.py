@@ -79,19 +79,31 @@ def paso_1_entorno():
 
 
 def paso_2_dependencias():
+    """Las tres son OBLIGATORIAS, aunque aiohttp no se use para hablar con el robot.
+
+    Aquí había un error de bulto (corregido el 2026-07-30): aiohttp estaba marcado
+    como «opcional, no afecta al backend serie» y solo se avisaba de su ausencia.
+    Pero `sphero_sdk/__init__.py` importa TODO de golpe, y esa cadena llega a
+    `common/firmware/cms_fw_check_base.py`, que hace `import aiohttp` a nivel de
+    módulo. Sin el paquete, el paso 4 muere con ModuleNotFoundError y el script
+    imprime un **NO-GO falso**, sugiriendo replantear la arquitectura por una
+    dependencia que se instala en diez segundos.
+
+    Que aiohttp solo se USE para consultar la versión del firmware contra un
+    servicio web de Sphero es cierto e irrelevante: el import es incondicional.
+    """
     sec('2/6 · Dependencias del SDK')
-    for mod, nota in (('serial', 'pyserial'),
-                      ('serial_asyncio', 'pyserial-asyncio'),
-                      ('aiohttp', 'aiohttp (solo el backend por URL; opcional)')):
+    for mod, paquete, nota in (
+            ('serial',         'python3-serial (apt) o pyserial (pip)',        'el enlace serie'),
+            ('serial_asyncio', 'pyserial-asyncio (pip; NO existe en apt)',     'el backend asyncio'),
+            ('aiohttp',        'python3-aiohttp (apt)',                        'lo importa __init__.py sin condiciones')):
         try:
             m = importlib.import_module(mod)
-            ok(f'{nota}: {getattr(m, "__version__", "?")}')
+            ok(f'{mod} {getattr(m, "__version__", "?")}  — {nota}')
         except ImportError as e:
-            if mod == 'aiohttp':
-                avis(f'{nota} ausente — no afecta al backend serie')
-            else:
-                mal(f'{nota} AUSENTE: {e}')
-                fallos.append(f'falta {nota}')
+            mal(f'{mod} AUSENTE ({nota}): {e}')
+            avis(f'instálalo con: {paquete}')
+            fallos.append(f'falta {mod}')
 
 
 def paso_3_localizar_sdk(extra=None):
