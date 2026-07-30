@@ -11,28 +11,39 @@
 EL PROBLEMA
 ═══════════════════════════════════════════════════════════════════════════════
 
-`odom.twist.twist.linear` sale del stream `Velocity` del RVR, y ese stream es
-**basura**: medido el 2026-07-30, reportaba **0.001 m/s** con el robot moviéndose
-a **0.147 m/s** comprobados por desplazamiento.
+`odom.twist.twist.linear` sale mal, y durante un día este proyecto creyó saber por
+qué: «el stream `Velocity` es basura, reporta 0.001 m/s con el robot a 0.147 m/s
+comprobados por desplazamiento».
 
-Eso no bloquea SLAM (que usa la posición) pero **sí bloquea Nav2**, que necesita
-saber a qué velocidad va el robot para controlarlo.
+🔴 **ESA CONCLUSIÓN ERA FALSA, y esta herramienta es la que lo demostró**
+(2026-07-31). `Velocity` acierta el módulo con un **0 %** de error y la dirección
+con **0.1°**. La observación de los 0.001 m/s era cierta: se leyó solo la
+componente **X** de un vector que viene en el marco del **MUNDO**, con el robot
+encarado a ~90° de ese eje. Ahí X vale ~0 aunque el robot cruce la habitación.
 
-Hay CUATRO fuentes posibles, y ninguna estaba probada:
+Lo que hay es un **bug en el driver**, que copia esa X a un campo que ROS define
+en el marco del **ROBOT**. Y otro que salió al medirlo: `reset_yaw()` no pone a
+cero el yaw, así que la orientación de `/odom` queda ~15° desfasada de su propia
+posición. Detalle en `00_auditoria/evidencia_24_04/15_velocidad_odom.txt`.
 
-  1. `Velocity` (X, Y)   el que se usa hoy. Se mide para confirmar que es basura
-                         y no una mala interpretación de una prueba anterior.
-  2. `Speed` (escalar)   🔴 EXISTE Y NADIE LO HABÍA MIRADO. Es un servicio de
-                         streaming distinto, con su propio ID (0x0008). Si
-                         funciona, es el arreglo más barato posible.
-  3. `Encoders`          ticks de rueda izquierda y derecha. Necesita calibrar
-                         cuántos ticks son un metro, y patina en suelo liso.
-  4. Derivar el locator  posición ÷ tiempo. Sin hardware nuevo, pero derivar a
-                         16.7 Hz amplifica el ruido: hay que medir cuánto.
+La herramienta se conserva porque sigue siendo la forma de comprobar las CUATRO
+fuentes cuando se arregle el driver:
 
-Esta herramienta las mide **todas a la vez, contra la misma verdad**, en la misma
-corrida. Comparar corridas distintas no valdría: la velocidad real depende de la
-batería, del suelo y de la carga.
+  1. `Velocity` (X, Y)   ✅ exacto, pero en marco MUNDO
+  2. `Speed` (escalar)   ✅ exacto — resultó ser el módulo de `Velocity`
+  3. `Encoders`          ✅ funcionan; 7792 ticks/m calibrados contra cinta.
+                         Única fuente que NO depende del marco de referencia
+  4. Derivar el locator  σ = 0.086 m/s de ruido muestra a muestra: se puede
+                         filtrar, pero el filtro mete retardo, y para Nav2 el
+                         retardo también importa
+
+Las mide **todas a la vez, contra la misma verdad**, en la misma corrida.
+Comparar corridas distintas no valdría: la velocidad real depende de la batería,
+del suelo y de la carga.
+
+📝 Y el robot **no alcanza la velocidad comandada**: 0.10→87 %, 0.20→76 %,
+   0.40→63 %. Las cuatro fuentes coinciden entre sí, así que no es un fallo de
+   medida: es el limitador de aceleración del firmware sobre tramos cortos.
 
 🔴 LA VERDAD ES EL DESPLAZAMIENTO, NO OTRO SENSOR. Se toma del locator, que es
    el único ya validado contra una cinta métrica. Por eso `--calibrar` existe:

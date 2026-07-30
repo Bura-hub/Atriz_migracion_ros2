@@ -153,7 +153,7 @@ class MedidorSlam(Node):
         (no inicio-contra-fin) para que un giro o un ida-y-vuelta cuenten: el neto
         de avanzar 40 cm y retroceder 40 cm es cero, y el robot sí se movió 80 cm.
 
-        🔴 Se mide POSICIÓN, no velocidad. El stream `Velocity` del RVR es basura
+        🔴 Se mide POSICIÓN, no velocidad. Leer `Velocity.X` del RVR engaña
            (0.001 m/s reportados a 0.147 m/s reales) y ya hizo concluir a una
            herramienta de este proyecto que «el robot NUNCA se movió» mientras
            cruzaba la habitación. El locator (posición) sí es fiable.

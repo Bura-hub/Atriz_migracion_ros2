@@ -43,7 +43,32 @@ debería ser:                  (+0.199, +0.000)
 
 Solo coincide cuando el robot mira al eje X del odom — que es justo el caso en el que se probó.
 
-### 🔴 Bug B (nuevo) — la orientación de `/odom` no concuerda con su posición
+### 🔴 Bug B (nuevo) — y tras apagar el robot resultó ser DOS problemas
+
+Medido con el RVR apagado y encendido de por medio:
+
+| | yaw en reposo | desplazamiento | desfase |
+|---|---|---|---|
+| sesión previa, medida 1 | −74.6° | −90.2° | −14.2° |
+| sesión previa, medida 2 | −74.6° | −90.0° | −15.5° |
+| **tras apagar y encender** | **+64.9°** | **−90.0°** | **−154.9°** |
+
+🔴 **El desfase NO es constante**: pasó de ~−15° a −154.9° solo con apagar y encender.
+**Una corrección constante no sirve.** Y la tabla separa dos problemas independientes que
+hasta ahora se veían como uno:
+
+1. **El yaw del cuaternión tiene un origen arbitrario en cada encendido.** `reset_yaw()` no
+   lo corrige.
+2. **El marco del locator está girado ~90° respecto al robot.** El robot avanza recto y su
+   odometría dice que se mueve a −90.0°, en las **tres** medidas.
+
+En los tres casos: `desfase = −90° − yaw_reposo`. Los «~15°» eran la suma casual de ambos.
+
+⚠️ **Variable no controlada:** al apagar, el robot también se **recolocó** en el centro, así
+que la orientación física pudo cambiar. Que el desplazamiento siguiera dando −90° **apunta** a
+que el marco del locator es relativo al robot, pero **no lo demuestra**.
+
+### La medida original que lo destapó
 
 ```
 yaw en reposo justo tras arrancar el driver:  -74.6°   ← reset_yaw() NO lo pone a cero

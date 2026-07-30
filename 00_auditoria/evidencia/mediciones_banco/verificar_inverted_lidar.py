@@ -49,8 +49,14 @@ CÓMO FUNCIONA
   geometría de la habitación a la vez.
 
   El giro real se toma de `odom`, que es la fuente independiente. 🔴 De la
-  POSICIÓN/ORIENTACIÓN del locator, que es buena; nunca del stream `Velocity`,
-  que es basura (0.001 m/s reportados a 0.147 m/s reales).
+  POSICIÓN del locator, validada contra cinta métrica (1 mm de error en 1 m).
+
+  ⚠️ NO de la ORIENTACIÓN que publica `/odom`: medido el 2026-07-31, su cero es
+     ARBITRARIO en cada encendido del RVR (−74.6° una sesión, +64.9° la
+     siguiente) y no concuerda con la propia dirección de avance. Y no del
+     stream `Velocity`, que es exacto pero viene en el marco del MUNDO: leer su
+     X a secas da ~0 con el robot encarado a 90° de ese eje.
+     Ver `00_auditoria/evidencia_24_04/15_velocidad_odom.txt`.
 ═══════════════════════════════════════════════════════════════════════════════
 """
 from __future__ import annotations

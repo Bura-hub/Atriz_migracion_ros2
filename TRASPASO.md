@@ -132,9 +132,22 @@ es cómo lo usa el driver.
 
 El arreglo de A es proyectar sobre el rumbo, así que **depende de B**.
 
-👤 **Y antes hace falta una acción tuya: apagar y encender el RVR** y repetir la medida del
-desfase. Es lo que decide si B se corrige con una constante o hay que cambiar de fuente de
-orientación. Las dos medidas que hay son de la misma sesión de encendido.
+✅ **Ya se apagó y encendió el RVR, y el desfase NO es constante**: pasó de ~−15° a **−154.9°**.
+Una corrección constante no sirve. Y la medida separó B en **dos problemas independientes**:
+
+1. **El yaw del cuaternión tiene origen arbitrario en cada encendido** (−74.6° → +64.9°).
+2. **El marco del locator está girado ~90° respecto al robot** — el desplazamiento sale a
+   −90.0° en las tres medidas, incluida la posterior al apagado.
+
+👤 **Falta un último experimento, y necesita tus manos:** colocar el robot girado ~90° respecto
+a su orientación habitual **y apagar y encender el RVR con él ya girado** (el marco se fija al
+encender, no al arrancar el driver). Luego avanzar 25 cm.
+
+- Si el desplazamiento vuelve a dar **−90°** → el marco es relativo al robot, los 90° son una
+  constante, y el driver puede derivar el rumbo del propio locator ignorando el cuaternión.
+- Si da **otro número** → el marco del locator es tan arbitrario como el yaw, y hay que
+  construir la odometría desde los **encoders**, que no dependen de ningún marco y ya están
+  calibrados (7792 ticks/m).
 
 ### 2. 🔴 La inclinación de ~8°, confirmada por TRES vías
 

@@ -142,10 +142,56 @@ Manual, cap. 2 y 10.
   distintos, y el driver los mezcla en un mismo mensaje — posicion de uno,
   orientacion del otro.
 
-  ⚠️ SIN DETERMINAR: si el desfase es constante tras un apagado y encendido del
-     RVR, o si es arbitrario en cada arranque. Las dos medidas de arriba son de
-     la MISMA sesion de encendido del robot, asi que no responden la pregunta.
-     Hace falta apagar y encender el RVR y repetir. Es accion del usuario.
+  ── MEDIDO TRAS APAGAR Y ENCENDER EL RVR (2026-07-31) ──
+
+                                  yaw reposo   desplaz.   desfase
+      sesion previa, medida 1        -74.6°     -90.2°     -14.2°
+      sesion previa, medida 2        -74.6°     -90.0°     -15.5°
+      TRAS APAGAR Y ENCENDER         +64.9°     -90.0°    -154.9°
+
+  🔴 EL DESFASE NO ES CONSTANTE: paso de ~-15° a -154.9° solo con apagar y
+     encender el robot. Aplicar una correccion constante NO SIRVE.
+
+  Y la tabla separa DOS PROBLEMAS INDEPENDIENTES que hasta ahora se veian como
+  uno solo:
+
+  1. EL YAW DEL CUATERNION TIENE UN ORIGEN ARBITRARIO EN CADA ENCENDIDO.
+     -74.6° antes, +64.9° despues. `reset_yaw()` no lo corrige.
+
+  2. EL MARCO DEL LOCATOR ESTA GIRADO ~90° RESPECTO AL ROBOT.
+     El robot avanza en linea recta y su propia odometria dice que se mueve a
+     -90.0°. Sale igual en las TRES medidas, incluida la posterior al apagado.
+
+  En los tres casos:  desfase = -90° - yaw_reposo
+  Los "~15°" de la sesion previa eran la suma casual de los dos terminos.
+
+  ⚠️ VARIABLE NO CONTROLADA: al apagar el robot, el usuario tambien LO
+     RECOLOCO en el centro del pasillo. Asi que la orientacion fisica pudo
+     cambiar entre las dos sesiones. Que el desplazamiento siguiera saliendo
+     -90° APUNTA a que el marco del locator es relativo al robot, pero NO LO
+     DEMUESTRA: el pasillo obliga a colocarlo casi con la misma orientacion.
+
+  ── LO QUE FALTA POR DETERMINAR, Y COMO ──
+
+  ¿Los 90° del locator son una propiedad FIJA del RVR, o dependen de hacia donde
+  miraba el robot al encenderse?
+
+     · FIJOS      -> el driver los corrige con una constante y deriva el rumbo
+                     del propio locator, ignorando el cuaternion para el yaw.
+                     Arreglo limpio.
+     · ARBITRARIOS-> el marco del locator es tan inutil como el yaw, y hay que
+                     construir la odometria de otra forma. La candidata son los
+                     ENCODERS, que no dependen de ningun marco y ya estan
+                     calibrados (7792 ticks/m).
+
+  🔴 NO SE PUEDE DISTINGUIR POR SOFTWARE. Girar con `cmd_vel` no vale: el marco
+     se fija AL ARRANCAR, no despues.
+
+  EL EXPERIMENTO: colocar el robot girado ~90° respecto a su orientacion
+  habitual (mirando a un lado del pasillo), arrancar el driver y avanzar 25 cm
+  —caben en los 40 cm laterales—. Si el desplazamiento vuelve a dar -90°, los
+  90° son fijos. Si da otro numero, hay que ir por los encoders.
+  👤 Requiere recolocar el robot a mano.
 
   📝 Esto acota lo que se puede concluir de la deriva de SLAM medida antes
      (1.0-2.7 cm): salio bien CON este desfase presente, porque slam_toolbox
@@ -179,9 +225,12 @@ Manual, cap. 2 y 10.
 ───────────────────────────────────────────────────────────────────────────────
 QUE HACER AHORA
 ───────────────────────────────────────────────────────────────────────────────
-1. 👤 APAGAR Y ENCENDER EL RVR y repetir la medida del desfase (seccion 4). Es
-   lo que decide si el bug B se arregla con una constante o hay que cambiar de
-   fuente de orientacion.
+1. ✅ HECHO: apagar y encender el RVR y repetir la medida. Resultado: el desfase
+   NO es constante (-15° -> -154.9°), y se separan dos problemas independientes.
+   Ver seccion 4.
+
+1b. 👤 PENDIENTE: colocar el robot girado ~90° y repetir. Decide si el marco del
+    locator es fijo (arreglo con constante) o arbitrario (ir por los encoders).
 
 2. Arreglar los dos bugs JUNTOS: el de la velocidad depende del yaw.
 
