@@ -302,6 +302,19 @@ else
         fi
     fi
 
+    # Identidad de git, GLOBAL. El 2026-07-30 se configuro con 'git config' sin
+    # --global en atriz_migracion, y el primer commit en Atriz_rvr fallo con
+    # "Author identity unknown". Peor: el 'git push' de la rama SI funciono
+    # (subiendola sin el commit), asi que el fallo era facil de pasar por alto.
+    if [[ $SIMULAR -eq 0 ]] && ! sudo -u "$USUARIO" git config --global user.email >/dev/null 2>&1; then
+        avi "el usuario $USUARIO no tiene identidad de git configurada."
+        avi "Sin ella, 'git commit' falla en CUALQUIER repositorio. Ejecuta:"
+        avi "    git config --global user.name  \"Tu Nombre\""
+        avi "    git config --global user.email \"tu@correo\""
+    elif [[ $SIMULAR -eq 0 ]]; then
+        ok "identidad de git: $(sudo -u "$USUARIO" git config --global user.email)"
+    fi
+
     # rosdep, que hace falta para resolver dependencias del workspace.
     if [[ $SIMULAR -eq 0 ]] && command -v rosdep >/dev/null; then
         rosdep init >/dev/null 2>&1 || salta "rosdep ya estaba inicializado"

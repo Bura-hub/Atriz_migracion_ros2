@@ -4,6 +4,82 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-30 (parte 4) — Fase 2 arrancada: `atriz_rvr_msgs` corre sobre ROS 2
+
+**El primer código del proyecto que compila sobre ROS 2 Jazzy.** Rama nueva **`ros2`** en
+`Atriz_rvr`, desde `migracion-ros2` (`24c7749`), commit `1b1239a`.
+
+```
+colcon build          Finished <<< atriz_rvr_msgs [3min 46s]
+ros2 interface list   6 mensajes + 20 servicios
+ros2 interface show   std_msgs/Header resuelto correctamente
+import desde Python   los 26 tipos importan e instancian
+```
+
+### El port fue menos trabajo de lo que parecía
+
+| | ROS 1 (catkin) | ROS 2 (ament) |
+|---|---|---|
+| Build | `catkin_package()` + `add_message_files()` + `add_service_files()` + `generate_messages()` | **un solo** `rosidl_generate_interfaces()`, con msg y srv en la misma lista |
+| Rutas | `Color.msg` | `msg/Color.msg` (con prefijo) |
+| `package.xml` | `format=2`, `message_generation`/`message_runtime` | `format=3`, `rosidl_default_generators`/`rosidl_default_runtime` |
+| Grupo | — | **`<member_of_group>rosidl_interface_packages</member_of_group>`**, obligatorio y fácil de olvidar |
+
+**Los 6 mensajes no necesitaron ni un cambio.** Ya estaban en `snake_case` y sin tipos `time`
+ni `duration`, que son las otras dos incompatibilidades típicas de ROS 1 → ROS 2.
+
+**El único cambio de contenido en 26 ficheros:** tres `.srv` declaraban `Header header`, y en
+ROS 2 `Header` a secas **no resuelve** — tiene que ser `std_msgs/Header`. Afectaba a
+`MoveToPose`, `MoveToPosAndYaw` y `SetPosAndYaw`.
+
+### `COLCON_IGNORE` en los otros dos paquetes
+
+`atriz_rvr_driver` y `atriz_rvr_serial` siguen siendo catkin y romperían el build del
+workspace entero. Llevan `COLCON_IGNORE` hasta que les toque el port. Es el mecanismo estándar
+de colcon y deja `colcon list` mostrando solo lo que de verdad se puede construir.
+
+### 🐛 La identidad de git es por repositorio, no global
+
+El primer `git commit` en `Atriz_rvr` falló con *«Author identity unknown»*: el 2026-07-30 se
+había configurado `user.name`/`user.email` **solo en `atriz_migracion`**, con `git config` sin
+`--global`. Peor aún: el `git push` de la rama **sí funcionó** —subiéndola sin el commit—, así
+que el fallo era fácil de pasar por alto.
+
+Corregido con `git config --global`, para que el tercer repositorio (`Atriz_web_server`) no
+repita el tropiezo. **Va a `provision.sh`** como parte del aprovisionamiento.
+
+### El mapa del driver, medido antes de tocarlo
+
+Para el port del nodo, que es lo siguiente:
+
+| | |
+|---|---|
+| Publishers | 7: `odom`, `imu`, `color`, `encoders`, `ambient_light`, `infrared_messages`, `ir_messages` |
+| Subscribers | 3: `cmd_vel`, `cmd_degrees`, `is_emergency_stop` |
+| Servicios | 20 |
+| Handlers async del SDK | 12 |
+| Estructura | **funciones a nivel de módulo compartiendo estado global**, sin clase |
+
+Esa última fila es el trabajo real: `rclpy` quiere un `Node`, así que el port no es sustituir
+`rospy` por `rclpy` línea a línea, es **reestructurar**.
+
+Dos cosas anotadas al hacer el mapa, para revisar durante el port:
+- Hay **dos publishers para lo mismo**: `infrared_messages` e `ir_messages`. Decidir cuál se
+  queda antes de portar los dos.
+- `Publisher('odom')` y el resto van **sin namespace**. Con un `ROS_DOMAIN_ID` por robot el
+  namespace `/rvr_NN` no es imprescindible para el aislamiento, pero `ARQUITECTURA.md` lo
+  contempla y la web lo espera. Decidirlo en el port, no después.
+
+### Pendiente
+
+1. **Portar `Atriz_rvr_node.py` a `rclpy`** (Fase 2.3 y 2.4), con los dos puntos de seguridad:
+   el **watchdog de `cmd_vel`** y `imu.angular_velocity` en **rad/s**.
+2. **Limpieza previa** (Fase 2.1): borrar los `.cpp`, `src/rvr++/`, el paquete
+   `atriz_rvr_serial` y `scripts/rvr-ros.py` en lugar de portarlos.
+3. Decidir los dos puntos del mapa: `ir_messages` vs `infrared_messages`, y el namespace.
+
+---
+
 ## 2026-07-30 (parte 3) — ROS 2 Jazzy instalado y verificado (Etapa E1)
 
 ```

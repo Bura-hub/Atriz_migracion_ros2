@@ -54,6 +54,10 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 **Fase 2 del plan — portar el driver a `rclpy`.** Es el trabajo grande, y merece su propia
 sesión de trabajo.
 
+✅ **`atriz_rvr_msgs` YA está portado** (2026-07-30, rama **`ros2`** de `Atriz_rvr`, commit
+`1b1239a`): compila con `colcon`, y las 6 interfaces de mensaje y 20 de servicio son usables
+desde ROS 2 y desde Python. **No lo repitas.** Lo que queda es el nodo.
+
 🔴 **Hasta que esto se haga, el driver del robot NO se ha ejecutado nunca en este sistema — y
 no puede.** No es «pendiente de probar», es **imposible**: `Atriz_rvr_node.py` es ROS 1.
 Medido el 2026-07-30 sobre `migracion-ros2` (`24c7749`):
@@ -183,7 +187,8 @@ a ✅ con la fecha. **En el repositorio, no en un mensaje de chat.**
 |---|---|---|---|
 | `Atriz_migracion_ros2` | `main` | — | Este repositorio: auditoría, plan, manual, scripts |
 | `Atriz_rvr` | `main` | `6f48ae1` | Original + **el arreglo del UART** (cherry-pick de `67c8776`) |
-| `Atriz_rvr` | **`migracion-ros2`** | `24c7749` | UART → `/dev/rvr` · `interval` 250→60 ms |
+| `Atriz_rvr` | **`ros2`** ← rama de trabajo actual | `1b1239a` | `atriz_rvr_msgs` portado a ament+rosidl |
+| `Atriz_rvr` | `migracion-ros2` | `24c7749` | UART → `/dev/rvr` · `interval` 250→60 ms |
 | `Atriz_rvr` | `wip/scripts-estudiantes` | `62e0313` | Stash rescatado. **No mezclar** — ver decisión pendiente arriba |
 | `Atriz_web_server` | `pruebas` | `924d659` | Sin tocar — se aborda al final |
 

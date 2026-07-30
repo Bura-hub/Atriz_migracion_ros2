@@ -286,6 +286,16 @@ done
 # ─────────────────────────────────────────────────────────────────────────────
 sec "7 · Código del robot"
 
+# La identidad de git es GLOBAL, no por repositorio. Sin ella 'git commit' falla
+# en cualquier repo — y el 2026-07-30 el 'git push' de una rama SI funciono sin
+# ella, subiendola sin el commit, asi que el fallo pasa desapercibido.
+if git config --global user.email >/dev/null 2>&1; then
+    _ok "identidad de git: $(git config --global user.email)"
+else
+    _avi "sin identidad de git global: 'git commit' fallará" \
+         "git config --global user.name '…' && git config --global user.email '…'"
+fi
+
 WS="$HOME/atriz_ws/src/Atriz_rvr"
 if [[ -d "$WS/.git" ]]; then
     RAMA="$(git -C "$WS" rev-parse --abbrev-ref HEAD)"
