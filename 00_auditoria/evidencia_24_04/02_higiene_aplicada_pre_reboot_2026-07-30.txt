@@ -1,0 +1,44 @@
+# Etapa C (higiene del SO) — estado ANTES de reiniciar
+# Ejecutado: 2026-07-30  ·  script: fase_1_higiene_so.sh  ·  respaldos: .bak-20260729-200714
+# Kernel en este momento: 6.8.0-1047-raspi  (pendiente arrancar 6.8.0-1060-raspi)
+
+## Aplicado y comprobado ya, sin necesidad de reiniciar
+default target      : multi-user.target
+governor            : performance
+journal             : Archived and active journals take up 17.7M in the file system.
+journald SystemMaxUse: SystemMaxUse=32M
+wifi power_save     : Power save: off
+wifi-no-powersave   : active
+cloud-init.disabled : presente
+noatime en fstab    : LABEL=writable	/	ext4	defaults,noatime	0	1
+netplan permisos    : 600 /etc/netplan/50-cloud-init.yaml
+
+## Timers y servicios deshabilitados
+apt-daily.timer              disabled
+apt-daily-upgrade.timer      disabled
+motd-news.timer              disabled
+fstrim.timer                 disabled
+snapd                        disabled
+ModemManager                 disabled
+avahi-daemon                 disabled
+multipathd                   disabled
+open-iscsi                   disabled
+iscsid                       disabled
+lvm2-monitor                 disabled
+unattended-upgrades          disabled
+bluetooth                    not-found
+
+## UART: sigue en pie antes del cambio de kernel
+lrwxrwxrwx 1 root root 7 Jul 29 20:02 /dev/rvr -> ttyAMA0
+uart0 -> /soc/serial@7e201000
+serial-getty@ttyAMA0: disabled
+
+## Rendimiento ANTES del reinicio (aun con el arranque viejo)
+Startup finished in 5.374s (kernel) + 1min 39.469s (userspace) = 1min 44.843s 
+multi-user.target reached after 31.790s in userspace.
+tareas: 184
+some avg10=0.00 avg60=0.12 avg300=1.15 total=184883382
+full avg10=0.00 avg60=0.11 avg300=1.01 total=161928843
+uptime:  20:10:45 up  1:08,  5 users,  load average: 0.37, 0.87, 1.40
+
+## Fallos

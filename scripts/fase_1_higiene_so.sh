@@ -104,7 +104,19 @@ say "4/9 · Desactivar el ahorro de energía del WiFi"
 IW="$(command -v iw || true)"
 if [[ -z "$IW" ]]; then
     avis "iw no está instalado (normal en Server 24.04) — instalando…"
-    apt-get install -y iw >/dev/null 2>&1 || avis "apt-get falló (¿sin red?)"
+    # En una imagen recién grabada, unattended-upgrades está trabajando y tiene
+    # cogido el lock de dpkg. Sin esta espera, el apt-get de abajo falla con
+    # "Could not get lock" en casi cualquier robot nuevo de la flota.
+    for i in $(seq 1 30); do
+        fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || break
+        [[ $i -eq 1 ]] && avis "esperando a que apt/unattended-upgrades suelte el lock de dpkg…"
+        sleep 5
+    done
+    if fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
+        avis "el lock de dpkg sigue ocupado tras 150 s. ¿Quién lo tiene?"
+        fuser -v /var/lib/dpkg/lock-frontend 2>&1 | sed 's/^/       /'
+    fi
+    apt-get install -y iw >/dev/null 2>&1 || avis "apt-get falló (¿sin red? ¿lock ocupado?)"
     IW="$(command -v iw || true)"
 fi
 
@@ -141,11 +153,13 @@ EOF
         printf '  \033[1;31m✗\033[0m %s\n' "el servicio NO arrancó — míralo antes de seguir"
     fi
     # Comprobar el efecto REAL, no que el servicio esté 'activo'.
-    PS="$("$IW" dev "$IFACE" get power_save 2>&1 | grep -o 'power save: .*' || echo '?')"
-    if [[ "$PS" == *off* ]]; then
+    # OJO con las mayúsculas: iw 6.7 imprime "Power save: off", no "power save".
+    # Con un grep sensible a mayúsculas esto daba un falso positivo (2026-07-30).
+    PS="$("$IW" dev "$IFACE" get power_save 2>&1 | grep -oi 'power.save:.*' || echo '(sin salida de iw)')"
+    if [[ "${PS,,}" == *off* ]]; then
         ok "verificado: $PS"
     else
-        NO_APLICADO+=("power-save sigue en '$PS' pese al servicio")
+        NO_APLICADO+=("power-save sigue en '$PS' pese a que el servicio está activo")
         printf '  \033[1;31m✗\033[0m %s\n' "power-save NO quedó apagado: $PS"
     fi
 fi
@@ -196,8 +210,11 @@ fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 say "9/9 · Comprobar la red antes de reiniciar (esta máquina es headless)"
-NM=$(systemctl is-enabled NetworkManager 2>/dev/null || echo no)
-ND=$(systemctl is-enabled systemd-networkd 2>/dev/null || echo no)
+# `systemctl is-enabled` de una unidad ausente imprime "not-found" Y sale con
+# codigo != 0, asi que un `|| echo no` concatenaba las dos cosas y salia
+# "not-found\nno" en la misma variable. Se toma solo la primera linea.
+NM=$(systemctl is-enabled NetworkManager 2>/dev/null | head -1); NM=${NM:-no}
+ND=$(systemctl is-enabled systemd-networkd 2>/dev/null | head -1); ND=${ND:-no}
 echo "  NetworkManager: $NM    systemd-networkd: $ND"
 if [[ "$NM" == "enabled" && "$ND" == "enabled" ]]; then
     avis "AMBOS activos. En el sistema anterior esto causaba 6 ciclos de"
