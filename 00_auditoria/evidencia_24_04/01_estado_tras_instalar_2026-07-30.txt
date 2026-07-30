@@ -1,0 +1,155 @@
+# Instalación de Ubuntu Server 24.04.4 — línea base ANTES de la higiene del SO
+# Capturado: 2026-07-29T19:52:11-05:00  ·  host: rvr-01  ·  kernel: 6.8.0-1047-raspi
+
+## Sistema
+Distributor ID:	Ubuntu
+Description:	Ubuntu 24.04.4 LTS
+Release:	24.04
+Codename:	noble
+arquitectura: aarch64
+python3: Python 3.12.3
+
+## Boot: ficheros que existen en la particion FAT
+-rwxr-xr-x 1 root root  128 Jul 29 13:46 /boot/firmware/cmdline.txt
+-rwxr-xr-x 1 root root 1705 Jul 29 13:56 /boot/firmware/config.txt
+-- busqueda de usercfg/syscfg en TODO el sistema:
+   (sin resultados = no existen; Ubuntu 24.04 abandono el esquema de pibootctl)
+-- pibootctl instalado?
+dpkg-query: no packages found matching pibootctl
+-- includes en config.txt:
+   (ninguno)
+
+## cmdline.txt
+multipath=off dwc_otg.lpm_enable=0 console=tty1 root=LABEL=writable rootfstype=ext4 rootwait fixrtc cfg80211.ieee80211_regdom=CO## config.txt
+[all]
+arm_64bit=1
+kernel=vmlinuz
+cmdline=cmdline.txt
+initramfs initrd.img followkernel
+
+# Enable the audio output, I2C and SPI interfaces on the GPIO header. As these
+# parameters related to the base device-tree they must appear *before* any
+# other dtoverlay= specification
+dtparam=audio=on
+dtparam=i2c_arm=on
+dtparam=spi=on
+
+# Comment out the following line if the edges of the desktop appear outside
+# the edges of your display
+disable_overscan=1
+
+# If you have issues with audio, you may try uncommenting the following line
+# which forces the HDMI output into HDMI mode instead of DVI (which doesn't
+# support audio output)
+#hdmi_drive=2
+
+# Enable the KMS ("full" KMS) graphics overlay, leaving GPU memory as the
+# default (the kernel is in control of graphics memory with full KMS)
+dtoverlay=vc4-kms-v3d
+disable_fw_kms_setup=1
+
+# Enable the serial pins
+enable_uart=1
+
+# Autoload overlays for any recognized cameras or displays that are attached
+# to the CSI/DSI ports. Please note this is for libcamera support, *not* for
+# the legacy camera stack
+camera_auto_detect=1
+display_auto_detect=1
+
+# Config settings specific to arm64
+dtoverlay=dwc2
+
+[pi4]
+max_framebuffers=2
+arm_boost=1
+
+[pi3+]
+# Use a smaller contiguous memory area, specifically on the 3A+ to avoid an
+# OOM oops on boot. The 3B+ is also affected by this section, but it shouldn't
+# cause any issues on that board
+dtoverlay=vc4-kms-v3d,cma-128
+
+[pi02]
+# The Zero 2W is another 512MB board which is occasionally affected by the same
+# OOM oops on boot.
+dtoverlay=vc4-kms-v3d,cma-128
+
+[cm4]
+# Enable the USB2 outputs on the IO board (assuming your CM4 is plugged into
+# such a board)
+dtoverlay=dwc2,dr_mode=host
+
+[all]
+dtoverlay=disable-bt
+## UART: device-tree del arranque actual
+uart0    -> /soc/serial@7e201000
+uart1    -> /soc/serial@7e215040
+serial0  -> /soc/serial@7e201000
+serial1  -> /soc/serial@7e215040
+serial@7e201000 (PL011)    status: okay
+serial@7e215040 (mini-UART) status: disabled
+ls: cannot access '/dev/rvr': No such file or directory
+crw-rw---- 1 root dialout 204, 64 Feb  9 22:01 /dev/ttyAMA0
+crw-rw---- 1 root dialout   4, 64 Feb  9 22:01 /dev/ttyS0
+
+## LIDAR
+Bus 001 Device 004: ID 10c4:ea60 Silicon Labs CP210x UART Bridge
+crw-rw---- 1 root dialout 188, 0 Jul 29 19:39 /dev/ttyUSB0
+cp210x                 40960  0
+usbserial              65536  1 cp210x
+ID_SERIAL_SHORT=0001
+ID_PATH=platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.2:1.0
+
+## Rendimiento (ANTES de la higiene)
+Startup finished in 5.374s (kernel) + 1min 39.469s (userspace) = 1min 44.843s 
+graphical.target reached after 31.790s in userspace.
+-- 12 servicios mas lentos:
+1min 7.654s cloud-final.service
+    17.629s fstrim.service
+    12.897s cloud-init.service
+     6.192s snapd.seeded.service
+     5.135s cloud-init-local.service
+     4.722s fwupd-refresh.service
+     4.665s cloud-config.service
+     3.506s apparmor.service
+     2.778s motd-news.service
+     2.631s e2scrub_reap.service
+     2.541s apport.service
+     2.497s pollinate.service
+tareas: 179
+governor: ondemand
+default target: graphical.target
+journal: Archived and active journals take up 17.7M in the file system.
+-- /proc/pressure/io:
+some avg10=7.84 avg60=7.85 avg300=7.21 total=151520919
+full avg10=6.21 avg60=6.60 avg300=6.22 total=132746662
+uptime:  19:52:20 up 50 min,  3 users,  load average: 2.43, 2.35, 2.05
+temp: temp=63.7'C | throttled: throttled=0x0
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       1.3Gi       2.9Gi       3.3Mi       3.7Gi       6.3Gi
+Swap:             0B          0B          0B
+
+## Red
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+eth0             DOWN           
+wlan0            UP             192.168.1.58/24 metric 600 fe80::da3a:ddff:fed6:c1ee/64 
+NetworkManager: not-found | systemd-networkd: enabled-runtime
+iw instalado: NO
+total 4
+-rw------- 1 root root 377 Feb  9 22:01 50-cloud-init.yaml
+
+## Actualizaciones automaticas
+unattended-upgrades: enabled / active
+cloud-init: enabled
+apt-daily.timer: enabled
+kernel corriendo: 6.8.0-1047-raspi
+  instalado: linux-image-6.8.0-1047-raspi
+  instalado: linux-image-6.8.0-1060-raspi
+reboot-required: linux-image-6.8.0-1060-raspi linux-base libc6 
+
+## fstab
+LABEL=writable	/	ext4	defaults	0	1
+LABEL=system-boot	/boot/firmware	vfat	defaults	0	1
+## grupos del usuario
+sphero adm dialout cdrom sudo audio video plugdev games users netdev render input gpio spi i2c

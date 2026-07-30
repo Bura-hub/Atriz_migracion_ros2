@@ -1,0 +1,11 @@
+duracion            : 12.2 s
+paquetes decodificados: 1144   (94/s)
+checksum OK / KO    : 1144 / 0   (100.0% validos)
+muestras totales    : 36234   (2970 muestras/s)
+paquetes de inicio de vuelta: 140
+frecuencia de giro  : 11.48 Hz   (140 vueltas en 12.2 s)
+muestras por vuelta : 259   (resolucion angular 1.39 grados)
+distancias validas  : 28282  (78% de las muestras)
+  min 0.298 m | p50 1.619 m | max 3.539 m
+
+VEREDICTO: el YDLIDAR X2 FUNCIONA. Protocolo valido, checksums correctos.

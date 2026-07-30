@@ -17,21 +17,21 @@
 > | 0 | Convenciones y hardware | ✅ verificado |
 > | 1 | Enlace UART Pi ↔ RVR | ✅ **verificado 2026-07-29** |
 > | 2 | Ritmo de telemetría | ✅ **medido 2026-07-29** |
-> | 3 | Flasheo de Ubuntu Server 24.04 | 📝 **escrito · NO VERIFICADO** |
+> | 3 | Flasheo de Ubuntu Server 24.04 | ✅ **verificado 2026-07-30** |
 > | 4 | Higiene del SO (headless, governor, journal) | 📝 **escrito · NO VERIFICADO** |
 > | 5 | ROS 2 Jazzy y workspace colcon | 📝 **escrito · NO VERIFICADO** |
 > | 6 | Driver del RVR en `rclpy` | ⏳ no escrito |
 > | 7 | URDF y árbol TF | ⏳ no escrito |
-> | 8 | YDLIDAR X2 | 🟡 **hardware verificado**; driver ROS pendiente |
+> | 8 | YDLIDAR X2 | 🟡 **hardware verificado en 20.04 y 24.04**; driver ROS pendiente |
 > | 9 | SLAM y Nav2 | ⏳ no escrito |
 > | 10 | rosbridge y plataforma web | ⏳ no escrito |
 > | 11 | Arranque automático con systemd | ⏳ no escrito |
 > | 12 | Clonado a los 16 robots | ⏳ no escrito |
 >
-> Los capítulos 1 y 2 se validaron sobre **Ubuntu 20.04 + ROS Noetic**. La configuración
-> de arranque es idéntica en 24.04; lo único que cambia es que `usercfg.txt` y
-> `syscfg.txt` pueden no existir y todo va en un único `config.txt` — **verificar al
-> llegar al capítulo 3**.
+> Los capítulos 1 y 2 se validaron sobre **Ubuntu 20.04 + ROS Noetic**. La configuración de
+> arranque **no** es idéntica en 24.04: `usercfg.txt` y `syscfg.txt` **no existen** y todo va
+> en un único `config.txt`, bajo una cabecera `[all]`. Resuelto y explicado en el
+> **capítulo 3.4** (2026-07-30).
 
 ---
 
@@ -95,11 +95,20 @@ que elimina el problema de raíz — mejor que fijar `core_freq`, que es el otro
 Automatizado en [`scripts/fase_0_1_fix_uart.sh`](../scripts/fase_0_1_fix_uart.sh).
 Manualmente:
 
-**a) Liberar el PL011 del Bluetooth.** En `/boot/firmware/usercfg.txt`:
+**a) Liberar el PL011 del Bluetooth.** En el fichero de configuración de arranque:
+
+| Sistema | Fichero | Nota |
+|---|---|---|
+| Ubuntu 20.04 | `/boot/firmware/usercfg.txt` | `config.txt` lo carga con `include usercfg.txt` |
+| **Ubuntu 24.04** | **`/boot/firmware/config.txt`**, bajo `[all]` | `usercfg.txt` **no existe** — ver cap. 3.4 |
+
 ```
+[all]
 dtoverlay=disable-bt
 enable_uart=1
 ```
+En 24.04 `enable_uart=1` ya viene puesto, y la cabecera `[all]` es **obligatoria** (si no, lo
+añadido queda dentro de `[cm4]` y no se aplica en un Pi 4). El detalle está en el cap. 3.4.
 
 **b) Liberar la consola serie.** En `/boot/firmware/cmdline.txt`, **quitar**
 `console=serial0,115200` y dejar `console=tty1`. La imagen de Ubuntu lo trae por defecto,
@@ -138,12 +147,29 @@ sudo reboot
 $ ls -l /dev/rvr
 lrwxrwxrwx 1 root root 7 ... /dev/rvr -> ttyAMA0
 
-$ dmesg | grep -i ttyAMA
+$ sudo dmesg | grep -i ttyAMA
 [    1.562830] fe201000.serial: ttyAMA0 at MMIO 0xfe201000 (irq = 14) is a PL011 rev2
 
 $ systemctl is-active bluetooth
 inactive
 ```
+
+> ⚠️ **En 24.04, `dmesg` NECESITA `sudo`.** Ubuntu activa `kernel.dmesg_restrict=1`, así que
+> sin `sudo` responde `dmesg: read kernel buffer failed: Operation not permitted`. Es un
+> permiso, **no un fallo de hardware** — pero leído con prisa parece que el UART no existe.
+
+**Atajo mejor que `dmesg`, y sin `sudo`:** preguntar al device-tree del arranque actual qué
+UART está en `uart0` (los pines GPIO14/15):
+
+```bash
+$ cat /proc/device-tree/aliases/uart0        # con disable-bt aplicado
+/soc/serial@7e201000                          # <- PL011. El bueno.
+
+$ cat /proc/device-tree/soc/serial@7e215040/status
+disabled                                      # <- el mini-UART, apartado
+```
+`7e201000` es el PL011 y `7e215040` el mini-UART. Si `uart0` apunta a `7e215040`, el overlay
+**no** está en efecto. Verificado el 2026-07-30 en 24.04.
 
 **Prueba definitiva — que el robot conteste.** Con el RVR **encendido**:
 ```bash
@@ -294,24 +320,32 @@ y Nav2 encima habrá que medir de nuevo — es la referencia contra la que compa
 
 ## Capítulo 8 — YDLIDAR X2 (parcial)
 
-> 🟡 **El hardware está verificado; el driver ROS aún no se ha instalado.** Esta sección
-> cubre lo comprobado el 2026-07-29. Los apartados 8.4 en adelante se escriben en la Fase 3.
+> 🟡 **El hardware está verificado en 20.04 (2026-07-29) y en 24.04 (2026-07-30); el driver
+> ROS aún no se ha instalado.** Los apartados 8.4 en adelante se escriben en la Fase 3.
 
 ### 8.1 El sensor
 
 **YDLIDAR X2 — LiDAR 2D de 360°.** Conectado por un adaptador **CP2102 USB-UART**
 (Silicon Labs, `10c4:ea60`) → `/dev/ttyUSB0`, grupo `dialout`.
 
-| Parámetro | Nominal | **Medido** |
-|---|---|---|
-| Barrido | 360° | 360° |
-| Muestras | 3000/s | **2998/s** |
-| Frecuencia de giro | 6–12 Hz | **11.4 Hz** |
-| Canal | único | único |
-| Baudrate | 115200 | 115200 |
-| Alcance | 0.12 – 8 m | 0.445 – 3.16 m *(limitado por la sala, no por el sensor)* |
-| Puntos por vuelta | — | **263** → resolución angular **1.37°** |
-| Caudal USB | — | ~7 KB/s |
+En Ubuntu Server 24.04 **funciona sin instalar nada**: el módulo `cp210x` viene en
+`linux-modules-*-raspi` y se carga solo al conectar el adaptador. No hace falta
+`linux-modules-extra`.
+
+| Parámetro | Nominal | Medido en 20.04 | **Medido en 24.04** |
+|---|---|---|---|
+| Barrido | 360° | 360° | 360° |
+| Muestras | 3000/s | 2998/s | **2970–2994/s** |
+| Frecuencia de giro | 6–12 Hz | 11.4 Hz | **11.48 Hz** |
+| Checksums válidos | — | 1147/1147 = 100 % | **1144/1144 = 100 %** |
+| Canal | único | único | único |
+| Baudrate | 115200 | 115200 | 115200 |
+| Alcance | 0.12 – 8 m | 0.445 – 3.16 m | 0.298 – 3.54 m *(limitado por la sala)* |
+| Puntos por vuelta | — | 263 → **1.37°** | **259 → 1.39°** |
+| Caudal USB | — | ~7 KB/s | ~7 KB/s |
+
+**El cambio de sistema operativo no afecta al sensor.** Evidencia cruda en
+[`00_auditoria/evidencia_24_04/lidar_x2_2026-07-30.txt`](../00_auditoria/evidencia_24_04/lidar_x2_2026-07-30.txt).
 
 ### 8.2 Verificación sin instalar el driver ROS
 
@@ -321,28 +355,37 @@ distingue «el lidar está roto» de «el driver está mal configurado»:
 ```bash
 python3 00_auditoria/evidencia/mediciones_banco/x2_parse.py
 ```
-Salida de referencia:
+Salida de referencia (24.04, 2026-07-30):
 ```
-paquetes decodificados: 1147   (95/s)
-checksum OK / KO      : 1147 / 0   (100.0% validos)
-muestras totales      : 36245   (2998 muestras/s)
-distancias validas    : 28587  (79% de las muestras)
-  min 0.445 m | p50 1.205 m | max 3.158 m
+duracion            : 12.2 s
+paquetes decodificados: 1144   (94/s)
+checksum OK / KO    : 1144 / 0   (100.0% validos)
+muestras totales    : 36234   (2970 muestras/s)
+paquetes de inicio de vuelta: 140
+frecuencia de giro  : 11.48 Hz   (140 vueltas en 12.2 s)
+muestras por vuelta : 259   (resolucion angular 1.39 grados)
+distancias validas  : 28282  (78% de las muestras)
+  min 0.298 m | p50 1.619 m | max 3.539 m
+
+VEREDICTO: el YDLIDAR X2 FUNCIONA. Protocolo valido, checksums correctos.
 ```
 
 El protocolo X2 es sencillo: cabecera `0xAA 0x55`, tipo, número de muestras, ángulo inicial
 y final, checksum (XOR de palabras de 16 bits), y las muestras a 2 bytes. La **distancia en
 milímetros es el valor entre 4**.
 
-> ⚠️ **Cuidado con dos números falsos.**
+> ⚠️ **Un número falso que sigue vivo.**
 >
-> `scripts/lydar/test_lidar.py` reporta **«Tipo de LIDAR: Desconocido»** aunque los datos
-> sean perfectamente válidos: su identificador no reconoce al X2. Fíjate en «bytes
-> recibidos» y «tasa de datos» (~7000 B/s), no en el tipo.
+> `scripts/lydar/test_lidar.py` (en `Atriz_rvr`) reporta **«Tipo de LIDAR: Desconocido»**
+> aunque los datos sean perfectamente válidos: su identificador no reconoce al X2. Fíjate en
+> «bytes recibidos» y «tasa de datos» (~7000 B/s), no en el tipo.
 >
-> `x2_parse.py` imprime **«frecuencia de giro: 480.72 Hz»**, que es **falso**. Calcula la
-> mediana de los intervalos de llegada de paquetes, pero llegan a ráfagas desde el buffer
-> del USB. El valor real sale de contar vueltas: 138 en 12.1 s = **11.4 Hz**.
+> ✅ **Y uno ya corregido.** Hasta el 2026-07-30, `x2_parse.py` imprimía frecuencias de giro
+> absurdas (480 Hz en 20.04, 741 Hz en 24.04) porque calculaba la **mediana de los intervalos
+> de llegada de paquetes**, y esos paquetes salen del buffer USB **a ráfagas** de ~1.3 ms. Ya
+> no: ahora divide vueltas entre duración, que es lo que hay que hacer, y da **11.48 Hz** —
+> coincidiendo con las 138 vueltas contadas a mano en la sesión de 20.04. La lección general:
+> **un timestamp tomado al leer de un buffer no mide cuándo ocurrió el evento.**
 
 ### 8.3 Resolución angular — un margen de mejora real
 
@@ -435,24 +478,65 @@ UART para la consola del sistema**, dejándolo inutilizable para el RVR. Debe qu
 
 Es el único acierto importante del manual original, y hay que repetirlo en cada instalación.
 
-### 3.4 ⚠️ COMPROBAR — configuración de arranque en 24.04
+### 3.4 ✅ Configuración de arranque en 24.04 — **verificado 2026-07-30**
 
-En Ubuntu 20.04 había tres ficheros: `config.txt` (no editable), que incluía `syscfg.txt` y
-`usercfg.txt`. **En 24.04 probablemente sea un único `/boot/firmware/config.txt` editable
-directamente**, sin `usercfg.txt`.
+**En 24.04 hay un único `/boot/firmware/config.txt`, editable, y `usercfg.txt` NO existe.**
+Confirmado sobre Ubuntu Server 24.04.4: los únicos `.txt` de la partición de boot son
+`cmdline.txt` y `config.txt`, y una búsqueda en todo el sistema (`find / -name 'usercfg*'`)
+no devuelve nada.
 
-**Comprueba qué existe:**
+**Por qué cambió.** No es que el fichero falte: Ubuntu **abandonó el esquema de tres
+ficheros**. En 20.04 el `config.txt` empezaba con «Please DO NOT modify this file» y
+terminaba con:
+
+```
+include syscfg.txt      ← lo gestionaba la utilidad pibootctl
+include usercfg.txt     ← el hueco reservado al usuario
+```
+
+En 24.04 el paquete **`pibootctl` ya no se instala**, y el `config.txt` nuevo es la plantilla
+*upstream de Raspberry Pi OS* (se reconoce por `dtoverlay=vc4-kms-v3d`,
+`camera_auto_detect`, `display_auto_detect`, y las secciones `[pi02]` y `[cm4]`). **No
+contiene ninguna línea `include`.**
+
+> 🔴 **No crees `usercfg.txt` a mano.** Sin un `include` que lo cargue, el firmware nunca lo
+> lee: sería un **fichero fantasma** que hace creer que la configuración está aplicada
+> cuando no lo está. Escribe en `config.txt`.
+
+**Comprueba qué existe antes de editar:**
 ```bash
 ls -l /boot/firmware/*.txt
+grep -n 'include' /boot/firmware/config.txt      # en 24.04: sin resultados
 ```
-Y añade al fichero que corresponda (`usercfg.txt` si existe; si no, al final de `config.txt`):
+
+**Añade al final de `config.txt`, y OBLIGATORIAMENTE bajo una cabecera `[all]`:**
 ```
+[all]
 dtoverlay=disable-bt
-enable_uart=1
 ```
+
+> ⚠️ **La cabecera `[all]` no es decorativa.** `config.txt` se divide en secciones de placa
+> (`[pi4]`, `[cm4]`, `[pi02]`…) y una línea solo se aplica si está antes de cualquier
+> sección, dentro de `[all]`, o dentro de la sección de **esta** placa. La imagen de 24.04
+> **termina en `[cm4]`**, así que lo que se añada al final sin `[all]` quedaría dentro de
+> `[cm4]` y **no se aplicaría en un Pi 4**. Existiría en el fichero y no haría nada.
+
+**`enable_uart=1` ya viene puesto** en el primer `[all]` de la imagen de 24.04 — no hay que
+añadirlo. (También estaba en 20.04, en el `[all]` de defaults y en `syscfg.txt`. Lo único que
+faltó siempre fue `disable-bt`.)
 
 El razonamiento completo está en el **capítulo 1**. Resumen: sin `disable-bt`, el RVR queda
 en el mini-UART, cuyo baudrate deriva con el reloj del VPU.
+
+**Se puede hacer desde Windows**, con la tarjeta en el PC: `config.txt` está en la partición
+FAT (`system-boot`), y basta el Bloc de notas. Lo que **no** se puede hacer desde Windows es
+la regla udev ni los `systemctl` — eso vive en la partición ext4 y necesita el sistema
+arrancado (paso 1.2c, o `scripts/fase_0_1_fix_uart.sh`).
+
+> ℹ️ **La edición sobrevive a las actualizaciones.** `dpkg -S /boot/firmware/config.txt` no
+> encuentra dueño: la partición de boot la genera `flash-kernel`, no un paquete. Verificado
+> el 2026-07-30 — una actualización de kernel reescribió todos los `.dtb`, `.elf` e
+> `initrd.img` (dejando `.bak` de cada uno) y **no tocó `config.txt`**.
 
 ### 3.5 Primer arranque
 
@@ -464,23 +548,62 @@ Para encontrar la IP: mírala en el router (y aprovecha para **crear la reserva 
 MAC** — con 16 robots es la única forma sensata), o usa `ping rvr-01.local` si mDNS responde.
 
 ⚠️ El primer arranque de Ubuntu Server tarda: `cloud-init` hace su trabajo inicial. Espera
-un par de minutos antes de dar por perdida la conexión.
+un par de minutos antes de dar por perdida la conexión. Medido el 2026-07-30: **1 min 39 s de
+userspace**, de los cuales `cloud-final.service` se lleva **1 min 7 s**.
+
+### 3.5.1 🔴 Termina las actualizaciones ANTES de tocar el UART — verificado 2026-07-30
 
 ```bash
-sudo apt update && sudo apt upgrade -y
+sudo apt update && sudo apt full-upgrade -y
+cat /var/run/reboot-required.pkgs 2>/dev/null    # ¿pide reinicio? ¿por qué paquete?
 sudo reboot
 ```
 
-### 3.6 Verificación del capítulo 3
+**Por qué es su propio apartado.** La imagen de 24.04 trae `unattended-upgrades`
+**habilitado y activo**, y en cuanto el robot tiene red empieza a instalar por su cuenta. En
+esta instalación metió ocho lotes de paquetes en cuatro minutos, incluido un **kernel nuevo**:
+
+```
+corriendo:  6.8.0-1047-raspi
+instalado:  linux-image-6.8.0-1060-raspi        ← lo puso unattended-upgrades
+/var/run/reboot-required.pkgs: linux-image-6.8.0-1060-raspi, linux-base
+```
+
+Si reinicias después de cambiar el device-tree sin haber cerrado esto, ese reinicio aplica
+**dos cambios a la vez**: el overlay del UART y un kernel distinto. Si luego el RVR no
+responde, no hay forma de saber cuál fue la causa — y este proyecto ya perdió tiempo
+atribuyendo un síntoma a la causa equivocada (regla nº4: *aísla X antes de decir que X causa
+Y*). **Un cambio por reinicio.**
+
+> El capítulo 4 deshabilita `unattended-upgrades`, precisamente para que un robot no se
+> actualice solo a mitad de un experimento. A partir de ahí las actualizaciones son manuales.
+
+### 3.6 ✅ Verificación del capítulo 3 — **verificado 2026-07-30**
 
 ```bash
-lsb_release -a                      # Ubuntu 24.04.x LTS
+lsb_release -a                      # Ubuntu 24.04.4 LTS (noble)
 uname -m                            # aarch64
-python3 --version                   # ⚠️ COMPROBAR: se espera 3.12.x
+python3 --version                   # 3.12.3
 grep -o "console=[^ ]*" /boot/firmware/cmdline.txt   # solo console=tty1
-grep -E "disable-bt|enable_uart" /boot/firmware/*.txt
+grep -nE "disable-bt|enable_uart" /boot/firmware/config.txt
+cat /proc/device-tree/aliases/uart0 # /soc/serial@7e201000  (PL011)
 hostname                            # rvr-01
 ```
+
+Salida real de esta instalación:
+
+| Comprobación | Resultado |
+|---|---|
+| `lsb_release` | Ubuntu **24.04.4 LTS** (noble) |
+| `uname -m` | `aarch64` |
+| `python3 --version` | **3.12.3** — resuelve el ⚠️ COMPROBAR del go/no-go |
+| `cmdline.txt` | `console=tty1` únicamente |
+| `config.txt` | `enable_uart=1` (por defecto) + `dtoverlay=disable-bt` bajo `[all]` |
+| `uart0` | `/soc/serial@7e201000` → PL011 activo |
+| `hostname` | `rvr-01` |
+
+Evidencia cruda en
+[`00_auditoria/evidencia_24_04/`](../00_auditoria/evidencia_24_04/).
 
 ---
 
