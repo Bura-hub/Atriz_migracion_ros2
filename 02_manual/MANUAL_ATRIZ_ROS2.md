@@ -3505,6 +3505,52 @@ que **cancelar la acción** además de parar los motores. **Sin comprobar.**
 
 ⏳ Unificar a un solo topic cuando la Fase 5 reescriba la web.
 
+### 15.4 🔴 La cuarta causa: liberar la parada devolvía el robot a navegar
+
+En la lista de pendientes ponía *«la parada de emergencia no cancela las acciones de Nav2, solo
+para los motores»*. **Ese enunciado era falso**, y al mirar el código apareció algo peor.
+
+**Lo que sí funciona:** `_cb_parada_emergencia` pone una bandera, y `_cb_cmd_vel` empieza con
+`if self._parada_emergencia: return`. Con Nav2 publicando a 10 Hz el robot **se queda quieto
+igualmente**.
+
+**El agujero está al liberar.** `/release_emergency_stop` solo baja la bandera:
+
+```python
+def _srv_liberar_parada(self, _req, resp):
+    self._parada_emergencia = False
+```
+
+Y mientras tanto el objetivo de Nav2 **sigue vivo**, el `controller_server` nunca dejó de
+publicar, y no aborta enseguida porque el `SimpleProgressChecker` está relajado a 0.25 m en 15 s
+a propósito (cap. 11.13). → **En el instante en que la bandera baja, el robot arranca solo.** Que
+es lo contrario de lo que debe hacer una parada de emergencia: soltarla tiene que dejar el robot
+quieto, no devolverlo a lo que estaba haciendo.
+
+**El arreglo:** un nodo aparte, `cancelar_nav2`, que arranca `nav2.launch.py`. Escucha los tres
+nombres de la parada y llama a `_action/cancel_goal` con un `CancelGoal.Request` **vacío** — que
+en `action_msgs` no significa «no cancelar nada», sino **CANCEL_ALL**. Así no hay que seguir la
+pista de handles que lanzó otro proceso (la web, RViz2, un script).
+
+Va **aparte y no dentro del driver** porque el driver tiene que funcionar sin Nav2: es la misma
+razón por la que SLAM y la navegación viven en launches separados.
+
+✅ **Verificado sin mover el robot:** el nodo recibe por `/rvr/emergency_stop` —el nombre
+absoluto que usa la web y que fallaba en ROS 1— y sin Nav2 degrada bien, avisando en vez de
+bloquear la parada. Eso cubre las causas 2 y 3 de este mismo capítulo.
+
+📝 **NO VERIFICADO con Nav2 navegando.** Falta el único experimento que demuestra que el agujero
+está tapado, y necesita ~2.5 m despejados:
+
+```bash
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_parada_nav2.py
+```
+
+Mide **desplazamiento**, no velocidad: un robot que arranca y frena puede dar velocidad media ~0
+y haberse movido 20 cm — el error que ya se cometió midiendo el watchdog.
+
+Evidencia: `00_auditoria/evidencia_24_04/31_parada_cancela_nav2.txt`.
+
 ---
 
 ## Capítulo 16 — Los servicios del driver, y el sensor de color que nunca funcionó

@@ -4,6 +4,49 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — La parada de emergencia: la cuarta causa, y estaba mal enunciada
+
+En la lista de pendientes ponía *«la parada no cancela las acciones de Nav2, solo para los
+motores»*. **Ese enunciado era falso.** El driver pone una bandera y `_cb_cmd_vel` descarta todo
+lo que llega, así que con Nav2 mandando a 10 Hz el robot **sí se queda quieto**.
+
+🔴 **El agujero estaba al LIBERAR.** `/release_emergency_stop` solo baja la bandera. El objetivo
+de Nav2 seguía vivo, el `controller_server` nunca dejó de publicar, y no aborta enseguida porque
+el progress checker está relajado a 0.25 m en 15 s a propósito. → **En el instante en que la
+bandera baja, el robot arrancaba solo**, sin que nadie mandara nada. Que es lo contrario de lo
+que debe hacer una parada de emergencia.
+
+📝 Y encaja con el historial: esta función ya había fallado **tres** veces, siempre en silencio y
+siempre devolviendo `200 OK` (nombre del topic, namespace, QoS). Esta es la cuarta, y también es
+muda.
+
+### El arreglo
+
+Nodo nuevo `cancelar_nav2`, arrancado por `nav2.launch.py`. Llama a `_action/cancel_goal` con un
+`CancelGoal.Request` **vacío**, que en `action_msgs` significa **CANCEL_ALL** — así no hay que
+seguir la pista de handles que lanzó otro proceso (la web, RViz2, un script).
+
+Va **aparte y no dentro del driver** porque el driver tiene que funcionar sin Nav2. QoS
+**VOLATILE** en el suscriptor, no `TRANSIENT_LOCAL`: en un suscriptor no añade garantías, solo
+exige que el publicador también lo sea — fue la tercera causa del fallo silencioso.
+
+### Verificado sin mover el robot
+
+El nodo recibe por `/rvr/emergency_stop` —el nombre absoluto que usa la web y que fallaba en
+ROS 1— y sin Nav2 degrada bien. Eso cubre las causas 2 y 3. Compilado y comprobado el **efecto**:
+el ejecutable instalado existe y el launch instalado lo contiene, sin workspace parásito.
+
+### ⏳ Falta la prueba que importa
+
+**NO VERIFICADO con Nav2 navegando.** Herramienta escrita y lista:
+`mediciones_banco/medir_parada_nav2.py`. Necesita ~2.5 m despejados y mide **desplazamiento**,
+no velocidad — un robot que arranca y frena da velocidad media ~0 y se ha movido 20 cm, que es
+el error que ya se cometió midiendo el watchdog.
+
+Manual, cap. 15.4 · evidencia `00_auditoria/evidencia_24_04/31_parada_cancela_nav2.txt`.
+
+---
+
 ## 2026-07-31 — Arranque automático con systemd (escrito, sin arrancar todavía)
 
 En un laboratorio remoto nadie puede entrar a arrancar un proceso: si un robot se reinicia

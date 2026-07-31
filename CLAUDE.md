@@ -281,6 +281,14 @@ que es un razonamiento **del publicador**. Resultado: `incompatible QoS […] No
 received`. → En un suscriptor usa **VOLATILE**, que empareja con todo; la fiabilidad la da
 `RELIABLE`. Manual, cap. 15.1.
 
+**🔴 Y LA CUARTA VEZ FALLÓ AL SOLTARLA, NO AL PULSARLA.** El enunciado «la parada no cancela
+Nav2, solo para los motores» era **falso**: la bandera del driver descarta todo `cmd_vel`, así
+que el robot sí se queda quieto. Lo que no hacía nadie era **cancelar el objetivo**, y
+`/release_emergency_stop` solo baja la bandera → **al liberarla el robot arrancaba solo**,
+porque el `controller_server` nunca dejó de publicar y el progress checker está relajado a
+0.25 m en 15 s. → Arreglado con el nodo `cancelar_nav2` (en `nav2.launch.py`, no en el driver:
+el driver tiene que funcionar sin Nav2). Manual, cap. 15.4.
+
 **🔴 La parada de emergencia ha fallado TRES veces, siempre en silencio y con `200 OK`.**
 (1) nombre de topic distinto, en ROS 1. (2) **namespace**: al portar se arregló el nombre y se
 coló el `/rvr/`. (3) **QoS**. → Las causas 2 y 3 **solo aparecen publicando de verdad**: leer el
@@ -583,6 +591,7 @@ medir_keepalive_ros2.py      # ¿se duerme el RVR? vigila el RITMO de /odom, no 
 caracterizar_deriva_slam.py  # ⚠️ MUEVE EL ROBOT 20 min: 6 corridas -> distribución de la deriva
 medir_slam_ros2.py           # ⚠️ MUEVE EL ROBOT ~1.3 m: ¿crece el mapa? (girar NO vale)
 verificar_inverted_lidar.py  # ⚠️ gira 50°: ¿se contradicen /scan y /odom?
+medir_parada_nav2.py         # ⚠️ MUEVE EL ROBOT ~2 m: ¿arranca solo al LIBERAR la parada?
 ```
 
 ⚠️ **`medir_slam_ros2.py` necesita espacio, y el robot NO esquiva obstáculos** (solo tiene

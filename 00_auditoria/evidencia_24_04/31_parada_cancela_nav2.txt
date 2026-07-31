@@ -1,0 +1,118 @@
+═══════════════════════════════════════════════════════════════════════════════
+LA PARADA DE EMERGENCIA Y NAV2 — el agujero no era el que estaba anotado
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+En la lista de pendientes ponia «la parada de emergencia no cancela las acciones
+de Nav2, solo para los motores». Al mirar el codigo resulto que el enunciado
+estaba mal, y el fallo real es peor.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. LO QUE SI FUNCIONA (y hay que decirlo, porque cambia el diagnostico)
+───────────────────────────────────────────────────────────────────────────────
+  `_cb_parada_emergencia` pone una bandera, llama a `drive_stop()` y pone
+  `_conduciendo = False`. Y `_cb_cmd_vel` empieza asi:
+
+      def _cb_cmd_vel(self, msg):
+          if self._parada_emergencia:
+              return
+
+  O sea que con Nav2 publicando a 10 Hz el robot **se queda quieto igualmente**.
+  El enunciado «solo para los motores, Nav2 sigue moviendolo» era FALSO.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. 🔴 EL AGUJERO ESTA AL LIBERAR, NO AL PARAR
+───────────────────────────────────────────────────────────────────────────────
+      def _srv_liberar_parada(self, _req, resp):
+          self.get_logger().warn('parada de emergencia liberada')
+          self._parada_emergencia = False
+          return resp
+
+  Eso es todo lo que hace. Y mientras tanto:
+
+    · el objetivo de Nav2 SIGUE VIVO. No se cancelo nadie.
+    · el `controller_server` nunca dejo de publicar en `/cmd_vel_raw`.
+    · y no aborta solo enseguida: el `SimpleProgressChecker` esta RELAJADO a
+      0.25 m en 15 s a proposito (cap. 11.13, porque el collision_monitor frena
+      al 40 % y el robot lento no es un robot atascado).
+
+  → EN EL INSTANTE EN QUE LA BANDERA BAJA, EL ROBOT ARRANCA SOLO.
+
+  Que es exactamente lo contrario de lo que debe hacer una parada de emergencia:
+  soltarla tiene que dejar el robot QUIETO, no devolverlo a lo que estaba
+  haciendo antes de que alguien pulsara el boton.
+
+  📝 Y encaja con el historial de esta funcion: la parada de emergencia ya habia
+     fallado TRES veces, siempre en silencio y siempre devolviendo 200 OK
+     (nombre del topico, namespace, QoS). Esta es la cuarta, y tambien es muda.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. EL ARREGLO: UN NODO APARTE, `cancelar_nav2`
+───────────────────────────────────────────────────────────────────────────────
+  `atriz_rvr_driver/scripts/atriz_rvr_driver/cancelar_nav2.py`, arrancado por
+  `nav2.launch.py`.
+
+  POR QUE APARTE Y NO DENTRO DEL DRIVER:
+    El driver **tiene que funcionar sin Nav2** — los estudiantes teleoperan sin
+    navegacion. Meterle un cliente de accion de Nav2 lo ata a un paquete que la
+    mitad del tiempo no esta corriendo. Es la misma razon por la que SLAM y la
+    navegacion viven en launches separados.
+    Aqui la responsabilidad vive con lo que hay que cancelar.
+
+  COMO CANCELA:
+    Servicio `_action/cancel_goal` de cada accion, con un `CancelGoal.Request`
+    **vacio**. En `action_msgs` un `goal_id` a cero y un `stamp` a cero no
+    significa «no cancelar nada»: es la politica **CANCEL_ALL**.
+    Asi no hay que seguir la pista de handles de objetivo — que es justo lo que
+    fallaria cuando el objetivo lo lanzo otro proceso: la web, RViz2, un script.
+
+  Tres acciones: `navigate_to_pose`, `navigate_through_poses`, `follow_path`.
+
+  QoS: **RELIABLE + VOLATILE**. 🔴 En un SUSCRIPTOR, `TRANSIENT_LOCAL` no añade
+  garantias: solo EXIGE que el publicador tambien lo sea, y ni `ros2 topic pub`
+  ni rosbridge lo son. Fue la tercera causa por la que la parada fallo en
+  silencio (cap. 15.1). Aqui se evita repetirla.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. ✅ VERIFICADO SIN MOVER EL ROBOT
+───────────────────────────────────────────────────────────────────────────────
+  Nodo arrancado a solas, sin Nav2, y publicando en el topico que usa la web:
+
+    $ ros2 topic pub --once /rvr/emergency_stop std_msgs/msg/Empty "{}"
+
+    [INFO]  cancelador de Nav2 activo — escuchando emergency_stop,
+            is_emergency_stop y /rvr/emergency_stop
+    [ERROR] PARADA DE EMERGENCIA — cancelando objetivos de Nav2
+    [WARN]    navigate_to_pose: no disponible (¿Nav2 apagado?)
+    [WARN]    navigate_through_poses: no disponible (¿Nav2 apagado?)
+    [WARN]    follow_path: no disponible (¿Nav2 apagado?)
+
+  Eso cubre las DOS causas que hicieron fallar la parada en silencio antes:
+    ✅ el nombre absoluto `/rvr/emergency_stop` LLEGA (era el fallo nº2)
+    ✅ el QoS EMPAREJA con un publicador normal (era el fallo nº3)
+  y ademas que sin Nav2 **degrada bien**: avisa y no bloquea la parada.
+
+  ✅ Compilado y comprobado el EFECTO, no el mensaje:
+       install/atriz_rvr_driver/lib/atriz_rvr_driver/cancelar_nav2  existe
+       install/.../nav2.launch.py  contiene cancelar_nav2 (x2)
+       sin workspace parasito
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. 🔴 LO QUE FALTA — Y ES LA PRUEBA QUE IMPORTA
+───────────────────────────────────────────────────────────────────────────────
+  📝 **NO VERIFICADO con Nav2 navegando de verdad.** Falta el unico experimento
+     que demuestra que el agujero esta tapado, y necesita ~2.5 m despejados:
+
+     1. arrancar robot + Nav2, mandar un objetivo a ~2 m
+     2. a mitad de camino, publicar en /rvr/emergency_stop
+     3. comprobar que el objetivo pasa a CANCELED (no a ABORTED ni sigue ACTIVE)
+     4. llamar a /release_emergency_stop
+     5. 🔴 LA MEDIDA: que el robot NO se mueva. Sin el arreglo se mueve.
+
+  Y hay que medir DESPLAZAMIENTO, no velocidad: un robot que arranca y frena
+  puede dar velocidad media ~0 y haberse movido 20 cm. Es el mismo error que ya
+  se cometio midiendo el watchdog.
