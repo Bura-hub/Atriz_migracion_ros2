@@ -118,7 +118,7 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 | ~~`inverted` del LIDAR sin verificar~~ | corrompe mapas | ✅ **verificado 2026-07-31**: `true` es CORRECTO. El equivocado era el yaw de `/odom` |
 | 🔴 **El robot está inclinado ~8°** (árbol TF, Roll de la IMU y acelerómetro: **tres** vías) | calidad de Nav2 | 🔴 abierto, causa sin determinar. **No urgente**: con ella la deriva de SLAM es de 2.7 cm |
 | ~~La parada de emergencia de la web no hace nada~~ | seguridad | ✅ **resuelta 2026-07-31**. Había **tres** causas, no una: nombre, **namespace** (`/rvr/`) y **QoS** (`TRANSIENT_LOCAL` en el suscriptor no empareja con nadie). Verificada por los tres nombres, 0 avisos de QoS. Manual, cap. 15 |
-| **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — acción del usuario |
+| **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — **acción del usuario**. Y no basta con rotarla: hay que quitarla del **historial** de git, no solo del último commit |
 | **Sin arranque automático** — ninguna unidad systemd | operación | ⏳ pendiente |
 | 16 de 20 servicios y 4 topics sin portar | funcionalidad | ⏳ diferido por el usuario |
 | ~~No hay watchdog de `cmd_vel`~~ | seguridad | ✅ **resuelto**: para en 527 ms / 7.9 cm |
@@ -241,9 +241,9 @@ activar Nav2 y el primer objetivo.**
    publicadores**: salían seis donde debía haber uno. Arreglado.
 2. **`approach` no es una parada de seguridad, es un frenado suave.** Con `radius: 0.11` el
    robot paró a **1.1 cm** de la pared: la asíntota del controlador es el contacto. La holgura
-   se consigue **inflando el círculo** — `hueco ≈ radius − 0.109`.
+   se consigue **inflando el círculo** — `hueco ≈ radius − 0.091`.
 
-🔴 **El límite que ninguna configuración arregla:** el plano del LIDAR está a **17.45 cm** del
+🔴 **El límite que ninguna configuración arregla:** el plano del LIDAR está a **15.5 cm** del
 suelo. Todo lo más bajo es **invisible** y el robot lo embestirá. Tiene que ir en las
 instrucciones a los estudiantes.
 
@@ -445,6 +445,23 @@ sin --hardware   76 correctas · 1 aviso · 0 fallos
 con --hardware   84 correctas · 1 aviso · 0 fallos
 ```
 
+### 📌 El tercer repositorio: `Atriz_web_server`
+
+**No está clonado en este robot ni se ha tocado**, a propósito: la web es la Fase 5 y es un
+repositorio **público con una credencial expuesta**.
+
+Lo que le afecta de todo lo hecho está recogido en
+`00_auditoria/evidencia_24_04/28_pendiente_web.txt`, para que quien abra la Fase 5 no tenga que
+reconstruirlo. En resumen:
+
+- ✅ **La parada de emergencia ya funciona sin tocar la web**: el driver escucha
+  `/rvr/emergency_stop` con el QoS que usa rosbridge. ⚠️ Pero **no corta lo que venga de Nav2**.
+- La web puede usar ya **18 servicios y 5 topics**. 🔴 Con dos avisos: los servicios de
+  movimiento **se saltan la capa de seguridad**, y hay que publicar en **`/cmd_vel_raw`**, no en
+  `/cmd_vel`.
+- 📝 `/color` publica `[0,0,0]` salvo que se arranque con `color_detection:=true`.
+- 🔴 La **credencial sigue expuesta**, y quitarla exige limpiar el **historial** de git.
+
 ### 1. ⏳ Pasar `provision.sh` entero sobre un 24.04 limpio — es lo siguiente
 
 **No se ha ejecutado de principio a fin desde estos cambios.** Es idempotente y el paso 7 se
@@ -582,6 +599,10 @@ estaba partido en dos y era el bloqueante raíz de SLAM. **Verificado sobre el r
 
 Medida del LIDAR: **17.45 cm** sobre el suelo (centrado, 4 cm de hueco medidos). El proyecto
 arrastraba `0.10`, que se quedaba **7.4 cm corto** y habría inclinado el mapa.
+
+> ⚠️ **Ese 17.45 también resultó estar mal**, y por lo mismo: era una **suma derivada** con el
+> alto del RVR sacado de su ficha (11.4 cm cuando son **7.0**). Medido con regla el 2026-07-31,
+> el plano de barrido está a **15.5 cm**. Manual, cap. 12.8.
 
 ⚠️ **RETRACTADO el 2026-07-31 — se conserva porque explica cómo se llegó al error.**
 

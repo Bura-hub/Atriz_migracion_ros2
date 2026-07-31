@@ -4,6 +4,54 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — Barrido de deriva documental, y qué le falta al repositorio web
+
+Cierre de la sesión: revisar que la documentación **no siga afirmando lo que hoy ha dejado de
+ser cierto**, y dejar por escrito lo que afecta al tercer repositorio.
+
+### Ocho afirmaciones obsoletas, corregidas
+
+Lo de hoy cambió valores que estaban repetidos por varios ficheros:
+
+| | decía | dice |
+|---|---|---|
+| plano del LIDAR | 17.45 / 17.5 cm | **15.5 cm** ✅ medido |
+| media longitud del chasis | 0.109 m | **0.091 m** |
+| el verificador | 50 comprobaciones / 48 aserciones | **84** |
+
+Corregidas en `README.md`, `scripts/README.md`, `RUNBOOK.md`, `INSTALACION.md`, `TRASPASO.md`,
+`CLAUDE.md`, `mediciones_banco/README.md` y el manual (dos sitios).
+
+📝 **El `CHANGELOG` no se reescribe**: es el registro de lo que se creía cada día. Donde una
+entrada antigua da un valor que luego cambió, se **anota** al lado en vez de falsearla. Y las
+derivaciones que resultaron erróneas —como la suma que daba 17.45— **se conservan con su nota**,
+porque explican la causa raíz: dos de sus tres sumandos venían de la ficha del fabricante.
+
+### 📌 El tercer repositorio: `Atriz_web_server`
+
+**No está clonado en este robot ni se ha tocado**, y es deliberado: la web es la **Fase 5** por
+decisión del usuario, y es un repositorio **público con una credencial expuesta** — meterse ahí
+antes de su turno es asumir un riesgo sin necesidad.
+
+Lo que le afecta queda en `28_pendiente_web.txt` (nuevo):
+
+- ✅ **La parada de emergencia ya funciona sin tocar la web.** El driver escucha
+  `/rvr/emergency_stop` con `RELIABLE + VOLATILE`, que es el QoS que usa rosbridge por defecto.
+  ⚠️ **Pero no corta lo que venga de Nav2**: para una parada de verdad hay que **cancelar la
+  acción** `navigate_to_pose`, no solo parar los motores. Sin implementar.
+- **18 servicios y 5 topics** disponibles. 🔴 Dos avisos: los de movimiento **se saltan la capa
+  de seguridad** (hablan al RVR por el puerto serie), y para teleoperar hay que publicar en
+  **`/cmd_vel_raw`**, no en `/cmd_vel`.
+- 📝 `/color` publica `[0,0,0]` salvo `color_detection:=true`.
+- 🔴 **La credencial sigue expuesta**, y rotarla no basta: hay que quitarla del **historial** de
+  git. Acción del usuario, pendiente desde el 2026-07-29.
+
+**Ficheros:** `28_pendiente_web.txt` (nuevo), `README.md`, `scripts/README.md`,
+`03_operacion/RUNBOOK.md`, `00_auditoria/evidencia/mediciones_banco/README.md`,
+`INSTALACION.md`, `TRASPASO.md`, `CLAUDE.md`, `02_manual/MANUAL_ATRIZ_ROS2.md`.
+
+---
+
 ## 2026-07-31 — 🔴 `provision.sh` nunca instalaba Nav2. Verificador de 50 a 84
 
 Evidencia: `00_auditoria/evidencia_24_04/27_provision_verificador.txt`.
@@ -937,7 +985,8 @@ A **0.75 m**, ~**16 cm de ancho**. El robot mide 18.5 cm: **bloquea la línea re
 su altura: 63 cm por la derecha, 44 por la izquierda.
 
 Los requisitos que se le pidieron al usuario salían todos de un número medido: **más de 25 cm
-de alto** porque el plano del LIDAR está a 17.45 cm; **50 cm libres a un lado** porque el
+de alto** porque el plano del LIDAR está a 17.45 cm *(⚠️ ese valor se corrigió después a
+**15.5 cm** — era derivado; ver la entrada del robot medido)*; **50 cm libres a un lado** porque el
 `collision_monitor` trata al robot como un disco de 36 cm.
 
 ### ✅ Lo rodea, y de forma repetible

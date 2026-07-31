@@ -218,7 +218,9 @@ Antes de lanzar `medir_slam_ros2.py`, con el robot en el centro:
             ↓ 1 m por detrás
 ```
 
-Y **nada a menos de 60 cm**. El LIDAR va a **17.5 cm** de altura barriendo en horizontal:
+Y **nada a menos de 60 cm**. El LIDAR va a **15.5 cm** de altura barriendo en horizontal
+(✅ medido con regla el 2026-07-31; antes se decía 17.45, que era un valor DERIVADO de la
+ficha del RVR y salía 2 cm alto — manual, cap. 12.8):
 pasa por encima de zócalos, cables y cajas bajas, y por debajo de mesas. «Parece despejado a
 ras de suelo» no basta.
 

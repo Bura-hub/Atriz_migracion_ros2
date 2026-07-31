@@ -54,7 +54,7 @@ Y sin ROS, pero moviendo el robot:
             ↓ 1 m por detrás
 ```
 
-**Nada a menos de 60 cm.** Y el LIDAR va a **17.5 cm** barriendo en horizontal: pasa por
+**Nada a menos de 60 cm.** Y el LIDAR va a **15.5 cm** ✅ medido barriendo en horizontal: pasa por
 encima de zócalos y cajas bajas, y por debajo de mesas. «Despejado a ras de suelo» no basta.
 
 `verificar_inverted_lidar.py` solo gira: le basta un círculo de 50 cm.

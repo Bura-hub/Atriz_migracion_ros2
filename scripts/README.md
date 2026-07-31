@@ -23,7 +23,7 @@ El procedimiento completo de alta de un robot está en
 
 | Script | Fase / Etapa | Requiere root | Estado |
 |---|---|---|---|
-| `verificar_robot.sh` | cualquiera | no | ✅ **probado en rvr-01** (2026-07-31): **50 comprobaciones**, 0 fallos |
+| `verificar_robot.sh` | cualquiera | no | ✅ **probado en rvr-01** (2026-07-31): **84 comprobaciones** con `--hardware`, 0 fallos |
 | `provision.sh` | B–**F** | sí | 🟡 **probado en seco** (`--simular`); no ejecutado de principio a fin. 📝 Desde el 2026-07-31 deja el robot **completo** (8 pasos, incluida la Etapa F) y clona la rama **`ros2`** — antes clonaba `migracion-ros2`, que es código de ROS 1 y no compila |
 | `preparar_tarjeta.sh` | B (en el PC) | sí | 🟡 **probado en seco** sobre copias de la partición FAT; no en una microSD real |
 | `fase_0_1_fix_uart.sh` | 0.1 · B3 | sí | ✅ **ejecutado y verificado** en 20.04 (2026-07-29) y en **24.04 (2026-07-30)** |

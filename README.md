@@ -56,7 +56,7 @@ base distintas y no deben mezclarse.**
 bash scripts/verificar_robot.sh --hardware
 ```
 
-**50 comprobaciones** y código de salida ≠ 0 si algo falla. Es lo que hace que 16 robots sean
+**84 comprobaciones** con `--hardware` (76 sin él) y código de salida ≠ 0 si algo falla. Es lo que hace que 16 robots sean
 manejables: no se pueden revisar a ojo. En `rvr-01`, el 2026-07-31: **50 correctas, 0 fallos**.
 
 Su regla es **comprobar el efecto, no la intención**, y no es retórica: comprueba el *ritmo* de
@@ -124,7 +124,7 @@ scripts/
 ├── fase_0_3_respaldo.sh      ✅ prepara la SD para la imagen
 ├── fase_1_higiene_so.sh      ✅ higiene del SO — verificado en 24.04
 ├── fase_1_validar_sdk_py312.py   ✅ GO/NO-GO de la migración — 🟢 GO (2026-07-30)
-├── verificar_robot.sh        ✅ 48 aserciones: ¿está este robot bien? ← ÚSALO SIEMPRE
+├── verificar_robot.sh        ✅ 84 aserciones: ¿está este robot bien? ← ÚSALO SIEMPRE
 ├── provision.sh              🟡 de un 24.04 limpio a robot terminado (probado en seco)
 ├── preparar_tarjeta.sh       🟡 en el PC: prepara la tarjeta de cada robot (en seco)
 ├── fase_6_preparar_imagen_dorada.sh   📝 NO VERIFICADO — imagen dorada de la flota

@@ -1,0 +1,91 @@
+═══════════════════════════════════════════════════════════════════════════════
+LO QUE EL REPOSITORIO WEB NECESITA — y por que NO se ha tocado
+Robot: rvr-01 · 2026-07-31
+═══════════════════════════════════════════════════════════════════════════════
+
+`Bura-hub/Atriz_web_server` es el TERCER repositorio del proyecto y **no esta
+clonado en este robot ni se ha modificado**. A proposito:
+
+  · «La plataforma web se aborda AL FINAL» — decision del usuario, registrada en
+    CLAUDE.md desde el principio. Es la Fase 5 del plan.
+  · Es un repositorio PUBLICO con una credencial expuesta. Tocarlo sin que sea su
+    turno es meterse en algo delicado sin necesidad.
+
+Esto es la lista de lo que le afecta de todo lo hecho hoy, para que quien abra la
+Fase 5 no tenga que reconstruirlo.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. ✅ LA PARADA DE EMERGENCIA YA FUNCIONA — sin tocar la web
+───────────────────────────────────────────────────────────────────────────────
+  La web publica en `/rvr/emergency_stop`. Hasta hoy ese topic NO EXISTIA en el
+  driver de ROS 2, asi que el boton fallaba en silencio con 200 OK — el mismo
+  fallo que la auditoria encontro en ROS 1, con otra causa.
+
+  ✅ El driver de ROS 2 escucha ahora los TRES nombres, incluido el de la web, y
+     con QoS **RELIABLE + VOLATILE**, que es el que usa rosbridge por defecto.
+
+     -> La web NO necesita cambiar nada para que el boton funcione.
+
+  ⚠️ PERO NO CORTA LO QUE VENGA DE NAV2. Pone el flag del driver, que ignora
+     `cmd_vel`; Nav2 seguiria mandando objetivos y su controlador publicando.
+     Para una parada de verdad hay que CANCELAR LA ACCION `navigate_to_pose`
+     ademas de parar los motores. SIN COMPROBAR y sin implementar.
+
+  ⏳ Y en la Fase 5 hay que unificar a UN solo topic, no antes de que el nuevo
+     este probado de extremo a extremo.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. LO QUE LA WEB PUEDE USAR YA — 18 servicios y 5 topics
+───────────────────────────────────────────────────────────────────────────────
+  El driver paso de 1 servicio a 18 (manual, cap. 16). Por rosbridge se llaman
+  igual que cualquier servicio de ROS 2.
+
+    lectura      get_encoders · get_system_info · get_control_state
+                 get_rgbc_sensor_values
+    LEDs         set_led_rgb · set_multiple_leds · set_leds · trigger_led_event
+    IR           send_infrared_message · set_ir_mode · set_ir_evading
+    config       set_drive_parameters · set_pos_and_yaw
+    movimiento   move_timed · raw_motors · move_to_pose · move_to_pos_and_yaw
+    seguridad    release_emergency_stop
+
+    topics       /odom · /imu · /color · /battery_state · /scan
+
+  🔴 DOS AVISOS PARA QUIEN ESCRIBA LA WEB:
+
+    a) LOS SERVICIOS DE MOVIMIENTO SE SALTAN LA CAPA DE SEGURIDAD. No publican
+       en ningun topic: hablan al RVR por el puerto serie, asi que ni el
+       `collision_monitor` ni el watchdog de cmd_vel los ven. Solo los para la
+       parada de emergencia. Y `raw_motors` NO tiene corte automatico: sigue
+       hasta que se le manda modo 0.
+
+       -> Para teleoperar estudiantes, usar `/cmd_vel_raw` (que SI pasa por la
+          seguridad), no `move_timed` ni `raw_motors`.
+
+    b) `/cmd_vel_raw`, NO `/cmd_vel`. Publicar en `/cmd_vel` funciona —el driver
+       obedece— pero SALTA la capa de seguridad sin dar ningun aviso.
+       `/cmd_vel` tiene UN solo publicador: el `collision_monitor`.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 📝 /color NO DA NADA POR DEFECTO
+───────────────────────────────────────────────────────────────────────────────
+  Si la web muestra el color del suelo, tiene que saber que `/color` publica
+  [0,0,0] salvo que el robot arranque con `color_detection:=true`. El sensor no
+  funciona sin su luz (medido: canal claro 4 apagada contra 741 encendida) y esa
+  luz gasta bateria, asi que esta apagada por defecto.
+
+  -> O la web pide arrancar con el sensor encendido, o no ofrece esa lectura.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. 🔴 LA CREDENCIAL SIGUE EXPUESTA — accion del usuario
+───────────────────────────────────────────────────────────────────────────────
+  La credencial del usuario `sphero` esta en el repositorio PUBLICO
+  `Atriz_web_server` y **debe considerarse comprometida**. Rotarla es una accion
+  del usuario, no de un agente, y lleva pendiente desde la auditoria del
+  2026-07-29.
+
+  ⚠️ Y rotarla no basta: hay que quitarla del HISTORIAL de git, no solo del
+     ultimo commit. Mientras siga en el historial, sigue publica.

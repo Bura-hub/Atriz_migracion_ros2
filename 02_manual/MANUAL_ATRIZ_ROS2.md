@@ -1384,6 +1384,14 @@ solo sitio:
     laser_z        0.1745    = 17.45 cm sobre el suelo
 ```
 
+> 🔴 **ESTA SUMA ESTABA MAL, y el error era `base_height`.** Medido con regla el 2026-07-31: el
+> RVR mide **7.0 cm** de alto, no los 11.4 de la ficha, y el plano de barrido está a **15.5 cm**
+> del suelo — 2 cm por debajo de lo que daba esta cuenta. `laser_z` es hoy un **valor directo
+> medido**, no una suma. Cap. 12.8 y `03_operacion/MEDIDAS_ROBOT.md`.
+>
+> 📝 Se conserva la derivación porque explica **por qué** dos de sus tres sumandos venían de una
+> ficha de fabricante, que es la causa raíz.
+
 🔴 **El valor que arrastraba el proyecto era `0.10`, y se queda 7.4 cm corto.** Venía del
 `static_transform_publisher` de `lidar_only.launch`, y la propia `GUIA_COMPLETA_LIDAR.md` del
 repositorio lo admitía: «se **asume** que el LIDAR está en el centro del RVR y 0,1 m por
@@ -2279,8 +2287,8 @@ python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_keepaliv
 ```
 
 Nada a menos de 60 cm: **el robot no esquiva obstáculos**, solo tiene watchdog. Y el LIDAR
-va a 17.5 cm de altura barriendo en horizontal, así que pasa por encima de zócalos y cajas
-bajas — «parece despejado» a ras de suelo no basta.
+va a **15.5 cm** ✅ medido de altura barriendo en horizontal, así que pasa por encima de zócalos
+y cajas bajas — «parece despejado» a ras de suelo no basta.
 
 Evidencia cruda: `00_auditoria/evidencia_24_04/11_slam_fase4.txt`,
 `13_fase4_cerrada.txt` y `mapas/`.

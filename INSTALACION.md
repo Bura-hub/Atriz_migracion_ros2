@@ -569,7 +569,7 @@ python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_slam_ros
 
 ⚠️ **Necesita espacio y el robot NO esquiva obstáculos** (solo tiene watchdog). Con el robot en
 el centro: **1 m por delante** (hacia donde mira), **1 m por detrás**, **40 cm a cada lado**, y
-nada a menos de 60 cm. El LIDAR va a 17.5 cm barriendo en horizontal, así que pasa por encima
+nada a menos de 60 cm. El LIDAR va a **15.5 cm** ✅ medido barriendo en horizontal, así que pasa por encima
 de zócalos y cajas bajas: «despejado a ras de suelo» no basta.
 
 🔴 **Girar sobre el eje NO hace crecer el mapa.** El X2 barre los 360°, así que girar en el
