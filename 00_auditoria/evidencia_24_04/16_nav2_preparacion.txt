@@ -1,0 +1,179 @@
+═══════════════════════════════════════════════════════════════════════════════
+NAV2 — instalacion, velocidades medidas y configuracion
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Manual, cap. 11. Configuracion en Atriz_rvr:
+  atriz_rvr_bringup/config/nav2_atriz.yaml
+  atriz_rvr_bringup/launch/nav2.launch.py
+
+⏳ ESTADO: instalado y configurado. **SIN PROBAR CONTRA EL ROBOT TODAVIA.**
+   Lo que sigue esta MEDIDO; la navegacion en si, no.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. QUE PAQUETE INSTALAR — comprobado ANTES de instalar nada
+───────────────────────────────────────────────────────────────────────────────
+                                paquetes   que arrastra
+  ros-jazzy-navigation2            309     amcl, bt-navigator, controller,
+                                           costmap-2d, planners, map-server...
+  ros-jazzy-nav2-bringup           621     lo anterior + GAZEBO:
+                                           nav2-minimal-tb3-sim, tb4-sim,
+                                           ros-gz-sim, y pocketsphinx-en-us
+
+  🔴 `nav2-bringup` son ficheros de EJEMPLO para TurtleBot EN SIMULADOR. Los
+     launch de Atriz los escribimos nosotros, igual que con slam_toolbox. Y esos
+     312 paquetes de mas acabarian replicados en los 16 robots via imagen
+     dorada.
+
+  📝 `pocketsphinx-en-us` es reconocimiento de voz. En un robot sin microfono.
+
+  INSTALADO Y VERIFICADO:
+    30 paquetes ros-jazzy-nav2 en estado `ii`
+    los diez que importan, presentes:
+      bt-navigator · controller · planner · costmap-2d · amcl · map-server
+      lifecycle-manager · velocity-smoother · regulated-pure-pursuit · collision-monitor
+    paquetes de simulador instalados: 0
+    disco: 5.4 GB -> 6.3 GB  (+900 MB)
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. ✅ save_map ARREGLADO — el diagnostico de la Fase 4 era correcto
+───────────────────────────────────────────────────────────────────────────────
+  Antes (manual 9.5): result=255, y el error real solo en el log de
+  slam_toolbox: `Package 'nav2_map_server' not found`.
+
+  Con nav2-map-server instalado:
+
+    $ ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap \
+        "{name: {data: .../mapas/mapa_nav2}}"
+    response: SaveMap_Response(result=0)
+
+    mapa_nav2.pgm    5671 bytes
+    mapa_nav2.yaml    131 bytes
+
+    image: mapa_nav2.pgm
+    mode: trinary
+    resolution: 0.050
+    origin: [-1.886, -0.987, 0]
+    negate: 0
+    occupied_thresh: 0.65
+    free_thresh: 0.196
+
+  -> Es el formato que carga `nav2_map_server`. Hace falta para la Fase 4c
+     (mapear una vez y localizar con AMCL en los 16 robots).
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. VELOCIDADES MAXIMAS REALES — y una RETRACTACION
+───────────────────────────────────────────────────────────────────────────────
+  ANGULAR, cuatro velocidades comandadas, 3 s cada una:
+
+     comandada     REAL   ratio   gyro.z
+          0.50    0.511    102%    0.514
+          1.00    1.014    101%    1.003
+          1.50    1.493    100%    1.495
+          2.00    1.985     99%    1.985
+
+  -> sigue al comando al 99-102 %. Maximo probado: 2.0 rad/s (114°/s).
+
+  🔴 Y ESO NO CUADRABA con lo que este proyecto tenia documentado de la lineal:
+     "el robot no alcanza la velocidad comandada: 0.10->87 %, 0.40->63 %".
+
+  LINEAL, midiendo el PERFIL EN EL TIEMPO en vez de la media:
+
+      comandado 0.200 m/s          comandado 0.400 m/s
+        t=0.0s   0.188               t=0.0s   0.346
+        t=0.5s   0.205               t=0.5s   0.398
+        t=1.0s   0.200               t=1.0s   0.399
+        t=1.5s   0.200               t=1.5s   0.400
+        t=2.0s   0.202               t=2.0s   0.403
+        t=2.5s   0.194
+        t=3.0s   0.206
+        t=3.5s   0.197
+
+      meseta 0.199 = 100 %          meseta 0.401 = 100 %
+                                    contraste por desplazamiento: 0.398
+
+  ⚠️ RETRACTADO: NO HAY TOPE. El robot alcanza lo que se le pide, en ~0.5 s.
+
+     La causa del error era la VENTANA DE MEDIDA en `medir_velocidad_rvr.py`:
+     iba hasta la ULTIMA muestra del locator, y `conducir()` duerme 1.2 s
+     DESPUES de `drive_stop()`. La media incluia el robot frenando y parado.
+
+     📝 Es EL MISMO fallo que ya se habia arreglado en la prueba de marcos
+        (seccion 2 del fichero 15) y que se dejo sin arreglar en el barrido.
+        Corregido ahora.
+
+  LO QUE SI EXISTE: una RAMPA DE ACELERACION de ~0.5 s. Importa para Nav2 —el
+  robot no cambia de velocidad instantaneamente— pero se configura con
+  `acc_lim`, no con `max_vel`. De ahi sale 0.8 m/s^2.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. LA CONFIGURACION, Y POR QUE NO SE COPIA LA DEL EJEMPLO
+───────────────────────────────────────────────────────────────────────────────
+                          Atriz (medido)      ejemplo de Nav2 (TurtleBot)
+    robot_radius            0.11 m              0.22 m   <- EL DOBLE
+    max_vel lineal          0.40 m/s            0.26 m/s
+    max_vel angular         2.0 rad/s           1.0 rad/s
+    alcance del LIDAR       8.0 m               20.0 m
+    resolucion costmap      0.05 m              0.05 m   <- la unica que coincide
+
+  🔴 El `robot_radius` es el que mas duele: con 0.22 el robot se negaria a pasar
+     por huecos por los que cabe de sobra.
+
+  DECISIONES TOMADAS, con su porque:
+
+    · `desired_linear_vel: 0.25` aunque el robot llegue a 0.40. Es la primera
+      vez que navega solo y no tiene evitacion reactiva mas alla del costmap.
+      Subirlo cuando haya rodado sin incidentes.
+
+    · Regulated Pure Pursuit, no MPPI ni DWB. Es lo que el plan eligio para un
+      diferencial y es mucho mas barato en CPU: el Pi 4 ya lleva el driver
+      (23 %), el LIDAR (2.4 %) y SLAM (4.4 %).
+
+    · NavFn, no Smac. El robot gira sobre su eje, asi que no necesita un
+      planificador que respete cinematica.
+
+    · costmap local de 3 x 3 m. El robot ve 8 m, pero mantener un costmap local
+      mayor cuesta CPU sin aportar: el controlador solo mira el entorno
+      inmediato.
+
+    · `lookahead_dist: 0.4`. Escalado al robot: 1.5 m (el valor del ejemplo)
+      haria que cortara las curvas con un robot de 22 cm.
+
+  LO QUE NO SE CONFIGURA TODAVIA, A PROPOSITO:
+
+    · `map_server` + `amcl`. Nav2 se apoya en slam_toolbox, que ya publica
+      `map -> odom` y esta verificado (deriva 1-3 cm). Meter AMCL ahora pondria
+      DOS nodos publicando el mismo transform, y eso parte el arbol TF sin dar
+      error — el fallo que costo la Fase 4.
+
+    · `collision_monitor`. Es la capa de seguridad que hace falta ANTES de dejar
+      esto en manos de estudiantes, pero configurar sus umbrales sin haber visto
+      navegar al robot seria adivinar. Va justo despues de la primera
+      navegacion con exito.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. ⏳ LO QUE FALTA POR PROBAR
+───────────────────────────────────────────────────────────────────────────────
+  ANTES de mandar ningun objetivo:
+
+    ros2 lifecycle get /controller_server    # active [3]
+    ros2 lifecycle get /planner_server       # active [3]
+    ros2 lifecycle get /bt_navigator         # active [3]
+    ros2 topic info /scan --verbose          # DOS suscriptores (slam + nav2),
+                                             # ambos BEST_EFFORT
+
+  🔴 Si el QoS de /scan no emparejara, el costmap se quedaria VACIO sin dar
+     ningun error: el robot navegaria creyendo que no hay nada delante.
+
+  LA PRUEBA:
+
+    ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
+      "{pose: {header: {frame_id: map}, pose: {position: {x: 1.0, y: 0.0},
+        orientation: {w: 1.0}}}}"
+
+  ⚠️ El robot se movera solo hasta 0.25 m/s y NO tiene evitacion reactiva.
+     Espacio despejado, y alguien mirando.

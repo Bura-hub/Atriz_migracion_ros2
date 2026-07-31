@@ -59,8 +59,11 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      F6  Los tres marcos de /odom              manual, cap. 10                 ✅
          └── yaw +0.00° · dirección vs yaw +0.03° · twist con 2 % de error
 
-     F7  Lo que queda                                                          ⏳ SIGUIENTE
-         1. Nav2 — ya SIN bloqueantes de odometría   ← AQUÍ
+     F7  Nav2 instalado y configurado         manual, cap. 11                 🟡
+         └── navigation2 (NO nav2-bringup) · valores MEDIDOS · SIN PROBAR aún
+
+     F8  Lo que queda                                                          ⏳ SIGUIENTE
+         1. Probar Nav2 contra el robot   ← AQUÍ
          2. La inclinación de ~8° (tres vías, causa sin determinar, NO urgente)
          3. Los 16 servicios y 4 topics del driver sin portar
          4. Plataforma web                    plan, Fase 5
@@ -68,14 +71,15 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 ```
 
 > **Las etapas A a F6 están recorridas y verificadas sobre la máquina real.** Los capítulos
-> 1, 3, 4, 5, 7, 8, 8bis, 9 y 10 del manual dejaron de ser NO VERIFICADO. La evidencia cruda de cada paso está
+> 1, 3, 4, 5, 7, 8, 8bis, 9 y 10 del manual dejaron de ser NO VERIFICADO. El **11 (Nav2) está
+> a medias**: instalación y configuración medidas, navegación sin probar. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
 > comparar cuando un robot nuevo de la flota no dé lo mismo.
 >
 > **🟢 El go/no-go salió GO**, ROS 2 Jazzy está instalado y el robot funciona entero: driver en
-> `rclpy`, URDF, LIDAR, SLAM, y la odometría con sus tres marcos corregidos. El siguiente paso
-> es **Nav2**, que ya no tiene bloqueantes de odometría: la deriva está caracterizada (1–2.7 cm)
-> y `/odom` publica pose y velocidad coherentes.
+> `rclpy`, URDF, LIDAR, SLAM, y la odometría con sus tres marcos corregidos. **Nav2 ya está
+> instalado y configurado con los valores medidos del robot**; el siguiente paso es **probarlo**
+> (manual, cap. 11.6).
 >
 > ### Un solo comando para saber si el robot está bien
 >
@@ -524,6 +528,9 @@ Resultado esperado: **el mapa crece**. En `rvr-01`, 2367 → 3299 celdas (5.92 �
    manual **cap. 10**). Los sensores del RVR siempre estuvieron bien; fallaba cómo el driver
    los combinaba. Ahora el yaw arranca en +0.00°, la dirección de avance coincide con él
    (+0.03°) y `odom.twist.linear` da la velocidad en el marco del robot con un 2 % de error.
+4. 🟡 **Nav2 instalado y configurado, SIN PROBAR** (manual **cap. 11**). Instala
+   `ros-jazzy-navigation2`, **no** `nav2-bringup`: son 312 paquetes de simulador de más, y
+   acabarían en la imagen dorada de los 16 robots.
 4. **Nav2** (plan, Fase 4b) y los **16 servicios y 4 topics** del driver sin portar.
 5. **Plataforma web** (Fase 5) — al final. **Arreglar primero la parada de emergencia**, que
    está confirmada como no funcional.

@@ -34,6 +34,7 @@ Los ficheros van **numerados en orden cronológico**, que es el mismo orden de l
 | `13_fase4_cerrada.txt` | **Fase 4 cerrada**: el mapa crece al moverse. Tres arreglos y dos herramientas propias corregidas | Fase 4 |
 | `14_deriva_slam_caracterizada.txt` | La deriva, con 6 corridas: mediana **1.0 / 2.7 cm**. Los 87.8 cm eran una anomalía | Fase 4 |
 | `15_velocidad_odom.txt` | 🔴 **Retracta el fichero 07**: `Velocity` es exacto. El modelo de marcos del RVR, y los **tres** bugs del driver arreglados | Fase 4b |
+| `16_nav2_preparacion.txt` | Nav2: qué paquete instalar (309 vs 621), `save_map` arreglado, y las velocidades máximas **retractando** el «tope» | Fase 4b |
 | `mapas/` | `mapa_fase4_banco` (robot casi quieto) y `mapa_fase4_cerrada` (8.25 m² mapeados) — formato nativo de slam_toolbox | Fase 4 |
 | `lidar_x2_2026-07-30.txt` | Salida de `x2_parse.py` | B |
 | `raw_uart_2026-07-30.txt` | Salida de `raw_uart.py`: «el RVR CONTESTA» | B |

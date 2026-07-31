@@ -28,6 +28,34 @@ Con `nav2-map-server` instalado, `/slam_toolbox/save_map` devuelve **`result=0`*
 `.pgm` + `.yaml` que Nav2 carga. Antes fallaba con `result=255` y el error real solo aparecía
 en el log de slam_toolbox: `Package 'nav2_map_server' not found`.
 
+### La configuración de Nav2, con los valores medidos
+
+`atriz_rvr_bringup/config/nav2_atriz.yaml` + `launch/nav2.launch.py`. **Todos** los valores del
+robot sustituidos por los medidos:
+
+| | Atriz | Ejemplo de Nav2 (TurtleBot) |
+|---|---|---|
+| `robot_radius` | **0.11 m** | 0.22 m — **el doble** |
+| `max_vel` lineal | 0.40 m/s | 0.26 m/s |
+| `max_vel` angular | 2.0 rad/s | 1.0 rad/s |
+| alcance del LIDAR | **8.0 m** | 20.0 m |
+
+El `robot_radius` es el que más duele: con 0.22 el robot se negaría a pasar por huecos por los
+que cabe de sobra. Y un `raytrace_max_range` de 20 m haría que Nav2 despejara como «libre»
+espacio que el sensor **nunca midió**.
+
+Decisiones, con su porqué: **RPP** y no MPPI/DWB (mucho más barato en un Pi 4 que ya lleva el
+driver al 23 %), **NavFn** y no Smac (el robot gira sobre su eje), costmap local de **3 × 3 m**,
+`lookahead_dist: 0.4` escalado al robot, y **`desired_linear_vel: 0.25`** aunque llegue a 0.40 —
+es la primera vez que navega solo.
+
+**NO se configuran `map_server`/`amcl`**: Nav2 se apoya en `slam_toolbox`, ya verificado. Meter
+AMCL ahora pondría **dos nodos publicando `map → odom`**, y eso parte el árbol TF sin dar error
+— el fallo que costó la Fase 4. Ni el **`collision_monitor`**: hace falta antes de dejar esto
+con estudiantes, pero configurar sus umbrales sin haber visto navegar al robot sería adivinar.
+
+⏳ **Nada de esto se ha probado contra el robot todavía.**
+
 ### 🔴 Y una retractación: el robot SÍ alcanza la velocidad comandada
 
 Al medir la velocidad **angular** para configurar Nav2 salió que sigue al comando al

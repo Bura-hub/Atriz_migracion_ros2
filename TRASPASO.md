@@ -33,8 +33,8 @@ sensores del RVR siempre estuvieron bien —`Velocity` es exacto, el locator aci
 dirección de avance coincide con él (**+0.03°**), y `odom.twist.linear` da la velocidad en el
 marco del robot con un **2 % de error** mire donde mire (`15_velocidad_odom.txt`).
 
-**El siguiente paso es Nav2**, que ya no tiene bloqueantes de odometría. Queda pendiente la
-inclinación de ~8°, que **no es urgente**: con ella presente la deriva de SLAM es de 2.7 cm.
+🟡 **Nav2 está instalado, medido y configurado — pero SIN PROBAR contra el robot.** Manual,
+**cap. 11**. Lo siguiente es exactamente eso: arrancarlo y mandarle un objetivo.
 
 ---
 
@@ -66,7 +66,7 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 | ~~El eje X del locator está 90° girado~~ | bloqueaba Nav2 | ✅ **resuelto**: `R(−90°)·(x,y) = (y,−x)` en `_h_locator` |
 | 📝 `reset_yaw()` **no hace nada** — el yaw se pone a cero al **encender** el RVR | menor | ✅ **corregido**: el driver mide `yaw₀` al conectar y lo resta. Cinco arranques dieron cinco offsets distintos |
 | ~~`inverted` del LIDAR sin verificar~~ | corrompe mapas | ✅ **verificado 2026-07-31**: `true` es CORRECTO. El equivocado era el yaw de `/odom` |
-| 🔴 **El robot está inclinado ~8°** (árbol TF, Roll de la IMU y acelerómetro: **tres** vías) | bloquea Nav2 | 🔴 abierto, causa sin determinar |
+| 🔴 **El robot está inclinado ~8°** (árbol TF, Roll de la IMU y acelerómetro: **tres** vías) | calidad de Nav2 | 🔴 abierto, causa sin determinar. **No urgente**: con ella la deriva de SLAM es de 2.7 cm |
 | 🔴 **La parada de emergencia de la web no hace nada.** Publica en `/rvr/emergency_stop`, que no existe. Falla **en silencio** con `200 OK` | seguridad | ⏳ el topic ya existe en el driver ROS 2; falta el lado web (fase final) |
 | **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — acción del usuario |
 | **Sin arranque automático** — ninguna unidad systemd | operación | ⏳ pendiente |
@@ -142,6 +142,35 @@ cómo el driver combinaba sus marcos.
 lanzado desde `src/Atriz_rvr` en vez de la raíz del workspace crea ahí dentro un **workspace
 parásito**, dice «Finished», y el cambio **nunca llega al sistema**. Pasó dos veces. Está en
 `CLAUDE.md` con cómo detectarlo.
+
+### ✅ Hecho: Nav2 instalado, medido y configurado
+
+- **`ros-jazzy-navigation2`, NO `nav2-bringup`** — 309 paquetes contra 621. `bringup` arrastra
+  Gazebo, dos TurtleBots de simulación y `pocketsphinx-en-us`. Verificado: cero paquetes de
+  simulador instalados, disco +900 MB.
+- ✅ **`save_map` arreglado**: con `nav2-map-server` devuelve `result=0` y genera el `.pgm` +
+  `.yaml`. El diagnóstico del capítulo 9.5 era correcto.
+- ✅ **Velocidades medidas**: lineal **0.401 m/s** (100 % de lo comandado, en ~0.5 s) y angular
+  **99–102 %** hasta 2.0 rad/s. ⚠️ Esto **retracta** el «0.40 → 63 %» que este documento llegó
+  a tener: era la ventana de medida.
+- **`nav2_atriz.yaml` con los valores medidos**, no los del ejemplo — el `robot_radius` del
+  TurtleBot es **el doble** del real, y con él el robot se negaría a pasar por huecos por los
+  que cabe.
+
+### 1. ⏳ Probar Nav2 — es lo siguiente
+
+```bash
+ros2 launch atriz_rvr_bringup robot.launch.py    # terminal 1
+ros2 launch atriz_rvr_bringup slam.launch.py     # terminal 2
+ros2 launch atriz_rvr_bringup nav2.launch.py     # terminal 3
+```
+
+🔴 **Antes de mandar ningún objetivo**, comprobar que los cinco nodos llegan a `active [3]` y
+que `/scan` tiene **dos** suscriptores en BEST_EFFORT. Si el QoS no emparejara, el costmap se
+quedaría vacío **sin dar error** y el robot navegaría creyendo que no hay nada delante.
+
+⚠️ Necesita el pasillo despejado y alguien mirando: el robot se moverá solo hasta 0.25 m/s y
+**no tiene evitación reactiva** — el `collision_monitor` aún no está configurado.
 
 ### 2. 🔴 La inclinación de ~8°, confirmada por TRES vías
 
