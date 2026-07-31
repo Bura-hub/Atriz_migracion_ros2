@@ -23,10 +23,11 @@ huecos sin el arreglo (manual, cap. 9.8).
 mapa pasó de **2367 a 3299 celdas** (5.92 → 8.25 m²). Hicieron falta tres arreglos y corregir
 dos herramientas propias, y **ninguno de los fallos daba un error** (manual, cap. 9.11).
 
-🔴 **Y la deriva de la localización NO está tan bien como creíamos.** Con **24 corridas**
-(2026-07-31): cuando funciona va bien —mediana **1.40 cm** a 1.6 m y **1.90 cm** a 2.3 m, apenas
-crece con la distancia—, pero **~1 de cada 5 corridas se va a 6–56 cm**. La caracterización
-anterior (n=3) vio bien las medianas y **no vio la cola**. Manual, **cap. 9.12a–9.12b**.
+✅ **Y la deriva de la localización está resuelta.** Con 24 corridas apareció que **~1 de cada
+5 se iba a 6–56 cm**; la causa era que **el robot no volvía a su sitio** (~8 cm de deriva por
+corrida). Referenciando la posición antes de cada corrida: **0 fallos de 12**, peor caso
+**4.4 cm**, y la deriva **no crece con la distancia** (1.55 cm a 1.6 m, 0.90 cm a 2.3 m). Muy
+por debajo de la tolerancia de 10 cm de Nav2. Manual, **cap. 9.12c**.
 
 ✅ **Y los TRES bugs de marcos de referencia de `/odom` están arreglados y verificados.** Los
 sensores del RVR siempre estuvieron bien —`Velocity` es exacto, el locator acierta con 1 mm en
@@ -333,24 +334,33 @@ va del suelo a 7 cm — justo como se ve el RVR.
 ✅ **El modelo geométrico está completo.** Solo falta `imu_z`, que exige abrir el robot y hoy
 no afecta a nada. El LIDAR está confirmado **centrado y nivelado**.
 
-### 🔴 Lo más importante que hay abierto: el robot se va del sitio
+### ✅ Hecho: referenciar la posición, y con eso los fallos desaparecen
 
-**No es un problema de SLAM: es del banco de pruebas.** Las dos herramientas de deriva repiten
-N corridas dando por hecho que el robot vuelve al punto de partida. **No vuelve:**
+El problema no era de SLAM: era del banco de pruebas. Las herramientas repetían N corridas
+dando por hecho que el robot volvía al punto de partida, y **no volvía**.
 
-- tanda 1: **94 cm de deriva hacia delante en 12 corridas** (~8 cm cada una);
-- tanda 2: deriva lateral hasta quedar **a 16 cm de un obstáculo**, con 11 cm de media anchura
-  — **a 5 cm de rozar**.
+`referenciar_posicion.py` ajusta una recta a la pared frontal, conduce a la distancia objetivo y
+**luego** se alinea (ese orden importa: al revés, conducir vuelve a torcer el rumbo).
 
-Así que «12 repeticiones» son en realidad **12 posiciones distintas sin registrar**. Ninguna
-distribución que salga de ahí es válida, y por eso la pregunta del roll sigue sin respuesta tras
-**24 corridas y hora y media de robot**.
+| | sin referenciar | con referenciar |
+|---|---|---|
+| dispersión de posición, adelante | 0.47 m | **0.06 m** |
+| dispersión lateral | 0.81 m | **0.03 m** |
+| fallos > 5 cm | **5 de 24** | **0 de 12** |
+| peor caso | **56.1 cm** | **4.4 cm** |
 
-⏳ **El arreglo:** re-referenciar la posición antes de cada corrida, conduciendo el robot a una
-distancia objetivo de la pared con `/scan`. Medible y automatizable. **No implementado.**
+⚠️ **Fisher exacto de 0/12 contra 5/24 da p = 0.113**: sugerente, no concluyente al 5 %. Lo
+indiscutible es la dispersión de posición; que los fallos se vayan a la vez es coherente pero
+pide otra tanda para cerrarlo.
 
-**Y el 21 % de fallos sigue sin explicar.** Con la posición controlada se verá si desaparece
-(era la deriva) o persiste (es otra cosa).
+### 1. ⏳ Decidir si se persigue el roll — es lo siguiente
+
+Ahora que el ruido bajó, **las dos distancias apuntan en el mismo sentido** (CORTA +1.30 cm,
+LARGA +1.40) y la magnitud coincide con la predicha. Pero con n=6 por rama, **p = 0.142**: no
+concluyente.
+
+Para resolverlo harían falta **~62 corridas, unas 5.2 horas de robot**, y el efecto es de ~1 cm
+sobre una tolerancia de objetivo de **10 cm**. **Es una decisión, no un pendiente automático.**
 
 ### ✅ Hecho: las paradas re-medidas
 

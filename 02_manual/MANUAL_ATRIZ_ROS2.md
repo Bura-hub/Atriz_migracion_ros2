@@ -2285,6 +2285,93 @@ bajas — «parece despejado» a ras de suelo no basta.
 Evidencia cruda: `00_auditoria/evidencia_24_04/11_slam_fase4.txt`,
 `13_fase4_cerrada.txt` y `mapas/`.
 
+### 9.12c ✅ Referenciar la posición: los fallos desaparecen
+
+**Arreglado el 2026-07-31.** Herramienta nueva: `mediciones_banco/referenciar_posicion.py`,
+llamada por `caracterizar_deriva_slam.py` **antes de cada corrida**. Evidencia:
+`23_referenciar_posicion.txt`.
+
+#### Cómo fija el origen
+
+Ajusta una recta a los puntos de la pared frontal en el marco del robot:
+
+```
+x = m·y + c    →    error de rumbo θ = atan(m)
+                    distancia perpendicular D = c·cos(θ)
+```
+
+Y entonces, **en este orden**: (1) conduce hasta la distancia objetivo, (2) gira −θ.
+
+🔴 **El orden importa**, y salió probando. Al revés —rumbo y luego distancia— conducir vuelve a
+torcer el rumbo recién corregido: medido, pasó de +0.41° a **+2.53°**. Girar sobre el eje **no**
+cambia la distancia perpendicular, porque el centro del robot no se mueve, así que la rotación
+va la última.
+
+🔴 **No usa `/odom` ni el mapa, a propósito**: referenciar con odometría sería circular — es
+justo lo que se está midiendo. El LIDAR contra una pared física es independiente.
+
+Precisión, dos pasadas seguidas: **±0.2 cm y ±0.2°**.
+
+#### ✅ El robot se queda donde debe — y esto no depende de ninguna estadística
+
+| | adelante | derecha |
+|---|---|---|
+| **sin** referenciar (tanda 2) | 2.06 2.11 2.01 1.64 1.73 1.73 → rango **0.47 m** | 0.97 0.42 0.30 0.26 0.19 0.16 → rango **0.81 m** |
+| **con** referenciar (tanda 3) | 3.50 3.52 3.51 3.48 3.46 3.47 → rango **0.06 m** ✅ | 0.92 0.94 0.94 0.95 0.93 0.93 → rango **0.03 m** ✅ |
+
+**8× menos dispersión hacia delante y 27× lateral**, y la deriva monótona desaparece.
+
+#### ✅ Y los fallos desaparecen
+
+| | fallos > 5 cm | peor caso |
+|---|---|---|
+| tandas 1+2, **sin** referenciar | **5 de 24** | **56.1 cm** |
+| tanda 3, **con** referenciar | **0 de 12** | **4.4 cm** |
+
+Las doce corridas: `0.5 0.5 0.7 0.7 0.9 0.9 1.1 2.1 2.2 3.7 3.7 4.4`. **La distribución deja de
+ser bimodal**: ya no hay dos grupos separados, hay una sola nube.
+
+⚠️ **Honestidad estadística:** Fisher exacto de 0/12 contra 5/24 da **p = 0.113** — sugerente,
+**no concluyente al 5 %**. Con una tasa base del 21 %, sacar 0 de 12 por azar tiene un 6 % de
+probabilidad. Lo indiscutible es la tabla de posiciones; que los fallos desaparezcan a la vez
+es coherente, pero confirmarlo pide otra tanda.
+
+#### ✅ Y la deriva NO crece con la distancia
+
+```
+CORTA (158 cm, n=6)   0.5  0.9  0.9  2.2  3.7  3.7   mediana 1.55 cm
+LARGA (233 cm, n=6)   0.5  0.7  0.7  1.1  2.1  4.4   mediana 0.90 cm
+```
+
+La larga recorre un **47 % más** y sale **igual o mejor**. Eso desmonta definitivamente la
+narrativa del 9.12 («0.63 % del recorrido en las cortas, 1.14 % en las largas»): con la posición
+controlada, esa proporcionalidad no aparece.
+
+✅ **Para Nav2:** la localización da **1–4 cm** en recorridos de 1.6–2.3 m, muy por debajo de la
+tolerancia de objetivo de 10 cm. **Ya no es un bloqueante** — siempre que el robot no acabe
+donde no debe, que era el problema real.
+
+### 9.12d ⚠️ La pregunta del roll: ahora se intuye, y sigue sin resolverse
+
+```
+CON roll  n=6  media 2.23 cm   [0.5, 0.5, 2.1, 2.2, 3.7, 4.4]
+SIN roll  n=6  media 1.33 cm   [0.7, 0.7, 0.9, 0.9, 1.1, 3.7]
+diferencia +0.90 cm
+```
+
+📝 **Y las dos distancias apuntan en el mismo sentido**, cosa que antes no pasaba: CORTA
++1.30 cm, LARGA +1.40 cm. El roll **siempre** sale peor, y la magnitud coincide con la predicha
+— `cos(6.9°)` comprime los alcances un 0.7 %, ~0.7 cm por metro.
+
+⚠️ **Pero no es significativo.** Test de permutación exacto sobre las 924 particiones posibles:
+**p = 0.142**. Con n=6 por rama no se puede concluir.
+
+⏳ **Lo que haría falta:** con d = 0.64 (efecto 0.90 cm, σ 1.40), **~31 corridas por rama** para
+80 % de potencia al 5 % → **~62 corridas, unas 5.2 horas de robot**. Hoy hay 6 por rama.
+
+> **Decidir si compensa antes de gastarlas:** el efecto es de ~1 cm sobre una tolerancia de
+> objetivo de Nav2 de 10 cm.
+
 ---
 
 ## Capítulo 10 — Los marcos de referencia de `/odom`

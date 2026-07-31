@@ -90,6 +90,7 @@ import argparse
 import math
 import re
 import statistics
+import os
 import subprocess
 import sys
 import time
@@ -101,6 +102,12 @@ import time
 PASO_M = 0.40
 PASOS_CORTO = 2      # 0.80 m de ida
 PASOS_LARGO = 3      # 1.20 m de ida
+
+#: 🔴 Distancia perpendicular a la pared frontal a la que se devuelve el robot
+#: ANTES DE CADA CORRIDA. Sin esto las N corridas NO son repeticiones: medido el
+#: 2026-07-31, el robot derivaba ~8 cm por corrida y 94 cm en doce (manual, 9.12b).
+#: Con 2.05 m quedan 0.76 m de margen sobre los 1.29 que necesita la corrida larga.
+DISTANCIA_ORIGEN_M = 2.05
 
 RE_DERIVA = re.compile(r'se desplazó ([\d.]+) cm y giró ([\d.]+)°')
 RE_CELDAS = re.compile(r'celdas conocidas: (\d+) -> (\d+)')
@@ -151,10 +158,30 @@ def reiniciar_slam() -> bool:
     return False
 
 
+def referenciar() -> bool:
+    """Devuelve el robot al origen ANTES de la corrida. Ver 9.12b del manual.
+
+    🔴 Va ANTES de reiniciar slam_toolbox, no después: si se moviera el robot con
+    SLAM ya arrancado, ese movimiento entraría en el mapa y en la medida.
+    """
+    r = subprocess.run(
+        [sys.executable, 'referenciar_posicion.py',
+         '--distancia', str(DISTANCIA_ORIGEN_M)],
+        capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__)),
+        timeout=300)
+    for l in r.stdout.splitlines():
+        if 'ANTES' in l or 'DESPUÉS' in l or '🔴' in l or '⚠️' in l:
+            print('   ' + l.strip(), flush=True)
+    return '🔴' not in r.stdout
+
+
 def una_corrida(pasos: int, etiqueta: str) -> dict | None:
     """Lanza medir_slam_ros2.py y extrae los números de su salida."""
     print(f"\n{'─' * 74}\n▶ {etiqueta}  ({pasos} tramos de {PASO_M:.2f} m = "
           f"{pasos * PASO_M:.2f} m de ida)\n{'─' * 74}", flush=True)
+    if not referenciar():
+        print("  🔴 no se pudo referenciar la posición. Se salta esta repetición.")
+        return None
     if not reiniciar_slam():
         print("  🔴 slam_toolbox no llegó a `active`. Se salta esta repetición.")
         return None

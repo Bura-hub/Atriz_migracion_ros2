@@ -4,6 +4,94 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — ✅ Referenciar la posición: los fallos de SLAM desaparecen
+
+Herramienta nueva: `mediciones_banco/referenciar_posicion.py`, que
+`caracterizar_deriva_slam.py` llama **antes de cada corrida**. Evidencia:
+`23_referenciar_posicion.txt`, manual **cap. 9.12c–9.12d**.
+
+### ✅ El robot se queda donde debe — y esto no depende de ninguna estadística
+
+| | adelante | derecha |
+|---|---|---|
+| **sin** referenciar | rango **0.47 m** | rango **0.81 m** (monótono) |
+| **con** referenciar | rango **0.06 m** | rango **0.03 m** |
+
+**8× menos dispersión hacia delante, 27× lateral**, y la deriva monótona desaparece.
+
+### ✅ Y con ella, los fallos
+
+| | fallos > 5 cm | peor caso |
+|---|---|---|
+| tandas 1+2, **sin** referenciar | **5 de 24** | **56.1 cm** |
+| tanda 3, **con** referenciar | **0 de 12** | **4.4 cm** |
+
+Las doce: `0.5 0.5 0.7 0.7 0.9 0.9 1.1 2.1 2.2 3.7 3.7 4.4`. **La distribución deja de ser
+bimodal.**
+
+⚠️ **Honestidad estadística:** Fisher exacto de 0/12 contra 5/24 da **p = 0.113** — sugerente,
+**no concluyente al 5 %**. Con una tasa base del 21 %, sacar 0 de 12 por azar tiene un 6 % de
+probabilidad. Lo indiscutible es la tabla de posiciones.
+
+### ✅ Y la deriva NO crece con la distancia
+
+```
+CORTA (158 cm, n=6)   mediana 1.55 cm
+LARGA (233 cm, n=6)   mediana 0.90 cm    ← recorre un 47 % más y sale MEJOR
+```
+
+Desmonta definitivamente la narrativa del fichero 14 («0.63 % del recorrido en las cortas,
+1.14 % en las largas»). ✅ **Para Nav2: 1–4 cm en recorridos de 1.6–2.3 m**, muy por debajo de
+la tolerancia de objetivo de 10 cm. **La localización deja de ser un bloqueante.**
+
+### Cómo funciona, y dos decisiones que importan
+
+Ajusta una recta a la pared frontal en el marco del robot —`x = m·y + c` da el rumbo `atan(m)`
+y la distancia perpendicular `c·cos(θ)`— y entonces conduce a la distancia objetivo y se alinea.
+
+🔴 **El orden es distancia y DESPUÉS rumbo**, y salió probando: al revés, conducir vuelve a
+torcer el rumbo recién corregido (medido, **+0.41° → +2.53°**). Girar sobre el eje no cambia la
+distancia perpendicular, porque el centro del robot no se mueve.
+
+🔴 **No usa `/odom` ni el mapa, a propósito:** referenciar con odometría sería circular — es
+justo lo que se está midiendo.
+
+Precisión: **±0.2 cm y ±0.2°** en dos pasadas seguidas. La tolerancia se dejó en 3 cm porque la
+frenada del RVR se come 1–2 cm y pedir menos impediría converger.
+
+### ⚠️ La pregunta del roll: ahora se intuye, y sigue sin resolverse
+
+```
+CON roll  n=6  media 2.23 cm      SIN roll  n=6  media 1.33 cm      diferencia +0.90 cm
+```
+
+📝 **Las dos distancias apuntan en el mismo sentido**, cosa que antes no pasaba: CORTA +1.30 cm,
+LARGA +1.40. El roll **siempre** sale peor, y la magnitud coincide con la predicha —`cos(6.9°)`
+comprime los alcances un 0.7 %.
+
+⚠️ **Pero p = 0.142** (permutación exacta sobre 924 particiones). Con n=6 por rama, no.
+
+⏳ Con d = 0.64 harían falta **~31 corridas por rama → ~62 en total, unas 5.2 horas de robot**.
+El efecto es de ~1 cm sobre una tolerancia de objetivo de 10 cm: **es una decisión, no un
+pendiente automático.**
+
+### Menor
+
+⏳ `comparar_deriva_roll.py` captura la salida de `caracterizar_deriva_slam.py` y solo extrae
+las líneas de CORTA/LARGA: **los residuos de cada referenciado se pierden**. Deberían ir al
+`.jsonl` para poder cruzarlos con la deriva.
+
+Batería, tercera medida: 69 % → 59 % en la tanda 3 — gasta más que las anteriores porque el
+referenciado añade movimiento (bloques de 3.5 min en vez de 2.7). Estimación conjunta de las
+tres tandas: **~0.5–0.9 %/min** conduciendo.
+
+**Ficheros:** `mediciones_banco/referenciar_posicion.py` (nuevo),
+`caracterizar_deriva_slam.py`, `23_referenciar_posicion.txt` (nuevo), manual cap. 9.12c–9.12d,
+`deriva_roll_tanda1.jsonl` / `tanda2.jsonl` / `resultados.jsonl`, `TRASPASO.md`,
+`INSTALACION.md` (F17 ✅ → F18), `CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — 🔴 La réplica desmonta mi conclusión: no es la distancia, es que el robot se va
 
 Se repitió el experimento de deriva **con el mismo protocolo, una hora después**, añadiendo una

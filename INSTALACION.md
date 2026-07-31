@@ -90,10 +90,12 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      F16 Réplica del experimento de deriva  manual, cap. 9.12b            ✅
          └── desmonta la atribución a la distancia · 24 corridas, ~21 % de fallos
 
-     F17 Lo que queda                                                          ⏳ SIGUIENTE
-         1. 🔴 Re-referenciar la posición entre corridas   cap. 9.12b   ← AQUÍ
-         2. El 21 % de fallos, sin explicar
-         3. La pregunta del roll, sin responder (aplazada 3 veces)
+     F17 Referenciado de posición            manual, cap. 9.12c             ✅
+         └── ±3 cm de dispersión (era ±47) · 0 fallos de 12 · peor caso 4.4 cm
+
+     F18 Lo que queda                                                          ⏳ SIGUIENTE
+         1. Decidir si se persigue el roll (~62 corridas, 5 h)          ← AQUÍ
+         2. Confirmar los 0 fallos con otra tanda (p=0.113, sugerente)
          2. Un obstáculo que aparezca DURANTE la navegación
          4. Fase 4c: map_server + AMCL        plan, Fase 4c
          5. Los 16 servicios y 4 topics del driver sin portar
@@ -101,7 +103,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          7. Clonar a los 16 robots            FLOTA.md
 ```
 
-> **Las etapas A a F16 están recorridas y verificadas sobre la máquina real.** Los capítulos
+> **Las etapas A a F17 están recorridas y verificadas sobre la máquina real.** Los capítulos
 > 1, 3, 4, 5, 7, 8, 8bis, 9, 10, **11 (Nav2)** y **12 (seguridad)** del manual dejaron de ser
 > NO VERIFICADO: el robot navega solo y para antes de chocar. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
@@ -116,10 +118,9 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 > ([`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md)) y eso cerró de paso la
 > «inclinación de ~8°», que **no existe** (manual, cap. 13). Las paradas contra pared ya están
 > **re-medidas** con las cotas buenas, y el **interruptor del roll de la IMU** está puesto y
-> verificado. 🔴 **Pero al medir la deriva apareció que ~1 de cada 5 corridas falla** (6–56 cm),
-> y sobre todo que **el robot deriva ~8 cm por corrida y nadie lo corrige**, así que las
-> «repeticiones» no lo son (manual, cap. 9.12b). Arreglar eso es el siguiente paso y bloquea
-> todo lo demás.
+> verificado. Al medir la deriva apareció que **~1 de cada 5 corridas fallaba** (6–56 cm), y la
+> causa era que **el robot no volvía a su sitio**. ✅ **Arreglado referenciando la posición antes
+> de cada corrida** (manual, cap. 9.12c): 0 fallos de 12 y peor caso 4.4 cm.
 >
 > ### Un solo comando para saber si el robot está bien
 >

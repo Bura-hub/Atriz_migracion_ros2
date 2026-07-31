@@ -235,14 +235,20 @@ es la diferencia que los separa.
 `sensor_msgs/BatteryState` y el driver lo respeta: `0.34` son **34 %**. Leerlo como 0–100 hace
 que un robot al 34 % parezca estar al 0 % — provocó una falsa alarma de batería agotada.
 
-**🔴 EL ROBOT NO VUELVE AL PUNTO DE PARTIDA, y dos herramientas del proyecto dan por hecho que
-sí.** `caracterizar_deriva_slam.py` y `comparar_deriva_roll.py` repiten N corridas asumiendo que
-son repeticiones del mismo experimento. Medido el 2026-07-31: **94 cm de deriva en 12 corridas**
-(~8 cm cada una) hacia delante en una tanda, y lateralmente hasta quedar **a 5 cm de rozar** en
-la otra (`der` 0.97 → 0.16 m, con 11 cm de media anchura).
-→ **Registra la posición ANTES de cada corrida** (con `/scan`, cuatro sectores) o re-referencia
-al robot conduciéndolo a una distancia objetivo de la pared. Sin eso, «N repeticiones» es un
-barrido por posiciones distintas y ninguna distribución que salga es válida.
+**🔴 EL ROBOT NO VUELVE AL PUNTO DE PARTIDA, y eso invalidaba todas las medidas de deriva.**
+Medido el 2026-07-31: **94 cm de deriva en 12 corridas** (~8 cm cada una) hacia delante en una
+tanda, y lateralmente hasta quedar **a 5 cm de rozar** en la otra (`der` 0.97 → 0.16 m). Así que
+«N repeticiones» era un barrido por posiciones distintas, y con él **el 21 % de las corridas
+fallaba** con errores de hasta 56 cm.
+
+✅ **ARREGLADO** con `mediciones_banco/referenciar_posicion.py`, que `caracterizar_deriva_slam.py`
+llama antes de cada corrida: ajusta una recta a la pared frontal, conduce a la distancia
+objetivo y **luego** se alinea. Resultado: dispersión de posición de ±47 cm a **±3 cm**, y
+**0 fallos de 12** con un peor caso de **4.4 cm** (era 56.1).
+
+→ **El orden es distancia y DESPUÉS rumbo.** Al revés, conducir vuelve a torcer el rumbo recién
+corregido (+0.41° → +2.53°). Girar sobre el eje no cambia la distancia perpendicular.
+→ **No referencies con `/odom` ni con el mapa**: sería circular, es lo que estás midiendo.
 
 **🔴 Y una conclusión de una sola tanda puede ser coherente y falsa.** El 2026-07-31 se concluyó
 —con datos limpios— que «SLAM falla el 50 % a 2.3 m y es fiable a 1.6 m». Una réplica del mismo
@@ -554,9 +560,9 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | Alto del RVR (suelo → tapa) | **7.0 cm** — la ficha decía 11.4 | 2026-07-31 |
 | Radio circunscrito | **0.142 m** → `robot_radius: 0.145` | derivado de lo anterior |
 | Paso mínimo con `radius: 0.18` | **no cruza 40 cm** — necesita ~36 cm + margen | 2026-07-31 |
-| **Deriva de SLAM cuando funciona** | mediana **1.40 cm** (1.6 m) y **1.90 cm** (2.3 m) — apenas crece con la distancia | 2026-07-31, n=24 |
-| 🔴 **Fallos de SLAM** | **~21 % de las corridas** se van a 6–56 cm. **BIMODAL** y **NO depende de la distancia** | 2026-07-31, n=24 |
-| 🔴 **Deriva de POSICIÓN del robot** | **~8 cm por corrida**: 94 cm en 12. Las «repeticiones» no lo son | 2026-07-31 |
+| ✅ **Deriva de SLAM (referenciando)** | mediana **1.55 cm** (1.6 m) y **0.90 cm** (2.3 m) · peor **4.4 cm** · **0 fallos de 12**. NO crece con la distancia | 2026-07-31, n=12 |
+| 🔴 Deriva de SLAM **sin** referenciar | **~21 %** de las corridas se iban a 6–56 cm | 2026-07-31, n=24 |
+| ✅ **Referenciado de posición** | dispersión **±3 cm** (era ±47 cm) y **±0.2°**. `referenciar_posicion.py` | 2026-07-31 |
 | Inclinación que reporta el RVR | **6.9° y está en el PITCH** (roll ~1°), y se reparte con el rumbo | 2026-07-31 |
 | `\|g\|` del acelerómetro | **9.435 m/s²** contra 9.807 — **3.8 % corto**, está descalibrado | 2026-07-31 |
 | Consumo del RVR conduciendo | **~0.74 %/min** → ~2 h por carga (estimación gruesa) | 2026-07-31 |
