@@ -199,6 +199,25 @@ el acelerómetro es el mismo chip. Una regla y cuatro medidas alrededor del disc
 bastaron para ver que **el robot está horizontal** (manual, cap. 13). → **Antes de decir
 "confirmado por N vías", traza de dónde sale el dato de cada una.**
 
+**🔴 UNA EXCEPCIÓN EN UN MANEJADOR DE TELEMETRÍA MATA `/odom` E `/imu` EN SILENCIO.** Pasó el
+2026-07-31 al añadir un parámetro al driver: se usó `self._publicar_inclinacion` sin asignarla
+(el nombre de la variable vecina era `_timeout_silencio`, no `_silence_timeout`). Resultado:
+`AttributeError` en `_h_quaternion`, **ni una línea en el log**, `/odom` e `/imu` a cero con los
+topics existiendo, y `/scan` funcionando.
+
+Y **el detector de silencio NO salta**, por diseño: mide el tiempo desde la última **muestra
+del RVR**, no desde la última publicación. Las muestras llegaban — se ve el
+`origen del yaw fijado en +10.2°` en el log, que sale de la primera.
+
+→ **Atajo:** si `/scan` va y `/odom` no, **y no hay ningún error ni aviso de silencio**,
+sospecha de una excepción dentro de un manejador. El síntoma «el topic existe y no publica» es
+idéntico al de un RVR dormido, pero **el RVR dormido sí dispara el detector de silencio**: esa
+es la diferencia que los separa.
+
+**📝 `/battery_state.percentage` es una fracción 0–1, no un porcentaje.** Es lo que manda
+`sensor_msgs/BatteryState` y el driver lo respeta: `0.34` son **34 %**. Leerlo como 0–100 hace
+que un robot al 34 % parezca estar al 0 % — provocó una falsa alarma de batería agotada.
+
 **El X2 no ve un objeto fino en un solo barrido.** A 0.68 m tira un rayo cada 1.7 cm, así que
 un objeto de 5 cm da 2-3 puntos y en un barrido suelto puede desaparecer. → Para geometría
 fina, **acumula 6-8 s de barridos y toma la mediana por sector angular**. Un `/scan` suelto no

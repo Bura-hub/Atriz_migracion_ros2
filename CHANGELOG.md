@@ -4,6 +4,80 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — ⏳ Interruptor del roll de la IMU: puesto y verificado, medida pendiente
+
+Para poder **medir** si el roll falso de ~8° contribuye a la deriva de SLAM, en vez de
+suponerlo. Evidencia: `20_interruptor_inclinacion.txt`, manual **cap. 13.4–13.5**.
+
+### ✅ El interruptor
+
+```bash
+ros2 launch atriz_rvr_bringup robot.launch.py publicar_inclinacion:=false
+```
+
+Nuevo parámetro del driver, **por defecto `true`** (el comportamiento de siempre). Con `false`,
+`_h_quaternion` pone `roll = pitch = 0` antes de componer la orientación que va a `/odom` y a
+TF. **Verificado**: `roll +0.00° pitch +0.00°` sobre **414 muestras**.
+
+Es un interruptor de **medición**, no de operación: el valor por defecto no se cambia hasta
+tener el número.
+
+### El diseño de la prueba, y por qué no se puede recortar
+
+- 🔴 **La línea base anterior no vale.** Las 6 corridas del fichero 14 se hicieron con
+  `laser_z = 0.1745`, y el desplazamiento lateral que induce el roll **escala con esa altura**:
+  `0.1745 × sin(8°) = 2.4 cm` entonces, **2.2 cm ahora**. Hay que rehacer las dos mitades.
+- 🔴 **Las condiciones se ALTERNAN**, no 6 con roll y luego 6 sin él. Si la batería corta a
+  mitad, los datos siguen **balanceados**; y el nivel de carga y el calentamiento dejan de
+  poder colarse como variable — que es el tipo de confusión que ya costó una retractación.
+- ⚠️ **No se puede bajar a 2 corridas por condición.** El efecto buscado es de ~**1 cm** y la
+  dispersión ya medida es **σ = 0.6–1.0 cm**: saldría dentro del ruido. Hacen falta ≥3
+  repeticiones de cada distancia por condición — **12 corridas**.
+
+⏳ **Pendiente de ejecutar.** Son ~40 min de robot moviéndose y la batería estaba al **34 %**.
+Se decidió **cargar primero**: el consumo del RVR por minuto **no está medido**, y arriesgar un
+corte a mitad daría un «no concluyente» habiendo gastado la carga.
+
+### 🔴 Trampa nueva: una excepción en un manejador mata `/odom` en silencio
+
+Montando el interruptor se escribió la asignación contra `self._silence_timeout` cuando la
+variable real del driver se llama **`self._timeout_silencio`**. La línea no se insertó y
+`self._publicar_inclinacion` quedó **usada sin existir**:
+
+| | |
+|---|---|
+| `AttributeError` en `_h_quaternion` | **ni una línea en el log** |
+| `/odom` y `/imu` | **cero mensajes**, con los topics existiendo |
+| `/scan` | funcionando |
+| el detector de silencio | **no saltó** |
+
+Y no salta **por diseño**: mide el tiempo desde la última **muestra del RVR**, no desde la
+última publicación. Las muestras llegaban — se ve el `origen del yaw fijado en +10.2°` en el
+log, que sale de la primera. Lo que fallaba era el manejador que las convierte.
+
+> **Atajo de diagnóstico:** si `/scan` va y `/odom` no, **y no hay error ni aviso de silencio**,
+> sospecha de una excepción dentro de un manejador. El síntoma «el topic existe y no publica»
+> es idéntico al de un RVR dormido, pero **el RVR dormido sí dispara el detector de silencio**.
+
+📝 Es la **tercera** vez que el proyecto se topa con un fallo que no da error. Las anteriores:
+el árbol TF partido y `slam_toolbox` en `unconfigured`. En `CLAUDE.md`.
+
+### 📝 `/battery_state.percentage` es una fracción 0–1
+
+Es lo que manda `sensor_msgs/BatteryState` («Charge percentage on 0 to 1 range») y el driver lo
+respeta: `0.34` son **34 %**. Leerlo como 0–100 hace que un robot al 34 % parezca estar al
+**0 %** — provocó una falsa alarma de batería agotada en esta misma sesión. En `CLAUDE.md`.
+
+⏳ Y deja al descubierto un dato que el proyecto **no tiene** y que hará falta con 16 robots:
+**cuánto consume el RVR por minuto conduciendo**.
+
+**Ficheros:** `atriz_rvr_driver/scripts/atriz_rvr_driver/rvr_driver_node.py`,
+`atriz_rvr_bringup/launch/robot.launch.py`, `20_interruptor_inclinacion.txt` (nuevo),
+manual cap. 13.4–13.5, `mediciones_banco/caracterizar_deriva_slam.py` (17.5 → 15.5 cm),
+`TRASPASO.md`, `INSTALACION.md` (F14 ✅ → F15), `CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — ✅ Paradas contra pared re-medidas: el recálculo era correcto
 
 Los huecos publicados estaban **recalculados, no vueltos a medir** — la corrección de las cotas

@@ -1,0 +1,112 @@
+═══════════════════════════════════════════════════════════════════════════════
+INTERRUPTOR DEL ROLL DE LA IMU — preparado y verificado, prueba PENDIENTE
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Manual, cap. 13.4 y 13.5.
+
+⏳ ESTADO: el interruptor esta puesto y VERIFICADO. La medida de deriva con y sin
+   el roll NO se ha ejecutado: hacen falta ~40 min de robot moviendose y la
+   bateria estaba al 34 %. Se decidio CARGAR PRIMERO.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. ✅ EL INTERRUPTOR
+───────────────────────────────────────────────────────────────────────────────
+    ros2 launch atriz_rvr_bringup robot.launch.py publicar_inclinacion:=false
+
+  Nuevo parametro del driver `publicar_inclinacion` (por defecto TRUE, o sea el
+  comportamiento de siempre). Con false, `_h_quaternion` pone roll = pitch = 0
+  antes de componer la orientacion que va a /odom y a TF.
+
+  VERIFICADO:
+      publicar_inclinacion = False
+      /odom  ->  roll +0.00°   pitch +0.00°   (414 muestras)
+
+  📝 Es un interruptor de MEDICION, no de operacion. El valor por defecto no se
+     cambia hasta tener el numero.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. EL DISEÑO DE LA PRUEBA, y por que no se puede recortar
+───────────────────────────────────────────────────────────────────────────────
+  🔴 LA LINEA BASE ANTERIOR NO VALE. Las 6 corridas del fichero 14 se hicieron
+     con `laser_z = 0.1745`, y el desplazamiento lateral que induce el roll
+     escala con esa altura:
+
+         laser_z x sin(8°)     antes 0.1745 -> 2.4 cm
+                               ahora 0.155  -> 2.2 cm
+
+     Hay que rehacer LAS DOS mitades para que la comparacion sea limpia.
+
+  🔴 LAS CONDICIONES SE ALTERNAN. No 6 corridas con roll y luego 6 sin el, sino
+     bloques cortos alternando. Dos razones:
+       · si la bateria corta a mitad, los datos que haya siguen BALANCEADOS
+       · el nivel de bateria y el calentamiento dejan de poder colarse como
+         variable — que es justo el tipo de confusion que ya costo una
+         retractacion en este proyecto (fichero 16, la velocidad lineal)
+
+  ⚠️ NO SE PUEDE RECORTAR A 2 CORRIDAS POR CONDICION.
+       efecto buscado          ~1 cm   (el roll comprime los alcances un 1 %)
+       dispersion ya medida    σ = 0.6-1.0 cm  (fichero 14)
+     Con n=2 el resultado sale dentro del ruido: se gastaria la bateria para
+     acabar en "no concluyente". Hacen falta >= 3 repeticiones de cada distancia
+     por condicion, o sea 12 corridas en total.
+
+  ⏳ COSTE: ~40 min de robot moviendose, y nadie puede cruzar la zona.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 TRAMPA NUEVA: una excepcion en un manejador mata /odom EN SILENCIO
+───────────────────────────────────────────────────────────────────────────────
+  Al añadir el parametro se leyo mal el nombre de una variable del driver: se
+  escribio la asignacion contra `self._silence_timeout` cuando la variable real
+  se llama `self._timeout_silencio`. La asignacion no se inserto, y
+  `self._publicar_inclinacion` quedo USADO SIN EXISTIR.
+
+  SINTOMAS:
+      AttributeError en _h_quaternion    -> NI UNA LINEA EN EL LOG
+      /odom y /imu                       -> CERO mensajes, pero los topics existian
+      /scan                              -> funcionando
+      el detector de silencio            -> NO SALTO
+
+  🔴 Y el detector de silencio no salta POR DISEÑO: mide el tiempo desde la
+     ultima MUESTRA del RVR, no desde la ultima publicacion. Las muestras
+     llegaban — se ve en el log el `origen del yaw fijado en +10.2°`, que sale de
+     la primera. Lo que fallaba era el manejador que las convierte.
+
+  ATAJO DE DIAGNOSTICO:
+      si /scan va y /odom no, y NO hay error ni aviso de silencio,
+      -> sospecha de una excepcion dentro de un manejador.
+
+    El sintoma "el topic existe y no publica" es EXACTAMENTE el mismo que da un
+    RVR dormido. La diferencia que los separa: el RVR dormido SI dispara el
+    detector de silencio.
+
+  📝 Es la tercera vez que este proyecto se topa con un fallo que no da error.
+     Las anteriores: el arbol TF partido y slam_toolbox en `unconfigured`.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. 📝 /battery_state.percentage es una FRACCION 0-1
+───────────────────────────────────────────────────────────────────────────────
+  Es lo que manda `sensor_msgs/BatteryState` ("Charge percentage on 0 to 1
+  range") y el driver lo respeta:
+
+      percentage: 0.3400000035762787     -> 34 %
+
+  Leerlo como 0-100 hace que un robot al 34 % parezca estar al 0 %. Provoco una
+  falsa alarma de bateria agotada en esta misma sesion.
+
+  ⏳ DATO QUE EL PROYECTO NO TIENE: cuanto consume el RVR por minuto conduciendo.
+     Es lo que impide decidir si el 34 % aguanta los 40 min de la prueba. Con 16
+     robots en un laboratorio remoto, ese numero hara falta antes o despues.
+
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE FALTA
+───────────────────────────────────────────────────────────────────────────────
+⏳ Cargar el robot y ejecutar las 12 corridas (6 con roll, 6 sin), alternando.
+⏳ Medir el consumo del RVR por minuto conduciendo.
+⏳ El barrido de `radius` (0.14 / 0.16 / 0.18) contra un mismo paso estrecho.
+⏳ Un obstaculo que aparezca DURANTE la navegacion.
+⏳ Fase 4c: map_server + AMCL.

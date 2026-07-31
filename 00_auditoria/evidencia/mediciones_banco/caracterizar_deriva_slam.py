@@ -54,7 +54,7 @@ extremo, la mitad del recorrido se sale del pasillo.
 
 🔴 **El robot NO esquiva obstáculos.** Solo tiene el watchdog de `cmd_vel`, que
 para los motores si dejan de llegar órdenes, no si hay algo delante. Nada a menos
-de 60 cm. Y el LIDAR barre en horizontal a 17.5 cm: pasa por encima de zócalos y
+de 60 cm. Y el LIDAR barre en horizontal a 15.5 cm: pasa por encima de zócalos y
 por debajo de mesas, así que «despejado a ras de suelo» no basta.
 ═══════════════════════════════════════════════════════════════════════════════
 """

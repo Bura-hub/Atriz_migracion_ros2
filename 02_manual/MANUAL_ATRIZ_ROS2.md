@@ -2979,7 +2979,7 @@ físicamente horizontal**.
 
 🔴 **Los ~8° son un desvío de la IMU del RVR**, no una inclinación del robot.
 
-### 13.4 ⏳ Qué hacer con ello — y por qué no se ha hecho ya
+### 13.4 ⏳ Cómo se va a medir — y por qué no se ha hecho ya
 
 Hoy el driver publica ese roll falso en `/odom` y en el árbol TF. Un roll en
 `odom → base_footprint` **inclina el plano del láser**, y eso comprime los alcances por
@@ -2988,16 +2988,62 @@ Hoy el driver publica ese roll falso en `/odom` y en el árbol TF. Un roll en
 La deriva de SLAM medida es de **1–3 cm** en recorridos de 1.6–2.4 m (cap. 9.12). **El orden de
 magnitud coincide**, así que este roll falso **podría ser parte de ella**.
 
-La corrección es de una línea —`roll = pitch = 0.0` en `_h_quaternion`— y **no se ha aplicado**,
-porque aplicarla sin medir sería repetir el error que la creó. Lo que toca:
+✅ **El interruptor ya está puesto y verificado** (2026-07-31):
 
-1. repetir `caracterizar_deriva_slam.py` con el roll tal cual (línea base ya existente);
-2. repetirlo con `roll = pitch = 0`;
-3. comparar y **entonces** decidir.
+```bash
+ros2 launch atriz_rvr_bringup robot.launch.py publicar_inclinacion:=false
+```
+
+Con `false`, `/odom` publica `roll +0.00° pitch +0.00°` — comprobado sobre **414 muestras**. El
+valor por defecto sigue siendo `true`: es un interruptor de **medición**, no de operación.
+
+#### El diseño de la prueba, y por qué no se puede recortar
+
+- 🔴 **La línea base anterior no vale.** Aquellas 6 corridas se hicieron con `laser_z = 0.1745`,
+  y el desplazamiento lateral que el roll induce escala con esa altura (`laser_z × sin(roll)`):
+  2.4 cm entonces, **2.2 cm ahora**. Hay que rehacer las dos mitades.
+- 🔴 **Las condiciones se ALTERNAN**, no 6 con roll y luego 6 sin él. Así un corte a mitad deja
+  datos **balanceados**, y de paso el nivel de batería y el calentamiento no se cuelan como
+  variable — que es justo el tipo de confusión que ya costó una retractación en este proyecto.
+- ⚠️ **Y no se puede recortar a 2 corridas por condición.** El efecto buscado es de ~**1 cm** y
+  la dispersión ya medida de la deriva es de **σ = 0.6–1.0 cm**: saldría dentro del ruido. Hacen
+  falta ≥3 repeticiones de cada distancia por condición.
+
+⏳ **Pendiente de ejecutar**: son ~40 min de robot moviéndose y el 2026-07-31 la batería estaba
+al **34 %**. Se decidió **cargar primero**, porque el consumo del RVR por minuto **no está
+medido** y arriesgarse a un corte a mitad daría un «no concluyente» habiendo gastado la carga.
 
 ⚠️ Mientras tanto, `/odom` y `/imu` publican una orientación con ~8° de roll que **no
 corresponde a la realidad física**. Quien fusione esa orientación (por ejemplo
 `robot_localization` en el futuro) tiene que saberlo.
+
+### 13.5 🔴 Dos trampas que salieron al montar el interruptor
+
+**Una excepción en un manejador de telemetría mata `/odom` e `/imu` EN SILENCIO.**
+
+Al añadir el parámetro se leyó mal el nombre de una variable, así que
+`self._publicar_inclinacion` se usaba sin haberse asignado. Resultado:
+
+| | |
+|---|---|
+| `AttributeError` en `_h_quaternion` | **ni una línea en el log** |
+| `/odom` y `/imu` | **cero mensajes**, pero los topics existían |
+| `/scan` | funcionando |
+| el detector de silencio | **no saltó** |
+
+Y el detector de silencio no salta **por diseño**: mide el tiempo desde la última **muestra
+del RVR**, no desde la última publicación. Las muestras llegaban perfectamente — se ve en el
+log el `origen del yaw fijado en +10.2°`, que sale de la primera. Lo que fallaba era el
+manejador que las convierte.
+
+> **Atajo de diagnóstico:** si `/scan` va y `/odom` no, y **no hay ningún error ni aviso de
+> silencio**, sospecha de una excepción dentro de un manejador. El síntoma es «el topic existe
+> y no publica», que es exactamente el mismo que da un RVR dormido — pero el RVR dormido **sí**
+> dispara el detector de silencio. **Esa es la diferencia que los separa.**
+
+**`/battery_state.percentage` es una fracción 0–1, no un porcentaje.** Es lo que manda
+`sensor_msgs/BatteryState` («Charge percentage on 0 to 1 range») y el driver lo respeta. Leerlo
+como 0–100 hace que un robot al 34 % parezca estar al **0 %** y provoque una falsa alarma.
 
 ---
 

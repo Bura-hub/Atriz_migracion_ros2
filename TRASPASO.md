@@ -73,8 +73,14 @@ la boca, con el camino despejado delante y sin tocar nada, y se bloqueó — el 
 **10.6 / 10.7 cm** a 0.40 — a 1–2 mm del recálculo, y con 1 mm de dispersión entre las dos
 corridas a 0.40. Ya no hay ningún número recalculado sin verificar.
 
-**Lo siguiente es medir la deriva de SLAM con y sin el roll falso de la IMU** — la hipótesis
-que quedó planteada y sin aplicar.
+✅ **Y el interruptor para medir el roll de la IMU está puesto y verificado**:
+`publicar_inclinacion:=false` deja `/odom` en `roll +0.00° pitch +0.00°` (414 muestras).
+
+⏳ **La medida en sí está PENDIENTE**: son ~40 min de robot moviéndose y la batería estaba al
+**34 %**. Se decidió **cargar primero** — el consumo del RVR por minuto no está medido, y
+arriesgar un corte a mitad daría un «no concluyente» habiendo gastado la carga.
+
+**Lo siguiente es cargar el robot y lanzar las 12 corridas.**
 
 ---
 
@@ -337,12 +343,24 @@ velocidad** (+1.0 cm a 0.25, +1.8 a 0.40). La holgura **no se degrada al acelera
 📝 Cambiar `laser_z` y `wheel_radius` **no alteró el comportamiento**, como se preveía: son
 traslaciones en Z y el monitor trabaja en el plano.
 
-### 1. ⏳ La deriva de SLAM con y sin el roll de la IMU — es lo siguiente
+### 1. ⏳ Cargar el robot y medir la deriva con y sin el roll — es lo siguiente
 
-Es la hipótesis que quedó planteada: el roll falso de ~8° comprime los alcances un 1 %
-(~1 cm/m) y la deriva medida es de 1–3 cm. Repetir `caracterizar_deriva_slam.py` con el roll
-tal cual y con `roll = pitch = 0`, y comparar. Y el **barrido de `radius`** contra un mismo
-paso estrecho.
+El interruptor ya está: `robot.launch.py publicar_inclinacion:=false`. Lo que falta es
+ejecutar **12 corridas** de `caracterizar_deriva_slam.py`, 6 por condición.
+
+**El diseño, y por qué no se puede recortar:**
+
+- 🔴 **La línea base anterior no vale.** Se hizo con `laser_z = 0.1745`, y el desplazamiento
+  lateral que induce el roll escala con esa altura: 2.4 cm entonces, **2.2 cm ahora**.
+- 🔴 **Las condiciones se ALTERNAN**, no 6 y 6. Así un corte por batería deja datos
+  **balanceados**, y el nivel de carga deja de poder colarse como variable.
+- ⚠️ **No se puede bajar a 2 por condición.** El efecto buscado es de ~**1 cm** y la dispersión
+  ya medida es **σ = 0.6–1.0 cm**: saldría dentro del ruido.
+
+⏳ Y falta un dato que el proyecto no tiene y hará falta con 16 robots: **cuánto consume el RVR
+por minuto conduciendo**. Es lo que impide saber si un 34 % aguanta 40 min.
+
+Después: el **barrido de `radius`** contra un mismo paso estrecho.
 
 ### 2. ✅ RESUELTO: la inclinación de ~8° no existe
 
