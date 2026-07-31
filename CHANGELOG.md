@@ -4,6 +4,70 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — ✅ Navegando a 0.40 m/s, el máximo del robot
+
+`desired_linear_vel` sube de 0.25 a **0.40**. Evidencia:
+`00_auditoria/evidencia_24_04/16_nav2_preparacion.txt` (sección final), manual **cap. 11.10**.
+
+Se sube con las tres condiciones cumplidas y **medidas**, no por optimismo:
+
+1. el robot navegó dos veces sin incidentes a 0.25 (cap. 11.7);
+2. el `collision_monitor` está puesto y verificado (cap. 12);
+3. y **a 0.40 la capa de seguridad deja *más* hueco que a 0.25** — 9.0 cm contra 8.0 —, porque
+   `approach` empieza a frenar antes cuanto más rápido va. Ese es el dato que quitaba el miedo.
+
+### Lo que había que comprobar no era que llegara, sino que fuera a 0.40
+
+Perfil en `/odom` durante la ida de 1.50 m:
+
+| t | v |
+|---|---|
+| 0.31 s | 0.057 m/s |
+| 0.61 s | 0.357 m/s |
+| **0.91 s** | **0.407 m/s** ← meseta |
+| 2.00 s | 0.407 m/s |
+
+Máxima 0.431 · percentil 90 **0.412 m/s**. Coherente con la rampa de ~0.5 s ya medida y con
+`max_linear_accel: 0.8`.
+
+| | Desde | Hasta | Resultado | Error | v (p90) |
+|---|---|---|---|---|---|
+| ida | (0.00, 0.00) | (1.50, 0.00) | **SUCCEEDED** | **8 cm** | 0.412 m/s |
+| vuelta | (1.42, −0.01) | (0.00, 0.00) | **SUCCEEDED** | **8 cm** | 0.409 m/s |
+
+📝 **8 cm las dos veces, contra 9–10 cm a 0.25 m/s: subir la velocidad no empeoró la
+precisión.** La vuelta tardó 16 s para 1.42 m, giro de 180° incluido.
+
+### La capa de seguridad no estorbó
+
+Cuatro frenados en toda la sesión —2125, 1582, 130 y 65 ms—, **ninguno una parada**, cero
+conductas de recuperación y cero fallos de plan. ⚠️ No se ha aislado **qué** los disparó: se
+registra el hecho, no una causa inventada.
+
+### 🔴 Y salió un fallo nuevo: `save_map` da 255 de forma intermitente
+
+```
+[map_saver] Saving map from 'map' topic to '…' file
+[map_saver] [ERROR] Failed to spin map subscription
+```
+
+**No es el fallo de la Fase 4.** Aquel era `Package 'nav2_map_server' not found` y se arregló
+instalando `navigation2`. Aquí el paquete está, el `map_saver` arranca, se configura y **se
+queda sin mapa**: perseguir la instalación sería perder el tiempo.
+
+Causa, deducida de dos números del propio sistema: `map_update_interval: 5.0` en slam_toolbox
+contra el `save_map_timeout: 2.0` por defecto del saver. **Es una carrera** — explica que
+funcionara dos veces y fallara la tercera.
+
+⏳ **Arreglo propuesto, NO VERIFICADO:** reintentar; o `map_saver_cli` con
+`save_map_timeout:=10.0`; o bajar `map_update_interval`, que cuesta CPU. Hace falta resuelto
+para la Fase 4c. Anotado en `CLAUDE.md` como trampa de diagnóstico.
+
+**Ficheros:** `atriz_rvr_bringup/config/nav2_atriz.yaml`, manual cap. 11.10–11.12 y 12.9,
+`16_nav2_preparacion.txt`, `TRASPASO.md`, `INSTALACION.md` (F9 ✅ → F10), `CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — ✅ La capa de seguridad: el robot para antes de chocar
 
 `collision_monitor` configurado, medido contra una pared y verificado. Evidencia:

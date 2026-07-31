@@ -43,8 +43,12 @@ sobre 4, sin throttling. Manual, **cap. 11**.
 De paso destapó un agujero: el `behavior_server` de Nav2 publicaba en `/cmd_vel`
 **saltándose la seguridad**. Manual, **cap. 12**.
 
-**Lo siguiente es subir `desired_linear_vel` de 0.25 a 0.40** y probar con obstáculos que haya
-que **rodear** — hasta ahora solo se ha probado contra una pared frontal.
+✅ **Y ya navega a 0.40 m/s**, el máximo del robot: meseta medida en **0.407 m/s**, dos
+objetivos `SUCCEEDED` con **8 cm** de error cada uno — *mejor* que los 9–10 cm de las corridas
+a 0.25. La capa de seguridad solo se activó cuatro veces y ninguna fue una parada.
+
+**Lo siguiente es probar con obstáculos que haya que rodear** — hasta ahora solo se ha probado
+contra una pared frontal, así que está demostrado que el robot **para**, no que **esquive**.
 
 ---
 
@@ -207,13 +211,32 @@ activar Nav2 y el primer objetivo.**
 suelo. Todo lo más bajo es **invisible** y el robot lo embestirá. Tiene que ir en las
 instrucciones a los estudiantes.
 
-### 1. ⏳ Subir la velocidad y probar con obstáculos — es lo siguiente
+### ✅ Hecho: navegando a 0.40 m/s
 
-Ya no hay excusa para dejar `desired_linear_vel` en 0.25: el robot llega a 0.40 (medido) y a
-0.40 la seguridad deja **más** hueco que a 0.25.
+| | Desde | Hasta | Resultado | Error | v (p90) |
+|---|---|---|---|---|---|
+| ida | (0.00, 0.00) | (1.50, 0.00) | **SUCCEEDED** | **8 cm** | 0.412 m/s |
+| vuelta | (1.42, −0.01) | (0.00, 0.00) | **SUCCEEDED** | **8 cm** | 0.409 m/s |
 
-Y todo lo probado hasta ahora es **contra una pared frontal**: se ha demostrado que el robot
-**para**, no que **rodee**.
+Lo que había que comprobar no era que llegara, sino que **de verdad fuera a 0.40**: meseta de
+**0.407 m/s** alcanzada en 0.9 s. Y subir la velocidad **no empeoró la precisión** — 8 cm
+contra los 9–10 de antes.
+
+Se subió con las tres condiciones medidas: dos navegaciones limpias a 0.25, el
+`collision_monitor` verificado, y **a 0.40 la seguridad deja más hueco que a 0.25** (9.0 cm
+contra 8.0). Ese último dato es el que quitaba el miedo.
+
+🔴 **Y salió un fallo nuevo: `save_map` da 255 de forma intermitente.** No es el de la Fase 4
+(`Package 'nav2_map_server' not found`): aquí el `map_saver` arranca y **se queda sin mapa**.
+Es una carrera entre `map_update_interval: 5.0` y el `save_map_timeout: 2.0` del saver. Arreglo
+propuesto en el manual 11.11, **sin verificar**.
+
+### 1. ⏳ Obstáculos que haya que rodear — es lo siguiente
+
+Todo lo probado es **contra una pared frontal**. Está demostrado que el robot **para**; no que
+**rodee**. Hace falta poner algo en medio del camino y mandar un objetivo al otro lado.
+
+Y arreglar `save_map` (manual 11.11), que hace falta para la Fase 4c.
 
 ### 2. 🔴 La inclinación de ~8°, confirmada por TRES vías
 

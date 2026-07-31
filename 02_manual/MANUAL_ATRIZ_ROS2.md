@@ -2516,12 +2516,72 @@ Un `ABORTED` inmediato tras arrancar **no** significa que la configuración est�
 **Nav2 solo son ~58 % de un núcleo**: es la pieza más pesada con diferencia, como se preveía.
 Pero el Pi 4 aguanta sin throttling y **queda margen para `rosbridge`**.
 
-### 11.10 ⏳ Lo que queda
+### 11.10 ✅ `desired_linear_vel` a 0.40 — el máximo del robot
 
-- **`collision_monitor`.** Ahora que se ha visto navegar al robot, sus umbrales se pueden
-  elegir con criterio. **Hace falta antes de dejar esto con estudiantes.**
-- **Subir `desired_linear_vel` de 0.25 a 0.40.** El robot llega (medido) y ha navegado sin
-  incidentes. Mejor con el `collision_monitor` ya puesto.
+Subido el 2026-07-31 con las tres condiciones cumplidas y **medidas**: navegó dos veces sin
+incidentes a 0.25, el `collision_monitor` está verificado (cap. 12), y **a 0.40 la seguridad
+deja más hueco que a 0.25** — 9.0 cm contra 8.0 (cap. 12.4). Ese último dato es el que quita
+el miedo a subirlo.
+
+**Lo que había que comprobar no es que llegue, sino que de verdad vaya a 0.40.** Perfil en
+`/odom` durante la ida de 1.50 m:
+
+| t | v |
+|---|---|
+| 0.31 s | 0.057 m/s |
+| 0.61 s | 0.357 m/s |
+| **0.91 s** | **0.407 m/s** ← meseta |
+| 1.52 s | 0.406 m/s |
+| 2.00 s | 0.407 m/s |
+
+Máxima 0.431 · percentil 90 **0.412 m/s**. Alcanza la meseta en ~0.9 s, coherente con la rampa
+de ~0.5 s ya medida y con `max_linear_accel: 0.8`.
+
+| | Desde | Hasta | Resultado | Error | v (p90) |
+|---|---|---|---|---|---|
+| ida | (0.00, 0.00) | (1.50, 0.00) | **SUCCEEDED** | **8 cm** | 0.412 m/s |
+| vuelta | (1.42, −0.01) | (0.00, 0.00) | **SUCCEEDED** | **8 cm** | 0.409 m/s |
+
+📝 **8 cm las dos veces, contra 9–10 cm a 0.25 m/s: subir la velocidad no empeoró la
+precisión.**
+
+**¿Estorbó la capa de seguridad? No.** Cuatro frenados en toda la sesión —2125, 1582, 130 y
+65 ms—, ninguno una parada, cero conductas de recuperación y cero fallos de plan. ⚠️ No se ha
+aislado **qué** los disparó; se registra el hecho, no una causa inventada.
+
+### 11.11 🔴 `save_map` falla de forma intermitente — y no es el fallo de la Fase 4
+
+```
+response: SaveMap_Response(result=255)
+[map_saver] Saving map from 'map' topic to '…' file
+[map_saver] [ERROR] Failed to spin map subscription
+```
+
+🔴 **Es un error distinto del histórico.** En la Fase 4 el 255 venía de `Package
+'nav2_map_server' not found` y se arregló instalando `navigation2` (cap. 11.2). Aquí el paquete
+está, el `map_saver` arranca, **se configura y se queda sin mapa**. Perseguir la instalación
+sería perder el tiempo.
+
+**Causa, deducida de dos números del propio sistema:**
+
+| | |
+|---|---|
+| `map_update_interval` (`slam_toolbox_atriz.yaml`) | **5.0 s** |
+| `save_map_timeout` (por defecto del `map_saver`) | **2.0 s** |
+
+El saver espera 2 s a que llegue un `/map` y `slam_toolbox` lo publica cada 5. **Es una
+carrera**: si la llamada cae en el hueco, falla. Explica que funcionara dos veces y fallara la
+tercera.
+
+⏳ **Arreglo propuesto — NO VERIFICADO:** reintentar; o
+`ros2 run nav2_map_server map_saver_cli -f <ruta> --ros-args -p save_map_timeout:=10.0`; o
+bajar `map_update_interval` a 1–2 s, que cuesta CPU.
+
+### 11.12 ⏳ Lo que queda
+
+- ✅ ~~`collision_monitor`~~ — hecho y verificado, **cap. 12**.
+- ✅ ~~Subir `desired_linear_vel` a 0.40~~ — hecho y verificado, 11.10.
+- ⏳ **Arreglar `save_map`** (11.11) y verificar el arreglo.
 - **Probar con obstáculos de por medio.** Las dos navegaciones fueron en línea recta por un
   pasillo despejado: se ha probado que **llega**, no que **rodee**.
 - **Fase 4c: `map_server` + AMCL** — mapear una vez y localizar en los 16 robots, en lugar de
@@ -2681,9 +2741,11 @@ ros2 lifecycle get /collision_monitor   # active [3] ← si no, NO FILTRA NADA
 ros2 topic info /cmd_vel --verbose      # Publisher count: 1, y es collision_monitor
 ```
 
-⏳ **Lo que queda:** subir `desired_linear_vel` a 0.40 (ya no hay excusa), probar con
-obstáculos que haya que **rodear** —aquí solo se ha probado contra una pared frontal—, y
-ajustar `min_points: 2` contra obstáculos finos de verdad.
+⏳ **Lo que queda:** probar con obstáculos que haya que **rodear** —aquí solo se ha probado
+contra una pared frontal— y ajustar `min_points: 2` contra obstáculos finos de verdad.
+
+✅ `desired_linear_vel` ya está en **0.40** (cap. 11.10), y navegando a esa velocidad la
+seguridad solo se activó cuatro veces, ninguna como parada.
 
 ---
 
