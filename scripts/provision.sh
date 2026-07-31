@@ -334,11 +334,11 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "7/8 · El robot completo: xacro, LIDAR, SLAM y compilar"
+say "7/8 · El robot completo: xacro, LIDAR, SLAM, Nav2 y compilar"
 
 # Esta es la Etapa F de INSTALACION.md. Sin ella el robot tiene ROS 2 y el codigo
 # clonado, pero no arranca: falta xacro para el URDF, el driver del LIDAR (que NO
-# tiene paquete apt) y slam_toolbox.
+# tiene paquete apt), slam_toolbox y navigation2.
 
 if [[ $SIN_ROS -eq 1 ]]; then
     salta "saltado por --sin-ros"
@@ -346,10 +346,34 @@ elif [[ ! -d /opt/ros/jazzy ]]; then
     salta "sin ROS 2 instalado, no hay nada que compilar"
 else
     # xacro NO viene en ros-base y hace falta para el URDF. slam_toolbox tampoco.
+    #
+    # 🔴 Y `ros-jazzy-navigation2`, NO `ros-jazzy-nav2-bringup`. La diferencia son
+    #    312 paquetes: `bringup` arrastra `nav2-minimal-tb3-sim`, `tb4-sim`,
+    #    `ros-gz-sim` y hasta `pocketsphinx-en-us` — dos TurtleBots simulados y
+    #    reconocimiento de voz, en un robot real sin microfono. Y todo eso
+    #    acabaria replicado en los 16 por la imagen dorada. Manual, cap. 11.1.
+    #
+    #    De `navigation2` sale ademas todo lo que el robot usa fuera de navegar:
+    #    `collision_monitor` (la capa de seguridad, cap. 12), `map_server` y
+    #    `amcl` (la localizacion de la Fase 4c, cap. 14), y `map_saver_cli`, que
+    #    es la unica forma fiable de guardar mapas (cap. 11.11).
     espera_lock || true
     correr apt-get install -y -qq ros-jazzy-xacro ros-jazzy-slam-toolbox \
-        && ok "ros-jazzy-xacro + ros-jazzy-slam-toolbox instalados" \
-        || { mal "fallo instalando xacro/slam_toolbox"; FALLOS+=("xacro/slam_toolbox"); }
+        ros-jazzy-navigation2 \
+        && ok "ros-jazzy-xacro + slam-toolbox + navigation2 instalados" \
+        || { mal "fallo instalando xacro/slam_toolbox/navigation2"
+             FALLOS+=("xacro/slam_toolbox/navigation2"); }
+
+    # Comprobar el EFECTO, no que apt dijera que si: sin estos cuatro binarios el
+    # robot arranca y falla al primer objetivo.
+    for BIN in collision_monitor map_server amcl controller_server; do
+        if [[ -x "/opt/ros/jazzy/lib/nav2_${BIN%%_*}"*"/$BIN" ]] \
+           || compgen -G "/opt/ros/jazzy/lib/*/$BIN" >/dev/null; then
+            ok "nav2: $BIN presente"
+        else
+            mal "nav2: FALTA $BIN"; FALLOS+=("nav2/$BIN")
+        fi
+    done
 
     # 🔴 El driver del YDLIDAR NO tiene paquete apt. Comprobado el 2026-07-30:
     # `apt-cache search ydlidar` da 0 resultados. Se compila desde fuentes.
@@ -427,8 +451,8 @@ cat <<EOF
 
       bash $SCRIPTS/verificar_robot.sh --hardware
 
-  El verificador es el que decide si este robot está listo: 50 comprobaciones,
-  y sale con código != 0 si algo falla. No des el robot por bueno sin él.
+  El verificador es el que decide si este robot está listo, y sale con código
+  != 0 si algo falla. No des el robot por bueno sin él.
 
   ¿Y PARA LOS OTROS 15 ROBOTS?
 

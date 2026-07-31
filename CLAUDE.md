@@ -665,6 +665,7 @@ lo que produce deriva entre documentación y realidad.
 | **`ros-jazzy-navigation2`, NO `ros-jazzy-nav2-bringup`** | `bringup` depende de `nav2-minimal-tb3-sim`, `tb4-sim` y `ros-gz-sim`: **312 paquetes** de simulador y dos TurtleBots en un robot real, incluido `pocketsphinx-en-us`. Los launch los escribimos nosotros, como con `slam_toolbox` |
 | **Imagen dorada** para los 16, no aprovisionar por red | ~300 MB y 15-20 min por robot, sobre la única AP. `FLOTA.md` |
 | La imagen dorada se **construye ejecutando `provision.sh`**, no a mano | Una imagen irreproducible es una caja negra. `FLOTA.md` |
+| **`provision.sh` instala `navigation2`** desde el 2026-07-31 | Antes no lo instalaba: un robot aprovisionado con el script no podía navegar, ni tenía capa de seguridad, ni localización |
 | **🟢 GO: el SDK funciona en Python 3.12** (16.67 Hz) | manual, cap. 5.1 · verificado 2026-07-30 |
 | El driver publica `odom → base_footprint`, **no** `odom → base_link` | manual, cap. 9.4 · REP-105 y un frame = un padre |
 | `async_slam_toolbox_node`, no el `sync` | no bloquea por barrido, y cuesta 4.5 % · manual cap. 9 |
@@ -697,9 +698,16 @@ lo que produce deriva entre documentación y realidad.
 bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
 ```
 
-**48 aserciones**, código de salida ≠ 0 si algo falla, y cada fallo viene con el comando que lo
-arregla. Existe porque el 2026-07-30 se verificó este robot a mano con ~25 comandos y
-aparecieron **cinco fallos silenciosos**. No repitas eso: pásalo al empezar y al cerrar.
+**84 aserciones** con `--hardware` (76 sin él), código de salida ≠ 0 si algo falla, y cada
+fallo viene con el comando que lo arregla. Existe porque el 2026-07-30 se verificó este robot a
+mano con ~25 comandos y aparecieron **cinco fallos silenciosos**. No repitas eso: pásalo al
+empezar y al cerrar.
+
+⚠️ **Y el verificador también se equivoca.** El 2026-07-31 tenía tres fallos propios: comprobaba
+el driver de **ROS 1** (que sigue en el repo, así que pasaba mirando un fichero que no se
+ejecuta), contaba un **comentario** como si fuera un ajuste, y daba el LIDAR por roto cuando el
+driver estaba corriendo y tenía el puerto ocupado. Los tres daban veredictos falsos. **Un
+verificador con falsos positivos se acaba ignorando, y eso es peor que no tenerlo.**
 
 Su regla es **comprobar el efecto, no la intención**. Si añades comprobaciones, mantenla.
 

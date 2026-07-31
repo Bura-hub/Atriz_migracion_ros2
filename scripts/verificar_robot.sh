@@ -316,9 +316,20 @@ if [[ -d "$WS/.git" ]]; then
     grep -q "port_id='/dev/rvr'" "$DAL" 2>/dev/null \
         && _ok "SDK usa /dev/rvr por defecto (commit 67c8776)" \
         || _mal "el SDK NO usa /dev/rvr por defecto" "¿estás en la rama migracion-ros2? falta el commit 67c8776"
-    grep -q 'sensor_control.start(interval=60)' "$WS/atriz_rvr_driver/scripts/Atriz_rvr_node.py" 2>/dev/null \
-        && _ok "streaming a interval=60 ms → 16.59 Hz (commit 24c7749)" \
-        || _avi "el driver no tiene interval=60" "con 250 ms la odometría va a 3.85 Hz; falta 24c7749"
+    # 🔴 CORREGIDO 2026-07-31: esto comprobaba `Atriz_rvr_node.py`, que es el
+    # driver de ROS 1. Sigue en el repo como herencia, así que la comprobación
+    # PASABA mirando un fichero que no se ejecuta — deriva silenciosa, justo lo
+    # que este script existe para evitar. El driver de ROS 2 es otro y usa un
+    # parámetro, no una constante.
+    DRV="$WS/atriz_rvr_driver/scripts/atriz_rvr_driver/rvr_driver_node.py"
+    if [[ -f "$DRV" ]]; then
+        _ok "driver de ROS 2 presente (rvr_driver_node.py)"
+        grep -q "streaming_interval_ms" "$DRV" \
+            && _ok "streaming parametrizado (60 ms → 16.67 Hz)" \
+            || _mal "el driver no expone streaming_interval_ms" "¿rama equivocada?"
+    else
+        _mal "falta el driver de ROS 2" "git -C $WS checkout ros2"
+    fi
 else
     _avi "no existe $WS" "git clone -b ros2 https://github.com/Bura-hub/Atriz_rvr.git ~/atriz_ws/src/"
 fi
@@ -595,7 +606,39 @@ if [[ $HARDWARE -eq 1 ]]; then
         _avi "no se puede probar el RVR (falta /dev/rvr o raw_uart.py)"
     fi
 
-    if [[ -c /dev/ttyUSB0 && -f "$MED/x2_parse.py" ]]; then
+    # 🔴 SI EL DRIVER ESTÁ CORRIENDO, EL PUERTO ESTÁ OCUPADO. `x2_parse.py` abre
+    #    /dev/ttyUSB0 en crudo, así que con `ydlidar_ros2_driver` vivo devolvía
+    #    «no entrega datos válidos» — un FALLO FALSO que aparecía justo cuando el
+    #    robot estaba funcionando bien. Es lo peor que puede hacer un verificador:
+    #    quien lo vea dos veces deja de creérselo.
+    #
+    #    Con el driver vivo se comprueba EL EFECTO, que es `/scan` circulando —y
+    #    es una prueba mejor, porque cubre además el driver ROS y el QoS.
+    if ps -eo comm 2>/dev/null | grep -q '^ydlidar_ros2_dr$'; then
+        N_SCAN="$(timeout 25 python3 - <<'PYEOF' 2>/dev/null || echo 0
+import time, rclpy
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from sensor_msgs.msg import LaserScan
+# BEST_EFFORT: el driver del X2 publica así y el perfil por defecto de rclpy es
+# RELIABLE, que NO empareja y no recibiría nada (CLAUDE.md).
+q = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
+               history=HistoryPolicy.KEEP_LAST, depth=5)
+rclpy.init(); n = Node('verif_scan'); c = []
+n.create_subscription(LaserScan, 'scan', lambda m: c.append(1), q)
+t = time.time()
+while time.time() - t < 8:
+    rclpy.spin_once(n, timeout_sec=0.1)
+print(len(c)); n.destroy_node(); rclpy.shutdown()
+PYEOF
+)"
+        if [[ "${N_SCAN:-0}" -ge 40 ]]; then
+            _ok "LIDAR X2 vía /scan: $N_SCAN barridos en 8 s (~$((N_SCAN/8)) Hz)"
+        else
+            _mal "el driver del LIDAR corre pero /scan da $N_SCAN barridos en 8 s" \
+                 "esperados ~80. Mira el log del ydlidar_ros2_driver"
+        fi
+    elif [[ -c /dev/ttyUSB0 && -f "$MED/x2_parse.py" ]]; then
         SAL="$(python3 "$MED/x2_parse.py" 2>&1)"
         if grep -q 'X2 FUNCIONA' <<<"$SAL"; then
             _ok "LIDAR X2: $(grep -oE '[0-9.]+% validos' <<<"$SAL" | head -1) checksums, $(grep -oE 'frecuencia de giro *: [0-9.]+ Hz' <<<"$SAL" | grep -oE '[0-9.]+ Hz')"
@@ -604,6 +647,133 @@ if [[ $HARDWARE -eq 1 ]]; then
         fi
     else
         _avi "no se puede probar el LIDAR (falta /dev/ttyUSB0 o x2_parse.py)"
+    fi
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+sec "9 · Nav2, seguridad, localización y servicios"
+
+# Todo lo de la Fase 4b en adelante. Existe porque la imagen dorada replica lo
+# que HAY en este robot: si algo de esto falta aquí, faltará en los 16.
+
+# ── Nav2 y sus binarios ──────────────────────────────────────────────────────
+# `navigation2` trae mucho más que navegar: la capa de seguridad
+# (collision_monitor), la localización (map_server + amcl) y map_saver_cli, que
+# es la única forma fiable de guardar mapas (manual, cap. 11.11).
+for BIN in collision_monitor map_server amcl controller_server planner_server; do
+    if compgen -G "/opt/ros/jazzy/lib/*/$BIN" >/dev/null; then
+        _ok "nav2: $BIN"
+    else
+        _mal "nav2: FALTA $BIN" "sudo apt install -y ros-jazzy-navigation2  (NO nav2-bringup)"
+    fi
+done
+# 🔴 Y que NO esté el simulador: nav2-bringup arrastra 312 paquetes de TurtleBot
+# simulado, y en la imagen dorada se replicarían por 16.
+SIM="$(dpkg -l 2>/dev/null | grep -cE 'nav2-minimal-tb|ros-gz-sim|pocketsphinx' || true)"
+[[ "$SIM" -eq 0 ]] && _ok "sin paquetes de simulador (0)" \
+    || _avi "hay $SIM paquetes de simulador instalados" "¿se instaló nav2-bringup por error?"
+
+# ── Los ficheros que definen el comportamiento ───────────────────────────────
+CFG="$WS/atriz_rvr_bringup/config"
+LAU="$WS/atriz_rvr_bringup/launch"
+for F in "$CFG/nav2_atriz.yaml" "$CFG/collision_monitor.yaml" \
+         "$CFG/localizacion_amcl.yaml" "$CFG/slam_toolbox_atriz.yaml" \
+         "$CFG/ydlidar_x2.yaml" "$LAU/robot.launch.py" "$LAU/slam.launch.py" \
+         "$LAU/nav2.launch.py" "$LAU/localizacion.launch.py"; do
+    [[ -f "$F" ]] && _ok "existe $(basename "$F")" \
+        || _mal "FALTA $(basename "$F")" "git -C $WS pull"
+done
+
+# ── Los VALORES medidos, no solo que el fichero exista ───────────────────────
+# La regla del fichero: comprobar el efecto. Un YAML presente con los valores del
+# ejemplo de Nav2 es peor que no tenerlo, porque parece configurado.
+if [[ -f "$CFG/nav2_atriz.yaml" ]]; then
+    # 0.145 = radio circunscrito medido (√(0.091² + 0.1085²)). Estuvo en 0.11,
+    # que no era ni el inscrito ni el circunscrito (manual, cap. 12.10).
+    # 🔴 Anclado al principio de línea y sin '#': la primera versión hacía
+    #    `grep -c 'robot_radius: 0.145'` y contaba 3 —los dos ajustes MÁS un
+    #    comentario que menciona el valor—, así que fallaba con la configuración
+    #    correcta. Un verificador con falsos positivos se acaba ignorando, que es
+    #    peor que no tenerlo.
+    N_RR="$(grep -cE '^[[:space:]]+robot_radius: 0\.145[[:space:]]*$' "$CFG/nav2_atriz.yaml")"
+    [[ "$N_RR" -eq 2 ]] \
+        && _ok "robot_radius 0.145 en los dos costmaps" \
+        || _mal "robot_radius 0.145 aparece $N_RR veces, se esperaban 2" "manual, cap. 12.10"
+    grep -q 'desired_linear_vel: 0.40' "$CFG/nav2_atriz.yaml" \
+        && _ok "desired_linear_vel 0.40 (el máximo medido)" \
+        || _avi "desired_linear_vel no es 0.40" "manual, cap. 11.10"
+fi
+if [[ -f "$CFG/collision_monitor.yaml" ]]; then
+    grep -q 'radius: 0.18' "$CFG/collision_monitor.yaml" \
+        && _ok "collision_monitor: radius 0.18 (para a ~10 cm)" \
+        || _avi "el radius del collision_monitor no es 0.18" "manual, cap. 12.4"
+fi
+URDF="$WS/atriz_rvr_description/urdf/rvr.urdf.xacro"
+if [[ -f "$URDF" ]]; then
+    # 🔴 Estas tres estuvieron MAL hasta el 2026-07-31: largo y ancho CRUZADOS y
+    # el alto de la ficha, que hacía que laser_z estuviera 2 cm arriba.
+    grep -q 'base_length" value="0.182' "$URDF" && grep -q 'base_width"  value="0.217' "$URDF" \
+        && _ok "URDF: 0.182 × 0.217 m (medido, no la ficha)" \
+        || _mal "el URDF no tiene las cotas MEDIDAS" "manual, cap. 12.10 y MEDIDAS_ROBOT.md"
+    grep -q 'laser_z"   value="0.155' "$URDF" \
+        && _ok "URDF: laser_z 0.155 m (medido con regla)" \
+        || _mal "laser_z no es 0.155" "estaba DERIVADO y salía 2 cm alto; cap. 12.8"
+fi
+
+# ── Los valores por defecto del driver, que son decisiones ───────────────────
+DRV="$WS/atriz_rvr_driver/scripts/atriz_rvr_driver/rvr_driver_node.py"
+if [[ -f "$DRV" ]]; then
+    grep -q "declare_parameter('publicar_inclinacion', False)" "$DRV" \
+        && _ok "publicar_inclinacion False: /odom sale plano" \
+        || _avi "publicar_inclinacion no es False por defecto" "la inclinación del RVR es un artefacto del acelerómetro; cap. 13"
+    grep -q "declare_parameter('color_detection', False)" "$DRV" \
+        && _ok "color_detection False: no deja el LED encendido" \
+        || _avi "color_detection no es False por defecto" "cap. 16.2"
+    grep -q "'/rvr/emergency_stop'" "$DRV" \
+        && _ok "parada de emergencia: escucha también /rvr/emergency_stop" \
+        || _mal "el driver NO escucha /rvr/emergency_stop" "es el topic que usa la web; cap. 15"
+    grep -q 'durability=QoSDurabilityPolicy.VOLATILE' "$DRV" \
+        && _ok "parada de emergencia: QoS VOLATILE (empareja con todo)" \
+        || _mal "la parada usa TRANSIENT_LOCAL: no emparejará con rosbridge" "cap. 15.1"
+fi
+
+# ── Con hardware: los servicios, preguntando a un CLIENTE ────────────────────
+if [[ $HARDWARE -eq 1 ]] && command -v ros2 >/dev/null && [[ -n "${ROS_DISTRO:-}" ]]; then
+    if timeout 6 ros2 node list 2>/dev/null | grep -q 'rvr_driver'; then
+        # 🔴 CON UN CLIENTE, NO CON `ros2 service list`. La lista MIENTE POR
+        # OMISIÓN: el 2026-07-31 se dejó fuera `set_drive_parameters` (17 de 18)
+        # mientras un cliente lo encontraba sin problema (manual, cap. 16.5).
+        FALTAN="$(timeout 60 python3 - <<'PYEOF' 2>/dev/null
+import rclpy
+from rclpy.node import Node
+from atriz_rvr_msgs import srv as S
+from std_srvs.srv import Empty
+PARES = [
+    (S.GetEncoders, 'get_encoders'), (S.GetSystemInfo, 'get_system_info'),
+    (S.GetControlState, 'get_control_state'),
+    (S.GetRGBCSensorValues, 'get_rgbc_sensor_values'),
+    (S.SetLEDRGB, 'set_led_rgb'), (S.SetMultipleLEDs, 'set_multiple_leds'),
+    (S.SetLeds, 'set_leds'), (S.TriggerLedEvent, 'trigger_led_event'),
+    (S.SendInfraredMessage, 'send_infrared_message'), (S.SetIRMode, 'set_ir_mode'),
+    (S.SetIREvading, 'set_ir_evading'),
+    (S.SetDriveParameters, 'set_drive_parameters'),
+    (S.SetPosAndYaw, 'set_pos_and_yaw'), (S.MoveTimed, 'move_timed'),
+    (S.RawMotors, 'raw_motors'), (S.MoveToPose, 'move_to_pose'),
+    (S.MoveToPosAndYaw, 'move_to_pos_and_yaw'),
+    (Empty, 'release_emergency_stop'),
+]
+rclpy.init(); n = Node('verif_srv')
+faltan = [nom for tipo, nom in PARES
+          if not n.create_client(tipo, nom).wait_for_service(timeout_sec=2.0)]
+print(','.join(faltan))
+n.destroy_node(); rclpy.shutdown()
+PYEOF
+)"
+        if [[ -z "$FALTAN" ]]; then
+            _ok "los 18 servicios del driver responden"
+        else
+            _mal "servicios que NO responden: $FALTAN" "manual, cap. 16"
+        fi
     fi
 fi
 

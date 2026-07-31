@@ -1,0 +1,111 @@
+═══════════════════════════════════════════════════════════════════════════════
+provision.sh Y verificar_robot.sh AL DIA — para que la imagen dorada lo tenga
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Regla del proyecto: **la imagen dorada es el atajo, provision.sh es la verdad**.
+Todo lo hecho desde la Fase 4b estaba SOLO en este robot: si no entra en el
+script y en el verificador, no llega a los otros 15.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. 🔴 provision.sh NUNCA INSTALABA navigation2
+───────────────────────────────────────────────────────────────────────────────
+  El paso 7/8 instalaba `ros-jazzy-xacro` y `ros-jazzy-slam-toolbox` y nada mas.
+  Un robot aprovisionado con el script tenia driver, LIDAR y SLAM — y **no podia
+  navegar, ni tenia capa de seguridad, ni localizacion**.
+
+  De `navigation2` sale mucho mas que navegar:
+      collision_monitor   la capa de seguridad        (manual, cap. 12)
+      map_server + amcl   la localizacion, Fase 4c    (cap. 14)
+      map_saver_cli       la unica forma fiable de guardar mapas (cap. 11.11)
+
+  ✅ AÑADIDO, con la decision ya tomada documentada en el propio script:
+     `ros-jazzy-navigation2`, **NO** `ros-jazzy-nav2-bringup` — 312 paquetes de
+     TurtleBot simulado y hasta `pocketsphinx-en-us`, replicados por 16.
+
+  ✅ Y COMPROBANDO EL EFECTO, no que apt dijera que si: tras instalar se verifica
+     que existen los binarios de collision_monitor, map_server, amcl y
+     controller_server. Sin ellos el robot arranca y falla al primer objetivo.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. verificar_robot.sh: seccion 9 nueva
+───────────────────────────────────────────────────────────────────────────────
+  De 50 a **84 comprobaciones** (con --hardware). Lo nuevo:
+
+  ── que las piezas esten ──
+    los 5 binarios de nav2 · 0 paquetes de simulador
+    los 9 ficheros: 5 config y 4 launch
+
+  ── que los VALORES sean los medidos, no los del ejemplo ──
+    robot_radius 0.145 en LOS DOS costmaps    (estuvo en 0.11, mal)
+    desired_linear_vel 0.40                    (el maximo medido)
+    collision_monitor radius 0.18
+    URDF 0.182 x 0.217                         (estuvieron CRUZADAS)
+    URDF laser_z 0.155                         (estuvo DERIVADO, 2 cm alto)
+
+  ── que los valores POR DEFECTO sigan siendo las decisiones tomadas ──
+    publicar_inclinacion False   -> /odom sale plano (cap. 13)
+    color_detection False        -> no deja el LED encendido (cap. 16)
+    el driver escucha /rvr/emergency_stop
+    la parada usa QoS VOLATILE   -> empareja con rosbridge (cap. 15)
+
+  ── con --hardware ──
+    los 18 servicios del driver responden
+
+  🔴 Y SE PREGUNTA A UN CLIENTE, no a `ros2 service list`. La lista MIENTE POR
+     OMISION: dejo fuera `set_drive_parameters` (17 de 18) mientras un cliente lo
+     encontraba sin problema (cap. 16.5). Un verificador que use la lista daria
+     un fallo falso.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 DOS FALLOS DEL PROPIO VERIFICADOR, encontrados al ejecutarlo
+───────────────────────────────────────────────────────────────────────────────
+  La regla del fichero es «comprobar el efecto, no la intencion». Se aplico al
+  fichero mismo, y salieron dos:
+
+  a) COMPROBABA EL DRIVER DE ROS 1.
+     La seccion 7 hacia grep de `sensor_control.start(interval=60)` sobre
+     `Atriz_rvr_node.py` — el driver de ROS 1, que sigue en el repo como
+     herencia. **La comprobacion PASABA mirando un fichero que no se ejecuta.**
+     Deriva silenciosa, justo lo que este script existe para evitar.
+     ✅ Ahora comprueba `rvr_driver_node.py` y su `streaming_interval_ms`.
+
+  b) FALSO POSITIVO POR CONTAR COMENTARIOS.
+     `grep -c 'robot_radius: 0.145'` contaba **3**: los dos ajustes MAS un
+     comentario de la cabecera que menciona el valor. Fallaba con la
+     configuracion CORRECTA.
+     ✅ Anclado: `grep -cE '^[[:space:]]+robot_radius: 0\.145[[:space:]]*$'`.
+
+     📝 Un verificador con falsos positivos se acaba ignorando, y eso es peor que
+        no tenerlo. Es el quinto fallo de este tipo que registra el proyecto.
+
+  c) Y UNO MAS, que solo aparecio con --hardware Y el robot en marcha:
+     la prueba del LIDAR abre /dev/ttyUSB0 en crudo con `x2_parse.py`. Con el
+     `ydlidar_ros2_driver` vivo el puerto esta OCUPADO, asi que daba
+     «el LIDAR X2 no entrega datos validos» — un fallo falso que aparecia
+     justo cuando el robot funcionaba bien.
+     ✅ Si el driver corre, se comprueba por `/scan`. Y es MEJOR prueba: cubre
+        ademas el driver ROS y el emparejado de QoS.
+        Medido: 89 barridos en 8 s, ~11 Hz.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. RESULTADO
+───────────────────────────────────────────────────────────────────────────────
+    sin --hardware      76 correctas · 1 aviso · 0 fallos
+    con --hardware      84 correctas · 1 aviso · 0 fallos
+
+  El aviso es de apt (ficheros .bak en sources.list.d), anterior a esta sesion.
+
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE FALTA
+───────────────────────────────────────────────────────────────────────────────
+⏳ provision.sh NO se ha ejecutado de principio a fin desde estos cambios. Es
+   idempotente y el paso 7 se probo a mano, pero **una pasada completa sobre un
+   24.04 limpio sigue SIN VERIFICAR**. Es lo que decide si la imagen dorada sale
+   bien.
+⏳ Unidades systemd de arranque automatico.
+⏳ Reconstruir la imagen dorada con todo esto.

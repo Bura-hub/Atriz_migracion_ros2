@@ -4,6 +4,70 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — 🔴 `provision.sh` nunca instalaba Nav2. Verificador de 50 a 84
+
+Evidencia: `00_auditoria/evidencia_24_04/27_provision_verificador.txt`.
+
+Regla del proyecto: **la imagen dorada es el atajo, `provision.sh` es la verdad**. Todo lo hecho
+desde la Fase 4b estaba **solo en este robot**.
+
+### 🔴 `provision.sh` no instalaba `navigation2`
+
+El paso 7/8 instalaba `xacro` y `slam_toolbox` y nada más. **Un robot aprovisionado con el
+script tenía driver, LIDAR y SLAM — y no podía navegar, ni tenía capa de seguridad, ni
+localización.**
+
+De `navigation2` sale mucho más que navegar: `collision_monitor` (cap. 12), `map_server` + `amcl`
+(cap. 14) y `map_saver_cli`, la única forma fiable de guardar mapas (cap. 11.11).
+
+✅ Añadido, con la decisión documentada en el propio script —**`navigation2`, no
+`nav2-bringup`**, que son 312 paquetes de TurtleBot simulado replicados por 16— y **comprobando
+el efecto**: que los binarios existan, no que `apt` dijera que sí.
+
+### `verificar_robot.sh`: de 50 a 84 comprobaciones
+
+Los binarios de Nav2 y 0 paquetes de simulador · los 9 ficheros de config y launch · los
+**valores medidos** (`robot_radius` 0.145 en los dos costmaps, URDF 0.182 × 0.217, `laser_z`
+0.155) · los valores **por defecto que son decisiones** (`publicar_inclinacion` y
+`color_detection` en `false`, `/rvr/emergency_stop`, QoS VOLATILE) · y con `--hardware`, **los
+18 servicios**.
+
+🔴 **Preguntando a un CLIENTE, no a `ros2 service list`**, que miente por omisión: dejó fuera
+`set_drive_parameters` (17 de 18). Un verificador que usara la lista daría un fallo falso.
+
+### 🔴 Y el verificador tenía TRES fallos propios
+
+Aplicarle su propia regla —«comprobar el efecto»— los sacó:
+
+1. **Comprobaba el driver de ROS 1.** Hacía grep sobre `Atriz_rvr_node.py`, que sigue en el
+   repo como herencia: **la comprobación pasaba mirando un fichero que no se ejecuta.** Deriva
+   silenciosa, justo lo que el script existe para evitar.
+2. **Contaba un comentario.** `grep -c 'robot_radius: 0.145'` daba **3** —los dos ajustes más
+   una mención en la cabecera— y fallaba con la configuración **correcta**.
+3. **Daba el LIDAR por roto con el robot funcionando.** La prueba abre `/dev/ttyUSB0` en crudo,
+   y con el `ydlidar_ros2_driver` vivo el puerto está ocupado. Ahora, si el driver corre, se
+   comprueba por **`/scan`** — y es mejor prueba, porque cubre el driver ROS y el QoS. Medido:
+   **89 barridos en 8 s, ~11 Hz**.
+
+> 📝 **Un verificador con falsos positivos se acaba ignorando, y eso es peor que no tenerlo.**
+
+### Resultado
+
+```
+sin --hardware   76 correctas · 1 aviso · 0 fallos
+con --hardware   84 correctas · 1 aviso · 0 fallos
+```
+
+⏳ **`provision.sh` NO se ha ejecutado de principio a fin desde estos cambios.** Es idempotente y
+el paso 7 se probó a mano, pero una pasada completa sobre un 24.04 limpio sigue **sin
+verificar** — y es lo que decide si la imagen dorada sale bien.
+
+**Ficheros:** `scripts/provision.sh`, `scripts/verificar_robot.sh`,
+`27_provision_verificador.txt` (nuevo), `TRASPASO.md`, `INSTALACION.md` (F22 ✅ → F23),
+`CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — ✅ Los servicios del driver, de 1 a 18. Y `/color` nunca funcionó
 
 Evidencia: `00_auditoria/evidencia_24_04/26_servicios_driver.txt`, manual **cap. 16** (nuevo).

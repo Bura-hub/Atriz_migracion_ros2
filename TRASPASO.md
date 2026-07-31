@@ -424,7 +424,35 @@ El topic estaba en la lista de «verificado». Arreglado con el parámetro `colo
 RVR por el puerto serie, no por un topic. Solo los para la parada de emergencia. Manual,
 **cap. 16**.
 
-### 1. ⏳ `provision.sh` y `verificar_robot.sh` al día — es lo siguiente
+### ✅ Hecho: `provision.sh` y `verificar_robot.sh` al día
+
+🔴 **`provision.sh` nunca instalaba `navigation2`.** Un robot aprovisionado con el script tenía
+driver, LIDAR y SLAM — y **no podía navegar, ni tenía capa de seguridad, ni localización**.
+Añadido, comprobando además que los binarios existan y que no entre el simulador.
+
+**`verificar_robot.sh` pasa de 50 a 84 comprobaciones** (con `--hardware`): los binarios de
+Nav2, los 9 ficheros de config y launch, los **valores medidos** (`robot_radius` 0.145, URDF
+0.182 × 0.217, `laser_z` 0.155), los valores **por defecto que son decisiones**
+(`publicar_inclinacion` y `color_detection` en `false`, la parada en VOLATILE), y los **18
+servicios preguntando a un cliente** — no a `ros2 service list`, que miente por omisión.
+
+🔴 **Y el verificador tenía tres fallos propios**, encontrados al ejecutarlo: comprobaba el
+driver de **ROS 1**, contaba un **comentario** como si fuera un ajuste, y daba el LIDAR por roto
+cuando el driver tenía el puerto ocupado. Los tres corregidos.
+
+```
+sin --hardware   76 correctas · 1 aviso · 0 fallos
+con --hardware   84 correctas · 1 aviso · 0 fallos
+```
+
+### 1. ⏳ Pasar `provision.sh` entero sobre un 24.04 limpio — es lo siguiente
+
+**No se ha ejecutado de principio a fin desde estos cambios.** Es idempotente y el paso 7 se
+probó a mano, pero una pasada completa sigue **sin verificar** — y es lo que decide si la imagen
+dorada sale bien.
+
+Después: las unidades **systemd** de arranque automático (necesitan `sudo`) y reconstruir la
+imagen dorada.
 
 Todo lo de hoy —`collision_monitor`, localización con AMCL, URDF corregido,
 `publicar_inclinacion`, `color_detection`, `robot_radius`, los 18 servicios— **tiene que estar
