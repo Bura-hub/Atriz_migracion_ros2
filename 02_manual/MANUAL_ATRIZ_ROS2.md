@@ -2369,8 +2369,10 @@ diferencia +0.90 cm
 ⏳ **Lo que haría falta:** con d = 0.64 (efecto 0.90 cm, σ 1.40), **~31 corridas por rama** para
 80 % de potencia al 5 % → **~62 corridas, unas 5.2 horas de robot**. Hoy hay 6 por rama.
 
-> **Decidir si compensa antes de gastarlas:** el efecto es de ~1 cm sobre una tolerancia de
-> objetivo de Nav2 de 10 cm.
+> ✅ **DECIDIDO el 2026-07-31: no se persigue.** El efecto es de ~1 cm sobre una tolerancia de
+> objetivo de Nav2 de 10 cm, y costaría 5 horas de robot. La decisión **no deja el roll
+> publicado**: `publicar_inclinacion` pasa a `false` por defecto, porque la inclinación es falsa
+> con independencia de que su efecto sea medible (cap. 13.5).
 
 ---
 
@@ -3183,12 +3185,25 @@ constante: degrada el emparejado de forma direccional.
 
 ### 13.5 El interruptor, y el falso positivo que provocó
 
+✅ **Por defecto `false` desde el 2026-07-31**: el driver publica la orientación **plana**.
+Verificado sobre el sistema instalado: `/odom` da `roll +0.00° pitch +0.00°`.
+
 ```bash
-ros2 launch atriz_rvr_bringup robot.launch.py publicar_inclinacion:=false
+# recuperar el comportamiento anterior, si alguna vez hace falta:
+ros2 launch atriz_rvr_bringup robot.launch.py publicar_inclinacion:=true
 ```
 
-Por defecto `true`. Con `false`, `_h_quaternion` pone `roll = pitch = 0`. Verificado:
-`roll +0.00° pitch +0.00°` sobre 414 muestras.
+🔴 **La razón NO es el efecto en la deriva**, que se midió y salió de ~1 cm sin significación
+(9.12d), y **se decidió no perseguirlo**: ~62 corridas y 5 h de robot para un efecto de 1 cm
+sobre una tolerancia de objetivo de 10.
+
+**La razón es que la inclinación no existe** (13.3): suelo plano medido con nivel, error del
+acelerómetro fijo en el marco del robot, y `|g|` un 3.8 % corto. **Publicar 6.9° de inclinación
+falsa en `odom → base_footprint` es publicar un dato que sabemos incorrecto**, se pueda medir
+su efecto o no. REP-105 espera ahí la pose del robot.
+
+⚠️ Si algún día un robot trabaja en una superficie inclinada de verdad, habría que poner `true`
+**y calibrar antes el acelerómetro** — el que hay no acierta ni el módulo.
 
 🔴 El experimento de 13.6 **abortó a los 2 minutos** con un falso positivo: su guardián
 comprobaba solo el **roll**, que en ese momento valía +0.11° porque la inclinación estaba

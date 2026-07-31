@@ -353,14 +353,26 @@ dando por hecho que el robot volvía al punto de partida, y **no volvía**.
 indiscutible es la dispersión de posición; que los fallos se vayan a la vez es coherente pero
 pide otra tanda para cerrarlo.
 
-### 1. ⏳ Decidir si se persigue el roll — es lo siguiente
+### ✅ Decidido: no se persigue el roll — y el driver deja de publicarlo
 
-Ahora que el ruido bajó, **las dos distancias apuntan en el mismo sentido** (CORTA +1.30 cm,
-LARGA +1.40) y la magnitud coincide con la predicha. Pero con n=6 por rama, **p = 0.142**: no
-concluyente.
+Con el ruido bajado, las dos distancias apuntaban en el mismo sentido (CORTA +1.30 cm, LARGA
++1.40) con la magnitud predicha, pero **p = 0.142** con n=6 por rama. Cerrarlo costaría **~62
+corridas y 5.2 horas de robot** para un efecto de ~1 cm sobre una tolerancia de **10 cm**.
+**Decisión del usuario el 2026-07-31: no se persigue.**
 
-Para resolverlo harían falta **~62 corridas, unas 5.2 horas de robot**, y el efecto es de ~1 cm
-sobre una tolerancia de objetivo de **10 cm**. **Es una decisión, no un pendiente automático.**
+🔴 **Pero eso no deja el roll publicado.** `publicar_inclinacion` pasa a **`false` por
+defecto**, y la razón **no depende** de la medida que no se va a hacer: la inclinación **es
+falsa** (suelo plano con nivel, error del acelerómetro fijo en el marco del robot, `|g|` un
+3.8 % corto). Publicar 6.9° que no existen en `odom → base_footprint` es publicar un dato
+incorrecto. Verificado: `/odom` da `roll +0.00° pitch +0.00°`.
+
+### 1. ⏳ Fase 4c: `map_server` + AMCL — es lo siguiente
+
+Es lo que hace viable la flota: **mapear una vez y localizar con AMCL en los 16 robots**, en
+lugar de 16 `slam_toolbox` simultáneos. El `.pgm`/`.yaml` ya se genera (manual, 11.11).
+
+🔴 **AMCL y `slam_toolbox` publican los dos `map → odom`.** Arrancarlos a la vez parte el árbol
+TF **sin dar error** — es el fallo que costó la Fase 4. Tienen que ser launches excluyentes.
 
 ### ✅ Hecho: las paradas re-medidas
 

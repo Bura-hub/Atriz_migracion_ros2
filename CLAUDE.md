@@ -216,6 +216,10 @@ marco del robot + suelo plano medido con nivel = **el sensor está descalibrado*
 REPARTEN SEGÚN EL RUMBO.** Cualquier comprobación que mire solo el roll da un falso negativo —
 abortó un experimento de 45 min por eso. Mira siempre `hypot(roll, pitch)`.
 
+✅ **Desde el 2026-07-31 el driver NO la publica**: `publicar_inclinacion` es `false` por
+defecto y `/odom` sale con `roll +0.00° pitch +0.00°`. Con `true` se recupera. Si ves 6.9° en
+`/odom`, alguien lo ha puesto a `true`.
+
 **🔴 UNA EXCEPCIÓN EN UN MANEJADOR DE TELEMETRÍA MATA `/odom` E `/imu` EN SILENCIO.** Pasó el
 2026-07-31 al añadir un parámetro al driver: se usó `self._publicar_inclinacion` sin asignarla
 (el nombre de la variable vecina era `_timeout_silencio`, no `_silence_timeout`). Resultado:
@@ -617,6 +621,8 @@ lo que produce deriva entre documentación y realidad.
 | El driver publica `odom → base_footprint`, **no** `odom → base_link` | manual, cap. 9.4 · REP-105 y un frame = un padre |
 | `async_slam_toolbox_node`, no el `sync` | no bloquea por barrido, y cuesta 4.5 % · manual cap. 9 |
 | SLAM va en un launch **aparte** de `robot.launch.py` | el robot tiene que arrancar sin SLAM, y SLAM reiniciarse sin soltar `/dev/rvr` |
+| **El driver publica la orientación PLANA** (`publicar_inclinacion: false`) | la inclinación de 6.9° del RVR es un artefacto de su acelerómetro descalibrado, no del robot: suelo plano medido con nivel y error fijo en el marco del robot. Manual, cap. 13 |
+| **NO se persigue el efecto del roll en la deriva** | medido ~1 cm sin significación (p=0.142). Cerrarlo costaría ~62 corridas y 5 h de robot, para 1 cm sobre una tolerancia de objetivo de 10. Decisión del usuario, 2026-07-31 |
 
 ---
 

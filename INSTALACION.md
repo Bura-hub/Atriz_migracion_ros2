@@ -93,17 +93,20 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      F17 Referenciado de posición            manual, cap. 9.12c             ✅
          └── ±3 cm de dispersión (era ±47) · 0 fallos de 12 · peor caso 4.4 cm
 
-     F18 Lo que queda                                                          ⏳ SIGUIENTE
-         1. Decidir si se persigue el roll (~62 corridas, 5 h)          ← AQUÍ
-         2. Confirmar los 0 fallos con otra tanda (p=0.113, sugerente)
+     F18 El roll: DECIDIDO no perseguirlo   manual, cap. 9.12d y 13.5       ✅
+         └── y el driver pasa a publicar orientación PLANA por defecto
+
+     F19 Lo que queda                                                          ⏳ SIGUIENTE
+         1. Fase 4c: map_server + AMCL        plan, Fase 4c              ← AQUÍ
          2. Un obstáculo que aparezca DURANTE la navegación
-         4. Fase 4c: map_server + AMCL        plan, Fase 4c
-         5. Los 16 servicios y 4 topics del driver sin portar
+         3. Confirmar los 0 fallos con otra tanda (p=0.113, sugerente)
+         4. Los 16 servicios y 4 topics del driver sin portar
+         5. Unidades systemd de arranque automático
          6. Plataforma web                    plan, Fase 5
          7. Clonar a los 16 robots            FLOTA.md
 ```
 
-> **Las etapas A a F17 están recorridas y verificadas sobre la máquina real.** Los capítulos
+> **Las etapas A a F18 están recorridas y verificadas sobre la máquina real.** Los capítulos
 > 1, 3, 4, 5, 7, 8, 8bis, 9, 10, **11 (Nav2)** y **12 (seguridad)** del manual dejaron de ser
 > NO VERIFICADO: el robot navega solo y para antes de chocar. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
@@ -120,7 +123,9 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 > **re-medidas** con las cotas buenas, y el **interruptor del roll de la IMU** está puesto y
 > verificado. Al medir la deriva apareció que **~1 de cada 5 corridas fallaba** (6–56 cm), y la
 > causa era que **el robot no volvía a su sitio**. ✅ **Arreglado referenciando la posición antes
-> de cada corrida** (manual, cap. 9.12c): 0 fallos de 12 y peor caso 4.4 cm.
+> de cada corrida** (manual, cap. 9.12c): 0 fallos de 12 y peor caso 4.4 cm. El siguiente paso
+> es la **Fase 4c: `map_server` + AMCL**, que es lo que hace viable la flota de 16 — mapear una
+> vez y localizar, en lugar de 16 SLAM simultáneos.
 >
 > ### Un solo comando para saber si el robot está bien
 >

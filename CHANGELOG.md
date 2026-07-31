@@ -4,6 +4,51 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — ✅ Decidido: no se persigue el roll, y el driver deja de publicarlo
+
+Decisión del usuario, y una consecuencia que **no** se deriva de ella.
+
+### La decisión
+
+**No se persigue el efecto del roll en la deriva.** Cerrarlo costaría **~62 corridas y
+5.2 horas de robot** para un efecto de ~1 cm sobre una tolerancia de objetivo de Nav2 de
+**10 cm**.
+
+### 🔴 Pero eso no deja el roll publicado — son dos preguntas distintas
+
+| | |
+|---|---|
+| ¿**afecta** la inclinación a la deriva? | sin responder, y se acepta así |
+| ¿**existe** la inclinación? | **respondida: no** (cap. 13.3) |
+
+Suelo plano medido con nivel (≤0.40°), error del acelerómetro **fijo en el marco del robot**, y
+`\|g\|` un **3.8 % corto**. **Publicar 6.9° que no existen en `odom → base_footprint` es
+publicar un dato que sabemos incorrecto**, se pueda medir su efecto o no. REP-105 espera ahí la
+pose del robot.
+
+✅ **Aplicado:** `publicar_inclinacion` pasa a **`false` por defecto**, en el driver y en
+`robot.launch.py`. Verificado sobre el sistema instalado:
+
+```
+ros2 param get /rvr_driver publicar_inclinacion  ->  False
+/odom  ->  roll +0.00°  pitch +0.00°   (296 muestras)
+```
+
+⚠️ Con `publicar_inclinacion:=true` se recupera lo anterior. Haría falta si un robot trabajara
+en una superficie inclinada de verdad — pero entonces hay que **calibrar antes el
+acelerómetro**, que no acierta ni el módulo.
+
+📝 **Consecuencia para el futuro:** si algún día se mete `robot_localization` para fusionar la
+IMU, hay que saber que ese sensor da una gravedad con **3.8 % de error de módulo y ~6.9° de
+dirección**. Fusionarlo tal cual metería ese error en la pose.
+
+**Ficheros:** `rvr_driver_node.py`, `robot.launch.py`, manual cap. 13.5 y 9.12d,
+`23_referenciar_posicion.txt`, `TRASPASO.md`, `INSTALACION.md` (F18 ✅ → F19), `CLAUDE.md`
+(nueva fila en «Decisiones ya tomadas»). Y `deriva_roll_resultados.jsonl` pasa a
+`deriva_roll_tanda3.jsonl`, para que la siguiente tanda no lo pise.
+
+---
+
 ## 2026-07-31 — ✅ Referenciar la posición: los fallos de SLAM desaparecen
 
 Herramienta nueva: `mediciones_banco/referenciar_posicion.py`, que

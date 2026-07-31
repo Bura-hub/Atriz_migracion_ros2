@@ -167,3 +167,40 @@ LO QUE FALTA
 ⏳ Compensar el sesgo del acelerometro en el driver.
 
 ⏳ El barrido de `radius` del collision_monitor contra un mismo paso estrecho.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ DECISION TOMADA — 2026-07-31
+═══════════════════════════════════════════════════════════════════════════════
+NO SE PERSIGUE el efecto del roll en la deriva. Decision del usuario.
+
+  Razon: cerrarlo cuesta ~62 corridas y 5.2 horas de robot, para un efecto de
+  ~1 cm sobre una tolerancia de objetivo de Nav2 de 10 cm.
+
+🔴 PERO ESO NO DEJA EL ROLL PUBLICADO. Son dos preguntas distintas y solo una
+   queda sin responder:
+
+     ¿AFECTA la inclinacion a la deriva?     -> sin responder, y se acepta asi
+     ¿EXISTE la inclinacion?                 -> RESPONDIDA: no (seccion 1 del
+                                                fichero 21 y cap. 13.3)
+
+   Publicar 6.9° que no existen en `odom -> base_footprint` es publicar un dato
+   que sabemos incorrecto, con independencia de que su efecto sea medible.
+   REP-105 espera ahi la pose del robot.
+
+  ✅ APLICADO: `publicar_inclinacion` pasa a **false por defecto**, en el driver
+     y en robot.launch.py.
+
+     Verificado sobre el sistema instalado:
+        ros2 param get /rvr_driver publicar_inclinacion  ->  False
+        /odom  ->  roll +0.00°  pitch +0.00°   (296 muestras)
+
+  ⚠️ Con `publicar_inclinacion:=true` se recupera el comportamiento anterior.
+     Haria falta si algun dia un robot trabaja en una superficie inclinada de
+     verdad — pero entonces hay que CALIBRAR ANTES el acelerometro, porque el que
+     hay no acierta ni el modulo (|g| 9.435 contra 9.807).
+
+  📝 Y queda una consecuencia para el futuro: si algun dia se mete
+     `robot_localization` para fusionar la IMU, hay que saber que ese sensor da
+     una gravedad con un 3.8 % de error de modulo y ~6.9° de error de direccion.
+     Fusionarlo tal cual meteria ese error en la pose.
