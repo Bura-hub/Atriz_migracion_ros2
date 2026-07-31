@@ -235,6 +235,21 @@ es la diferencia que los separa.
 `sensor_msgs/BatteryState` y el driver lo respeta: `0.34` son **34 %**. Leerlo como 0–100 hace
 que un robot al 34 % parezca estar al 0 % — provocó una falsa alarma de batería agotada.
 
+**🔴 EL ROBOT NO VUELVE AL PUNTO DE PARTIDA, y dos herramientas del proyecto dan por hecho que
+sí.** `caracterizar_deriva_slam.py` y `comparar_deriva_roll.py` repiten N corridas asumiendo que
+son repeticiones del mismo experimento. Medido el 2026-07-31: **94 cm de deriva en 12 corridas**
+(~8 cm cada una) hacia delante en una tanda, y lateralmente hasta quedar **a 5 cm de rozar** en
+la otra (`der` 0.97 → 0.16 m, con 11 cm de media anchura).
+→ **Registra la posición ANTES de cada corrida** (con `/scan`, cuatro sectores) o re-referencia
+al robot conduciéndolo a una distancia objetivo de la pared. Sin eso, «N repeticiones» es un
+barrido por posiciones distintas y ninguna distribución que salga es válida.
+
+**🔴 Y una conclusión de una sola tanda puede ser coherente y falsa.** El 2026-07-31 se concluyó
+—con datos limpios— que «SLAM falla el 50 % a 2.3 m y es fiable a 1.6 m». Una réplica del mismo
+protocolo, **una hora después**, dio lo contrario: fallaron las cortas y las largas salieron
+perfectas. **El fallo cambió de distancia.** → Con un fenómeno intermitente (~21 % aquí),
+**replica antes de atribuir**. Manual, cap. 9.12b.
+
 **El X2 no ve un objeto fino en un solo barrido.** A 0.68 m tira un rayo cada 1.7 cm, así que
 un objeto de 5 cm da 2-3 puntos y en un barrido suelto puede desaparecer. → Para geometría
 fina, **acumula 6-8 s de barridos y toma la mediana por sector angular**. Un `/scan` suelto no
@@ -539,8 +554,9 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | Alto del RVR (suelo → tapa) | **7.0 cm** — la ficha decía 11.4 | 2026-07-31 |
 | Radio circunscrito | **0.142 m** → `robot_radius: 0.145` | derivado de lo anterior |
 | Paso mínimo con `radius: 0.18` | **no cruza 40 cm** — necesita ~36 cm + margen | 2026-07-31 |
-| **Deriva de SLAM, 1.6 m** | mediana **1.65 cm**, peor 2.9 cm, **0 de 6** fallos | 2026-07-31, n=6 |
-| 🔴 **Deriva de SLAM, 2.3 m** | **BIMODAL**: 0.9/1.1/1.2 cm o **12/16/56 cm**. Falla el **50 %** | 2026-07-31, n=6 |
+| **Deriva de SLAM cuando funciona** | mediana **1.40 cm** (1.6 m) y **1.90 cm** (2.3 m) — apenas crece con la distancia | 2026-07-31, n=24 |
+| 🔴 **Fallos de SLAM** | **~21 % de las corridas** se van a 6–56 cm. **BIMODAL** y **NO depende de la distancia** | 2026-07-31, n=24 |
+| 🔴 **Deriva de POSICIÓN del robot** | **~8 cm por corrida**: 94 cm en 12. Las «repeticiones» no lo son | 2026-07-31 |
 | Inclinación que reporta el RVR | **6.9° y está en el PITCH** (roll ~1°), y se reparte con el rumbo | 2026-07-31 |
 | `\|g\|` del acelerómetro | **9.435 m/s²** contra 9.807 — **3.8 % corto**, está descalibrado | 2026-07-31 |
 | Consumo del RVR conduciendo | **~0.74 %/min** → ~2 h por carga (estimación gruesa) | 2026-07-31 |

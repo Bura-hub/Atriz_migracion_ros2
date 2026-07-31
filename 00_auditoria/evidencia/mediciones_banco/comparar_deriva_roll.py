@@ -59,6 +59,7 @@ import argparse
 import json
 import re
 import math
+import shlex
 import os
 import signal
 import statistics
@@ -195,6 +196,59 @@ def inclinacion_publicada() -> tuple[float, float, float] | None:
     return roll, pitch, math.hypot(roll, pitch)
 
 
+#: Snippet aislado para leer el entorno. Va en un proceso APARTE a propósito:
+#: hacer rclpy.init/shutdown repetidamente dentro de este script, que además
+#: lanza y mata el robot doce veces, es pedir problemas.
+_SNIPPET_ENTORNO = """
+import math, statistics, time, rclpy
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from sensor_msgs.msg import LaserScan
+q = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
+               history=HistoryPolicy.KEEP_LAST, depth=5)
+rclpy.init(); n = Node('entorno'); acc = {}
+def cb(m):
+    for i, r in enumerate(m.ranges):
+        if not (m.range_min < r < m.range_max) or not math.isfinite(r):
+            continue
+        a = math.degrees(math.atan2(math.sin(m.angle_min + i*m.angle_increment),
+                                    math.cos(m.angle_min + i*m.angle_increment)))
+        acc.setdefault(round(a/3)*3, []).append(r)
+n.create_subscription(LaserScan, 'scan', cb, q)
+t = time.time()
+while time.time() - t < 6: rclpy.spin_once(n, timeout_sec=0.1)
+pts = {a: statistics.median(v) for a, v in acc.items()}
+def sect(c):
+    v = [d for a, d in pts.items() if abs(((a-c+180) % 360) - 180) <= 8]
+    return statistics.median(v) if v else -1.0
+print('ENTORNO %.3f %.3f %.3f %.3f' % (sect(0), sect(180), sect(90), sect(-90)))
+n.destroy_node(); rclpy.shutdown()
+"""
+
+
+def entorno() -> dict | None:
+    """Dónde está el robot: distancias a lo que tiene en las cuatro direcciones.
+
+    🔴 Existe porque la primera tanda dejó tres fallos catastróficos SIN pista de
+    dónde estaba el robot en cada uno. El robot vuelve APROXIMADAMENTE al punto de
+    partida, así que su posición real deriva entre corridas — y esa deriva es una
+    de las sospechas del fallo bimodal (manual, cap. 9.12a).
+    """
+    r = subprocess.run(
+        ['bash', '-lc',
+         'source /opt/ros/jazzy/setup.bash && '
+         'source /home/sphero/atriz_ws/install/setup.bash && '
+         # 🔴 shlex.quote, NO repr(): repr() escapa los saltos de línea a `\n`
+         # literales y Python no puede parsear eso. Devolvía None en silencio.
+         'timeout 30 python3 -c ' + shlex.quote(_SNIPPET_ENTORNO)],
+        capture_output=True, text=True)
+    for l in r.stdout.splitlines():
+        if l.startswith('ENTORNO '):
+            v = [float(x) for x in l.split()[1:]]
+            return {'adelante': v[0], 'atras': v[1], 'izq': v[2], 'der': v[3]}
+    return None
+
+
 def un_bloque(con_roll: bool, etq: str) -> list[dict]:
     """Un bloque = 1 corrida corta + 1 larga, con el driver ya arrancado."""
     r = subprocess.run(
@@ -290,6 +344,13 @@ def main() -> int:
                     print(f'  🔴 se pidió inclinación PLANA y sale {inc[2]:.2f}°. Se aborta.')
                     return 1
                 print(f'  batería al empezar: {bat0:.0f} %' if bat0 else '  batería: sin dato')
+                ent = entorno()
+                if ent:
+                    print(f'  entorno: adelante {ent["adelante"]:.2f} m · atrás '
+                          f'{ent["atras"]:.2f} · izq {ent["izq"]:.2f} · der {ent["der"]:.2f}')
+                    if ent['adelante'] < 1.40:
+                        print(f'  ⚠️ solo {ent["adelante"]:.2f} m por delante y la corrida '
+                              'larga necesita 1.29: el robot ha derivado')
 
                 t0 = time.monotonic()
                 nuevas = un_bloque(con_roll, etq)
@@ -298,6 +359,7 @@ def main() -> int:
                 for d in nuevas:
                     d['bateria_ini'] = bat0
                     d['bateria_fin'] = bat1
+                    d['entorno'] = ent
                     print(f'    {d["tipo"]:6s} recorrido {d["recorrido_cm"]:6.1f} cm '
                           f'-> deriva {d["deriva_cm"]:5.2f} cm, {d["deriva_deg"]:4.1f}°')
                 datos += nuevas

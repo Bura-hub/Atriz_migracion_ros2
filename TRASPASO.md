@@ -23,10 +23,10 @@ huecos sin el arreglo (manual, cap. 9.8).
 mapa pasó de **2367 a 3299 celdas** (5.92 → 8.25 m²). Hicieron falta tres arreglos y corregir
 dos herramientas propias, y **ninguno de los fallos daba un error** (manual, cap. 9.11).
 
-🔴 **Y la deriva de la localización NO está tan bien como creíamos.** Repetida con n=6 por
-distancia el 2026-07-31: a **1.6 m** es fiable (mediana 1.65 cm, 0 fallos de 6), pero a **2.3 m
-falla el 50 % de las veces** y de forma **bimodal** — o ~1 cm o **12–56 cm**, sin nada en medio.
-La caracterización anterior (n=3, peor caso 3.2 cm) **tuvo suerte**. Manual, **cap. 9.12a**.
+🔴 **Y la deriva de la localización NO está tan bien como creíamos.** Con **24 corridas**
+(2026-07-31): cuando funciona va bien —mediana **1.40 cm** a 1.6 m y **1.90 cm** a 2.3 m, apenas
+crece con la distancia—, pero **~1 de cada 5 corridas se va a 6–56 cm**. La caracterización
+anterior (n=3) vio bien las medianas y **no vio la cola**. Manual, **cap. 9.12a–9.12b**.
 
 ✅ **Y los TRES bugs de marcos de referencia de `/odom` están arreglados y verificados.** Los
 sensores del RVR siempre estuvieron bien —`Velocity` es exacto, el locator acierta con 1 mm en
@@ -333,26 +333,24 @@ va del suelo a 7 cm — justo como se ve el RVR.
 ✅ **El modelo geométrico está completo.** Solo falta `imu_z`, que exige abrir el robot y hoy
 no afecta a nada. El LIDAR está confirmado **centrado y nivelado**.
 
-### 🔴 Lo más importante que hay abierto: SLAM falla a 2.3 m
+### 🔴 Lo más importante que hay abierto: el robot se va del sitio
 
-```
-CORTA (158 cm, n=6)   0.9  1.0  1.0  1.2  2.1  2.2  2.9     -> 0 de 6 fallos  ✅
-LARGA (233 cm, n=6)   0.9  1.1  1.2  |  12.0  16.0  56.1     -> 3 de 6        🔴
-```
+**No es un problema de SLAM: es del banco de pruebas.** Las dos herramientas de deriva repiten
+N corridas dando por hecho que el robot vuelve al punto de partida. **No vuelve:**
 
-**Bimodal**: o ~1 cm o ≥12 cm, sin nada en medio. No es deriva gradual, es el emparejado de
-barridos **enganchando o perdiéndose** — los errores angulares acompañan (0.9–2.4° en las
-buenas, **5.2–28.1°** en las malas).
+- tanda 1: **94 cm de deriva hacia delante en 12 corridas** (~8 cm cada una);
+- tanda 2: deriva lateral hasta quedar **a 16 cm de un obstáculo**, con 11 cm de media anchura
+  — **a 5 cm de rozar**.
 
-🔴 **Resucita la anomalía de la Fase 4** (2.62 m → 87.8 cm), que se había dado por explicada
-como «rozó obstáculos». Es el mismo fallo.
+Así que «12 repeticiones» son en realidad **12 posiciones distintas sin registrar**. Ninguna
+distribución que salga de ahí es válida, y por eso la pregunta del roll sigue sin respuesta tras
+**24 corridas y hora y media de robot**.
 
-⚠️ **Y afecta a Nav2 directamente:** las navegaciones que salieron bien eran de **0.9–1.5 m**,
-por debajo del umbral. Objetivos más largos entran en la zona donde SLAM se pierde la mitad de
-las veces. Con 16 robots y estudiantes, eso no es desplegable.
+⏳ **El arreglo:** re-referenciar la posición antes de cada corrida, conduciendo el robot a una
+distancia objetivo de la pared con `/scan`. Medible y automatizable. **No implementado.**
 
-⏳ Causa sin determinar. Lo primero: repetir **solo corridas largas**, muchas, registrando la
-**pose absoluta de partida** de cada una.
+**Y el 21 % de fallos sigue sin explicar.** Con la posición controlada se verá si desaparece
+(era la deriva) o persiste (es otra cosa).
 
 ### ✅ Hecho: las paradas re-medidas
 

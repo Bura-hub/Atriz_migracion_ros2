@@ -1,4 +1,26 @@
 ═══════════════════════════════════════════════════════════════════════════════
+🔴 LA SECCION 3 DE ESTE FICHERO ESTA RETIRADA — LEER `22_replica_deriva.txt`
+═══════════════════════════════════════════════════════════════════════════════
+Aqui se concluyo que "SLAM es fiable hasta ~1.6 m y deja de serlo a ~2.3 m".
+**ES FALSO.** Una replica del mismo protocolo, una hora despues, dio lo contrario:
+
+                     TANDA 1 (aqui)           TANDA 2 (replica)
+    CORTA (158 cm)   fallos: 0 de 6           fallos: 2 de 6
+    LARGA (233 cm)   fallos: 3 de 6           fallos: 0 de 6
+
+  El fallo CAMBIO DE DISTANCIA -> la distancia no es la variable.
+
+  Lo que sigue valiendo de este fichero:
+    ✅ la seccion 1 (la inclinacion es del acelerometro) — no la toca la replica
+    ✅ que existe un fallo bimodal, ~21 % sobre 24 corridas
+    🔴 la ATRIBUCION a la distancia, retirada
+
+  La causa mas probable, con datos: el robot DERIVA de su sitio y nadie lo
+  corrige — hasta 94 cm en 12 corridas. Detalle en `22_replica_deriva.txt`, s.3.
+═══════════════════════════════════════════════════════════════════════════════
+
+
+═══════════════════════════════════════════════════════════════════════════════
 LA INCLINACION DEL RVR, Y UN FALLO DE SLAM QUE ESTABA TAPADO
 Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
 ═══════════════════════════════════════════════════════════════════════════════

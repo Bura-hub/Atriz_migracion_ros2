@@ -2146,7 +2146,11 @@ el comportamiento normal del sistema.
 ✅ **Consecuencia: la localización ya NO es un bloqueante para Nav2.** De los tres que había,
 queda uno menos.
 
-### 9.12a 🔴 CORRECCIÓN: a 2.3 m, SLAM falla la mitad de las veces
+### 9.12a 🔴 CORRECCIÓN: SLAM falla en ~1 de cada 5 corridas
+
+> ⚠️ **Esta sección se escribió atribuyendo el fallo a la DISTANCIA. Eso quedó
+> retirado una hora después por una réplica — lee el 9.12b.** Lo que sigue siendo
+> cierto es que el fallo EXISTE y es bimodal; lo que no, que dependa del recorrido.
 
 **Repetido el 2026-07-31 con n=6 por distancia** (12 corridas en total, mismo método).
 Evidencia: `21_deriva_roll_y_fallo_largo.txt`, sección 3.
@@ -2181,11 +2185,59 @@ bimodal: no era una anomalía, es la mitad de las veces.**
 pero **no hay evidencia** y no se le atribuye causa. Lo primero sería repetir **solo corridas
 largas**, muchas, registrando la **pose absoluta de partida** de cada una.
 
-⚠️ **Consecuencia para Nav2, y es la que importa:** SLAM es fiable hasta ~1.6 m de recorrido y
-deja de serlo a ~2.3 m **en este entorno**. Las navegaciones que salieron bien (8–10 cm de
-error, cap. 11) eran de **0.9–1.5 m**: por debajo del umbral. **Objetivos más largos entran en
-la zona donde SLAM se pierde la mitad de las veces**, y eso es hoy el problema abierto más
-serio del proyecto.
+🔴 **RETIRADO:** aquí se concluyó que «SLAM es fiable hasta ~1.6 m y deja de serlo a ~2.3 m».
+La réplica del 9.12b lo desmonta.
+
+### 9.12b 🔴 La réplica: el fallo NO depende de la distancia
+
+Mismo protocolo, mismo robot, **una hora después**. Evidencia: `22_replica_deriva.txt`.
+
+| | TANDA 1 | TANDA 2 (réplica) |
+|---|---|---|
+| CORTA (158 cm) | 1.0, 1.0, 1.2, 2.1, 2.2, 2.9 → **0 de 6** | 0.8, 0.8, 1.6, 2.7, **6.6**, **14.3** → **2 de 6** |
+| LARGA (233 cm) | 0.9, 1.1, 1.2, **12.0**, **16.0**, **56.1** → **3 de 6** | 1.0, 1.9, 2.5, 2.7, 3.0, 3.3 → **0 de 6** |
+
+**El fallo cambió de distancia.** En la tanda 1 fallaban las largas y las cortas iban perfectas;
+en la 2, al revés. 🔴 **La distancia no es la variable.**
+
+**Las 24 corridas juntas:**
+
+```
+CORTA (n=12)   normales (10): mediana 1.40 cm, rango 0.8–2.9   ·  fallos (2): 6.6, 14.3   → 17 %
+LARGA (n=12)   normales  (9): mediana 1.90 cm, rango 0.9–3.3   ·  fallos (3): 12, 16, 56  → 25 %
+GLOBAL: 5 fallos de 24  →  ~21 %
+```
+
+✅ **Cuando funciona, funciona bien y casi igual a las dos distancias** (1.40 vs 1.90 cm). Eso
+también desmonta la narrativa del 9.12 de que la deriva crecía proporcionalmente al recorrido.
+
+🔴 **Y una de cada cinco corridas falla**, de forma bimodal: o ≤3.3 cm o ≥6.6 cm.
+
+#### La causa más probable: el robot se va del sitio y nadie lo corrige
+
+La tanda 2 registró el entorno antes de cada bloque:
+
+| bloque | adelante | der | CORTA | recorrido |
+|---|---|---|---|---|
+| A1 | 2.06 m | **0.97** | **6.6** 🔴 | 159 |
+| B1 | 2.11 | 0.42 | 1.6 | 158 |
+| A2 | 2.01 | 0.30 | 0.8 | 156 |
+| B2 | **1.64** | 0.26 | **14.3** 🔴 | **137** |
+| A3 | 1.73 | 0.19 | 0.8 | 156 |
+| B3 | 1.73 | **0.16** | 2.7 | 153 |
+
+🔴 **`der` cae de forma monótona: 0.97 → 0.16 m.** El robot deriva a la derecha corrida tras
+corrida y acaba **a 5 cm de rozar** (media anchura 11 cm). Y en la tanda 1, medido antes y
+después: **94 cm de deriva hacia delante en 12 corridas**, ~8 cm por corrida.
+
+> 🔴 **La consecuencia de método, que es la importante:** `caracterizar_deriva_slam.py` y
+> `comparar_deriva_roll.py` asumen que el robot vuelve al punto de partida y que las N corridas
+> son repeticiones del **mismo** experimento. **No lo son** — cada una empieza en un sitio
+> distinto. Eso no es una repetición: es un barrido por posiciones, sin control ni registro.
+
+⏳ **El arreglo, no implementado:** re-referenciar la posición **antes de cada corrida**,
+conduciendo el robot hasta una distancia objetivo de la pared frontal con `/scan`. Hasta
+entonces ninguna de las dos herramientas puede dar una distribución válida.
 
 🔴 **La inclinación de ~8°**, confirmada por **tres vías independientes** (árbol TF, Roll de la
 IMU y acelerómetro). Causa sin determinar.
@@ -3071,8 +3123,15 @@ cada una:
 | | SIN roll | 12.00 cm | 29.08 | **56.1**, **12.0**, 1.2 |
 
 ⚠️ **No se puede concluir nada sobre el roll.** El efecto buscado era de ~1 cm y apareció un
-fallo de 12–56 cm que lo entierra. Repetirlo tal cual no serviría: hay que arreglar antes el
-fallo del **cap. 9.12a**.
+fallo de 6–56 cm que lo entierra.
+
+**Repetido una hora después** (cap. 9.12b), la única comparación sin fallos dentro fue LARGA:
+**2.70 contra 2.50 cm**, una diferencia de 0.20 cm con σ 1.19 — **compatible con cero**. Pero
+con n=3 por rama y un efecto buscado de ~1 cm, eso **no permite decir que el roll no afecte**:
+solo que **no se ve**.
+
+🔴 Y no se verá hasta arreglar lo del 9.12b: mientras el robot derive de su sitio entre
+corridas, las repeticiones no son repeticiones.
 
 📝 **El diseño alternado sí cumplió su función:** deja ver que los fallos **no** se reparten por
 condición (1 CON roll, 2 SIN roll). Con 6 y 6 en bloque, los tres habrían caído en una sola

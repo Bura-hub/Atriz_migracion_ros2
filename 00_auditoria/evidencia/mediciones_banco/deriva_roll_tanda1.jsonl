@@ -1,0 +1,12 @@
+{"bloque": "A1", "con_roll": true, "tipo": "CORTA", "recorrido_cm": 159.1, "deriva_cm": 2.1, "deriva_deg": 1.2, "bateria_ini": 92.00000166893005, "bateria_fin": 88.99999856948853}
+{"bloque": "A1", "con_roll": true, "tipo": "LARGA", "recorrido_cm": 236.2, "deriva_cm": 1.1, "deriva_deg": 2.4, "bateria_ini": 92.00000166893005, "bateria_fin": 88.99999856948853}
+{"bloque": "B1", "con_roll": false, "tipo": "CORTA", "recorrido_cm": 161.1, "deriva_cm": 2.2, "deriva_deg": 4.7, "bateria_ini": 91.00000262260437, "bateria_fin": 87.99999952316284}
+{"bloque": "B1", "con_roll": false, "tipo": "LARGA", "recorrido_cm": 230.7, "deriva_cm": 56.1, "deriva_deg": 28.1, "bateria_ini": 91.00000262260437, "bateria_fin": 87.99999952316284}
+{"bloque": "A2", "con_roll": true, "tipo": "CORTA", "recorrido_cm": 157.1, "deriva_cm": 1.0, "deriva_deg": 1.9, "bateria_ini": 88.99999856948853, "bateria_fin": 87.00000047683716}
+{"bloque": "A2", "con_roll": true, "tipo": "LARGA", "recorrido_cm": 232.1, "deriva_cm": 16.0, "deriva_deg": 9.7, "bateria_ini": 88.99999856948853, "bateria_fin": 87.00000047683716}
+{"bloque": "B2", "con_roll": false, "tipo": "CORTA", "recorrido_cm": 157.5, "deriva_cm": 1.0, "deriva_deg": 1.7, "bateria_ini": 87.99999952316284, "bateria_fin": 86.00000143051147}
+{"bloque": "B2", "con_roll": false, "tipo": "LARGA", "recorrido_cm": 233.6, "deriva_cm": 12.0, "deriva_deg": 5.2, "bateria_ini": 87.99999952316284, "bateria_fin": 86.00000143051147}
+{"bloque": "A3", "con_roll": true, "tipo": "CORTA", "recorrido_cm": 157.8, "deriva_cm": 2.9, "deriva_deg": 4.4, "bateria_ini": 87.00000047683716, "bateria_fin": 85.00000238418579}
+{"bloque": "A3", "con_roll": true, "tipo": "LARGA", "recorrido_cm": 231.7, "deriva_cm": 0.9, "deriva_deg": 1.0, "bateria_ini": 87.00000047683716, "bateria_fin": 85.00000238418579}
+{"bloque": "B3", "con_roll": false, "tipo": "CORTA", "recorrido_cm": 156.5, "deriva_cm": 1.2, "deriva_deg": 3.8, "bateria_ini": 86.00000143051147, "bateria_fin": 85.00000238418579}
+{"bloque": "B3", "con_roll": false, "tipo": "LARGA", "recorrido_cm": 235.3, "deriva_cm": 1.2, "deriva_deg": 0.9, "bateria_ini": 86.00000143051147, "bateria_fin": 85.00000238418579}

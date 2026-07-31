@@ -4,6 +4,88 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — 🔴 La réplica desmonta mi conclusión: no es la distancia, es que el robot se va
+
+Se repitió el experimento de deriva **con el mismo protocolo, una hora después**, añadiendo una
+sola cosa: **registrar dónde está el robot** antes de cada bloque. Evidencia:
+`22_replica_deriva.txt`, manual **cap. 9.12b**.
+
+### 🔴 El fallo cambió de distancia
+
+| | TANDA 1 | TANDA 2 (réplica) |
+|---|---|---|
+| CORTA (158 cm) | 1.0, 1.0, 1.2, 2.1, 2.2, 2.9 → **0 de 6** | 0.8, 0.8, 1.6, 2.7, **6.6**, **14.3** → **2 de 6** |
+| LARGA (233 cm) | 0.9, 1.1, 1.2, **12**, **16**, **56** → **3 de 6** | 1.0, 1.9, 2.5, 2.7, 3.0, 3.3 → **0 de 6** |
+
+En la tanda 1 fallaban las largas y las cortas iban perfectas. En la 2, al revés. **La distancia
+no es la variable**, y la conclusión que escribí hace una hora —«SLAM es fiable hasta 1.6 m y
+deja de serlo a 2.3 m»— **queda retirada**.
+
+📝 Era coherente con sus datos y estaba equivocada. Es exactamente para lo que sirve replicar.
+
+### Las 24 corridas juntas — lo que sí se sostiene
+
+```
+CORTA (n=12)   normales (10): mediana 1.40 cm, rango 0.8–2.9  ·  fallos (2): 6.6, 14.3  → 17 %
+LARGA (n=12)   normales  (9): mediana 1.90 cm, rango 0.9–3.3  ·  fallos (3): 12, 16, 56 → 25 %
+GLOBAL: 5 fallos de 24  →  ~21 %
+```
+
+✅ **Cuando funciona va bien, y casi igual a las dos distancias** (1.40 vs 1.90 cm) — lo que
+además desmonta la narrativa del fichero 14 de que la deriva crecía proporcionalmente al
+recorrido. Sus **medianas eran correctas**; lo que no vio con n=3 es **la cola**.
+
+🔴 **Y una de cada cinco corridas falla**, de forma bimodal: o ≤3.3 cm o ≥6.6 cm.
+
+### 🔴 La causa más probable: el robot se va del sitio y nadie lo corrige
+
+| bloque | adelante | der | CORTA | recorrido |
+|---|---|---|---|---|
+| A1 | 2.06 m | **0.97** | **6.6** 🔴 | 159 |
+| B1 | 2.11 | 0.42 | 1.6 | 158 |
+| A2 | 2.01 | 0.30 | 0.8 | 156 |
+| B2 | **1.64** | 0.26 | **14.3** 🔴 | **137** |
+| A3 | 1.73 | 0.19 | 0.8 | 156 |
+| B3 | 1.73 | **0.16** | 2.7 | 153 |
+
+🔴 **`der` cae de forma monótona: 0.97 → 0.16 m.** El robot deriva a la derecha corrida tras
+corrida y acaba **a 5 cm de rozar** (media anchura 11 cm). Y en la tanda 1: **94 cm de deriva
+hacia delante en 12 corridas**, ~8 cm cada una.
+
+> **La consecuencia de método, que es la importante:** `caracterizar_deriva_slam.py` y
+> `comparar_deriva_roll.py` asumen que el robot vuelve al punto de partida y que las N corridas
+> son repeticiones del **mismo** experimento. **No lo son.** Eso no es una repetición: es un
+> barrido por posiciones distintas, sin control ni registro.
+
+⏳ **El arreglo, no implementado:** re-referenciar la posición antes de cada corrida con `/scan`.
+Hasta entonces ninguna de las dos herramientas da una distribución válida.
+
+### La pregunta del roll, aplazada por tercera vez
+
+La única comparación sin fallos dentro fue LARGA: **2.70 contra 2.50 cm**, diferencia de 0.20 cm
+con σ 1.19 — **compatible con cero**. Pero con n=3 por rama y un efecto de ~1 cm eso **no
+permite decir que el roll no afecte**: solo que no se ve. Y no se verá hasta controlar la
+posición.
+
+**24 corridas y hora y media de robot sin responder la pregunta** — porque el banco de pruebas
+no controla la variable que más se mueve.
+
+### Detalles menores
+
+- El registro del entorno **falló en silencio** la primera vez (devolvía `None`): usé `repr()`
+  en vez de `shlex.quote()` para pasar el código al shell, y `repr()` escapa los saltos de línea.
+  Se pilló **probándolo antes** de lanzar.
+- Consumo de batería, segunda medida: 81 % → 73 % en la tanda 2, más lento que la 1 (92 → 85).
+  Estimación conjunta **~0.5–0.8 %/min** conduciendo, 2–3 h por carga. Sigue siendo gruesa.
+
+**Ficheros:** `22_replica_deriva.txt` (nuevo), `21_deriva_roll_y_fallo_largo.txt` (retractación
+de su sección 3), manual cap. 9.12a (retractado), 9.12b (nuevo) y 13.6,
+`mediciones_banco/comparar_deriva_roll.py` (registro del entorno),
+`deriva_roll_tanda1.jsonl` + `deriva_roll_resultados.jsonl`, `TRASPASO.md`,
+`INSTALACION.md` (F16 ✅ → F17), `CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — 🔴 SLAM falla el 50 % a 2.3 m, y la inclinación es del acelerómetro
 
 Evidencia: `00_auditoria/evidencia_24_04/21_deriva_roll_y_fallo_largo.txt`, manual **cap. 13**

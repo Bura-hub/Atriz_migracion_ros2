@@ -1,0 +1,150 @@
+═══════════════════════════════════════════════════════════════════════════════
+REPLICA DEL EXPERIMENTO DE DERIVA — y retiro mi conclusion de hace una hora
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Manual, cap. 9.12b. Datos:
+  mediciones_banco/deriva_roll_tanda1.jsonl       (12 corridas)
+  mediciones_banco/deriva_roll_resultados.jsonl   (12 corridas, esta replica)
+
+🔴 RESULTADO PRINCIPAL: el fallo NO depende de la distancia. El fichero 21
+   concluyo que "SLAM es fiable hasta 1.6 m y deja de serlo a 2.3 m". **Es
+   FALSO** y esta replica lo demuestra.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. 🔴 EL FALLO CAMBIO DE DISTANCIA
+───────────────────────────────────────────────────────────────────────────────
+  Mismo protocolo, mismo robot, mismo dia, una hora despues:
+
+                        TANDA 1                    TANDA 2 (replica)
+   CORTA    1.0, 1.0, 1.2, 2.1, 2.2, 2.9      0.8, 0.8, 1.6, 2.7, 6.6, 14.3
+                    fallos: 0 de 6                     fallos: 2 de 6
+   LARGA    0.9, 1.1, 1.2, 12.0, 16.0, 56.1   1.0, 1.9, 2.5, 2.7, 3.0, 3.3
+                    fallos: 3 de 6                     fallos: 0 de 6
+
+  En la tanda 1 fallaban las LARGAS y las cortas iban perfectas.
+  En la tanda 2 fallan las CORTAS y las largas van perfectas.
+
+  -> LA DISTANCIA NO ES LA VARIABLE. Mi conclusion del fichero 21 se apoyaba en
+     una sola tanda, y la replica la desmonta.
+
+  📝 Esto es exactamente para lo que sirve replicar. La conclusion del fichero 21
+     era coherente con sus datos y estaba equivocada.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. LAS 24 CORRIDAS JUNTAS — lo que SI se puede decir
+───────────────────────────────────────────────────────────────────────────────
+    CORTA (n=12)   normales (10): mediana 1.40 cm, rango 0.8-2.9
+                   fallos    (2): 6.6, 14.3            -> 17 %
+    LARGA (n=12)   normales  (9): mediana 1.90 cm, rango 0.9-3.3
+                   fallos    (3): 12.0, 16.0, 56.1     -> 25 %
+
+    GLOBAL: 5 fallos de 24  ->  ~21 %
+
+  ✅ CUANDO FUNCIONA, funciona bien y CASI IGUAL a las dos distancias: 1.40 cm a
+     158 cm de recorrido y 1.90 cm a 233. La deriva apenas crece con la distancia
+     — lo que tambien desmonta la narrativa del fichero 14 de que crecia
+     proporcionalmente (0.63 % contra 1.14 % del recorrido).
+
+  🔴 UNA DE CADA CINCO CORRIDAS FALLA, y el fallo es BIMODAL: o <= 3.3 cm o
+     >= 6.6 cm. La tasa es indistinguible entre las dos distancias con esta n.
+
+  ── contra el fichero 14 (n=3 por distancia) ──
+                                fichero 14      ahora (n=12)
+      mediana CORTA (sin fallos)   1.0 cm          1.40 cm
+      mediana LARGA (sin fallos)   2.7 cm          1.90 cm
+      tasa de fallo                NO LA VIO        ~21 %      🔴
+
+    Las MEDIANAS del fichero 14 eran correctas. Lo que no vio con n=3 es la cola:
+    una de cada cinco corridas se va a 6-56 cm.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 LA CAUSA MAS PROBABLE: EL ROBOT SE VA DEL SITIO, Y NADIE LO CORRIGE
+───────────────────────────────────────────────────────────────────────────────
+  La tanda 2 registro el entorno antes de cada bloque. La tanda 1 no, y por eso
+  no se pudo ver:
+
+    bloque  adelante  atras   izq   der   CORTA  LARGA  recorrido CORTA
+      A1      2.06 m   0.43  1.28  0.97    6.6    3.3       159      🔴
+      B1      2.11     0.50  1.19  0.42    1.6    3.0       158
+      A2      2.01     0.52  0.81  0.30    0.8    2.7       156
+      B2      1.64     0.49  0.83  0.26   14.3    2.5       137      🔴
+      A3      1.73     0.40  0.89  0.19    0.8    1.0       156
+      B3      1.73     0.39  0.87  0.16    2.7    1.9       153
+
+  🔴 `der` CAE DE FORMA MONOTONA:  0.97 -> 0.42 -> 0.30 -> 0.26 -> 0.19 -> 0.16
+     El robot deriva hacia la derecha corrida tras corrida. Acaba a 16 cm de
+     algo, con 11 cm de media anchura: A 5 cm DE ROZAR.
+
+  Y en la tanda 1, medido antes y despues:
+     adelante al empezar 2.33 m  ->  al terminar 1.39 m
+     94 cm de deriva neta en 12 corridas  ->  ~8 cm por corrida
+
+  📝 La corrida mala B2 (14.3 cm) recorrio 137 cm en vez de ~157 —20 cm menos— y
+     su bloque es el del mayor salto de posicion (adelante 2.01 -> 1.64). Encaja
+     con haber rozado algo, pero es UN caso: no es prueba.
+
+  🔴 LA CONSECUENCIA DE METODO, QUE ES LA IMPORTANTE:
+
+     Las herramientas `caracterizar_deriva_slam.py` y `comparar_deriva_roll.py`
+     asumen que el robot "vuelve al punto de partida" y que por tanto las N
+     corridas son repeticiones del MISMO experimento.
+
+     **No lo son.** Cada corrida empieza en un sitio distinto, y a las 12 el
+     robot se ha ido casi un metro. Eso no es una repeticion: es un barrido por
+     posiciones distintas, sin control ni registro.
+
+     Mientras eso no se arregle, ninguna de las dos herramientas puede dar una
+     distribucion valida, y por eso la pregunta del roll sigue sin respuesta
+     despues de 24 corridas y hora y media de robot.
+
+  ⏳ EL ARREGLO: re-referenciar la posicion ANTES de cada corrida, conduciendo el
+     robot hasta una distancia objetivo de la pared frontal usando `/scan`. Es
+     medible y automatizable. NO IMPLEMENTADO.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. LA PREGUNTA DEL ROLL, otra vez sin respuesta
+───────────────────────────────────────────────────────────────────────────────
+    TANDA 2   CORTA  CON roll  mediana 0.80 cm  σ 3.35   [6.6, 0.8, 0.8]
+                     SIN roll  mediana 2.70 cm  σ 7.04   [1.6, 14.3, 2.7]
+              LARGA  CON roll  mediana 2.70 cm  σ 1.19   [3.3, 2.7, 1.0]
+                     SIN roll  mediana 2.50 cm  σ 0.55   [3.0, 2.5, 1.9]
+
+  La unica comparacion sin fallos dentro es LARGA: 2.70 contra 2.50 cm, una
+  diferencia de 0.20 cm con σ 1.19. **Compatible con cero.**
+
+  ⚠️ NO se puede concluir que el roll no afecte: n=3 por rama y el efecto
+     buscado es de ~1 cm. Solo se puede decir que **no se ve**, y que hasta
+     controlar la posicion no se vera.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. ✅ CONSUMO DE BATERIA — segunda medida, coherente
+───────────────────────────────────────────────────────────────────────────────
+    tanda 1:  92 % -> 85 %   mediana 2 puntos por bloque de 2.7 min
+    tanda 2:  81 % -> 73 %   mediana 1 punto  por bloque de 2.7 min
+
+  Ritmo observado: 0.00 - 0.74 %/min en la tanda 2, contra 0.37 - 1.12 en la 1.
+  Mas lento con la bateria mas baja, que es lo tipico de una curva de descarga.
+
+  -> Estimacion conjunta: **~0.5-0.8 %/min conduciendo**, del orden de 2-3 horas
+     por carga. Sigue siendo GRUESA: /battery_state va en pasos de 1 %.
+
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE FALTA
+───────────────────────────────────────────────────────────────────────────────
+🔴 RE-REFERENCIAR LA POSICION antes de cada corrida. Es lo que bloquea todo lo
+   demas: sin eso, ninguna medida de deriva es una repeticion.
+
+⏳ Entender el 21 % de fallos. Con la posicion controlada se podra ver si
+   desaparece (era la deriva) o persiste (es otra cosa).
+
+⏳ La pregunta del roll. Tercera vez que se aplaza, y con razon.
+
+⏳ Por que el cuaternion fusionado gira con el rumbo y el acelerometro no.
+
+⏳ El barrido de `radius` del collision_monitor contra un mismo paso estrecho.
