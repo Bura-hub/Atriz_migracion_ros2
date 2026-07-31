@@ -314,3 +314,65 @@ QUE HACER AHORA
 📝 Los encoders funcionan y estan calibrados (7792 ticks/m). No hacen falta para
    la velocidad, pero son la unica fuente que NO depende del marco de
    referencia: utiles si el bug B resulta ser dificil.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ ARREGLADO Y VERIFICADO — 2026-07-31, sesion siguiente
+═══════════════════════════════════════════════════════════════════════════════
+Las tres piezas implementadas y verificadas UNA A UNA, como se acordo.
+
+── PIEZA 1: el origen del yaw ──────────────────────────────────────────────────
+  El driver guarda el yaw de la primera muestra tras conectar y lo resta de
+  todas. Se conservan roll y pitch (el robot esta inclinado ~8°, y eso es real).
+
+  Log del arranque:
+    [INFO] origen del yaw fijado en +51.1° (reset_yaw() del RVR no lo pone a
+           cero; se resta aqui)
+
+  Verificacion, SIN mover el robot:
+    yaw publicado en reposo: media +0.00°  ·  min -0.00°  max +0.01°  (100 muestras)
+    -> ✅  antes daba -74.6° / +64.9° / +51.1° / +52.7° / +56.5° segun el encendido
+
+  📝 Cinco arranques, cinco offsets distintos. Confirma que no habia constante
+     posible: solo se puede medir en cada arranque.
+
+── PIEZA 2: el marco de la posicion ────────────────────────────────────────────
+  Se quita el `-Y` (sobraba) y se rota -90°:  R(-90°)·(x, y) = (y, -x)
+
+  Verificacion:
+    A · avanzar recto:  yaw -0.03°  ·  desplazamiento +0.00°  ·  dif +0.03°
+        -> ✅  antes la diferencia era -89.7°
+    B · girar 90°:      el yaw cambio +89.87°, el desplazamiento +90.00°
+        -> ✅  MISMO sentido. Antes iban en sentidos opuestos.
+
+── PIEZA 3: la velocidad ───────────────────────────────────────────────────────
+  Dos pasos: la misma rotacion de -90° (marco locator -> marco odom) y despues
+  proyectar sobre el rumbo (marco odom -> marco robot).
+
+  Verificacion con el robot encarado a ~84°, que es donde antes fallaba:
+    velocidad real (desplazamiento): 0.099 m/s
+    odom.twist.linear = (+0.101, +0.001)   -> 2 % de error, vy ~ 0   ✅
+  Y retrocediendo:
+    odom.twist.linear = (-0.099, -0.001)   -> 1 % de error, signo correcto ✅
+
+  Antes publicaba (-0.000, -0.200) con el robot avanzando recto a 0.199 m/s.
+
+  ⚠️ Una primera corrida dio un 15 % de error aparente. NO era el driver: la
+     ventana de medida eran 0.7 s justo despues de un giro de 90°. Con 3 s de
+     ventana el error baja al 2 %. La referencia tambien hay que medirla bien.
+
+── 🔴 LA TRAMPA QUE COSTO DAR POR FALLIDA UNA CORRECCION QUE ESTABA BIEN ───────
+  `colcon build` lanzado desde ~/atriz_ws/src/Atriz_rvr en vez de la raiz
+  ~/atriz_ws crea AHI DENTRO un workspace parasito (build/, install/, log/),
+  compila contra el, dice "Finished", y el cambio NUNCA LLEGA al sistema que se
+  esta ejecutando. El mensaje de exito es identico al bueno.
+
+  Paso DOS VECES. La primera hizo que la pieza 2 diera 🔴 con el codigo
+  correcto; la segunda casi cuela porque el `grep` de verificacion usaba ruta
+  RELATIVA y acabo mirando el install parasito.
+
+  -> Comprobar el efecto, no el mensaje: grep del cambio en el fichero
+     INSTALADO, con RUTA ABSOLUTA. Y `ls -d ~/atriz_ws/src/*/build` para
+     detectar el parasito.
+  -> Añadido `log/` al .gitignore de Atriz_rvr: build/ e install/ ya estaban,
+     log/ no, y aparecia como fichero sin trackear.

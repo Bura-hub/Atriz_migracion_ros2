@@ -272,6 +272,20 @@ en su buffer TF y con el `odom` anterior, y **deja de procesar**: el mapa sale i
 a celda tras mover el robot 80 cm. Invalidó una prueba entera de la Fase 4. Arranca los dos
 juntos, `robot.launch.py` primero.
 
+**🔴 `colcon build` desde el directorio equivocado dice «Finished» y NO instala nada.**
+Si lo lanzas desde `~/atriz_ws/src/Atriz_rvr` en vez de la raíz `~/atriz_ws`, colcon crea
+**ahí dentro** un workspace parásito (`build/`, `install/`, `log/`), compila contra él, y el
+cambio **nunca llega al sistema que estás ejecutando**. El mensaje de éxito es idéntico.
+Pasó **dos veces** el 2026-07-31 y costó dar por fallida una corrección que estaba bien.
+→ **Comprueba el efecto, no el mensaje:** `grep` el cambio en el fichero **instalado**, con
+  **ruta absoluta** — si usas ruta relativa acabas mirando el install parásito:
+```bash
+cd ~/atriz_ws && colcon build --packages-select atriz_rvr_driver
+grep -c 'lo_que_cambiaste' \
+  /home/sphero/atriz_ws/install/atriz_rvr_driver/lib/python3.12/site-packages/atriz_rvr_driver/rvr_driver_node.py
+ls -d ~/atriz_ws/src/*/build 2>/dev/null && echo "🔴 hay workspace parásito: bórralo"
+```
+
 **Un `nohup ... &` desde una herramienta Bash muere con el shell.** Si necesitas dejar un
 launch corriendo entre llamadas, usa `setsid nohup … < /dev/null &` y `disown`. Sin eso el
 proceso desaparece y el diagnóstico siguiente miente.

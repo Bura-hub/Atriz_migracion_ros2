@@ -4,6 +4,49 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 (parte 6) — Los TRES bugs de marcos, arreglados y verificados
+
+Implementa el arreglo que la parte 5 dejó definido. Evidencia: `15_velocidad_odom.txt`.
+Código: `Atriz_rvr` rama `ros2`.
+
+**Los sensores del RVR siempre estuvieron bien.** Lo que fallaba era cómo el driver combinaba
+sus marcos. Las tres piezas se implementaron y **se verificaron una a una**, como se acordó —
+no las tres de golpe.
+
+| Pieza | Qué se hizo | Antes | Después |
+|---|---|---|---|
+| **1. Orientación** | restar el yaw del arranque | −74.6° / +64.9° en reposo | **+0.00°** |
+| **2. Posición** | quitar el `−Y` y rotar −90° | dirección vs yaw: −89.7° | **+0.03°** |
+| **3. Velocidad** | rotación + proyección sobre el rumbo | `(-0.000, -0.200)` avanzando recto | **`(+0.101, +0.001)`** vs 0.099 real |
+
+Y la prueba B de la pieza 2: al girar 90°, el yaw cambió **+89.87°** y el desplazamiento
+**+90.00°** — mismo sentido. Antes iban en sentidos opuestos.
+
+📝 **Cinco arranques dieron cinco offsets de yaw distintos** (+51.1°, +52.7°, +56.5°, −74.6°,
++64.9°). Confirma que no había constante posible: solo se puede medir en cada arranque.
+
+### 🔴 Una trampa nueva que costó dar por fallida una corrección correcta
+
+**`colcon build` lanzado desde `src/Atriz_rvr` en vez de la raíz del workspace** crea ahí
+dentro un **workspace parásito** (`build/`, `install/`, `log/`), compila contra él, dice
+«Finished», y el cambio **nunca llega al sistema que se está ejecutando**. El mensaje de éxito
+es idéntico al bueno.
+
+Pasó **dos veces**. La primera hizo que la pieza 2 diera 🔴 con el código correcto; la segunda
+casi cuela porque el `grep` de verificación usaba **ruta relativa** y acabó mirando el install
+parásito.
+
+→ Documentado en `CLAUDE.md` con cómo detectarlo. Y `log/` añadido al `.gitignore` de
+`Atriz_rvr`: `build/` e `install/` ya estaban, `log/` no.
+
+### Y un recordatorio sobre medir la referencia
+
+Una primera corrida de la pieza 3 dio un 15 % de error aparente. **No era el driver**: la
+ventana de medida eran 0.7 s justo después de un giro de 90°. Con 3 s de ventana el error baja
+al 2 %. **La referencia también hay que medirla bien.**
+
+---
+
 ## 2026-07-31 (parte 5) — El modelo de marcos del RVR, completo
 
 Cierra la investigación de la parte 4. Evidencia: `15_velocidad_odom.txt`.

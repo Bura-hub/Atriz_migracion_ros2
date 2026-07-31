@@ -27,12 +27,14 @@ dos herramientas propias, y **ninguno de los fallos daba un error** (manual, cap
 **1.0 cm** (recorridos de 1.6 m) y **2.7 cm** (2.4 m), con un peor caso de 3.2 cm. El error
 cabe en una celda del mapa, así que **la pose ya no bloquea Nav2**.
 
-**El siguiente paso son TRES bugs de marcos de referencia en `/odom`**, que bloquean Nav2.
-🔴 **Los sensores están bien** —`Velocity` es exacto, el locator acierta con 1 mm en 1 m— y el
-**modelo de marcos del RVR está completo y medido** con cinco pruebas (`15_velocidad_odom.txt`).
-Lo que falla es cómo el driver los combina: la posición y la orientación que publica **tienen
-manos contrarias**. El arreglo son tres piezas y está definido; no se implementó a propósito,
-para no tocar posición, velocidad y orientación de golpe al final de una sesión larga.
+✅ **Y los TRES bugs de marcos de referencia de `/odom` están arreglados y verificados.** Los
+sensores del RVR siempre estuvieron bien —`Velocity` es exacto, el locator acierta con 1 mm en
+1 m—; lo que fallaba era cómo el driver los combinaba. Ahora el yaw arranca en **+0.00°**, la
+dirección de avance coincide con él (**+0.03°**), y `odom.twist.linear` da la velocidad en el
+marco del robot con un **2 % de error** mire donde mire (`15_velocidad_odom.txt`).
+
+**El siguiente paso es Nav2**, que ya no tiene bloqueantes de odometría. Queda pendiente la
+inclinación de ~8°, que **no es urgente**: con ella presente la deriva de SLAM es de 2.7 cm.
 
 ---
 
@@ -59,10 +61,10 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 | Problema | Gravedad | Estado |
 |---|---|---|
 | ~~El RVR se duerme solo y el driver no se entera~~ | seguridad operativa | ✅ **resuelto 2026-07-31**: timeout medido en **300.6 s**, keepalive cada 30 s + detector de silencio. 2 huecos → 0 |
-| 🔴 **La velocidad de `/odom` sale mal, pero el sensor está bien.** `Velocity` es EXACTO (0 % de error); viene en marco MUNDO y el driver lo copia a un campo que ROS define en marco ROBOT | bloquea Nav2 | 🔴 abierto — arreglo de pocas líneas, atado al bug del yaw |
-| 🔴 **La posición y la orientación de `/odom` tienen MANOS CONTRARIAS.** Girando el robot, el yaw cambia +89.4° y el desplazamiento −88.8°. Sobra el `−Y` que el driver aplica al locator | bloquea Nav2 | 🔴 **NUEVO 2026-07-31** |
-| 🔴 **El eje X del locator está 90° girado** respecto al «adelante» del robot, y se realinea en cada arranque del driver | bloquea Nav2 | 🔴 medido; arreglo definido |
-| 📝 `reset_yaw()` **no hace nada** — el yaw se pone a cero al **encender** el RVR | menor | 📝 medido; se corrige restando `yaw₀` |
+| ~~La velocidad de `/odom` sale en el marco equivocado~~ | bloqueaba Nav2 | ✅ **resuelto 2026-07-31**: rotación −90° + proyección sobre el rumbo. **2 % de error** con el robot a 84° |
+| ~~La posición y la orientación de `/odom` tienen manos contrarias~~ | bloqueaba Nav2 | ✅ **resuelto**: sobraba el `−Y`. Ahora giran igual (+89.87° vs +90.00°) |
+| ~~El eje X del locator está 90° girado~~ | bloqueaba Nav2 | ✅ **resuelto**: `R(−90°)·(x,y) = (y,−x)` en `_h_locator` |
+| 📝 `reset_yaw()` **no hace nada** — el yaw se pone a cero al **encender** el RVR | menor | ✅ **corregido**: el driver mide `yaw₀` al conectar y lo resta. Cinco arranques dieron cinco offsets distintos |
 | ~~`inverted` del LIDAR sin verificar~~ | corrompe mapas | ✅ **verificado 2026-07-31**: `true` es CORRECTO. El equivocado era el yaw de `/odom` |
 | 🔴 **El robot está inclinado ~8°** (árbol TF, Roll de la IMU y acelerómetro: **tres** vías) | bloquea Nav2 | 🔴 abierto, causa sin determinar |
 | 🔴 **La parada de emergencia de la web no hace nada.** Publica en `/rvr/emergency_stop`, que no existe. Falla **en silencio** con `200 OK` | seguridad | ⏳ el topic ya existe en el driver ROS 2; falta el lado web (fase final) |
@@ -121,68 +123,25 @@ bloqueante para Nav2.** Los 87.8 cm de la Fase 4 fueron una anomalía, 30 veces 
 normal a distancia comparable — muy probablemente por rozar obstáculos, aunque **no se
 reprodujo a propósito**, así que no es una causa demostrada.
 
-### 1. 🔴 Los dos bugs de marcos de referencia — se arreglan JUNTOS
+### ✅ Hecho: los TRES bugs de marcos, arreglados y verificados
 
-**Medido el 2026-07-31** (evidencia `15_velocidad_odom.txt`). El sensor está bien; lo que falla
-es cómo lo usa el driver.
+**Medido, implementado pieza a pieza y verificado cada una por separado**
+(evidencia `15_velocidad_odom.txt`). Los sensores del RVR estaban bien; lo que fallaba era
+cómo el driver combinaba sus marcos.
 
-- **Bug A — la velocidad.** `Velocity` es **exacto** (0 % de error en módulo, 0.1° en
-  dirección) pero viene en el marco del **mundo**. El driver copia su `X` a
-  `odom.twist.twist.linear.x`, que ROS define en el marco del **robot**. Publica
-  `(-0.000, -0.200)` donde debería ir `(+0.199, 0.000)`.
-- **Bug B — el yaw.** `reset_yaw()` **no pone a cero el yaw publicado** (−74.6° en reposo justo
-  tras arrancar), y la orientación de `/odom` no concuerda con su propia posición: **~15° de
-  desfase**, medido dos veces con el driver reiniciado entre medias.
+| Pieza | Qué se hizo | Verificación |
+|---|---|---|
+| **1. Orientación** | restar el yaw del arranque | yaw en reposo: **+0.00°** (antes −74.6° / +64.9°) |
+| **2. Posición** | quitar el `−Y` y rotar −90° | dirección vs yaw: **+0.03°** (antes −89.7°), y giran en el **mismo** sentido |
+| **3. Velocidad** | la misma rotación + proyectar sobre el rumbo | con el robot a 84°: **(+0.101, +0.001)** vs 0.099 real (antes daba `(-0.000, -0.200)`) |
 
-El arreglo de A es proyectar sobre el rumbo, así que **depende de B**.
+📝 Cinco arranques dieron cinco offsets de yaw distintos (+51.1°, +52.7°, +56.5°, −74.6°,
++64.9°): confirma que no había constante posible y que solo se puede medir en cada arranque.
 
-✅ **Ya se apagó y encendió el RVR, y el desfase NO es constante**: pasó de ~−15° a **−154.9°**.
-Una corrección constante no sirve. Y la medida separó B en **dos problemas independientes**:
-
-1. **El yaw del cuaternión tiene origen arbitrario en cada encendido** (−74.6° → +64.9°).
-2. **El marco del locator está girado ~90° respecto al robot** — el desplazamiento sale a
-   −90.0° en las tres medidas, incluida la posterior al apagado.
-
-✅ **RESUELTO: el modelo de marcos del RVR está completo**, con cinco medidas que lo sostienen
-(evidencia `15_velocidad_odom.txt`). Y apareció un tercer bug:
-
-1. **El marco del locator es FIJO** y se **realinea** en cada `reset_locator_x_and_y()`, o sea
-   al arrancar el driver. Su eje X queda **90° girado** respecto al «adelante» del robot: por
-   eso avanzar recto da siempre −90°.
-2. **El yaw se pone a cero al ENCENDER el RVR**, no con `reset_yaw()` —que no hace nada—. Los
-   valores raros de antes (−74.6°, +64.9°) eran de un robot manipulado *después* de encenderse.
-3. 🔴 **NUEVO: la posición y la orientación de `/odom` tienen manos contrarias.** Girando el
-   robot, el yaw cambió **+89.4°** y el desplazamiento **−88.8°** — signos opuestos. **El `−Y`
-   que el driver aplica al locator sobra.**
-
-**El yaw es el bueno**: está contrastado contra el LIDAR, un sensor físico con convención ROS
-conocida. Y el `−Y` vino de una inferencia inválida — se dedujo midiendo que «al curvar a la
-izquierda `dy` salía negativo», dando por hecho que el eje X del locator apuntaba adelante, y
-está 90° girado.
-
-### El arreglo, tres piezas
-
-| | Qué hacer |
-|---|---|
-| **Posición** | quitar el `−Y` del locator y **rotar −90°** para alinear X con el «adelante» inicial |
-| **Velocidad** | la misma rotación, y luego proyectar sobre el rumbo (bug A) |
-| **Orientación** | restar el yaw del arranque (`yaw − yaw₀`) |
-
-🔴 **No implementar las tres de golpe.** Tocan posición, velocidad y orientación a la vez.
-Verificación: una corrida recta debe dar la dirección del desplazamiento **igual** al yaw
-publicado, y girar el robot debe mover ambas en el **mismo** sentido. Hoy fallan las dos.
-
-### 👤 Antes de retomar: el robot NO está en su posición inicial
-
-El robot se **retiró del banco** al cerrar la sesión del 2026-07-31, así que no está donde lo
-dejaron las pruebas ni sobre la marca.
-
-**Al retomar:** colócalo en el centro de un pasillo despejado de **3 m × 0.8 m**, alineado con
-el eje largo, marca el punto de partida en el suelo, y **comprueba la orientación con un
-empujón de 10 cm** antes de lanzar nada — el robot **no esquiva obstáculos**.
-
-📝 Y recuerda que `reset_locator_x_and_y()` pone a cero la **odometría**, no devuelve el robot
-a su sitio: el cero de software se mueve con él. Es lo que hizo que chocara una vez.
+🔴 **Y una trampa nueva que costó dar por fallida una corrección correcta:** `colcon build`
+lanzado desde `src/Atriz_rvr` en vez de la raíz del workspace crea ahí dentro un **workspace
+parásito**, dice «Finished», y el cambio **nunca llega al sistema**. Pasó dos veces. Está en
+`CLAUDE.md` con cómo detectarlo.
 
 ### 2. 🔴 La inclinación de ~8°, confirmada por TRES vías
 
