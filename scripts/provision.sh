@@ -454,6 +454,21 @@ cat <<EOF
   El verificador es el que decide si este robot está listo, y sale con código
   != 0 si algo falla. No des el robot por bueno sin él.
 
+  ⏳ ESTE SCRIPT NO INSTALA EL ARRANQUE AUTOMÁTICO, Y ES A PROPÓSITO
+
+  Un robot aprovisionado con provision.sh NO se levanta solo al encender: hay
+  que ejecutar aparte
+
+      sudo bash $SCRIPTS/fase_7_systemd.sh --id NN
+
+  Decisión del usuario, 2026-07-31: se añade aquí CUANDO SE CIERRE EL ROBOT DE
+  REFERENCIA, no antes. Mientras se prueba a mano en rvr-01, un servicio
+  levantado pelearía por /dev/rvr con cada prueba.
+
+  🔴 Y ES UN REQUISITO PARA LA IMAGEN DORADA: si se construye la imagen sin
+     haber añadido esto, los 16 robots saldrán sin arranque automático y habrá
+     que entrar en cada uno — justo lo que la imagen existe para evitar.
+
   ¿Y PARA LOS OTROS 15 ROBOTS?
 
   Cuando ESTE robot pase la verificación de extremo a extremo del plan, se

@@ -493,8 +493,9 @@ sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --id 1             # de ve
 sudo systemctl start atriz-robot && systemctl status atriz-robot
 ```
 
-⏳ Y **`provision.sh` no lo instala todavía** — si no se añade, la imagen dorada saldrá sin
-arranque automático. Manual, cap. 17.
+⏳ Y **`provision.sh` no lo instala todavía**: se añade **cuando se cierre el robot de
+referencia** (decisión tuya, 2026-07-31). 🔴 Es un **requisito para la imagen dorada** — si se
+construye antes, los 16 robots saldrán sin arranque automático. Manual, cap. 17.
 
 🔴 **Y tiene que arrancar con el lidar PARADO.** Medido el 2026-07-31: el X2 gira siempre, a
 2.7 Hz en reposo y 11.8 Hz escaneando. Hoy se queda en 2.7 porque no hay nada corriendo; en

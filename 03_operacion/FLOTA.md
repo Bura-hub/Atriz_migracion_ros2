@@ -11,6 +11,11 @@
 >
 > El riesgo no es que falle: es que falle **en el robot 7 de 16**, con seis ya desplegados.
 > Detalle en `00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.
+>
+> 🔴 **Y falta una segunda cosa antes de construirla:** `provision.sh` **no instala el arranque
+> automático**. Se añade cuando se cierre el robot de referencia (decisión del usuario,
+> 2026-07-31). Si se construye la imagen antes, los 16 robots saldrán sin `atriz-robot.service`
+> y habrá que entrar en cada uno — justo lo que esta guía existe para evitar. Manual, cap. 17.
 
 
 
