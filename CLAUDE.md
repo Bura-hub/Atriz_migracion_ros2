@@ -183,13 +183,21 @@ log de slam_toolbox**. Y guarda los mapas así, que es lo verificado:
 ros2 run nav2_map_server map_saver_cli -f <ruta> --ros-args -p save_map_timeout:=10.0
 ```
 
-**🔴 Las cotas del robot del URDF estuvieron CRUZADAS hasta el 2026-07-31.** Ponía
-`base_length 0.218` × `base_width 0.185` (ficha del RVR, declarado «NO MEDIDO») cuando el robot
-mide **18 × 22 cm**: modelaba un robot más largo que ancho siendo al revés. Se descubrió porque
-el usuario lo midió con una cinta. → **Antes de dimensionar nada con el tamaño del robot,
-comprueba en [`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md) qué está medido y
-qué viene de una ficha.** Quedan sin medir `laser_z` (¡la altura a la que ve!), `wheel_radius`
-y `wheel_separation`.
+**🔴 La ficha del Sphero RVR MIENTE sobre este robot, y el URDF la copiaba.** Hasta el
+2026-07-31 el modelo decía `0.218 × 0.185 × 0.114` y las tres estaban mal: el robot mide
+**18.2 × 21.7 × 7.0 cm** (medido con cinta, con orugas). Largo y ancho estaban **cruzados**, y
+el alto tenía **4.4 cm de más** — que es lo que hacía que `laser_z` estuviera 2 cm alto.
+→ **Antes de dimensionar nada con el tamaño del robot, mira
+[`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md)**: dice qué está medido y qué
+viene de una ficha. Solo queda `wheel_radius` sin medir.
+
+**🔴 «Confirmado por tres vías independientes» puede ser una sola vía contada tres veces.** El
+proyecto dio por buena una inclinación de ~8° del robot durante días porque la confirmaban el
+árbol TF, el Roll de la IMU y el acelerómetro. **Las tres salen de la IMU**: el TF copia
+`odom.pose.pose.orientation`, que el driver copia del cuaternión del RVR, que calcula la IMU, y
+el acelerómetro es el mismo chip. Una regla y cuatro medidas alrededor del disco del LIDAR
+bastaron para ver que **el robot está horizontal** (manual, cap. 13). → **Antes de decir
+"confirmado por N vías", traza de dónde sale el dato de cada una.**
 
 **El X2 no ve un objeto fino en un solo barrido.** A 0.68 m tira un rayo cada 1.7 cm, así que
 un objeto de 5 cm da 2-3 puntos y en un barrido suelto puede desaparecer. → Para geometría
@@ -488,10 +496,11 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |
 | Nav2 solo | ~58 % de un núcleo — la pieza más pesada | 2026-07-31 |
 | **Parada del `collision_monitor`** | **8.0 cm** a 0.25 m/s · **9.0 cm** a 0.40 m/s | 2026-07-31 |
-| Plano de barrido del LIDAR | **17.45 cm** del suelo — por debajo, el robot no ve nada | URDF |
 | Nav2 a 0.40 m/s | meseta **0.407 m/s** en 0.9 s · error de objetivo **8 cm** | 2026-07-31 |
 | Rodeando un obstáculo | desvío **26–32 cm**, error **8–9 cm**, 4 de 4 SUCCEEDED | 2026-07-31 |
-| **Tamaño del robot** | **18 cm** frente-atrás × **22 cm** lado-lado, con orugas | 2026-07-31 |
+| **Tamaño del robot** | **18.2 cm** frente-atrás × **21.7 cm** lado-lado, con orugas | 2026-07-31 |
+| **Plano de barrido del LIDAR** | **15.5 cm** del suelo ✅ MEDIDO (antes 17.45, derivado) | 2026-07-31 |
+| Alto del RVR (suelo → tapa) | **7.0 cm** — la ficha decía 11.4 | 2026-07-31 |
 | Radio circunscrito | **0.142 m** → `robot_radius: 0.145` | derivado de lo anterior |
 | Paso mínimo con `radius: 0.18` | **no cruza 40 cm** — necesita ~36 cm + margen | 2026-07-31 |
 | **Deriva de SLAM** | mediana **1.0 cm** (1.6 m de recorrido) y **2.7 cm** (2.4 m); peor caso 3.2 cm, n=6 | 2026-07-31 |

@@ -74,18 +74,21 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      F11 Paso estrecho: el límite medido      manual, cap. 12.10             ✅
          └── con radius 0.18 NO cruza 40 cm · y el URDF tenía las cotas CRUZADAS
 
-     F12 Lo que queda                                                          ⏳ SIGUIENTE
-         1. Medir el robot        03_operacion/MEDIDAS_ROBOT.md         ← AQUÍ
-         2. Repetir las paradas con las cotas buenas
+     F12 El robot medido entero  03_operacion/MEDIDAS_ROBOT.md          ✅
+         └── 18.2 x 21.7 x 7.0 cm · laser_z 15.5 (no 17.45) · LIDAR NIVELADO
+         └── y con eso, la "inclinación de ~8°" resulta NO EXISTIR (cap. 13)
+
+     F13 Lo que queda                                                          ⏳ SIGUIENTE
+         1. Repetir las paradas con las cotas buenas                   ← AQUÍ
+         2. Medir la deriva de SLAM con y sin el roll falso de la IMU
          3. Un obstáculo que aparezca DURANTE la navegación
-         3. Fase 4c: map_server + AMCL        plan, Fase 4c
-         4. La inclinación de ~8° (tres vías, causa sin determinar, NO urgente)
+         4. Fase 4c: map_server + AMCL        plan, Fase 4c
          5. Los 16 servicios y 4 topics del driver sin portar
          6. Plataforma web                    plan, Fase 5
          7. Clonar a los 16 robots            FLOTA.md
 ```
 
-> **Las etapas A a F11 están recorridas y verificadas sobre la máquina real.** Los capítulos
+> **Las etapas A a F12 están recorridas y verificadas sobre la máquina real.** Los capítulos
 > 1, 3, 4, 5, 7, 8, 8bis, 9, 10, **11 (Nav2)** y **12 (seguridad)** del manual dejaron de ser
 > NO VERIFICADO: el robot navega solo y para antes de chocar. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
@@ -96,8 +99,10 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 > instalado y NAVEGANDO** con los valores medidos del robot, y con la **capa de seguridad
 > puesta y medida** (manual, cap. 12), navegando a **0.40 m/s** y **rodeando obstáculos**. El
 > paso estrecho dio el límite: con `radius: 0.18` no cruza 40 cm, y por el camino salió que el
-> URDF tenía **largo y ancho cruzados**. El siguiente paso es **medir el robot en condiciones**
-> ([`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md)).
+> URDF tenía **largo y ancho cruzados**. El robot ya está **medido entero**
+> ([`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md)) y eso cerró de paso la
+> «inclinación de ~8°», que **no existe** (manual, cap. 13). El siguiente paso es **repetir las
+> paradas contra pared** con las cotas buenas.
 >
 > ### Un solo comando para saber si el robot está bien
 >

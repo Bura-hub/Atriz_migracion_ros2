@@ -33,7 +33,7 @@ número entero, y el X2 da ~1.42°/punto, así que ±5° son ~7 rayos.
 
 📝 El valor es la distancia desde el LIDAR, que va montado en el centro del robot
    (`laser_x: 0.0`). El hueco real hasta el obstáculo es ese valor menos la media
-   longitud del chasis, **0.09 m** ✅ medido. Se imprimen los dos.
+   longitud del chasis, **0.091 m** ✅ medido. Se imprimen los dos.
 
 🔴 Hasta el 2026-07-31 esta constante valía 0.109, tomada de un URDF que tenía el
    largo y el ancho CRUZADOS (modelaba 21.8 x 18.5 cuando el robot mide 18 x 22).
@@ -53,10 +53,10 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from sensor_msgs.msg import LaserScan
 
-#: Media longitud del chasis. ✅ MEDIDO 2026-07-31: 18 cm de frente a atrás, con
-#: orugas. El LIDAR está en el centro. Antes ponía 0.109, de un URDF que tenía
+#: Media longitud del chasis. ✅ MEDIDO 2026-07-31: 18.2 cm de frente a atrás,
+#: con orugas. El LIDAR está en el centro. Antes ponía 0.109, de un URDF que tenía
 #: largo y ancho CRUZADOS, y por eso los huecos salían 2 cm cortos.
-MEDIA_LONGITUD_M = 0.09
+MEDIA_LONGITUD_M = 0.091
 #: Semiancho del cono que se mira hacia delante.
 CONO_RAD = math.radians(5.0)
 #: Se considera parado por debajo de esto.

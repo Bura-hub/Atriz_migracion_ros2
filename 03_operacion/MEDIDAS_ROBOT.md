@@ -1,11 +1,19 @@
 # Qué medir en el robot — y qué cambia cada cota
 
 > Creado el **2026-07-31**, después de descubrir que el URDF tenía el **largo y el ancho
-> cruzados**: modelaba un robot de 21.8 × 18.5 cm cuando el real mide **18 × 22**. Venía de la
-> ficha publicada del RVR y estaba declarado «NO MEDIDO» desde el principio.
+> cruzados**: modelaba un robot de 21.8 × 18.5 cm cuando el real mide **18.2 × 21.7**. Venía de
+> la ficha publicada del RVR y estaba declarado «NO MEDIDO» desde el principio.
 >
-> Este documento existe para que eso no vuelva a pasar por sorpresa: lista **todas** las cotas
-> que el modelo usa, cuáles están medidas y cuáles no, y **qué se rompe si cada una está mal**.
+> ✅ **Medido entero el mismo día.** Queda una sola cota sin medir (`wheel_radius`, B1) y solo
+> afecta al dibujo. El repaso destapó **tres cosas**, y la tercera cierra un problema abierto:
+>
+> 1. la ficha del RVR daba **11.4 cm de alto** y son **7.0** — 4.4 de más;
+> 2. por eso `laser_z` estaba **2 cm alto**: el robot ve más abajo de lo documentado;
+> 3. 🔴 y el LIDAR está **nivelado en los cuatro puntos**, así que la «inclinación de ~8°» del
+>    robot **no existe**: es un desvío de la IMU (manual, cap. 13).
+>
+> Este documento lista **todas** las cotas que el modelo usa, cuáles están medidas y cuáles no,
+> y **qué se rompe si cada una está mal**.
 
 **Herramienta:** una regla o cinta métrica, y el robot **apagado y sobre suelo plano**.
 
@@ -29,15 +37,16 @@ velocidad lineal y angular ya hechas (`drive_rc_si_units`) y la pose viene del *
 interno** del robot. En este proyecto `wheel_separation` **solo sirve para dibujar las orugas
 en su sitio en RViz**.
 
-⚠️ Pero está **inconsistente**, y eso es una señal de que algo del modelo no cuadra:
+✅ **RESUELTO el 2026-07-31.** Estaba inconsistente y la cinta lo explicó: las orugas son de
+**3.5 cm** de ancho (no 2.5) y van de **borde interno a borde interno a 14.8 cm**.
 
 ```
-wheel_separation 0.150 + wheel_width 0.025  =  17.5 cm de oruga a oruga
-robot medido                                =  22.0 cm de lado a lado
+entre centros  =  14.8 + 3.5           =  18.3 cm   -> wheel_separation 0.183
+de borde a borde =  14.8 + 2 × 3.5     =  21.8 cm   ≈  21.7 medidos de lado a lado  ✅
 ```
 
-Sobran 4.5 cm sin explicar. O la separación está corta, o el cuerpo del RVR sobresale de las
-orugas. **Merece una cinta encima.**
+**Las orugas ocupan todo el ancho del robot.** Los 4.5 cm que faltaban eran los dos anchos de
+oruga mal puestos.
 
 ---
 
@@ -45,46 +54,53 @@ orugas. **Merece una cinta encima.**
 
 Estas tres son las que hay que medir **antes de repetir nada**.
 
-### A1 · `laser_z` — del SUELO al centro del disco giratorio del LIDAR
+### A1 · ✅ `laser_z` — del SUELO al centro del disco giratorio: **15.5 cm**
 
 | | |
 |---|---|
-| Valor actual | **0.1745 m** — ⚠️ **DERIVADO, no medido** |
-| De dónde sale | `base_height 0.114` (ficha, sin medir) + `laser_gap 0.040` (✅ medido) + `x2_height/2 0.0205` (ficha) |
-| Cómo medirlo | Regla apoyada en el suelo, hasta la **mitad del disco que gira** (no la tapa, no la base) |
+| Valor **medido** | **0.155 m** ✅ 2026-07-31 |
+| Valor anterior | 0.1745 m — derivado, y **2 cm de más** |
 
-**Es la cota más importante del robot**, porque decide **a qué altura ve**. Todo el límite
-«por debajo de X cm el robot no ve nada y lo embiste» sale de aquí. Si son 15 cm y no 17.45,
-la lista de cosas invisibles cambia.
+La cadena completa, medida:
 
-Dos de los tres sumandos vienen de fichas de fabricante. **Mídelo directo y nos ahorramos la
-suma entera.**
+```
+suelo → tapa del RVR                 7.0 cm   ✅   (la ficha decía 11.4: 4.4 de más)
+tapa  → base del LIDAR (piso extra)  4.6 cm   ✅
+base del LIDAR → centro del disco    3.9 cm
+────────────────────────────────────────────
+suelo → CENTRO DEL DISCO            15.5 cm   ✅
+suelo → extremo superior            16.5 cm   ✅
+```
 
-### A2 · ¿Está el LIDAR NIVELADO? — cuatro medidas alrededor del disco
+Comprobación cruzada: `7.0 + 4.6 + 5.0` (alto del LIDAR) `= 16.6 ≈ 16.5`. ✅ Cierra.
 
-| | |
+🔴 **El robot ve 2 cm más abajo de lo documentado.** El límite «por debajo de X cm el LIDAR no
+ve nada» pasa de **17.45 a 15.5 cm**.
+
+📝 Un error en `laser_z` es una **traslación pura en Z**: no inclina nada, así que **no afecta
+a SLAM 2D ni a Nav2**, que trabajan en el plano. Afecta a la visualización y a ese límite.
+
+### A2 · ✅ El LIDAR está NIVELADO — y eso resuelve la inclinación de ~8°
+
+Medido el 2026-07-31: el disco está a la **misma altura en los cuatro puntos** (delante,
+detrás, izquierda, derecha). 8° habrían dado ~1.1 cm de diferencia sobre los 7.6 cm del disco:
+se habrían visto.
+
+🔴 **Conclusión: el robot está físicamente horizontal, y los ~8° son un desvío de la IMU.**
+
+Y las «tres vías independientes» que confirmaban la inclinación **no eran independientes**:
+
+| «vía» | de dónde sale de verdad |
 |---|---|
-| Valor actual | se supone perfectamente horizontal (`rpy="0 0 0"` en el URDF) |
-| Cómo medirlo | Del suelo al **borde inferior del disco** en cuatro puntos: delante, detrás, izquierda, derecha |
+| árbol TF | de `odom.pose.pose.orientation`, que el driver copia del… |
+| cuaternión del RVR | …que calcula la **IMU** |
+| acelerómetro | el **mismo chip** |
 
-🔴 **Es la mejor pista que tenemos sobre la inclinación de ~8°**, que lleva abierta desde el
-2026-07-31 confirmada por tres vías (árbol TF, Roll de la IMU y acelerómetro) y sin causa.
+Una sola fuente contada tres veces. Detalle en el manual, **cap. 13**.
 
-Si las cuatro medidas no coinciden, el LIDAR está torcido y sabremos **cuánto y hacia dónde**.
-El disco del X2 mide unos 7.6 cm de diámetro, así que **8° serían ~1.1 cm de diferencia entre
-un lado y el otro** — se ve con una regla normal.
+### A3 · ✅ `base_height` — del suelo a la tapa del RVR: **7.0 cm**
 
-Si las cuatro coinciden, la inclinación no es del LIDAR y hay que buscarla en el chasis.
-
-### A3 · `base_height` — del suelo a la tapa del RVR
-
-| | |
-|---|---|
-| Valor actual | **0.114 m** — 📝 ficha del RVR, sin medir |
-| Cómo medirlo | Del suelo a la superficie plana de arriba, donde se apoya el LIDAR |
-
-Sirve de **comprobación cruzada de A1**: `A3 + 4.0 cm + 2.05 cm` debería dar A1. Si no cuadra,
-una de las dos está mal y conviene saber cuál.
+La ficha decía 11.4 cm: **4.4 cm de más**. Es el error que arrastraba `laser_z`.
 
 ---
 
@@ -93,19 +109,19 @@ una de las dos está mal y conviene saber cuál.
 Merecen la pena porque el modelo se usa para RViz y para la caja de colisión, pero **no
 invalidan ninguna prueba** de las hechas.
 
-### B1 · `wheel_radius` — del suelo al centro del eje de la oruga
+### B1 · ⏳ `wheel_radius` — del suelo al centro del eje de la oruga
 
-Actual **0.032 m**, sin medir. Es lo que separa `base_footprint` (el suelo) de `base_link`.
-Mide del suelo al **centro del eje** de la rueda motriz.
+**Es la única que queda.** Actual **0.032 m**, de la ficha. Es lo que separa `base_footprint`
+(el suelo) de `base_link`. Mide del suelo al **centro del eje** de la rueda motriz.
 
-### B2 · `wheel_separation` — entre los centros de las dos orugas
+⚠️ Solo afecta al dibujo: `laser_z` ya es un valor absoluto desde el suelo, así que un error
+aquí **no mueve el plano de barrido**. Por eso es B y no A.
 
-Actual **0.150 m**, sin medir, y es la que no cuadra (ver arriba). Mide del **centro de una
-oruga al centro de la otra**.
+### B2 · ✅ `wheel_separation` — entre centros: **18.3 cm**
 
-### B3 · `wheel_width` — ancho de una oruga
+`14.8` (borde interno a borde interno) `+ 3.5` (un ancho de oruga) `= 18.3 cm`.
 
-Actual **0.025 m**, sin medir. De borde a borde de la banda de goma.
+### B3 · ✅ `wheel_width` — ancho de una oruga: **3.5 cm**
 
 ### B4 · `imu_z` — altura de la IMU dentro del RVR
 
@@ -118,14 +134,28 @@ afecta a nada**: la IMU no se fusiona con la odometría. Se deja como está y se
 
 | Cota | Valor | Cuándo |
 |---|---|---|
-| `base_length` (frente-atrás) | **0.18 m** | 2026-07-31, con orugas |
-| `base_width` (lado-lado) | **0.22 m** | 2026-07-31, con orugas |
+| `base_length` (frente-atrás) | **0.182 m** | 2026-07-31, con orugas |
+| `base_width` (lado-lado) | **0.217 m** | 2026-07-31, con orugas |
+| `base_height` (suelo → tapa) | **0.070 m** | 2026-07-31 |
+| `laser_z` (suelo → centro del disco) | **0.155 m** | 2026-07-31 |
+| `laser_gap` (tapa → base del LIDAR) | **0.046 m** | 2026-07-31 |
+| `x2_height` (alto del LIDAR) | **0.050 m** | 2026-07-31 |
+| `wheel_separation` (entre centros) | **0.183 m** | 2026-07-31 |
+| `wheel_width` | **0.035 m** | 2026-07-31 |
 | `laser_x`, `laser_y` | **0, 0** — centrado | 2026-07-30 |
-| `laser_gap` (tapa → base del LIDAR) | **0.040 m** | 2026-07-30 |
+| nivelación del LIDAR | **igual en los 4 puntos** | 2026-07-31 |
 
-📝 **Vale la pena reconfirmar el centrado del LIDAR** ahora que sabemos que el robot es 18 de
-largo por 22 de ancho: mide del borde delantero al eje del disco (debería dar 9 cm) y del
-borde izquierdo al eje (debería dar 11 cm). Es la misma regla que ya tienes en la mano para A2.
+**Derivados de lo anterior:**
+
+```
+media longitud      0.091 m     -> hueco al parar ≈ radius − 0.091
+media anchura       0.1085 m
+radio inscrito      0.091 m
+radio circunscrito  0.142 m     -> robot_radius: 0.145   ✅ ya puesto
+```
+
+📝 **Queda una reconfirmación barata**: el centrado del LIDAR con las cotas nuevas — del borde
+delantero al eje del disco deberían salir **9.1 cm**, y del borde izquierdo **10.85 cm**.
 
 ---
 
@@ -142,17 +172,21 @@ No lo midas, ya está resuelto y por vías mejores que una regla:
 
 ## Qué se puede repetir con cada medida
 
-| Si mides… | Se puede volver a hacer |
-|---|---|
-| **A1** (`laser_z`) | Recalcular qué queda por debajo del plano de barrido — el límite del cap. 12.8 |
-| **A2** (nivelación) | Atacar la inclinación de ~8°, que sigue sin causa |
-| **A1 + A3** | Cerrar la cadena de la altura del LIDAR sin depender de dos fichas |
-| **B1 + B2 + B3** | Dejar el modelo coherente para RViz y resolver los 4.5 cm que faltan |
+### ⏳ Lo que falta
 
-Y con **A1 y A2** hechas, lo que toca repetir de verdad es:
+1. **`wheel_radius`** (B1) — la única cota sin medir que se puede medir. Solo afecta al dibujo.
+2. **Reconfirmar el centrado del LIDAR** con las cotas nuevas (9.1 y 10.85 cm).
+3. `imu_z` — no se puede sin abrir el robot, y hoy no afecta a nada.
 
-1. **Las paradas contra pared** a 0.25 y 0.40 m/s. Los huecos publicados hoy
-   (9.9 y 10.9 cm) están **recalculados con la media longitud corregida, no vueltos a medir**.
+### ⏳ Lo que hay que REPETIR ahora que las cotas son buenas
+
+1. **Las paradas contra pared** a 0.25 y 0.40 m/s. Los huecos publicados (9.8 y 10.8 cm) están
+   **recalculados, no vueltos a medir**.
 2. **El barrido de `radius`** (0.14 / 0.16 / 0.18) contra un mismo paso estrecho, fijando el
    hueco para que el buscador no elija otro — daría la curva completa del compromiso entre
    «parar lejos de las paredes» y «cruzar huecos estrechos».
+3. 🔴 **La deriva de SLAM con y sin el roll de la IMU.** Si el robot está horizontal, el roll de
+   ~8° que el driver publica en TF es falso, e inclina el plano del láser: comprime los alcances
+   por `cos(8°) = 0.990`, un **1 %**, ~1 cm por metro. Cabe dentro de la deriva medida (1–3 cm),
+   así que **podría ser parte de ella**. La corrección sería `roll = pitch = 0.0` en
+   `_h_quaternion`, y **no se aplica sin medirla antes**.

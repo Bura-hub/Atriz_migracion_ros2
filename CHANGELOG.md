@@ -4,6 +4,95 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — ✅ El robot medido entero, y la «inclinación de ~8°» resulta no existir
+
+El usuario midió todas las cotas de
+[`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md) con el robot apagado sobre
+suelo plano. Evidencia: `19_paso_estrecho.txt` (ampliación), manual **cap. 13** (nuevo) y 12.8.
+
+### La ficha del RVR mentía en las tres cotas
+
+| | medido | URDF (ficha) |
+|---|---|---|
+| frente-atrás | **18.2 cm** | 21.8 |
+| lado a lado | **21.7 cm** | 18.5 |
+| suelo → tapa | **7.0 cm** | 11.4 |
+| ancho de oruga | **3.5 cm** | 2.5 |
+| `wheel_separation` (entre centros) | **18.3 cm** | 15.0 |
+
+✅ **Y cierra solo:** `14.8` (borde interno a borde interno) `+ 2 × 3.5 = 21.8 ≈ 21.7` de ancho
+total. **Las orugas ocupan todo el ancho del robot** — ahí estaban los 4.5 cm que no cuadraban
+en la entrada anterior.
+
+### 🔴 El plano de barrido está 2 cm más abajo de lo documentado
+
+`laser_z` era una **suma derivada** con la altura del RVR sacada de la ficha. Medido en cadena:
+
+```
+suelo → tapa del RVR                 7.0 cm
+tapa  → base del LIDAR (piso extra)  4.6 cm
+base del LIDAR → centro del disco    3.9 cm
+────────────────────────────────────────────
+suelo → CENTRO DEL DISCO            15.5 cm   ← laser_z
+suelo → extremo superior            16.5 cm
+```
+
+Comprobación cruzada: `7.0 + 4.6 + 5.0` (alto del LIDAR) `= 16.6 ≈ 16.5`. ✅
+
+**El límite «por debajo de X cm el robot no ve nada» pasa de 17.45 a 15.5 cm**: el robot ve
+**mejor** de lo que decíamos. Un error en `laser_z` es una traslación pura en Z, así que **no
+afecta a SLAM 2D ni a Nav2** — solo a la visualización y a ese límite.
+
+### 🔴 Y la «inclinación de ~8°» no existe
+
+Un problema abierto desde el principio, cerrado **con una regla**.
+
+El usuario midió del suelo al disco del LIDAR **en cuatro puntos** —delante, detrás, izquierda,
+derecha— y salen **iguales**. El disco mide ~7.6 cm: 8° habrían dado **~1.1 cm** de diferencia.
+Se habrían visto. **El robot está físicamente horizontal.**
+
+Y las «**tres vías independientes**» que lo confirmaban **no eran independientes**:
+
+| «vía» | de dónde sale de verdad |
+|---|---|
+| árbol TF | de `odom.pose.pose.orientation`… |
+| cuaternión del RVR | …que el driver copia del cuaternión, **que calcula la IMU** |
+| acelerómetro | el **mismo chip** |
+
+**Una sola fuente contada tres veces.** El árbol TF no confirmaba nada: **repetía**. El driver
+llevaba un comentario explícito —«esa inclinación es real, no un error de referencia»— apoyado
+en esa falsa independencia. Corregido.
+
+> Es la regla nº4 del proyecto fallando por el lado contrario: no se atribuyó sin medir, se
+> **midió tres veces lo mismo** creyendo que eran tres cosas. Anotado en `CLAUDE.md`: **antes
+> de decir «confirmado por N vías», traza de dónde sale el dato de cada una.**
+
+⏳ **Consecuencia, SIN APLICAR:** el driver publica un roll falso de ~8° en `/odom` y en TF. Un
+roll en `odom → base_footprint` inclina el plano del láser y comprime los alcances por
+`cos(8°) = 0.990` — un **1 %**, ~1 cm por metro. La deriva de SLAM medida es de **1–3 cm** en
+1.6–2.4 m: **el orden de magnitud coincide**, así que podría ser parte de ella.
+
+La corrección es una línea (`roll = pitch = 0.0`) y **no se aplica sin medirla**, porque
+hacerlo a ciegas sería repetir el error que la creó. Hace falta repetir
+`caracterizar_deriva_slam.py` con y sin, y comparar.
+
+### Ajuste fino
+
+Media longitud 0.090 → **0.091**: los huecos publicados bajan 1 mm (9.9 → **9.8 cm** a 0.25
+m/s, 10.9 → **10.8** a 0.40). El radio circunscrito sigue en **0.142**, así que
+`robot_radius: 0.145` no cambia.
+
+⏳ Queda **`wheel_radius`** sin medir (0.032, de la ficha) y solo afecta al dibujo: `laser_z` ya
+es absoluto desde el suelo.
+
+**Ficheros:** `atriz_rvr_description/urdf/rvr.urdf.xacro`,
+`atriz_rvr_driver/scripts/atriz_rvr_driver/rvr_driver_node.py` (comentarios del cuaternión),
+`03_operacion/MEDIDAS_ROBOT.md`, manual **cap. 13** (nuevo) y 12.3–12.10,
+`19_paso_estrecho.txt`, `mediciones_banco/medir_collision_monitor.py`, `TRASPASO.md`,
+`INSTALACION.md` (F12 ✅ → F13), `CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — 🔴 El paso de 40 cm no se cruza, y el URDF tenía las cotas cruzadas
 
 Evidencia: `00_auditoria/evidencia_24_04/19_paso_estrecho.txt`, manual **cap. 12.10**.

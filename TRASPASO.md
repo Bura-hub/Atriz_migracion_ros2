@@ -56,14 +56,21 @@ la boca, con el camino despejado delante y sin tocar nada, y se bloqueó — el 
 17 cm y su círculo mide 18. Salió marcha atrás sin problema. No es un fallo: es el compromiso
 `parar lejos de las paredes` ↔ `cruzar huecos estrechos`, ahora medido.
 
-🔴 **Y por el camino salió que el URDF tenía largo y ancho CRUZADOS.** El robot mide **18 × 22
-cm** (medido con orugas), no 21.8 × 18.5. Los huecos publicados salían 2 cm cortos —corregidos—
-y **`robot_radius: 0.11` estaba mal**: el circunscrito real es 0.142. Corregido a 0.145.
+🔴 **Y por el camino salió que el URDF tenía largo y ancho CRUZADOS.** El robot mide **18.2 ×
+21.7 cm** (medido con orugas), no 21.8 × 18.5. Los huecos publicados salían 2 cm cortos
+—corregidos— y **`robot_radius: 0.11` estaba mal**: el circunscrito real es 0.142. Corregido a
+0.145.
 
-**Lo siguiente es medir el robot en condiciones**:
-[`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md). Lo urgente es `laser_z` —hoy
-**derivado** de dos fichas de fabricante— y **si el LIDAR está nivelado**, que es la mejor
-pista sobre la inclinación de ~8°.
+✅ **El robot se midió entero el mismo día**
+([`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md)), y salieron dos cosas más:
+
+- 🔴 **El plano de barrido está 2 cm más bajo de lo documentado**: **15.5 cm**, no 17.45. La
+  ficha del RVR daba 11.4 cm de alto y son **7.0**. El robot **ve mejor** de lo que decíamos.
+- 🔴 **La inclinación de ~8° NO EXISTE** (ver abajo). Un problema abierto desde el principio,
+  cerrado con una regla.
+
+**Lo siguiente es repetir las paradas contra pared** con las cotas buenas: los huecos
+publicados están **recalculados, no vueltos a medir**.
 
 ---
 
@@ -294,20 +301,55 @@ las paredes vale más que cruzar huecos de 40 cm — pero es una **decisión de 
 el buscador eligió **otro hueco** (33.9 cm, a −61.5° de rumbo). Cruzó *un* hueco, no *el*
 hueco. No cuenta.
 
-### 1. ⏳ Medir el robot en condiciones — es lo siguiente
+### ✅ Hecho: el robot medido entero
 
-[`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md) lista las cotas y qué rompe
-cada una. Con `laser_z` y la nivelación del LIDAR medidas, toca **repetir las paradas contra
-pared** (los huecos de hoy están recalculados, no vueltos a medir) y el **barrido de `radius`**
-contra un mismo paso.
+| Cota | Medido | Antes |
+|---|---|---|
+| frente-atrás | **18.2 cm** | 21.8 (ficha, cruzado) |
+| lado a lado | **21.7 cm** | 18.5 (ficha, cruzado) |
+| suelo → tapa | **7.0 cm** | 11.4 (ficha) |
+| **suelo → centro del disco (`laser_z`)** | **15.5 cm** | 17.45 (derivado) |
+| ancho de oruga | **3.5 cm** | 2.5 (ficha) |
+| `wheel_separation` (entre centros) | **18.3 cm** | 15.0 (ficha) |
 
-### 2. 🔴 La inclinación de ~8°, confirmada por TRES vías
+✅ **Cierra solo**: `14.8 + 2 × 3.5 = 21.8 ≈ 21.7`. Las orugas ocupan todo el ancho, y ahí
+estaban los 4.5 cm que no cuadraban.
+
+⏳ Queda **`wheel_radius`** sin medir, y solo afecta al dibujo.
+
+### 1. ⏳ Repetir las paradas con las cotas buenas — es lo siguiente
+
+Los huecos publicados (9.8 y 10.8 cm) están **recalculados, no vueltos a medir**. Y el
+**barrido de `radius`** contra un mismo paso, fijando el hueco para que el buscador no elija
+otro.
+
+### 2. ✅ RESUELTO: la inclinación de ~8° no existe
+
+El usuario midió del suelo al disco del LIDAR **en cuatro puntos** y salen **iguales**. 8°
+habrían dado ~1.1 cm de diferencia sobre los 7.6 cm del disco: se habrían visto. **El robot
+está físicamente horizontal.**
+
+Y las «tres vías independientes» **no eran independientes**: el árbol TF sale de
+`odom.pose.pose.orientation`, que el driver copia del cuaternión del RVR, que calcula la IMU —
+y el acelerómetro es el mismo chip. **Una sola fuente contada tres veces.** El TF no
+confirmaba: repetía.
+
+⏳ **Consecuencia sin aplicar:** el driver publica un roll falso de ~8° en `/odom` y en TF. Eso
+inclina el plano del láser y comprime los alcances un **1 %** (~1 cm por metro) — y la deriva
+de SLAM medida es de **1–3 cm**. El orden de magnitud coincide: **podría ser parte de ella**.
+La corrección es una línea y **no se aplica sin medirla**. Manual, **cap. 13**.
+
+<details><summary>Lo que decía antes de resolverse</summary>
+
+### 🔴 La inclinación de ~8°, confirmada por TRES vías
 
 Árbol TF, `Roll` de la IMU y el acelerómetro con unidades correctas. Causa sin determinar.
 
 📝 La caracterización de la deriva **acota su gravedad**: con la inclinación presente, la
 deriva es de 2.7 cm, así que no está arruinando el emparejado. Hay que resolverla para Nav2
 —por REP-105 `odom → base_footprint` debería ser plana— pero **no es urgente**.
+
+</details>
 
 ---
 

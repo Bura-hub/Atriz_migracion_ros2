@@ -183,3 +183,94 @@ LO QUE SIGUE ABIERTO
 
 🔴 La inclinacion de ~8°, sin causa determinada. Con las cotas cruzadas
    corregidas, merece volver a mirarse: el modelo del robot ha cambiado.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ AMPLIACION: el robot medido ENTERO, y la inclinacion de ~8° resuelta
+═══════════════════════════════════════════════════════════════════════════════
+El usuario midio todas las cotas de `03_operacion/MEDIDAS_ROBOT.md` el mismo dia,
+con el robot apagado sobre suelo plano.
+
+── LAS COTAS ──
+
+    frente-atras (base_length)          18.2 cm   ✅
+    lado a lado  (base_width)           21.7 cm   ✅
+    suelo a la tapa (base_height)        7.0 cm   ✅   la ficha decia 11.4
+    ancho de una oruga (wheel_width)     3.5 cm   ✅   la ficha decia 2.5
+    borde interno a borde interno       14.8 cm   ✅
+    -> wheel_separation (entre centros) 18.3 cm   = 14.8 + 3.5
+
+  ✅ CIERRA SOLO: 14.8 + 2 x 3.5 = 21.8 ≈ 21.7 de ancho total. Las orugas ocupan
+     TODO el ancho del robot. Los 4.5 cm que no cuadraban eran los dos anchos de
+     oruga mal puestos (2.5 en vez de 3.5).
+
+── LA ALTURA DEL LIDAR, medida en cadena ──
+
+    suelo → tapa del RVR                 7.0 cm   ✅
+    tapa  → base del LIDAR (piso extra)  4.6 cm   ✅
+    base del LIDAR → centro del disco    3.9 cm   (= 15.5 − 11.6)
+    ─────────────────────────────────────────────
+    suelo → CENTRO DEL DISCO            15.5 cm   ✅  <- laser_z
+    suelo → extremo superior            16.5 cm   ✅
+
+  ✅ Comprobacion cruzada: 7.0 + 4.6 + 5.0 (alto del LIDAR) = 16.6 ≈ 16.5.
+
+  🔴 `laser_z` estaba en 0.1745, DERIVADO con base_height 0.114 de la ficha. El
+     plano de barrido esta 2 cm MAS BAJO de lo que decia el modelo.
+
+     -> El limite "por debajo de X el LIDAR no ve nada" pasa de 17.45 a 15.5 cm.
+        El robot ve MEJOR de lo documentado, no peor.
+
+     📝 Un error en laser_z es una traslacion pura en Z: NO inclina nada y no
+        afecta a SLAM 2D ni a Nav2, que trabajan en el plano.
+
+── 🔴 Y LA INCLINACION DE ~8° NO EXISTE ──
+
+  El usuario midio del suelo al disco del LIDAR en CUATRO PUNTOS —delante,
+  detras, izquierda, derecha— y salen IGUALES. El disco mide ~7.6 cm: 8° habrian
+  dado ~1.1 cm de diferencia. Se habrian visto.
+
+  El LIDAR va sobre un piso plano atornillado a la tapa: **el robot esta
+  fisicamente horizontal**.
+
+  Y las "tres vias independientes" que confirmaban la inclinacion NO ERAN
+  INDEPENDIENTES. Leyendo `_h_quaternion` del driver:
+
+        arbol TF          <- odom.pose.pose.orientation
+        esa orientacion   <- el cuaternion del RVR, con roll y pitch conservados
+        el cuaternion     <- lo calcula la IMU
+        el acelerometro   <- el MISMO chip
+
+  Una sola fuente contada tres veces. El TF no confirmaba nada: REPETIA.
+
+  ⏳ CONSECUENCIA, SIN APLICAR: el driver publica un roll falso de ~8° en /odom y
+     en TF. Un roll en `odom -> base_footprint` inclina el plano del laser y
+     comprime los alcances por cos(8°) = 0.990 — un 1 %, ~1 cm por metro.
+
+     La deriva de SLAM medida es de 1-3 cm en 1.6-2.4 m (fichero 14). EL ORDEN DE
+     MAGNITUD COINCIDE: este roll falso PODRIA ser parte de ella.
+
+     La correccion es una linea (`roll = pitch = 0.0`) y NO se aplica sin medir,
+     porque aplicarla a ciegas seria repetir el error que la creo. Hace falta:
+       1. repetir caracterizar_deriva_slam.py con el roll tal cual
+       2. repetirlo con roll = pitch = 0
+       3. comparar, y ENTONCES decidir
+
+── AJUSTE FINO DE LOS HUECOS (media longitud 0.090 -> 0.091) ──
+
+    prueba                          publicado   AHORA
+    radius 0.11 · pared 0.25 m/s      3.0 cm     2.9 cm
+    radius 0.18 · pared 0.25 m/s      9.9 cm     9.8 cm
+    radius 0.18 · pared 0.40 m/s     10.9 cm    10.8 cm
+
+  Son 1 mm. El radio circunscrito sigue en 0.142 -> `robot_radius: 0.145` no
+  cambia.
+
+── LO QUE QUEDA SIN MEDIR ──
+    wheel_radius   0.032, de la ficha. Solo afecta al dibujo: laser_z ya es
+                   absoluto desde el suelo, asi que un error aqui NO mueve el
+                   plano de barrido.
+    imu_z          0.05, suposicion. No se puede sin abrir el robot y hoy no
+                   afecta a nada.
+    centrado del LIDAR con las cotas nuevas: del borde delantero al eje deberian
+                   salir 9.1 cm, y del borde izquierdo 10.85.

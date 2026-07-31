@@ -2730,26 +2730,26 @@ el modelo:
 > `time_before_collision`. Según baja la distancia baja la velocidad, así que el robot se
 > acerca **asintóticamente al contacto**. Es un frenado suave, no una parada.
 
-Con `radius` 0.11 y media longitud de chasis **0.09** ✅ medida, la asíntota era 2 cm. Paró a
-3.0 cm — exactamente como está escrito que funciona.
+Con `radius` 0.11 y media longitud de chasis **0.091** ✅ medida, la asíntota era 1.9 cm. Paró a
+2.9 cm — exactamente como está escrito que funciona.
 
 **La holgura se consigue inflando el círculo:**
 
 ```
-hueco ≈ radius − 0.09 + ~1 cm
+hueco ≈ radius − 0.091 + ~1 cm
 radius: 0.18  →  asíntota 9 cm
 ```
 
 📝 La holgura **depende de la dirección**, porque el robot no es un círculo: de frente
-`0.18 − 0.09 = 9.0 cm`, de costado `0.18 − 0.11 = 7.0 cm`, y en esquina
+`0.18 − 0.091 = 8.9 cm`, de costado `0.18 − 0.1085 = 7.2 cm`, y en esquina
 `0.18 − 0.142 = 3.8 cm`, que es el caso peor.
 
 ### 12.4 ✅ Medido — y el hueco no empeora con la velocidad
 
 | velocidad | recorrido | dist. LIDAR | **hueco real** |
 |---|---|---|---|
-| 0.25 m/s | 191 cm | 0.189 m | **9.9 cm** |
-| 0.40 m/s | 191 cm | 0.199 m | **10.9 cm** |
+| 0.25 m/s | 191 cm | 0.189 m | **9.8 cm** |
+| 0.40 m/s | 191 cm | 0.199 m | **10.8 cm** |
 
 ⚠️ Estos huecos son **2 cm mayores** de lo que se publicó el 2026-07-31: se habían calculado
 con la media longitud del URDF (0.109), que estaba mal (12.10). Están **recalculados, no
@@ -2768,8 +2768,8 @@ Por eso los dos polígonos son **`approach` y `slowdown`, nunca `stop`**. Verifi
 
 | Situación | Resultado |
 |---|---|
-| pegado a la pared, 3.0 cm | retrocedió **196 cm** ✅ |
-| a 10.9 cm | retrocedió 8.6 cm + giró en el sitio ✅ |
+| pegado a la pared, 2.9 cm | retrocedió **196 cm** ✅ |
+| a 10.8 cm | retrocedió 8.6 cm + giró en el sitio ✅ |
 | dentro de un paso de 40 cm (12.10) | retrocedió **58 cm** ✅ |
 
 ⚠️ **Salir de un rincón es lento.** Los 8.6 cm salen de que la caja `Precaucion` sigue viendo
@@ -2810,9 +2810,14 @@ distancia recorrida**. No se le atribuye causa hasta medirlo.
 
 ### 12.8 🔴 El límite que ninguna configuración arregla
 
-El plano de barrido del X2 está a **17.45 cm del suelo** (URDF, `laser_z`).
+El plano de barrido del X2 está a **15.5 cm del suelo** ✅ medido el 2026-07-31 con una regla,
+del suelo al centro del disco giratorio.
 
-> **Todo lo que esté por debajo de 17.45 cm es invisible para el `collision_monitor`, y el
+🔴 **Corregido:** hasta esa fecha aquí ponía **17.45 cm**, que era una suma **derivada** con la
+altura del RVR sacada de su ficha (11.4 cm cuando son **7.0**). El robot **ve 2 cm más abajo**
+de lo que estaba documentado.
+
+> **Todo lo que esté por debajo de 15.5 cm es invisible para el `collision_monitor`, y el
 > robot lo embestirá sin frenar.** Un zócalo bajo, una regleta, un pie de mesa que se ensancha
 > abajo, un cable grueso.
 
@@ -2821,7 +2826,11 @@ instrucciones a los estudiantes.**
 
 📝 Lo que sí está cubierto: el X2 tiene `range_min: 0.1` y va montado en el centro
 (`laser_x: 0.0`), así que su punto ciego de 10 cm cae **dentro del chasis** (media longitud
-0.109 m). No hay zona muerta alrededor del robot.
+0.091 m, media anchura 0.1085). No hay zona muerta alrededor del robot.
+
+📝 Y el desglose completo de la altura, medido: `suelo → tapa del RVR 7.0` + `tapa → base del
+LIDAR 4.6` + `base → centro del disco 3.9` = **15.5 cm**. Cierra contra la otra medida: los
+16.5 cm hasta el extremo superior son `7.0 + 4.6 + 5.0` (alto del LIDAR).
 
 ### 12.10 🔴 No cruza un paso de 40 cm — y las cotas del robot estaban mal
 
@@ -2860,13 +2869,13 @@ una verdad técnica.
 
 | | medido (usuario) | URDF (ficha) |
 |---|---|---|
-| frente-atrás | **18 cm** | 21.8 cm |
-| lado-lado | **22 cm** | 18.5 cm |
+| frente-atrás | **18.2 cm** | 21.8 cm |
+| lado-lado | **21.7 cm** | 18.5 cm |
 
 Modelaba un robot **más largo que ancho** siendo al revés. Dos consecuencias:
 
 1. **Los huecos publicados salían 2 cm cortos** (se calculaban con media longitud 0.109 en vez
-   de 0.09). Corregidos en 12.4. El modelo `hueco ≈ radius − media longitud + 1 cm` **no se
+   de 0.091). Corregidos en 12.4. El modelo `hueco ≈ radius − media longitud + 1 cm` **no se
    cae**, solo cambia la constante.
 2. 🔴 **`robot_radius: 0.11` estaba mal**, y esto sí es un error real. Lo llamé «radio
    circunscrito» y es aritmética mal hecha: el circunscrito es `√(0.09² + 0.11²) = 0.142` con
@@ -2878,9 +2887,10 @@ Modelaba un robot **más largo que ancho** siendo al revés. Dos consecuencias:
 📝 El URDF solo cambia la caja de colisión y la inercia: las ruedas usan `wheel_separation`,
 independiente, así que **ningún frame TF se mueve** y la odometría no se toca.
 
-⚠️ **Qué falta medir para dejar esto firme:** [`03_operacion/MEDIDAS_ROBOT.md`](../03_operacion/MEDIDAS_ROBOT.md).
-Lo más urgente es `laser_z` (hoy **derivado** de dos fichas de fabricante) y **si el LIDAR está
-nivelado**, que es la mejor pista sobre la inclinación de ~8°.
+✅ **Medido todo el mismo día**, incluidos `laser_z` y la nivelación del LIDAR:
+[`03_operacion/MEDIDAS_ROBOT.md`](../03_operacion/MEDIDAS_ROBOT.md). Queda una sola cota sin
+medir (`wheel_radius`) y solo afecta al dibujo. Dos hallazgos salieron de ahí: el plano de
+barrido está **2 cm más bajo** (12.8) y **la inclinación de ~8° no existe** (cap. 13).
 
 #### 📝 Un fallo de medición que vale la pena conocer
 
@@ -2905,6 +2915,72 @@ obstáculos finos.
 
 ✅ `desired_linear_vel` ya está en **0.40** (cap. 11.10), y navegando a esa velocidad la
 seguridad solo se activó cuatro veces, ninguna como parada.
+
+---
+
+## Capítulo 13 — La «inclinación de ~8°» no existe
+
+✅ **Resuelto el 2026-07-31**, y no con software: con una regla.
+
+### 13.1 Lo que se creía
+
+Desde el principio el proyecto arrastraba que **el robot está inclinado ~8°**, y el driver lo
+daba por bueno explícitamente:
+
+```python
+# Se conservan roll y pitch: el robot está inclinado ~8° y esa
+# inclinación es real, no un error de referencia.
+```
+
+La confianza venía de que estaba **«confirmado por tres vías independientes»**: el árbol TF, el
+Roll de la IMU y el acelerómetro.
+
+### 13.2 🔴 Las tres vías eran una sola
+
+| «vía» | de dónde sale de verdad |
+|---|---|
+| árbol TF | de `odom.pose.pose.orientation`… |
+| cuaternión del RVR | …que el driver copia tal cual del cuaternión, **que calcula la IMU** |
+| acelerómetro | el **mismo chip** |
+
+Leyendo `_h_quaternion` se ve: el driver toma el cuaternión del RVR, le resta el yaw de
+arranque, **conserva roll y pitch** y publica eso en `/odom` **y en TF**. El árbol TF no
+confirma nada — **repite** lo que dice la IMU.
+
+> Tres medidas del mismo sensor no son tres confirmaciones. Es la regla nº4 del proyecto
+> («mide antes de atribuir») fallando por el lado contrario: no se atribuyó sin medir, se midió
+> tres veces **lo mismo** creyendo que eran tres cosas.
+
+### 13.3 ✅ La medida que lo cierra
+
+El usuario midió del suelo al disco del LIDAR **en cuatro puntos** —delante, detrás, izquierda,
+derecha— y salen **iguales**. El disco del X2 mide ~7.6 cm: 8° habrían dado **~1.1 cm** de
+diferencia entre un lado y otro. Se habrían visto con esa misma regla.
+
+El LIDAR va sobre un piso plano atornillado a la tapa del RVR, así que **el robot está
+físicamente horizontal**.
+
+🔴 **Los ~8° son un desvío de la IMU del RVR**, no una inclinación del robot.
+
+### 13.4 ⏳ Qué hacer con ello — y por qué no se ha hecho ya
+
+Hoy el driver publica ese roll falso en `/odom` y en el árbol TF. Un roll en
+`odom → base_footprint` **inclina el plano del láser**, y eso comprime los alcances por
+`cos(8°) = 0.990`: un **1 %**, ~**1 cm por metro**.
+
+La deriva de SLAM medida es de **1–3 cm** en recorridos de 1.6–2.4 m (cap. 9.12). **El orden de
+magnitud coincide**, así que este roll falso **podría ser parte de ella**.
+
+La corrección es de una línea —`roll = pitch = 0.0` en `_h_quaternion`— y **no se ha aplicado**,
+porque aplicarla sin medir sería repetir el error que la creó. Lo que toca:
+
+1. repetir `caracterizar_deriva_slam.py` con el roll tal cual (línea base ya existente);
+2. repetirlo con `roll = pitch = 0`;
+3. comparar y **entonces** decidir.
+
+⚠️ Mientras tanto, `/odom` y `/imu` publican una orientación con ~8° de roll que **no
+corresponde a la realidad física**. Quien fusione esa orientación (por ejemplo
+`robot_localization` en el futuro) tiene que saberlo.
 
 ---
 
