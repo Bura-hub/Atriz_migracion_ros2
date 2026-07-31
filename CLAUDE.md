@@ -353,9 +353,18 @@ fuente que **no depende del marco de referencia**.
 **El locator acierta con 1 mm en 1 m** (101.1 medidos contra 101.0 de cinta). Es la referencia
 válida para todo lo demás.
 
-**El robot NO alcanza la velocidad comandada, y el déficit crece:** 0.10→87 %, 0.20→76 %,
-0.40→63 %. No es un fallo de medida (las cuatro fuentes coinciden): es el limitador de
-aceleración del firmware sobre tramos cortos. Importa para Nav2.
+✅ **VELOCIDADES MÁXIMAS REALES, medidas con el perfil en el tiempo** (2026-07-31):
+
+| | Comandado | Meseta real | Se alcanza en |
+|---|---|---|---|
+| lineal | 0.20 m/s | **0.199** (100 %) | ~0.5 s |
+| lineal | 0.40 m/s | **0.401** (100 %) | ~0.5 s |
+| angular | 0.5 → 2.0 rad/s | **99–102 %** en las cuatro | inmediato |
+
+⚠️ **RETRACTADO:** este fichero afirmó que «el robot no alcanza la velocidad comandada:
+0.10→87 %, 0.40→63 %». **Es falso.** La ventana de medida incluía el período posterior a la
+frenada, y hundía la media. Lo que sí existe es una **rampa de aceleración de ~0.5 s**: importa
+para Nav2, pero no es un tope.
 
 **`drive_rc_si_units` frena mucho mejor que `drive_with_heading`.** Deriva tras `drive_stop`:
 **1.1 cm** contra **11.3 cm**. Por eso el driver usa el primero.

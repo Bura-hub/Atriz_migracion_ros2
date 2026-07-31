@@ -41,9 +41,17 @@ Las mide **todas a la vez, contra la misma verdad**, en la misma corrida.
 Comparar corridas distintas no valdría: la velocidad real depende de la batería,
 del suelo y de la carga.
 
-📝 Y el robot **no alcanza la velocidad comandada**: 0.10→87 %, 0.20→76 %,
-   0.40→63 %. Las cuatro fuentes coinciden entre sí, así que no es un fallo de
-   medida: es el limitador de aceleración del firmware sobre tramos cortos.
+⚠️ **RETRACTADO el 2026-07-31:** este fichero llegó a afirmar que «el robot no
+   alcanza la velocidad comandada: 0.10→87 %, 0.40→63 %». **Es falso.** La
+   ventana de medida incluía el período POSTERIOR a la frenada (`conducir()`
+   duerme 1.2 s tras `drive_stop()`), así que la media se hundía.
+
+   Medido con el perfil en el tiempo: la meseta es del **100 %** tanto a
+   0.20 m/s (0.199) como a 0.40 (0.401), y se alcanza en ~0.5 s. Y la velocidad
+   ANGULAR sigue al comando al 99–102 % hasta 2.0 rad/s.
+
+   Sí existe una **rampa de aceleración** de ~0.5 s. Eso importa para Nav2 —el
+   robot no cambia de velocidad instantáneamente— pero no es un tope.
 
 🔴 LA VERDAD ES EL DESPLAZAMIENTO, NO OTRO SENSOR. Se toma del locator, que es
    el único ya validado contra una cinta métrica. Por eso `--calibrar` existe:
@@ -315,11 +323,21 @@ async def barrido(rvr) -> None:
 
         M.limpiar()
         t0 = time.monotonic()
-        await conducir(rvr, v, segundos)
+        t_par = await conducir(rvr, v, segundos)
 
-        # Solo el tramo de velocidad constante.
+        # 🔴 Solo el tramo de velocidad constante, y HASTA LA FRENADA.
+        #
+        # La version anterior cogia `M.locator` hasta la ULTIMA muestra, y
+        # `conducir()` duerme 1.2 s DESPUES de `drive_stop()`: la media incluia
+        # el robot frenando y parado, asi que la "velocidad real" salia hundida.
+        #
+        # Eso produjo la conclusion —FALSA— de que "el robot no alcanza la
+        # velocidad comandada: 0.10->87 %, 0.40->63 %". Medido el 2026-07-31 con
+        # el perfil en el tiempo, la meseta es del **100 %** tanto a 0.20 como a
+        # 0.40 m/s. El deficit era la RAMPA de aceleracion mas esta ventana mal
+        # puesta, no un tope del robot.
         corte = t0 + DESCARTE_S
-        loc = [m for m in M.locator if m[0] >= corte]
+        loc = [m for m in M.locator if corte <= m[0] <= t_par]
         if len(loc) < 5:
             print("    🔴 muy pocas muestras del locator; se salta")
             continue
@@ -327,15 +345,15 @@ async def barrido(rvr) -> None:
         dt_real = loc[-1][0] - loc[0][0]
         v_real = recorrido(loc) / dt_real if dt_real > 0 else 0.0
 
-        vel = [math.hypot(m[1], m[2]) for m in M.velocity if corte <= m[0] <= loc[-1][0]]
-        spd = [m[1] for m in M.speed if corte <= m[0] <= loc[-1][0]]
+        vel = [math.hypot(m[1], m[2]) for m in M.velocity if corte <= m[0] <= t_par]
+        spd = [m[1] for m in M.speed if corte <= m[0] <= t_par]
 
         # Derivada del locator, muestra a muestra. Su RUIDO es lo que interesa:
         # la media siempre saldrá bien porque es la propia verdad.
         deriv = [math.hypot(b[1] - a[1], b[2] - a[2]) / (b[0] - a[0])
                  for a, b in zip(loc, loc[1:]) if b[0] > a[0]]
 
-        enc = [m for m in M.encoders if corte <= m[0] <= loc[-1][0]]
+        enc = [m for m in M.encoders if corte <= m[0] <= t_par]
         v_enc = None
         if len(enc) >= 2 and (enc[-1][0] - enc[0][0]) > 0:
             ticks = ((enc[-1][1] - enc[0][1]) + (enc[-1][2] - enc[0][2])) / 2

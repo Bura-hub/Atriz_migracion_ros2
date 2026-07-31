@@ -4,6 +4,55 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 (parte 7) — Nav2 instalado, y otra retractación mía
+
+### Nav2: `navigation2`, NO `nav2-bringup`
+
+Comprobado **antes** de instalar nada:
+
+| | Paquetes | Qué arrastra |
+|---|---|---|
+| `ros-jazzy-navigation2` | **309** | lo que se usa: amcl, bt-navigator, controller, costmap-2d, planners, `map-server`… |
+| `ros-jazzy-nav2-bringup` | **621** | lo anterior **+ Gazebo**: `nav2-minimal-tb3-sim`, `tb4-sim`, `ros-gz-sim`, y `pocketsphinx-en-us` |
+
+`nav2-bringup` son ficheros de ejemplo para TurtleBot **en simulador**. Los launch de Atriz los
+escribimos nosotros, igual que con `slam_toolbox`, y esos 312 paquetes acabarían replicados en
+los **16 robots** vía imagen dorada.
+
+**Instalado y verificado:** 30 paquetes `nav2`, los diez que importan presentes, **cero** de
+simulador, y el disco sube solo 900 MB (5.4 → 6.3 GB).
+
+### ✅ `save_map` arreglado — el diagnóstico de la Fase 4 era correcto
+
+Con `nav2-map-server` instalado, `/slam_toolbox/save_map` devuelve **`result=0`** y genera el
+`.pgm` + `.yaml` que Nav2 carga. Antes fallaba con `result=255` y el error real solo aparecía
+en el log de slam_toolbox: `Package 'nav2_map_server' not found`.
+
+### 🔴 Y una retractación: el robot SÍ alcanza la velocidad comandada
+
+Al medir la velocidad **angular** para configurar Nav2 salió que sigue al comando al
+**99–102 %** hasta 2.0 rad/s. Eso no cuadraba con la lineal, que según nuestra propia
+documentación solo llegaba al 63 % a 0.40 m/s. Así que medí el **perfil en el tiempo** en vez
+de la media:
+
+```
+comandado 0.20 m/s  ->  meseta 0.199  (100 %)   alcanzada en ~0.5 s
+comandado 0.40 m/s  ->  meseta 0.401  (100 %)   alcanzada en ~0.5 s
+```
+
+**No hay tope.** La causa del error era la **ventana de medida**: iba hasta la última muestra
+del locator, y `conducir()` duerme 1.2 s **después** de `drive_stop()`, así que la media
+incluía el robot frenando y parado.
+
+📝 Es **el mismo fallo** que ya había arreglado en la prueba de marcos y que dejé sin arreglar
+en el barrido de velocidades. Arreglado ahora en `medir_velocidad_rvr.py`.
+
+Lo que sí existe es una **rampa de aceleración de ~0.5 s**. Importa para Nav2 —el robot no
+cambia de velocidad instantáneamente— pero es otra cosa, y se configura con `acc_lim`, no con
+`max_vel`.
+
+---
+
 ## 2026-07-31 (parte 6) — Los TRES bugs de marcos, arreglados y verificados
 
 Implementa el arreglo que la parte 5 dejó definido. Evidencia: `15_velocidad_odom.txt`.
@@ -189,7 +238,7 @@ se arreglan juntos.
 | **Locator validado con cinta métrica** | 101.1 medidos contra **101.0 reales** — 1 mm en 1 m |
 | **Encoders calibrados** | **7792 ticks/m**, contra la cinta y no contra otro sensor |
 | `Speed` (escalar) | existe, y es el módulo de `Velocity`. Comprobación cruzada barata |
-| **El robot no alcanza la velocidad comandada** | 0.10→87 %, 0.20→76 %, **0.40→63 %**. Limitador de aceleración del firmware. Importa para Nav2 |
+| ~~El robot no alcanza la velocidad comandada~~ | ⚠️ **RETRACTADO 2026-07-31** (parte 7): era la ventana de medida, que incluía el período tras la frenada. La meseta real es del **100 %** a 0.20 y a 0.40 m/s. Lo que sí hay es una **rampa de ~0.5 s** |
 
 ### Dos errores de método míos
 
