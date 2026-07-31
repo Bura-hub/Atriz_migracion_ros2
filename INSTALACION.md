@@ -100,9 +100,15 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          └── mapear→guardar→localizar→navegar · AMCL sigue con 0.1-1.1 cm
          └── 🔴 y cuesta CASI EL DOBLE que SLAM: el argumento es el marco común
 
-     F20 Lo que queda                                                          ⏳ SIGUIENTE
-         1. Mapear el laboratorio REAL y pose inicial por robot          ← AQUÍ
-         2. Un obstáculo que aparezca DURANTE la navegación
+     F20 Parada de emergencia arreglada      manual, cap. 15                ✅
+         └── fallaba por TRES causas: nombre, namespace y QoS
+
+     F21 Lo que queda                                                          ⏳ SIGUIENTE
+         1. Los 19 servicios del driver sin portar                      ← AQUÍ
+         2. provision.sh y verificar_robot.sh al día
+         3. Unidades systemd de arranque automático
+         4. Un obstáculo que aparezca DURANTE la navegación
+         📌 aplazado: mapear el laboratorio real y pose inicial por robot
          3. Confirmar los 0 fallos con otra tanda (p=0.113, sugerente)
          4. Los 16 servicios y 4 topics del driver sin portar
          5. Unidades systemd de arranque automático
@@ -110,7 +116,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          7. Clonar a los 16 robots            FLOTA.md
 ```
 
-> **Las etapas A a F19 están recorridas y verificadas sobre la máquina real.** Los capítulos
+> **Las etapas A a F20 están recorridas y verificadas sobre la máquina real.** Los capítulos
 > 1, 3, 4, 5, 7, 8, 8bis, 9, 10, **11 (Nav2)** y **12 (seguridad)** del manual dejaron de ser
 > NO VERIFICADO: el robot navega solo y para antes de chocar. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite

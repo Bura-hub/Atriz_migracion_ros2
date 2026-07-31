@@ -4,6 +4,82 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — 🔴 La parada de emergencia fallaba por TRES causas. Arreglada
+
+Evidencia: `00_auditoria/evidencia_24_04/25_parada_emergencia.txt`, manual **cap. 15** (nuevo).
+
+### Las tres, y las tres en silencio con `200 OK`
+
+| | Causa | Cuándo |
+|---|---|---|
+| 1ª | **nombre de topic**: la web publica en `/rvr/emergency_stop`, el driver escuchaba `is_emergency_stop` | ROS 1, auditoría |
+| 2ª | **namespace**: al portar se arregló el nombre y se coló el `/rvr/` | ROS 2, hoy |
+| 3ª | **QoS incompatible** | ROS 2, hoy |
+
+**La segunda.** El driver se suscribía a nombres **relativos**, que con el namespace vacío
+resuelven a `/emergency_stop` y `/is_emergency_stop`:
+
+```
+$ ros2 topic info /rvr/emergency_stop
+  Unknown topic '/rvr/emergency_stop'      ← el que usa la web
+```
+
+📝 Y el `TRASPASO.md` decía «el topic ya existe en el driver ROS 2». Existe **un** topic; no el
+que la web usa. Corregido.
+
+**La tercera, y solo aparece probándolo.** Con el nombre ya correcto:
+
+```
+New publisher discovered on topic '/rvr/emergency_stop', offering incompatible QoS.
+No messages will be received from it. Last incompatible policy: DURABILITY
+```
+
+El driver se suscribía `RELIABLE + TRANSIENT_LOCAL`, justificado con «así un suscriptor que
+llegue tarde recibe el último estado». **Ese razonamiento es del publicador.**
+
+> 🔴 **En el suscriptor, `TRANSIENT_LOCAL` solo RESTRINGE:** exige que el publicador también lo
+> sea, y ninguno lo es por defecto — ni `ros2 topic pub`, ni **rosbridge**, que es por donde
+> hablará la web. `VOLATILE` empareja con todo y es estrictamente más compatible.
+
+### ✅ El arreglo, verificado
+
+El driver escucha **también `/rvr/emergency_stop`** (absoluto) y el QoS pasa a
+`RELIABLE + VOLATILE`. Disparando los tres nombres uno a uno:
+
+```
+/rvr/emergency_stop  ✅   /emergency_stop  ✅   /is_emergency_stop  ✅
+avisos de "incompatible QoS": 0 · paradas: 3 · liberaciones: 3
+```
+
+⚠️ **Tres suscripciones para una función es feo, y a propósito**: el modo de fallo de este botón
+es «no llega el mensaje» y ha fallado dos veces por eso. La Fase 5 unifica a uno, **no antes**
+de que el nuevo esté probado de extremo a extremo.
+
+📝 **La lección de método:** las causas 2 y 3 **solo aparecen publicando de verdad**. Leer el
+código da el nombre pero no el namespace resuelto ni el QoS; `ros2 topic list` da el namespace
+pero no el QoS. En `CLAUDE.md`.
+
+### 🔴 Y lo que sigue sin estar
+
+**La parada no corta lo que venga de Nav2.** Pone el flag del driver, que ignora `cmd_vel` —
+pero Nav2 seguiría mandando objetivos y su controlador publicando. Habría que **cancelar la
+acción** además de parar los motores. **Sin comprobar.**
+
+### 📝 De paso: workspace parásito borrado
+
+Buscando el fichero instalado apareció `src/Atriz_rvr/{build,install,log}` — el parásito que
+documenta `CLAUDE.md`, de los dos `colcon build` desde el directorio equivocado. Estaba inerte
+(tenía `COLCON_IGNORE`) pero confunde. Borrado, 1.1 MB.
+
+Y queda aclarado cómo funciona `--symlink-install` aquí: el módulo instalado **apunta al fichero
+fuente**, así que editarlo cambia el comportamiento sin reinstalar. Pero `colcon build` sigue
+haciendo falta para los launch y los YAML de bringup, que **sí** se copian.
+
+**Ficheros:** `rvr_driver_node.py`, `25_parada_emergencia.txt` (nuevo), manual cap. 15,
+`TRASPASO.md`, `INSTALACION.md` (F20 ✅ → F21), `CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — ✅ Fase 4c: `map_server` + AMCL, y Nav2 navegando sobre el mapa
 
 Evidencia: `00_auditoria/evidencia_24_04/24_fase4c_amcl.txt`, manual **cap. 14** (nuevo).

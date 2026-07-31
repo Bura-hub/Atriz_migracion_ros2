@@ -117,7 +117,7 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 | 📝 `reset_yaw()` **no hace nada** — el yaw se pone a cero al **encender** el RVR | menor | ✅ **corregido**: el driver mide `yaw₀` al conectar y lo resta. Cinco arranques dieron cinco offsets distintos |
 | ~~`inverted` del LIDAR sin verificar~~ | corrompe mapas | ✅ **verificado 2026-07-31**: `true` es CORRECTO. El equivocado era el yaw de `/odom` |
 | 🔴 **El robot está inclinado ~8°** (árbol TF, Roll de la IMU y acelerómetro: **tres** vías) | calidad de Nav2 | 🔴 abierto, causa sin determinar. **No urgente**: con ella la deriva de SLAM es de 2.7 cm |
-| 🔴 **La parada de emergencia de la web no hace nada.** Publica en `/rvr/emergency_stop`, que no existe. Falla **en silencio** con `200 OK` | seguridad | ⏳ el topic ya existe en el driver ROS 2; falta el lado web (fase final) |
+| ~~La parada de emergencia de la web no hace nada~~ | seguridad | ✅ **resuelta 2026-07-31**. Había **tres** causas, no una: nombre, **namespace** (`/rvr/`) y **QoS** (`TRANSIENT_LOCAL` en el suscriptor no empareja con nadie). Verificada por los tres nombres, 0 avisos de QoS. Manual, cap. 15 |
 | **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — acción del usuario |
 | **Sin arranque automático** — ninguna unidad systemd | operación | ⏳ pendiente |
 | 16 de 20 servicios y 4 topics sin portar | funcionalidad | ⏳ diferido por el usuario |
@@ -388,11 +388,32 @@ dos probadas. Los dos publican `map → odom` y juntos parten el árbol TF **sin
 ⚠️ **Sin resolver:** la σyaw sube a **18°** navegando (mapa pequeño y poco distintivo, sin
 comprobar), y **la pose inicial tendrá que venir por robot** para la flota. Manual, **cap. 14**.
 
-### 1. ⏳ Mapear el laboratorio real y resolver la pose inicial — es lo siguiente
+### ✅ Hecho: la parada de emergencia, que fallaba por TRES causas
 
-Los mapas hechos tienen entre 1.5 y 7.1 m² de espacio libre: son la esquina de pruebas, no el
-laboratorio. Y cada robot arranca en su sitio, así que `set_initial_pose` tiene que venir por
-robot — del `robot_id.txt` o de un argumento del launch.
+Falló tres veces y siempre en silencio, con `200 OK` en la web: **nombre** de topic (ROS 1),
+**namespace** `/rvr/` (al portar), y **QoS** — el driver se suscribía `TRANSIENT_LOCAL`, que en
+un suscriptor **solo restringe** y no empareja con ningún publicador por defecto.
+
+Verificada disparando los tres nombres: **3 paradas, 3 liberaciones, 0 avisos de QoS**.
+Manual, **cap. 15**.
+
+🔴 **Pero no corta lo que venga de Nav2.** Pone el flag del driver, que ignora `cmd_vel` — Nav2
+seguiría mandando objetivos. Habría que cancelar la acción además de parar los motores. **Sin
+comprobar.**
+
+### 1. ⏳ Los 19 servicios del driver — es lo siguiente
+
+Es el mayor hueco funcional que queda **en el robot**, y no necesita el circuito definitivo. Hoy
+el driver tiene **1 servicio** (`release_emergency_stop`) de los **20 `.srv` definidos**: faltan
+LEDs, IR, encoders, información del sistema, configuración de streaming, motores crudos,
+`move_to_pose`… Es lo que la web necesitará, y se prueba en banco — ya existe
+`verificar_leds_sensores.py` con 37 comprobaciones.
+
+⏳ Después: `provision.sh` y `verificar_robot.sh` al día con todo lo de hoy (si no, la imagen
+dorada no lo tendrá), y las unidades **systemd** de arranque automático.
+
+📌 **Aplazado hasta tener el circuito definitivo:** mapear el laboratorio real y la pose inicial
+por robot.
 
 ### ✅ Hecho: las paradas re-medidas
 

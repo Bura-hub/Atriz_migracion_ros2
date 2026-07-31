@@ -273,6 +273,20 @@ mismo `map` es lo que permite que la web diga «ve a la mesa 3». Manual, cap. 1
 **📝 `/amcl_pose` no llega con el robot quieto, y no es un fallo.** AMCL solo actualiza tras
 moverse `update_min_d` (0.15 m). Mueve el robot antes de dar por roto nada.
 
+**🔴🔴 EN UN SUSCRIPTOR, `TRANSIENT_LOCAL` NO AÑADE GARANTÍAS: SOLO RESTRINGE CON QUIÉN
+EMPAREJA.** Exige que el publicador también lo sea, y **ninguno lo es por defecto** — ni
+`ros2 topic pub`, ni rosbridge. La parada de emergencia del driver estaba suscrita
+`RELIABLE + TRANSIENT_LOCAL` «para que un suscriptor que llegue tarde reciba el último estado»,
+que es un razonamiento **del publicador**. Resultado: `incompatible QoS […] No messages will be
+received`. → En un suscriptor usa **VOLATILE**, que empareja con todo; la fiabilidad la da
+`RELIABLE`. Manual, cap. 15.1.
+
+**🔴 La parada de emergencia ha fallado TRES veces, siempre en silencio y con `200 OK`.**
+(1) nombre de topic distinto, en ROS 1. (2) **namespace**: al portar se arregló el nombre y se
+coló el `/rvr/`. (3) **QoS**. → Las causas 2 y 3 **solo aparecen publicando de verdad**: leer el
+código da el nombre pero no el namespace resuelto ni el QoS. **Publica y mira el log del
+driver.**
+
 **El X2 no ve un objeto fino en un solo barrido.** A 0.68 m tira un rayo cada 1.7 cm, así que
 un objeto de 5 cm da 2-3 puntos y en un barrido suelto puede desaparecer. → Para geometría
 fina, **acumula 6-8 s de barridos y toma la mediana por sector angular**. Un `/scan` suelto no

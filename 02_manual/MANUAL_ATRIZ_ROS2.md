@@ -3327,6 +3327,84 @@ afirmarlo haría falta una referencia externa — una marca en el suelo medida c
 
 ---
 
+## Capítulo 15 — La parada de emergencia: tres fallos silenciosos
+
+✅ **Arreglada y verificada el 2026-07-31.** Evidencia:
+`00_auditoria/evidencia_24_04/25_parada_emergencia.txt`.
+
+### 15.1 Este botón ha fallado tres veces, por tres causas distintas
+
+Y las tres daban **`200 OK` en la web y cero efecto en el robot**.
+
+| | Causa | Cuándo |
+|---|---|---|
+| 1ª | **nombre de topic**: la web publicaba en `/rvr/emergency_stop`, el driver escuchaba `is_emergency_stop` | ROS 1, auditoría 2026-07-29 |
+| 2ª | **namespace**: al portar se arregló el nombre y se coló el prefijo `/rvr/` | ROS 2, 2026-07-31 |
+| 3ª | **QoS incompatible** | ROS 2, 2026-07-31 |
+
+**La segunda.** El driver se suscribía a `emergency_stop` e `is_emergency_stop`, nombres
+**relativos** que con el namespace vacío —el valor por defecto— resuelven a `/emergency_stop` y
+`/is_emergency_stop`:
+
+```
+$ ros2 topic list | grep -i emergency
+  /emergency_stop
+  /is_emergency_stop
+$ ros2 topic info /rvr/emergency_stop
+  Unknown topic '/rvr/emergency_stop'      ← el que usa la web
+```
+
+📝 Y el `TRASPASO.md` decía «el topic ya existe en el driver ROS 2». Existe **un** topic; no el
+que la web usa.
+
+**La tercera, y solo aparece PROBÁNDOLO.** Con el nombre ya correcto:
+
+```
+New publisher discovered on topic '/rvr/emergency_stop', offering incompatible QoS.
+No messages will be received from it. Last incompatible policy: DURABILITY
+```
+
+El driver se suscribía con `RELIABLE + TRANSIENT_LOCAL`, justificado con «así un suscriptor que
+llegue tarde recibe el último estado». **Ese razonamiento es del publicador.**
+
+> 🔴 **En el suscriptor, `TRANSIENT_LOCAL` solo RESTRINGE**: exige que el publicador también lo
+> sea. Y ninguno lo es por defecto — ni `ros2 topic pub`, ni **rosbridge**, que es por donde
+> hablará la web. `VOLATILE` en el suscriptor empareja con **todo**: es estrictamente más
+> compatible.
+
+### 15.2 ✅ El arreglo y su verificación
+
+1. El driver escucha **también `/rvr/emergency_stop`**, en absoluto.
+2. El QoS pasa de `RELIABLE + TRANSIENT_LOCAL` a **`RELIABLE + VOLATILE`**.
+
+Disparando los tres nombres uno a uno:
+
+```
+/rvr/emergency_stop    -> PARADA DE EMERGENCIA ✅
+/emergency_stop        -> PARADA DE EMERGENCIA ✅
+/is_emergency_stop     -> PARADA DE EMERGENCIA ✅
+
+avisos de "incompatible QoS": 0 · paradas: 3 · liberaciones: 3
+```
+
+⚠️ **Tres suscripciones para una función es feo, y está hecho a propósito**: en un botón de
+emergencia el modo de fallo es «no llega el mensaje», y ha fallado dos veces exactamente por
+eso. La Fase 5 unifica a uno — **no antes** de que el nuevo esté probado de extremo a extremo.
+
+📝 **La lección de método:** las causas 2 y 3 **solo aparecen publicando de verdad**. Leer el
+código daba el nombre pero no el namespace resuelto, y no decía nada del QoS. `ros2 topic list`
+daba el namespace pero no el QoS. Hizo falta **publicar y mirar el log del driver**.
+
+### 15.3 ⏳ Lo que sigue sin estar
+
+🔴 **La parada no corta lo que venga de Nav2.** Hoy pone el flag del driver, que ignora
+`cmd_vel` — pero Nav2 seguiría mandando objetivos y su controlador seguiría publicando. Habría
+que **cancelar la acción** además de parar los motores. **Sin comprobar.**
+
+⏳ Unificar a un solo topic cuando la Fase 5 reescriba la web.
+
+---
+
 ## Capítulo 6
 
 ⏳ **No escrito todavía.** Se redacta al ejecutar las fases 1–6 del

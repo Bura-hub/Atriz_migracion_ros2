@@ -1,0 +1,109 @@
+═══════════════════════════════════════════════════════════════════════════════
+LA PARADA DE EMERGENCIA — tercera causa de fallo silencioso, y ya funciona
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Manual, cap. 15.
+
+✅ ESTADO: funciona por los TRES nombres de topic, sin avisos de QoS.
+   Verificado en banco disparando cada uno y viendo reaccionar al driver.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. ESTE BOTON HA FALLADO TRES VECES, POR TRES CAUSAS DISTINTAS
+───────────────────────────────────────────────────────────────────────────────
+  Y las tres daban `200 OK` en la web y CERO efecto en el robot.
+
+  1ª — ROS 1, nombre de topic (auditoria 2026-07-29)
+       la web publicaba en /rvr/emergency_stop
+       el driver escuchaba is_emergency_stop
+       -> rostopic info /rvr/emergency_stop  =>  ERROR: Unknown topic
+
+  2ª — ROS 2, NAMESPACE (2026-07-31)
+       Al portar se arreglo el NOMBRE y se colo el PREFIJO. El driver se
+       suscribia a `emergency_stop` e `is_emergency_stop`, nombres RELATIVOS que
+       con el namespace vacio —el valor por defecto, ARQUITECTURA.md D1—
+       resuelven a /emergency_stop y /is_emergency_stop.
+
+       Comprobado con el driver corriendo:
+         $ ros2 topic list | grep -i emergency
+           /emergency_stop
+           /is_emergency_stop
+         $ ros2 topic info /rvr/emergency_stop
+           Unknown topic '/rvr/emergency_stop'      <- el que usa la web
+
+       📝 Y el TRASPASO.md decia «el topic ya existe en el driver ROS 2». Existe
+          UN topic; no el que la web usa. Corregido.
+
+  3ª — ROS 2, QoS INCOMPATIBLE (2026-07-31)  <- esta solo aparece al PROBARLO
+       Con el nombre ya correcto, publicando como publicaria la web:
+
+         New publisher discovered on topic '/rvr/emergency_stop', offering
+         incompatible QoS. No messages will be received from it.
+         Last incompatible policy: DURABILITY
+
+       El driver se suscribia con RELIABLE + **TRANSIENT_LOCAL**. El comentario
+       lo justificaba diciendo «asi un suscriptor que llegue tarde recibe el
+       ultimo estado» — pero ese razonamiento es del PUBLICADOR.
+
+       🔴 EN EL SUSCRIPTOR, TRANSIENT_LOCAL SOLO RESTRINGE: exige que el
+          publicador tambien lo sea. Y ninguno lo es por defecto: ni
+          `ros2 topic pub`, ni rosbridge, que es por donde hablara la web.
+
+          VOLATILE en el suscriptor empareja con TODO —publicadores VOLATILE y
+          tambien TRANSIENT_LOCAL—: es estrictamente mas compatible.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. ✅ EL ARREGLO, Y SU VERIFICACION
+───────────────────────────────────────────────────────────────────────────────
+  a) el driver escucha TAMBIEN /rvr/emergency_stop, en ABSOLUTO
+  b) el QoS pasa de RELIABLE+TRANSIENT_LOCAL a RELIABLE+VOLATILE
+
+  VERIFICADO disparando los tres nombres uno a uno:
+
+      /rvr/emergency_stop    -> PARADA DE EMERGENCIA ✅
+      /emergency_stop        -> PARADA DE EMERGENCIA ✅
+      /is_emergency_stop     -> PARADA DE EMERGENCIA ✅
+
+      avisos de "incompatible QoS":  0
+      paradas disparadas: 3 · liberaciones: 3
+
+  ⚠️ TRES SUSCRIPCIONES PARA UNA FUNCION ES FEO, y esta hecho a proposito: en un
+     boton de emergencia el modo de fallo es «no llega el mensaje», y ha fallado
+     dos veces exactamente por eso. La Fase 5 reescribe la web sobre rosbridge y
+     ahi se unifica a UNO — pero NO antes de que el nuevo este probado de extremo
+     a extremo.
+
+  📝 LA LECCION DE METODO: las causas 2 y 3 solo aparecen PUBLICANDO DE VERDAD.
+     Leer el codigo daba el nombre del topic pero no el namespace resuelto, y no
+     decia nada del QoS. `ros2 topic list` daba el namespace pero no el QoS.
+     Hizo falta publicar y mirar el log del driver.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 📝 DE PASO: workspace parasito borrado
+───────────────────────────────────────────────────────────────────────────────
+  Al buscar el fichero instalado aparecio `src/Atriz_rvr/{build,install,log}`:
+  el workspace parasito que documenta CLAUDE.md, de los dos `colcon build` desde
+  el directorio equivocado del 2026-07-31. Estaba inerte (tenia COLCON_IGNORE)
+  pero confunde. Borrado, 1.1 MB.
+
+  📝 Y de paso queda aclarado como funciona `--symlink-install` aqui: el modulo
+     instalado apunta al FICHERO FUENTE
+
+       python3 -c "import atriz_rvr_driver.rvr_driver_node as m; print(m.__file__)"
+       -> /home/sphero/atriz_ws/src/Atriz_rvr/atriz_rvr_driver/scripts/...
+
+     Por eso editar el fuente cambia el comportamiento sin reinstalar. Pero
+     `colcon build` SIGUE haciendo falta para los launch y los YAML de bringup,
+     que se copian.
+
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE FALTA
+───────────────────────────────────────────────────────────────────────────────
+⏳ Unificar a UN topic cuando la Fase 5 reescriba la web.
+⏳ Que la parada de emergencia corte tambien lo que venga de Nav2. Hoy pone el
+   flag del driver, que ignora cmd_vel — pero Nav2 seguiria mandando objetivos.
+   Habria que cancelar la accion ademas de parar los motores. SIN COMPROBAR.
+⏳ Los 19 servicios del driver sin portar.
