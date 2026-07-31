@@ -91,7 +91,7 @@ echo "  usuario: $USUARIO ($HOME_USUARIO)"
 [[ $SIN_ROS -eq 1 ]] && avi "--sin-ros: se salta la instalación de ROS 2"
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "0/7 · Comprobar que el punto de partida es el esperado"
+say "0/8 · Comprobar que el punto de partida es el esperado"
 
 # Aprovisionar sobre un SO que no es el previsto produce fallos incomprensibles
 # tres pasos más adelante. Se comprueba antes de tocar nada.
@@ -112,7 +112,7 @@ if ! ping -c1 -W3 archive.ubuntu.com >/dev/null 2>&1 && ! ping -c1 -W3 ports.ubu
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "1/7 · Terminar las actualizaciones pendientes"
+say "1/8 · Terminar las actualizaciones pendientes"
 
 # La imagen trae unattended-upgrades ACTIVO y, en cuanto hay red, instala por su
 # cuenta — incluido un kernel nuevo. Si no se cierra esto ANTES de tocar el
@@ -171,7 +171,7 @@ if [[ -f /var/run/reboot-required ]]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "2/7 · Paquetes del sistema"
+say "2/8 · Paquetes del sistema"
 
 # iw               apagar el power-save del WiFi. NO viene en Server 24.04.
 # python3-aiohttp  sphero_sdk/__init__.py lo importa SIN CONDICIONES (a través de
@@ -204,7 +204,7 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "3/7 · UART del RVR  (delega en fase_0_1_fix_uart.sh)"
+say "3/8 · UART del RVR  (delega en fase_0_1_fix_uart.sh)"
 
 if [[ $SIMULAR -eq 1 ]]; then
     printf '  %s[simular]%s bash %s\n' "$GRIS" "$FIN" "$SCRIPTS/fase_0_1_fix_uart.sh"
@@ -215,7 +215,7 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "4/7 · Higiene del SO  (delega en fase_1_higiene_so.sh)"
+say "4/8 · Higiene del SO  (delega en fase_1_higiene_so.sh)"
 
 if [[ $SIMULAR -eq 1 ]]; then
     printf '  %s[simular]%s bash %s\n' "$GRIS" "$FIN" "$SCRIPTS/fase_1_higiene_so.sh"
@@ -229,7 +229,7 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "5/7 · Código del robot en ~/atriz_ws"
+say "5/8 · Código del robot en ~/atriz_ws"
 
 WS="$HOME_USUARIO/atriz_ws/src"
 if [[ -d "$WS/Atriz_rvr/.git" ]]; then
@@ -251,7 +251,7 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "6/7 · ROS 2 Jazzy"
+say "6/8 · ROS 2 Jazzy"
 
 if [[ $SIN_ROS -eq 1 ]]; then
     salta "saltado por --sin-ros"

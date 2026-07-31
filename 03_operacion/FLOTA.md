@@ -1,5 +1,19 @@
 # Gestión de la flota — 16 robots
 
+> 🔴🔴 **ANTES DE CONSTRUIR LA IMAGEN DORADA, LEE ESTO.**
+>
+> Esta guía supone que `provision.sh` funciona. **Eso no está comprobado**: el script nunca se
+> ha ejecutado de principio a fin sobre un Ubuntu 24.04 limpio, porque exigiría reflashear
+> rvr-01 —el único robot montado— y el usuario decidió no hacerlo el 2026-07-31.
+>
+> Lo verificado es sintaxis, una pasada con `--simular` y la comprobación de los binarios de
+> Nav2. **De una pasada limpia no se ha probado nada de lo que instala o compila.**
+>
+> El riesgo no es que falle: es que falle **en el robot 7 de 16**, con seis ya desplegados.
+> Detalle en `00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.
+
+
+
 > **Estado: DISEÑO. No implementado.** Se ejecuta en la Fase 6, después de tener **un**
 > robot completamente funcional sobre ROS 2.
 >

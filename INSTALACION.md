@@ -110,7 +110,9 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          └── provision NUNCA instalaba navigation2 · verificador 50 -> 84
 
      F23 Lo que queda                                                          ⏳ SIGUIENTE
-         1. Pasar provision.sh entero sobre un 24.04 limpio             ← AQUÍ
+         1. Unidades systemd de arranque automático                     ← AQUÍ
+         🔴 SUPOSICIÓN ACEPTADA: provision.sh no se ha pasado entero sobre un
+            24.04 limpio (no se reflashea rvr-01). Ver evidencia 29.
          3. Unidades systemd de arranque automático
          4. Un obstáculo que aparezca DURANTE la navegación
          📌 aplazado: mapear el laboratorio real y pose inicial por robot

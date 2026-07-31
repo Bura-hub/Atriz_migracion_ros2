@@ -462,14 +462,29 @@ reconstruirlo. En resumen:
 - 📝 `/color` publica `[0,0,0]` salvo que se arranque con `color_detection:=true`.
 - 🔴 La **credencial sigue expuesta**, y quitarla exige limpiar el **historial** de git.
 
-### 1. ⏳ Pasar `provision.sh` entero sobre un 24.04 limpio — es lo siguiente
+### 🔴 Suposición aceptada: `provision.sh` no se ha probado entero
 
-**No se ha ejecutado de principio a fin desde estos cambios.** Es idempotente y el paso 7 se
-probó a mano, pero una pasada completa sigue **sin verificar** — y es lo que decide si la imagen
-dorada sale bien.
+**Decisión del usuario el 2026-07-31: no se reflashea rvr-01.** Es el único robot montado y
+probar el script de principio a fin exigiría un 24.04 limpio. Se **asume** que funciona hasta
+tener una tarjeta de repuesto.
 
-Después: las unidades **systemd** de arranque automático (necesitan `sudo`) y reconstruir la
-imagen dorada.
+✅ **Verificado:** sintaxis, una pasada con `--simular` (código 0 recorriendo las nueve
+secciones), la comprobación de los cuatro binarios de Nav2 —que **no** se simula— y la
+idempotencia.
+
+🔴 **Sin verificar, y es lo que importa:** la simulación convierte en no-operación **justo lo
+que instala y compila** — el `full-upgrade`, el arreglo del UART, la higiene del SO, el
+`apt install`, compilar YDLidar-SDK y el `colcon build`. De una pasada limpia **no se ha probado
+nada**.
+
+⚠️ **No construyas la imagen dorada sin levantar esto.** El riesgo no es que falle: es que falle
+**en el robot 7 de 16**, con seis ya desplegados.
+Detalle: `00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.
+
+### 1. ⏳ Las unidades systemd de arranque automático — es lo siguiente
+
+En un laboratorio remoto los robots tienen que levantarse solos al arrancar. Necesita `sudo`, así
+que te lo prepararía como script exacto.
 
 Todo lo de hoy —`collision_monitor`, localización con AMCL, URDF corregido,
 `publicar_inclinacion`, `color_detection`, `robot_radius`, los 18 servicios— **tiene que estar

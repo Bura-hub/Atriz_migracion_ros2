@@ -666,6 +666,7 @@ lo que produce deriva entre documentación y realidad.
 | **Imagen dorada** para los 16, no aprovisionar por red | ~300 MB y 15-20 min por robot, sobre la única AP. `FLOTA.md` |
 | La imagen dorada se **construye ejecutando `provision.sh`**, no a mano | Una imagen irreproducible es una caja negra. `FLOTA.md` |
 | **`provision.sh` instala `navigation2`** desde el 2026-07-31 | Antes no lo instalaba: un robot aprovisionado con el script no podía navegar, ni tenía capa de seguridad, ni localización |
+| 🔴 **NO se reflashea rvr-01 para probar `provision.sh` entero** | Es el único robot montado. Decisión del usuario el 2026-07-31: se **asume** que funciona hasta tener una tarjeta de repuesto. **Es una suposición, no un hecho** — ver abajo |
 | **🟢 GO: el SDK funciona en Python 3.12** (16.67 Hz) | manual, cap. 5.1 · verificado 2026-07-30 |
 | El driver publica `odom → base_footprint`, **no** `odom → base_link` | manual, cap. 9.4 · REP-105 y un frame = un padre |
 | `async_slam_toolbox_node`, no el `sync` | no bloquea por barrido, y cuesta 4.5 % · manual cap. 9 |
@@ -721,6 +722,18 @@ Su regla es **comprobar el efecto, no la intención**. Si añades comprobaciones
 
 **La imagen dorada es el atajo; `provision.sh` es la verdad.** Si divergen, gana el script y se
 reconstruye la imagen. Procedimiento completo en `03_operacion/FLOTA.md`.
+
+> 🔴 **Y esa regla supone que el script funciona — eso NO está comprobado.**
+> `provision.sh` **nunca se ha ejecutado de principio a fin** sobre un 24.04 limpio: exigiría
+> reflashear rvr-01, el único robot montado, y el usuario decidió no hacerlo (2026-07-31).
+>
+> Lo que sí está verificado: sintaxis, una pasada completa con `--simular` (código 0), la
+> comprobación de los binarios de Nav2 —que **no** se simula— y la idempotencia. Lo que **no**:
+> nada de lo que instala o compila, porque la simulación convierte justo eso en no-operación.
+>
+> **No construyas la imagen dorada sin levantar esta suposición.** El riesgo no es que falle:
+> es que falle **en el robot 7 de 16**, con seis ya desplegados.
+> Detalle en `00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.
 
 ### Y luego el contexto
 

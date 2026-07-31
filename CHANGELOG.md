@@ -4,6 +4,45 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — Una suposición aceptada a propósito: `provision.sh` sin probar entero
+
+Cierre del día. `provision.sh` gana hoy la instalación de Nav2 y el verificador sube a 84
+comprobaciones, pero **el script nunca se ha ejecutado de principio a fin sobre un Ubuntu
+24.04 limpio** — haría falta reflashear rvr-01, que es el único robot montado.
+
+**Decisión del usuario: no se reflashea.** Se asume que funciona hasta tener una tarjeta de
+repuesto. Es razonable, y por eso mismo va escrita: la regla 2 del proyecto dice que nada se
+documenta sin ejecutarse, así que una excepción consciente se registra en lugar de disolverse.
+
+### Lo que sí se pudo verificar sin reflashear
+
+`bash provision.sh --simular` recorre las nueve secciones y sale con **código 0**. Eso descarta
+errores de sintaxis y de lógica en todo el camino. Y el bloque añadido hoy —la comprobación de
+los binarios de Nav2— **no se simula**: se ejecuta de verdad, y pasan los cuatro
+(`collision_monitor`, `map_server`, `amcl`, `controller_server`). La idempotencia también
+responde: reconoce lo ya instalado en vez de repetirlo.
+
+De paso salió un defecto cosmético: las secciones decían «2/7 … 6/7» y luego «7/8, 8/8».
+Corregido a `0/8 … 8/8`.
+
+### Lo que sigue sin verificar, que es lo que importa
+
+La simulación convierte en no-operación **justo los pasos que instalan y compilan**: el
+`full-upgrade`, el arreglo del UART, la higiene del SO, el `apt install`, compilar YDLidar-SDK
+y el `colcon build`. De una pasada limpia no se ha probado **nada** de eso.
+
+🔴 **Consecuencia operativa:** la regla «la imagen dorada es el atajo, `provision.sh` es la
+verdad» **supone que el script funciona**, y esa suposición es la que está sin comprobar. El
+riesgo no es que falle: es que falle en el robot 7 de 16, con seis ya desplegados.
+
+Marcado en `CLAUDE.md`, `TRASPASO.md`, `INSTALACION.md` y —donde más falta hace— al principio
+de `03_operacion/FLOTA.md`, que es la guía que construye la imagen. Detalle en
+`00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.
+
+**Se levanta** cuando haya una microSD de repuesto, o cuando rvr-01 deje de ser el único robot.
+
+---
+
 ## 2026-07-31 — Barrido de deriva documental, y qué le falta al repositorio web
 
 Cierre de la sesión: revisar que la documentación **no siga afirmando lo que hoy ha dejado de

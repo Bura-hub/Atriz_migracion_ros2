@@ -1,0 +1,94 @@
+═══════════════════════════════════════════════════════════════════════════════
+🔴 SUPOSICION ACEPTADA A PROPOSITO: provision.sh no se ha probado entero
+Fecha: 2026-07-31 · Decision del usuario
+═══════════════════════════════════════════════════════════════════════════════
+
+Este fichero existe porque el proyecto tiene una regla —«nada se documenta sin
+haberse ejecutado y verificado»— y aqui se hace una EXCEPCION consciente. Se
+registra para que dentro de seis meses nadie lea «provision.sh funciona» como si
+estuviera comprobado.
+
+
+───────────────────────────────────────────────────────────────────────────────
+LA DECISION
+───────────────────────────────────────────────────────────────────────────────
+  Probar `provision.sh` de principio a fin exige un Ubuntu Server 24.04 LIMPIO, y
+  eso significa reflashear la microSD de rvr-01 — el unico robot montado, con
+  todo lo de la migracion encima.
+
+  El usuario decide NO reflashear: «esta no se reflashea, tendremos que dejar
+  esto para cuando todo funcione, hasta entonces asumiremos que esta bien lo de
+  la imagen dorada».
+
+  Es una decision razonable: el coste de perder este robot ahora es alto y el
+  beneficio se puede recoger mas tarde, con una tarjeta de repuesto.
+
+  ⚠️ PERO ES UNA SUPOSICION, NO UN HECHO. Y va aqui por escrito.
+
+
+───────────────────────────────────────────────────────────────────────────────
+✅ LO QUE SI ESTA VERIFICADO
+───────────────────────────────────────────────────────────────────────────────
+  a) `bash -n provision.sh` — sintaxis correcta.
+
+  b) `bash provision.sh --simular` recorre las NUEVE secciones (0/8 a 8/8) y sale
+     con codigo 0. Eso descarta errores de logica y de sintaxis en TODO el
+     camino, no solo en lo nuevo.
+
+  c) El bloque añadido hoy —la comprobacion de los binarios de Nav2— NO se
+     simula: se ejecuta de verdad, y los cuatro pasan:
+         collision_monitor · map_server · amcl · controller_server
+
+  d) La deteccion de idempotencia funciona: reconoce lo ya instalado
+     («iw ya instalado», «ROS 2 Jazzy ya esta», «Atriz_rvr ya esta»).
+
+  e) `apt-get install ros-jazzy-navigation2` se probo A MANO en este robot el
+     2026-07-31 y funciono. Lo que no se ha probado es esa instalacion DESDE EL
+     SCRIPT sobre un sistema limpio.
+
+  📝 De paso se corrigio la numeracion de las secciones: decian «2/7 … 6/7» y
+     luego «7/8, 8/8». Cosmetico, pero confunde al leer el log de una pasada.
+
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 LO QUE NO ESTA VERIFICADO, Y ES LO QUE IMPORTA
+───────────────────────────────────────────────────────────────────────────────
+  La simulacion convierte en no-operacion justo los pasos que mas pueden fallar
+  en un sistema limpio:
+
+    3/8  el arreglo del UART      -> delega en fase_0_1_fix_uart.sh: [simular]
+    4/8  la higiene del SO        -> delega en fase_1_higiene_so.sh: [simular]
+    1/8  full-upgrade             -> [simular]
+    7/8  la instalacion de apt    -> [simular]
+         compilar YDLidar-SDK     -> se salta: «ya esta en /usr/local»
+         clonar ydlidar_ros2_driver -> se salta: «ya esta»
+         colcon build             -> [simular]
+
+  Es decir: **de una pasada limpia no se ha probado NADA de lo que instala o
+  compila**. Solo se ha probado que el script no se rompe al recorrerse.
+
+  RIESGOS CONCRETOS que una pasada real destaparia y esta no:
+    · orden entre pasos (¿el UART antes o despues del reinicio?)
+    · que `espera_lock` aguante un `unattended-upgrades` de verdad
+    · que YDLidar-SDK compile en una maquina sin las cabeceras ya presentes
+    · que `colcon build` funcione con el workspace vacio, no incremental
+    · que los 300 MB de descarga entren por la unica AP del laboratorio
+
+
+───────────────────────────────────────────────────────────────────────────────
+CUANDO SE LEVANTE ESTA SUPOSICION
+───────────────────────────────────────────────────────────────────────────────
+  Hace falta UNA de estas dos cosas:
+
+    · una microSD de repuesto (lo barato: se graba, se pasa el script entero y
+      se pasa `verificar_robot.sh --hardware`), o
+    · que rvr-01 ya no sea el unico robot, y se pueda reflashear sin bloquear el
+      proyecto.
+
+  🔴 Y HASTA ENTONCES, LA IMAGEN DORADA NO SE PUEDE DAR POR BUENA. La regla del
+     proyecto —«la imagen dorada es el atajo, provision.sh es la verdad»— supone
+     que el script funciona. Esa suposicion es la que esta sin comprobar.
+
+     Si se construye la imagen dorada antes de levantar esto, el riesgo no es que
+     falle: es que **falle en el robot 7 de 16** y haya que rehacer la imagen con
+     seis robots ya desplegados.
