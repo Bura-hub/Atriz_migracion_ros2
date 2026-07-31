@@ -116,11 +116,11 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 | ~~El eje X del locator está 90° girado~~ | bloqueaba Nav2 | ✅ **resuelto**: `R(−90°)·(x,y) = (y,−x)` en `_h_locator` |
 | 📝 `reset_yaw()` **no hace nada** — el yaw se pone a cero al **encender** el RVR | menor | ✅ **corregido**: el driver mide `yaw₀` al conectar y lo resta. Cinco arranques dieron cinco offsets distintos |
 | ~~`inverted` del LIDAR sin verificar~~ | corrompe mapas | ✅ **verificado 2026-07-31**: `true` es CORRECTO. El equivocado era el yaw de `/odom` |
-| 🔴 **El robot está inclinado ~8°** (árbol TF, Roll de la IMU y acelerómetro: **tres** vías) | calidad de Nav2 | 🔴 abierto, causa sin determinar. **No urgente**: con ella la deriva de SLAM es de 2.7 cm |
+| ~~El robot está inclinado ~8°~~ | calidad de Nav2 | ✅ **resuelto 2026-07-31**: NO está inclinado. Las «tres vías» eran **una sola contada tres veces** (todas salen de la IMU). El acelerómetro crudo **no gira con el robot** y `\|g\|` sale 3.8 % corto → está **descalibrado**. El driver publica la orientación plana (`publicar_inclinacion: false`). Manual, cap. 13 |
 | ~~La parada de emergencia de la web no hace nada~~ | seguridad | ✅ **resuelta 2026-07-31**. Había **tres** causas, no una: nombre, **namespace** (`/rvr/`) y **QoS** (`TRANSIENT_LOCAL` en el suscriptor no empareja con nadie). Verificada por los tres nombres, 0 avisos de QoS. Manual, cap. 15 |
 | **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — **acción del usuario**. Y no basta con rotarla: hay que quitarla del **historial** de git, no solo del último commit |
 | ~~Sin arranque automático~~ | operación | ✅ **resuelto 2026-07-31**: `atriz-robot.service`, probado con un reinicio real. Falta que `provision.sh` lo instale |
-| 16 de 20 servicios y 4 topics sin portar | funcionalidad | ⏳ diferido por el usuario |
+| ~~16 de 20 servicios sin portar~~ | funcionalidad | ✅ **18 portados y probados 2026-07-31**. Quedan **2**, `ConfigureStreaming` y `StartStreaming`, ⏳ diferidos **a propósito**: pueden romper la telemetría del propio driver |
 | ~~No hay watchdog de `cmd_vel`~~ | seguridad | ✅ **resuelto**: para en 527 ms / 7.9 cm |
 | ~~No hay URDF → árbol TF partido~~ | bloqueante | ✅ **resuelto**: `atriz_rvr_description` |
 | ~~Driver ROS del LIDAR no instalado~~ | bloqueante | ✅ **resuelto**: `/scan` a 10.1 Hz |
