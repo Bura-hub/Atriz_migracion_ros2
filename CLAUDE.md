@@ -308,6 +308,25 @@ posterior. `fase_1_higiene_so.sh` lo deshabilita.
 plano. En 20.04 estaba así; en la imagen de **Server 24.04 ya viene `600`**. Compruébalo, no
 lo asumas en ninguna de las dos direcciones. `fase_1_higiene_so.sh` lo corrige si hace falta.
 
+**🔴🔴 EL SENSOR DE COLOR NO DA NADA SIN SU LUZ, y `/color` publicó `[0,0,0]` durante meses.**
+Medido el 2026-07-31: canal claro **4 con la luz apagada contra 741 encendida** — 185×. Y el
+driver **nunca la encendía**: el topic existía, publicaba a 16 Hz, y el dato era oscuridad.
+→ Se enciende con `robot.launch.py color_detection:=true`, **por defecto false** porque deja un
+LED blanco bajo el chasis. Con false el driver lo **avisa por el log**.
+
+**🔴 Y NO SE PUEDE ENCENDER BAJO DEMANDA:** con el streaming de `color_detection` ya
+configurado, `enable_color_detection` **no hace nada** — 481 mensajes de `/color`, todos ceros,
+durante la llamada. Hay que encenderlo **ANTES** de `add_sensor_data_handler`. Manual, cap. 16.2.
+
+**📝 `ros2 service list` NO es autoritativo.** Omitió `set_drive_parameters` (17 de 18) mientras
+`ros2 service type` sí lo encontraba y un cliente con `wait_for_service` decía disponible. Es
+descubrimiento de DDS. → **Para saber si un servicio existe, usa un cliente.**
+
+**⚠️ Los servicios de movimiento del driver SE SALTAN el `collision_monitor` y el watchdog.**
+No publican en ningún topic: hablan al RVR por el puerto serie. Lo único que los para es la
+**parada de emergencia** (verificado). Y `raw_motors` no tiene corte automático: sigue hasta que
+se le manda modo 0.
+
 **El LED del sensor de color NO se apaga con `turn_leds_off()`.** No es un grupo de
 `RvrLedGroups`: se controla con `enable_color_detection`, y si no lo desactivas **se queda
 encendido indefinidamente** gastando batería. Cada `enable_color_detection(True)` necesita su

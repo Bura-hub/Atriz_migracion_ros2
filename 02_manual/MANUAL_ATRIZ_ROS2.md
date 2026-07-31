@@ -3405,6 +3405,110 @@ que **cancelar la acción** además de parar los motores. **Sin comprobar.**
 
 ---
 
+## Capítulo 16 — Los servicios del driver, y el sensor de color que nunca funcionó
+
+✅ **De 1 servicio a 18, todos probados contra el robot** (2026-07-31). Evidencia:
+`00_auditoria/evidencia_24_04/26_servicios_driver.txt`.
+
+### 16.1 El orden de portado: primero lo que no mueve nada
+
+No se siguió el orden del `.srv`, sino el del riesgo — así se prueba en banco sin espacio:
+
+| | Servicios | Verificación |
+|---|---|---|
+| **lecturas** | `get_encoders`, `get_system_info`, `get_control_state`, `get_rgbc_sensor_values` | app **9.1.462**, bootloader **9.1.167**, MAC, SKU, Nordic y ST |
+| **luces** | `set_led_rgb`, `set_multiple_leds`, `set_leds`, `trigger_led_event` | y sus caminos de error |
+| **IR** | `send_infrared_message`, `set_ir_mode`, `set_ir_evading` | ⚠️ el último **sí puede mover el robot** |
+| **config** | `set_drive_parameters`, `set_pos_and_yaw` | |
+| **movimiento** | `move_timed`, `raw_motors`, `move_to_pose`, `move_to_pos_and_yaw` | ver abajo |
+
+```
+move_timed  2 s a 0.15 m/s   ->  30.3 cm medidos contra 30    (101 %)
+raw_motors  reversa 25 %     ->  30.7 cm, para al mandar modo 0
+move_to_pos_and_yaw 0.20 m   ->  19.5 cm medidos              ( 97 %)
+```
+
+✅ **Y la parada de emergencia los bloquea**: con ella activa, `raw_motors` devuelve
+`success=False` y el robot se desplaza **0.0 cm**.
+
+### 16.2 🔴🔴 `/color` llevaba publicando `[0,0,0]` desde siempre
+
+Lo destapó una pregunta del usuario: *«hasta donde sabía, el sensor de color no funcionaba sin
+encender su luz»*.
+
+**a) ¿Funciona sin luz? No.** Medido con el SDK directo:
+
+| | R | G | B | **Claro** |
+|---|---|---|---|---|
+| sin luz, sin haber encendido nunca | 1 | 0 | 1 | **4** |
+| con luz (0.0 / 0.3 / 1.0 / 2.0 s) | 241 | 420 | 160 | **741** |
+| sin luz, ya apagada | 0 | 0 | 1 | **3** |
+
+**185 veces más** en el canal claro. Sin su luz el sensor da **ruido, no señal**. La tercera
+tanda no sobra: descarta la otra explicación posible —«necesita que le hayan llamado alguna
+vez»—. Y **no hay que esperar** tras encender: 0.0 s da lo mismo que 2.0.
+
+**b) El driver nunca encendía la luz.** `/color` existía, publicaba a 16 Hz, y **siempre
+`[0,0,0]`** — 294 mensajes seguidos. El topic estaba en la lista de «verificado» desde la
+Fase 2. Un fallo silencioso más: el topic existe, el ritmo es correcto, y el dato es basura.
+
+**c) Y no se puede encender bajo demanda.** 🔴 **Con el streaming de `color_detection` ya
+configurado, `enable_color_detection` no hace nada.** Se llamó al servicio mirando `/color` a la
+vez: **481 mensajes, todos ceros**, durante toda la llamada. La primera versión del servicio
+hacía `enable(True) → leer → enable(False)` y devolvía oscuridad con `success=True` — lo peor de
+los dos mundos.
+
+**d) El arreglo:** parámetro **`color_detection`**, por defecto `false`, que enciende el sensor
+**antes** de configurar el streaming. Con `false`, el driver **avisa por el log** en vez de
+publicar ceros en silencio.
+
+```
+con color_detection:=true
+  /color    294 mensajes, TODOS con valores reales  ->  [164, 140, 119]
+  servicio  R 237 · G 415 · B 160 · Claro 735       (coincide con los 741 del banco)
+```
+
+**e) 🔴 Y un fallo mío, que vio el usuario.** El driver encendía el sensor al arrancar y **no lo
+apagaba al morir**: el LED blanco se quedaba encendido gastando batería. Es exactamente lo que
+avisa `CLAUDE.md` —«cada `(True)` necesita su `(False)`, también en el camino de error»—
+cometido dos horas después de leerlo. Arreglado en `_apagar_rvr()`, que ahora apaga sensor **y**
+LEDs. Verificado: con el driver vivo `clear=733`; tras matarlo con SIGINT, **`clear=0`**.
+
+⚠️ Solo con cierre **limpio** (SIGINT). Con `kill -9` no corre nada.
+
+### 16.3 Lo que no se pudo portar tal cual, y por qué
+
+| | |
+|---|---|
+| `set_pos_and_yaw` | **Solo (0,0,0)**, y rechaza el resto en vez de fingir. El SDK no puede fijar una pose arbitraria: solo `reset_locator_x_and_y()`, y `reset_yaw()` **no hace nada** (cap. 10) |
+| `trigger_led_event` | El RVR **no tiene** «eventos de LED» — en ROS 1 eran animaciones de la app. Aquí, colores fijos: azul arranque, rojo parada, verde conduciendo, magenta error |
+| `uptime_ms` | El SDK no lo expone. Se queda a 0 y **se dice en el `message`**, en vez de dejar un cero mudo que parezca un dato |
+| `ConfigureStreaming`, `StartStreaming` | **No portados a propósito**: el driver ya configura su streaming para `/odom`, `/imu` y `/color`. Un servicio que lo reconfigure puede romper la telemetría del propio nodo |
+
+### 16.4 ⚠️ Los servicios de movimiento se saltan la capa de seguridad
+
+Y no hay forma de evitarlo desde el driver:
+
+- el **`collision_monitor`** filtra `/cmd_vel_raw → /cmd_vel`. Estos servicios **no publican en
+  ningún topic**: hablan al RVR por el puerto serie.
+- el **watchdog de `cmd_vel`** tampoco: vigila que sigan *llegando* mensajes, y aquí no hay.
+- **`raw_motors` no tiene ningún corte automático**: sigue hasta que se le manda modo 0.
+
+**Lo único que los detiene es la parada de emergencia**, que se comprueba en todos y está
+verificada (16.1).
+
+### 16.5 📝 `ros2 service list` no es autoritativo
+
+`set_drive_parameters` no aparecía ni en `ros2 service list` ni en `ros2 node info` —los dos
+daban 17 de 18— mientras que `ros2 service type` **sí** devolvía el tipo y un cliente con
+`wait_for_service` decía **disponible**.
+
+Es descubrimiento de DDS inconsistente en las herramientas de introspección, no un fallo del
+nodo. → **Para saber si un servicio existe, usa un cliente.** La lista puede mentir, y miente
+**por omisión**, que es la peor forma.
+
+---
+
 ## Capítulo 6
 
 ⏳ **No escrito todavía.** Se redacta al ejecutar las fases 1–6 del

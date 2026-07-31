@@ -4,6 +4,89 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — ✅ Los servicios del driver, de 1 a 18. Y `/color` nunca funcionó
+
+Evidencia: `00_auditoria/evidencia_24_04/26_servicios_driver.txt`, manual **cap. 16** (nuevo).
+Herramienta nueva: `mediciones_banco/medir_sensor_color.py`.
+
+### Los 18, portados en orden de riesgo
+
+Primero lo que no mueve nada, para poder probarlo en banco sin espacio:
+
+```
+lecturas    get_encoders · get_system_info · get_control_state · get_rgbc_sensor_values
+luces       set_led_rgb · set_multiple_leds · set_leds · trigger_led_event
+IR          send_infrared_message · set_ir_mode · set_ir_evading (⚠️ este sí mueve)
+config      set_drive_parameters · set_pos_and_yaw
+movimiento  move_timed · raw_motors · move_to_pose · move_to_pos_and_yaw
+```
+
+Verificados **contra el robot**, no solo por que respondan:
+
+```
+move_timed  2 s a 0.15 m/s   ->  30.3 cm medidos contra 30   (101 %)
+raw_motors  reversa 25 %     ->  30.7 cm, para al mandar modo 0
+move_to_pos_and_yaw 0.20 m   ->  19.5 cm                     ( 97 %)
+```
+
+✅ **Y la parada de emergencia los bloquea**: `success=False` y **0.0 cm** de desplazamiento.
+
+### 🔴🔴 `/color` llevaba publicando `[0,0,0]` desde siempre
+
+Lo destapó una pregunta del usuario. **El sensor no da nada sin su luz** — medido:
+
+| | Claro |
+|---|---|
+| sin luz | **4** |
+| con luz | **741** |
+
+**185×.** Y el driver **nunca la encendía**: el topic existía, publicaba a 16 Hz, y el dato era
+oscuridad. Estaba en la lista de «verificado» desde la Fase 2.
+
+🔴 **Y no se puede encender bajo demanda:** con el streaming de `color_detection` ya
+configurado, `enable_color_detection` **no hace nada** — 481 mensajes de `/color`, todos ceros,
+durante la llamada. La primera versión del servicio hacía justo eso y devolvía oscuridad con
+`success=True`.
+
+✅ **Arreglado** con el parámetro `color_detection` (por defecto `false`), que lo enciende
+**antes** del streaming. Con `false`, el driver **avisa por el log**. Verificado: `/color` pasa
+a dar `[164, 140, 119]` y el servicio 735 en el canal claro.
+
+### 🔴 Y un fallo mío, que vio el usuario
+
+El driver encendía el sensor y **no lo apagaba al morir**: el LED blanco se quedaba encendido
+gastando batería. Es exactamente lo que avisa `CLAUDE.md` —«cada `(True)` necesita su `(False)`,
+también en el camino de error»— cometido dos horas después de leerlo, y **lo detectó el ojo del
+usuario, no el código**. Arreglado en `_apagar_rvr()`: apaga sensor y LEDs. Verificado,
+`clear=733` → **`clear=0`** tras SIGINT.
+
+### Lo que no se portó tal cual, y por qué
+
+- **`set_pos_and_yaw` solo acepta (0,0,0)** y rechaza el resto **en vez de fingir**: el SDK no
+  puede fijar una pose arbitraria, y `reset_yaw()` no hace nada.
+- **`trigger_led_event`**: el RVR no tiene «eventos de LED». Se traducen a colores fijos.
+- **`uptime_ms`**: el SDK no lo expone. Se dice en el `message` en vez de dejar un cero mudo.
+- **`ConfigureStreaming` / `StartStreaming`: no portados a propósito** — pueden romper la
+  telemetría del propio driver.
+
+### ⚠️ Los servicios de movimiento se saltan la capa de seguridad
+
+No publican en ningún topic: hablan al RVR por el puerto serie, así que ni el
+`collision_monitor` ni el watchdog los ven. Solo los para la **parada de emergencia**. Y
+`raw_motors` no tiene corte automático.
+
+### 📝 `ros2 service list` no es autoritativo
+
+Omitió `set_drive_parameters` (17 de 18) mientras `ros2 service type` sí lo encontraba y un
+cliente con `wait_for_service` decía **disponible**. Es descubrimiento de DDS.
+→ **Para saber si un servicio existe, usa un cliente.** En `CLAUDE.md`.
+
+**Ficheros:** `rvr_driver_node.py`, `robot.launch.py`, `26_servicios_driver.txt` (nuevo),
+`medir_sensor_color.py` (nuevo), manual cap. 16, `TRASPASO.md`, `INSTALACION.md` (F21 ✅ → F22),
+`CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — 🔴 La parada de emergencia fallaba por TRES causas. Arreglada
 
 Evidencia: `00_auditoria/evidencia_24_04/25_parada_emergencia.txt`, manual **cap. 15** (nuevo).

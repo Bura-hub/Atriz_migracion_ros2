@@ -103,9 +103,11 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      F20 Parada de emergencia arreglada      manual, cap. 15                ✅
          └── fallaba por TRES causas: nombre, namespace y QoS
 
-     F21 Lo que queda                                                          ⏳ SIGUIENTE
-         1. Los 19 servicios del driver sin portar                      ← AQUÍ
-         2. provision.sh y verificar_robot.sh al día
+     F21 Los servicios del driver: de 1 a 18  manual, cap. 16               ✅
+         └── todos probados · y /color publicaba [0,0,0] desde siempre
+
+     F22 Lo que queda                                                          ⏳ SIGUIENTE
+         1. provision.sh y verificar_robot.sh al día                    ← AQUÍ
          3. Unidades systemd de arranque automático
          4. Un obstáculo que aparezca DURANTE la navegación
          📌 aplazado: mapear el laboratorio real y pose inicial por robot
@@ -116,7 +118,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          7. Clonar a los 16 robots            FLOTA.md
 ```
 
-> **Las etapas A a F20 están recorridas y verificadas sobre la máquina real.** Los capítulos
+> **Las etapas A a F21 están recorridas y verificadas sobre la máquina real.** Los capítulos
 > 1, 3, 4, 5, 7, 8, 8bis, 9, 10, **11 (Nav2)** y **12 (seguridad)** del manual dejaron de ser
 > NO VERIFICADO: el robot navega solo y para antes de chocar. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite

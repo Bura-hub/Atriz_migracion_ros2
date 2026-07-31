@@ -401,16 +401,39 @@ Manual, **cap. 15**.
 seguiría mandando objetivos. Habría que cancelar la acción además de parar los motores. **Sin
 comprobar.**
 
-### 1. ⏳ Los 19 servicios del driver — es lo siguiente
+### ✅ Hecho: los servicios del driver, de 1 a 18
 
-Es el mayor hueco funcional que queda **en el robot**, y no necesita el circuito definitivo. Hoy
-el driver tiene **1 servicio** (`release_emergency_stop`) de los **20 `.srv` definidos**: faltan
-LEDs, IR, encoders, información del sistema, configuración de streaming, motores crudos,
-`move_to_pose`… Es lo que la web necesitará, y se prueba en banco — ya existe
-`verificar_leds_sensores.py` con 37 comprobaciones.
+Todos **probados contra el robot**, y en orden de riesgo: primero lo que no mueve nada.
 
-⏳ Después: `provision.sh` y `verificar_robot.sh` al día con todo lo de hoy (si no, la imagen
-dorada no lo tendrá), y las unidades **systemd** de arranque automático.
+```
+move_timed  2 s a 0.15 m/s   ->  30.3 cm medidos contra 30   (101 %)
+raw_motors  reversa 25 %     ->  30.7 cm, para al mandar modo 0
+move_to_pos_and_yaw 0.20 m   ->  19.5 cm                     ( 97 %)
+con la parada de emergencia  ->  success=False, 0.0 cm       ✅
+```
+
+🔴 **Y destapó que `/color` publicaba `[0,0,0]` desde siempre.** El sensor no da nada sin su
+luz —canal claro **4 apagada contra 741 encendida**, 185×— y el driver **nunca la encendía**.
+El topic estaba en la lista de «verificado». Arreglado con el parámetro `color_detection`
+(por defecto `false`, porque enciende un LED bajo el chasis).
+
+🔴 Y **no se puede encender bajo demanda**: con el streaming ya configurado,
+`enable_color_detection` no hace nada. Hay que encenderlo **antes**.
+
+⚠️ **Los servicios de movimiento se saltan el `collision_monitor` y el watchdog** — hablan al
+RVR por el puerto serie, no por un topic. Solo los para la parada de emergencia. Manual,
+**cap. 16**.
+
+### 1. ⏳ `provision.sh` y `verificar_robot.sh` al día — es lo siguiente
+
+Todo lo de hoy —`collision_monitor`, localización con AMCL, URDF corregido,
+`publicar_inclinacion`, `color_detection`, `robot_radius`, los 18 servicios— **tiene que estar
+en el script de aprovisionamiento y en el verificador**, o la imagen dorada no lo tendrá. Es la
+regla del propio proyecto: *la imagen dorada es el atajo, `provision.sh` es la verdad*.
+
+⏳ Después: las unidades **systemd** de arranque automático (necesitan `sudo`), y quedan sin
+portar `ConfigureStreaming` y `StartStreaming` —a propósito: pueden romper la telemetría del
+propio driver.
 
 📌 **Aplazado hasta tener el circuito definitivo:** mapear el laboratorio real y la pose inicial
 por robot.
