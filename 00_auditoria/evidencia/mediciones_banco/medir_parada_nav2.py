@@ -38,6 +38,7 @@ import sys
 import time
 
 import rclpy
+import tf2_ros
 from geometry_msgs.msg import PoseStamped
 from nav2_msgs.action import NavigateToPose
 from nav_msgs.msg import Odometry
@@ -65,6 +66,25 @@ class Medidor(Node):
         self.nav = ActionClient(self, NavigateToPose, 'navigate_to_pose')
         self.estado = None
         self._handle = None
+        # 🔴 El objetivo va en el marco `map`, así que la pose de partida hay que
+        # sacarla de TF, NO de /odom. Con `map` y `odom` casi alineados al
+        # arrancar la diferencia es pequeña y el error pasa desapercibido — que
+        # es justo lo que lo hace peligroso cuando ya no lo estén.
+        self._tf_buf = tf2_ros.Buffer()
+        self._tf_lis = tf2_ros.TransformListener(self._tf_buf, self)
+
+    def pose_en_mapa(self, seg=10.0):
+        """(x, y) del robot en el marco `map`, o None."""
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < seg:
+            rclpy.spin_once(self, timeout_sec=0.1)
+            try:
+                tr = self._tf_buf.lookup_transform(
+                    'map', 'base_footprint', rclpy.time.Time())
+                return (tr.transform.translation.x, tr.transform.translation.y)
+            except Exception:                       # noqa: BLE001
+                continue
+        return None
 
     def _odom(self, m: Odometry) -> None:
         self.pos = (m.pose.pose.position.x, m.pose.pose.position.y)
@@ -112,16 +132,25 @@ def main() -> int:
         print('🔴 sin release_emergency_stop. ¿es el driver nuevo?')
         return 1
 
+    # Dos orígenes distintos y a propósito:
+    #   `map`  -> para COLOCAR el objetivo, que va en ese marco
+    #   `odom` -> para MEDIR el desplazamiento, que es lo único que se juzga aquí
+    p_mapa = n.pose_en_mapa()
+    if p_mapa is None:
+        print('🔴 no hay transform map -> base_footprint.')
+        print('   arranca slam.launch.py o localizacion.launch.py.')
+        return 1
     p_inicio = n.pos
-    print(f'  origen: ({p_inicio[0]:+.3f}, {p_inicio[1]:+.3f})')
+    print(f'  origen en map:  ({p_mapa[0]:+.3f}, {p_mapa[1]:+.3f})')
+    print(f'  origen en odom: ({p_inicio[0]:+.3f}, {p_inicio[1]:+.3f})')
 
     # ── 1. Mandar el objetivo ────────────────────────────────────────────────
     obj = NavigateToPose.Goal()
     obj.pose = PoseStamped()
     obj.pose.header.frame_id = 'map'
     obj.pose.header.stamp = n.get_clock().now().to_msg()
-    obj.pose.pose.position.x = p_inicio[0] + a.distancia
-    obj.pose.pose.position.y = p_inicio[1]
+    obj.pose.pose.position.x = p_mapa[0] + a.distancia
+    obj.pose.pose.position.y = p_mapa[1]
     obj.pose.pose.orientation.w = 1.0
 
     print(f'\n  ⚠️ EL ROBOT VA A AVANZAR ~{a.distancia:.1f} m\n')
