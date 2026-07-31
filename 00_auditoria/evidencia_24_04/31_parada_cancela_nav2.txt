@@ -102,17 +102,38 @@ estaba mal, y el fallo real es peor.
 
 
 ───────────────────────────────────────────────────────────────────────────────
-5. 🔴 LO QUE FALTA — Y ES LA PRUEBA QUE IMPORTA
+5. ✅ MEDIDO CON NAV2 NAVEGANDO — y con CONTROL, que es lo que lo hace concluyente
 ───────────────────────────────────────────────────────────────────────────────
-  📝 **NO VERIFICADO con Nav2 navegando de verdad.** Falta el unico experimento
-     que demuestra que el agujero esta tapado, y necesita ~2.5 m despejados:
+  Stack completo: robot.launch.py + slam.launch.py + nav2.launch.py, los cinco
+  nodos de Nav2 en `active [3]`, `/cmd_vel` con **Publisher count: 1** (o sea la
+  capa de seguridad intacta).
 
-     1. arrancar robot + Nav2, mandar un objetivo a ~2 m
-     2. a mitad de camino, publicar en /rvr/emergency_stop
-     3. comprobar que el objetivo pasa a CANCELED (no a ABORTED ni sigue ACTIVE)
-     4. llamar a /release_emergency_stop
-     5. 🔴 LA MEDIDA: que el robot NO se mueva. Sin el arreglo se mueve.
+  PRUEBA — con `cancelar_nav2` corriendo, objetivo a 2.0 m:
 
-  Y hay que medir DESPLAZAMIENTO, no velocidad: un robot que arranca y frena
-  puede dar velocidad media ~0 y haberse movido 20 cm. Es el mismo error que ya
-  se cometio midiendo el watchdog.
+      recorrido 101 cm  ->  PARADA DE EMERGENCIA
+      se detuvo tras 109 cm
+      estado del objetivo: CANCELED          <- lo dice el propio action server
+      movimiento tras liberar: 0.0 cm        ✅
+
+  CONTROL — se mata `cancelar_nav2` y se repite el MISMO protocolo, 1.0 m:
+
+      recorrido 51 cm   ->  PARADA DE EMERGENCIA
+      se detuvo tras 56 cm
+      🔴 el objetivo SIGUE ACTIVO tras la parada
+      movimiento tras liberar: 34.7 cm       🔴 ARRANCO SOLO
+
+  🔴 EL CONTROL ES LA MITAD QUE IMPORTA. Sin el, «el robot se quedo quieto» no
+     demuestra que lo consiga `cancelar_nav2`: demuestra que se quedo quieto.
+     Con el, quedan CUATRO medidas de acuerdo y en dos parejas opuestas —el
+     estado del objetivo (que lo da Nav2, no una inferencia mia) y el
+     desplazamiento— en las dos condiciones.
+
+  📝 n=1 por condicion. Se acepta porque el fenomeno **no es intermitente**: es
+     determinista y esta trazado en el codigo de punta a punta. La regla de
+     «replica antes de atribuir» se escribio para el fallo de SLAM, que si lo era
+     (~21 %).
+
+  ⚠️ La parada se deja ACTIVA al terminar, a proposito. Liberarla es un acto
+     explicito: `ros2 service call /release_emergency_stop std_srvs/srv/Empty`.
+
+  Bateria al terminar: 45 %.

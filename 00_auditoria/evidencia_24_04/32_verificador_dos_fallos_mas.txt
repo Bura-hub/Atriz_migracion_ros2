@@ -1,0 +1,97 @@
+═══════════════════════════════════════════════════════════════════════════════
+EL VERIFICADOR TENIA DOS FALLOS MAS — y los dos los encontro EJECUTARLO
+Robot: rvr-01 · 2026-07-31
+═══════════════════════════════════════════════════════════════════════════════
+Van cinco y seis. El 2026-07-31 por la mañana ya tenia tres (comprobaba el driver
+de ROS 1, contaba un comentario como ajuste, y daba el LIDAR por roto cuando el
+driver tenia el puerto). Estos dos salieron por la tarde, al pasarlo justo
+despues de una sesion con el robot.
+
+🔴 Los dos daban veredictos FALSOS sobre un robot SANO, que es lo peor que puede
+   hacer un verificador: uno con falsos positivos se acaba ignorando, y eso es
+   peor que no tenerlo.
+
+
+───────────────────────────────────────────────────────────────────────────────
+FALLO 4 · «el RVR esta dormido» con el robot simplemente APAGADO
+───────────────────────────────────────────────────────────────────────────────
+  La comprobacion del ritmo de /odom estaba guardada asi:
+
+      if timeout 6 ros2 topic list | grep -qx '/odom'; then
+
+  **El daemon de ROS conserva topics de nodos ya muertos.** Con el driver parado
+  hacia un rato, `/odom` seguia apareciendo en la lista, la comprobacion entraba,
+  medía 0 Hz y gritaba:
+
+      ✗ /odom EXISTE pero no publica NADA: el RVR esta dormido
+
+  Sobre un robot que estaba apagado. Y el consejo que daba —«reinicia el
+  driver»— apuntaba al sitio equivocado.
+
+  ARREGLO: mirar el PROCESO, no la lista de topics.
+
+      if ps -eo comm | grep -qx 'rvr_driver_node'; then
+
+
+───────────────────────────────────────────────────────────────────────────────
+FALLO 5 · `ros2 topic hz` NO PUEDE MEDIR /odom. NUNCA HA PODIDO
+───────────────────────────────────────────────────────────────────────────────
+  Este es el gordo, porque la comprobacion **nunca funciono** y nadie lo noto.
+
+    · `/odom` se publica **BEST_EFFORT** (rvr_driver_node.py, `qos_tel`).
+    · `ros2 topic hz` se suscribe **RELIABLE** y en Jazzy **no tiene opcion para
+      cambiarlo** (`ros2 topic hz --help` no ofrece ningun flag de QoS).
+    · DDS no empareja, no llega ni un mensaje, y da **0 Hz siempre**.
+
+  Es la misma trampa de QoS que costo la parada de emergencia (cap. 15.1), esta
+  vez dentro del propio verificador.
+
+  ¿POR QUE PASABA ANTES? Porque el bloque solo se ejecutaba si `/odom` estaba en
+  `ros2 topic list`, y en las pasadas anteriores el driver no habia corrido, asi
+  que se saltaba entero. La comprobacion estaba muerta y contaba como aprobada.
+
+  ARREGLO: un suscriptor BEST_EFFORT de verdad, empotrado en el verificador.
+
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 FALLO 6 · Y EL PRIMER ARREGLO TAMBIEN MEDIA MAL: 11.3 Hz sobre un robot a 16.5
+───────────────────────────────────────────────────────────────────────────────
+  El suscriptor nuevo daba **11.32 Hz** y la comprobacion pasaba (el umbral es
+  >10). Pero la referencia del proyecto son 16.59 Hz, asi que se midio otra vez
+  con un ejecutor persistente y 30 s:
+
+      /odom   16.53 Hz · intervalo medio 60.4 ms · mediana 60.0 · sigma 2.2
+      /imu    16.49 Hz · intervalo medio 60.4 ms · mediana 60.0 · sigma 2.6
+
+  **El robot estaba perfecto. El que medía mal era el instrumento.**
+
+  LA CAUSA:  `rclpy.spin_once(nodo, timeout_sec=X)` EN BUCLE PIERDE MENSAJES.
+
+  Cada llamada engancha el nodo al ejecutor global y lo desengancha al salir. En
+  ese hueco se pierde lo que llegue. Con un `SingleThreadedExecutor` persistente
+  y `ex.spin_once()` el mismo robot da 16.5.
+
+      MAL:   while ...: rclpy.spin_once(n, timeout_sec=0.05)     -> 11.3 Hz
+      BIEN:  ex = SingleThreadedExecutor(); ex.add_node(n)
+             while ...: ex.spin_once(timeout_sec=0.1)            -> 16.5 Hz
+
+  ⚠️ Y HABRIA SIDO CARISIMO. Un verificador que dice 11 Hz sobre un robot sano
+     lleva a alguien a «arreglar» el driver, a tocar `streaming_interval_ms`, o a
+     documentar una degradacion que no existe. Se salvo por comparar contra un
+     valor de referencia medido — que es exactamente para lo que existe esa
+     tabla.
+
+
+───────────────────────────────────────────────────────────────────────────────
+DESPUES
+───────────────────────────────────────────────────────────────────────────────
+  ✅ Con el driver PARADO:    80 comprobaciones, 0 fallos, 3 avisos
+                              (la de /odom se salta y lo dice)
+  ✅ Con el driver CORRIENDO: 86 comprobaciones, 0 fallos, 3 avisos
+                              ✓ /odom a 16.50 Hz (esperado ~16.7)
+
+  Los tres avisos son reales y esperados: los .bak de apt, y las dos cosas de
+  systemd que estan sin instalar a proposito.
+
+  LA REGLA, otra vez y con dos ejemplos nuevos: **comprobar el efecto, no la
+  intencion** — y aqui, ademas, **comprobar el instrumento antes que la medida**.

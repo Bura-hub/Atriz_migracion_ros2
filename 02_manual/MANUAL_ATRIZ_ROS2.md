@@ -3539,15 +3539,25 @@ razón por la que SLAM y la navegación viven en launches separados.
 absoluto que usa la web y que fallaba en ROS 1— y sin Nav2 degrada bien, avisando en vez de
 bloquear la parada. Eso cubre las causas 2 y 3 de este mismo capítulo.
 
-📝 **NO VERIFICADO con Nav2 navegando.** Falta el único experimento que demuestra que el agujero
-está tapado, y necesita ~2.5 m despejados:
+✅ **Y VERIFICADO CON NAV2 NAVEGANDO, con control**, que es lo que lo hace concluyente:
+
+| | objetivo tras la parada | movimiento al liberar |
+|---|---|---|
+| **con** `cancelar_nav2` | **CANCELED** | **0.0 cm** ✅ |
+| **sin** él (control) | sigue **ACTIVO** | **34.7 cm** 🔴 arrancó solo |
+
+🔴 **El control es la mitad que importa.** Sin él, «el robot se quedó quieto» no demuestra que lo
+consiga `cancelar_nav2`: demuestra que se quedó quieto. Con él quedan cuatro medidas de acuerdo,
+en dos parejas opuestas — y el estado del objetivo lo da el propio action server, no una
+inferencia.
 
 ```bash
 python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_parada_nav2.py
 ```
 
 Mide **desplazamiento**, no velocidad: un robot que arranca y frena puede dar velocidad media ~0
-y haberse movido 20 cm — el error que ya se cometió midiendo el watchdog.
+y haberse movido 20 cm — el error que ya se cometió midiendo el watchdog. Y deja la parada
+**activa** al terminar: liberarla tiene que ser un acto explícito.
 
 Evidencia: `00_auditoria/evidencia_24_04/31_parada_cancela_nav2.txt`.
 

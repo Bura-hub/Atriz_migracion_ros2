@@ -432,9 +432,38 @@ if [[ -d /opt/ros/jazzy ]]; then
         # de CPU con /odom registrado (Publisher count: 1) publicando CERO, sin
         # un solo error. Comprobar que el nodo o el topic existen NO detecta
         # esto; hay que medir el ritmo. Ver manual, cap. 9.8.
-        if timeout 6 ros2 topic list 2>/dev/null | grep -qx '/odom'; then
-            HZ_ODOM="$(timeout 12 ros2 topic hz /odom --window 10 2>/dev/null \
-                       | grep -m1 -oE 'average rate: [0-9.]+' | grep -oE '[0-9.]+')"
+        # 🔴 SE MIRA EL PROCESO, NO `ros2 topic list`. El daemon de ROS conserva
+        #    topics de nodos ya muertos, así que con el driver PARADO `/odom`
+        #    seguía apareciendo y esta comprobación gritaba «el RVR está
+        #    dormido» sobre un robot que simplemente estaba apagado. Falso
+        #    positivo, 2026-07-31.
+        if ps -eo comm | grep -qx 'rvr_driver_node'; then
+            # 🔴 Y NO SE USA `ros2 topic hz`: `/odom` se publica **BEST_EFFORT**
+            #    (rvr_driver_node.py, `qos_tel`) y `ros2 topic hz` se suscribe
+            #    RELIABLE sin opción de cambiarlo en Jazzy. DDS no empareja, no
+            #    llega nada, y da 0 Hz SIEMPRE — con el robot funcionando
+            #    perfectamente. Es la misma trampa de QoS que ya costó la parada
+            #    de emergencia (manual, cap. 15.1), aquí dentro del verificador.
+            HZ_ODOM="$(timeout 15 python3 -c '
+import time
+import rclpy
+from rclpy.executors import SingleThreadedExecutor
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
+from nav_msgs.msg import Odometry
+rclpy.init()
+n = Node("verificar_hz_odom"); c = [0]
+n.create_subscription(Odometry, "odom", lambda m: c.__setitem__(0, c[0] + 1),
+                      QoSProfile(depth=50, reliability=ReliabilityPolicy.BEST_EFFORT))
+# Ejecutor PERSISTENTE. Con rclpy.spin_once(n, ...) en bucle salen 11 Hz sobre un
+# robot que va a 16.5: cada llamada engancha y desengancha el nodo del ejecutor
+# global, y en ese hueco se pierden mensajes. Medido las dos formas el mismo dia.
+ex = SingleThreadedExecutor(); ex.add_node(n)
+t0 = time.monotonic()
+while time.monotonic() - t0 < 8.0:
+    ex.spin_once(timeout_sec=0.1)
+print(f"{c[0] / (time.monotonic() - t0):.2f}")
+' 2>/dev/null)"
             HZ_ODOM="${HZ_ODOM:-0}"
             # El firmware no baja de interval=60 ms => 16.5-16.7 Hz. Por debajo
             # de 10 Hz algo va mal; a 0 el RVR esta dormido o el enlace caido.
@@ -444,11 +473,11 @@ if [[ -d /opt/ros/jazzy ]]; then
                 _mal "/odom solo a ${HZ_ODOM} Hz (esperado ~16.7)" \
                      "revisa streaming_interval_ms=60 en robot.launch.py"
             else
-                _mal "/odom EXISTE pero no publica NADA: el RVR esta dormido" \
+                _mal "el driver CORRE pero /odom no publica NADA: el RVR esta dormido" \
                      "reinicia el driver. El proceso no muere, asi que systemd no lo arregla. Manual cap. 9.8"
             fi
         else
-            _nota "/odom no esta publicado: robot.launch.py no esta corriendo."
+            _nota "rvr_driver_node no esta corriendo: no hay ritmo que medir."
         fi
 
         # 🔴 EL YAW DEBE ARRANCAR EN ~0. Es la comprobacion mas barata de que la

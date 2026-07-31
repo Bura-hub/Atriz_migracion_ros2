@@ -260,6 +260,30 @@ protocolo, **una hora después**, dio lo contrario: fallaron las cortas y las la
 perfectas. **El fallo cambió de distancia.** → Con un fenómeno intermitente (~21 % aquí),
 **replica antes de atribuir**. Manual, cap. 9.12b.
 
+**🔴 `rclpy.spin_once(nodo, …)` EN BUCLE PIERDE MENSAJES: 11.3 Hz sobre un robot que va a
+16.5.** Cada llamada engancha el nodo al ejecutor global y lo desengancha al salir; en ese hueco
+se pierde lo que llegue. Medido las dos formas el 2026-07-31 sobre el mismo robot en el mismo
+minuto. Y la comprobación **pasaba** (el umbral es >10 Hz), así que habría llevado a «arreglar»
+un driver sano.
+→ Para **contar mensajes**, ejecutor persistente:
+```python
+ex = SingleThreadedExecutor(); ex.add_node(n)
+while ...: ex.spin_once(timeout_sec=0.1)      # 16.5 Hz — el valor real
+```
+→ Para *conducir* o esperar, `rclpy.spin_once` vale: ahí no se cuenta nada.
+
+**🔴 `ros2 topic hz /odom` DA 0 Hz SIEMPRE, con el robot perfecto.** `/odom` se publica
+**BEST_EFFORT** y `ros2 topic hz` se suscribe RELIABLE **sin opción de cambiarlo** en Jazzy. DDS
+no empareja y no llega nada. Es la misma trampa de QoS que costó la parada de emergencia, y
+estuvo **dentro del verificador** sin que nadie lo notara — porque el bloque solo corría si
+`/odom` salía en `ros2 topic list`, y con el driver parado no salía. Una comprobación muerta que
+contaba como aprobada.
+→ Mide con un suscriptor BEST_EFFORT propio.
+
+**🔴 `ros2 topic list` INCLUYE TOPICS DE NODOS MUERTOS.** El daemon los conserva. El verificador
+veía `/odom` en la lista con el robot **apagado**, medía 0 y declaraba «el RVR está dormido».
+→ Para saber si algo corre, mira el **proceso**: `ps -eo comm | grep -qx rvr_driver_node`.
+
 **🔴 `ps -o %cpu` NO da la CPU instantánea: da el PROMEDIO desde que arrancó el proceso.** Un
 nodo recién lanzado sale inflado, y uno que lleva horas sale diluido. Las cifras de CPU
 anteriores de este fichero se tomaron con `ps`; `slam_toolbox` vuelve a salir 4.8 % con el
@@ -287,7 +311,9 @@ que el robot sí se queda quieto. Lo que no hacía nadie era **cancelar el objet
 `/release_emergency_stop` solo baja la bandera → **al liberarla el robot arrancaba solo**,
 porque el `controller_server` nunca dejó de publicar y el progress checker está relajado a
 0.25 m en 15 s. → Arreglado con el nodo `cancelar_nav2` (en `nav2.launch.py`, no en el driver:
-el driver tiene que funcionar sin Nav2). Manual, cap. 15.4.
+el driver tiene que funcionar sin Nav2). ✅ **Verificado con control**: con el nodo, objetivo
+`CANCELED` y **0.0 cm** al liberar; sin él, objetivo **ACTIVO** y **34.7 cm** — arrancó solo.
+Manual, cap. 15.4.
 
 **🔴 La parada de emergencia ha fallado TRES veces, siempre en silencio y con `200 OK`.**
 (1) nombre de topic distinto, en ROS 1. (2) **namespace**: al portar se arregló el nombre y se
@@ -616,6 +642,7 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | Métrica | Esperado | Medido el |
 |---|---|---|
 | `/odom` | **16.59 Hz**, σ 2.5 ms | 2026-07-29, 12 min sin huecos |
+| `/odom` y `/imu` (re-medidos) | **16.53 / 16.49 Hz**, intervalo 60.0 ms mediana, σ 2.2 / 2.6 ms | 2026-07-31, 30 s |
 | `/scan` | ~10 Hz, 2998 muestras/s | 2026-07-29, 100 % checksums |
 | CPU del driver | ~29.5 % de un núcleo | Pi 4 |
 | RAM del driver | ~53 MB, plana | sin fugas en 12 min |
@@ -733,7 +760,7 @@ lo que produce deriva entre documentación y realidad.
 bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
 ```
 
-**78 aserciones sin `--hardware`** ✅ medido 2026-07-31 (con `--hardware` suma las del RVR y el LIDAR: **pendiente de re-contar** desde la sección 10), código de salida ≠ 0 si algo falla, y cada
+**86 aserciones** con `--hardware` (80 sin él) ✅ medido 2026-07-31, 0 fallos, código de salida ≠ 0 si algo falla, y cada
 fallo viene con el comando que lo arregla. Existe porque el 2026-07-30 se verificó este robot a
 mano con ~25 comandos y aparecieron **cinco fallos silenciosos**. No repitas eso: pásalo al
 empezar y al cerrar.

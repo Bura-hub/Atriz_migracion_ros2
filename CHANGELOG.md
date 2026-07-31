@@ -4,6 +4,63 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — La parada de emergencia, verificada con control. Y el verificador mentía tres veces
+
+### ✅ El agujero de la parada de emergencia, tapado y demostrado
+
+Stack completo (driver + LIDAR + SLAM + Nav2), los cinco nodos de Nav2 en `active [3]` y
+`/cmd_vel` con **un solo publicador**. Mismo protocolo en las dos condiciones:
+
+| | objetivo tras la parada | movimiento al liberar |
+|---|---|---|
+| **con** `cancelar_nav2` | **CANCELED** | **0.0 cm** ✅ |
+| **sin** él (control) | sigue **ACTIVO** | **34.7 cm** 🔴 arrancó solo |
+
+🔴 **El control es la mitad que importa.** La primera pasada sola solo demuestra que el robot se
+quedó quieto, no que lo consiga el arreglo. Con el control quedan cuatro medidas de acuerdo en
+dos parejas opuestas — y el estado del objetivo lo da el propio action server, no una inferencia.
+
+📝 n=1 por condición, y se acepta: el fenómeno **no es intermitente**, es determinista y trazado
+en código. La regla de «replica antes de atribuir» se escribió para el fallo de SLAM, que sí lo
+era (~21 %).
+
+### 🔴 Y el verificador tenía TRES fallos más — van seis
+
+Los tres daban veredictos **falsos sobre un robot sano**, que es lo peor que puede hacer un
+verificador: uno con falsos positivos se acaba ignorando.
+
+**4 · «el RVR está dormido» con el robot apagado.** La comprobación se guardaba con
+`ros2 topic list | grep -qx '/odom'`, y **el daemon de ROS conserva topics de nodos muertos**. →
+Mirar el **proceso**, no la lista.
+
+**5 · `ros2 topic hz` no puede medir `/odom`. Nunca pudo.** `/odom` se publica **BEST_EFFORT** y
+`ros2 topic hz` se suscribe RELIABLE **sin opción de cambiarlo** en Jazzy: DDS no empareja y da
+0 Hz siempre. La misma trampa de QoS que costó la parada de emergencia, esta vez dentro del
+verificador. Pasaba desapercibida porque el bloque solo corría si `/odom` aparecía en la lista, y
+con el driver parado no aparecía: **una comprobación muerta que contaba como aprobada**.
+
+**6 · Y mi primer arreglo también medía mal: 11.3 Hz sobre un robot a 16.5.** La comprobación
+*pasaba* (el umbral es >10), así que habría llevado a «arreglar» un driver sano, a tocar
+`streaming_interval_ms` o a documentar una degradación inexistente. Se salvó por comparar contra
+el valor de referencia medido — que es exactamente para lo que existe esa tabla.
+
+La causa: **`rclpy.spin_once(nodo, …)` en bucle pierde mensajes**, porque cada llamada engancha y
+desengancha el nodo del ejecutor global. Con un `SingleThreadedExecutor` persistente el mismo
+robot da **16.53 Hz**, intervalo 60.0 ms de mediana, σ 2.2 ms — o sea la referencia del proyecto,
+intacta.
+
+→ La regla, con dos ejemplos nuevos: comprobar el efecto y no la intención, y además
+**comprobar el instrumento antes que la medida**.
+
+### Estado del verificador
+
+**86 comprobaciones con `--hardware`** (80 sin él), 0 fallos, 3 avisos — los tres reales: los
+`.bak` de apt y las dos cosas de systemd, sin instalar a propósito.
+
+Evidencia: `31_parada_cancela_nav2.txt` y `32_verificador_dos_fallos_mas.txt` · manual cap. 15.4.
+
+---
+
 ## 2026-07-31 — La parada de emergencia: la cuarta causa, y estaba mal enunciada
 
 En la lista de pendientes ponía *«la parada no cancela las acciones de Nav2, solo para los
