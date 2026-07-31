@@ -2115,6 +2115,9 @@ Coste con todo en marcha: driver 33.6 %, SLAM 5.0 %, LIDAR 2.6 %, RSP 0.5 %; 64.
 
 ### 9.12 ⚠️ Lo que queda abierto tras cerrar la fase
 
+> 🔴 **ESTA SECCIÓN ESTÁ SUPERADA. Lee antes el 9.12a.** Sus números salen de n=3 por distancia
+> y **tuvieron suerte**: con n=6, la mitad de las corridas largas fallan catastróficamente.
+
 ✅ **La deriva está CARACTERIZADA, y es pequeña** (2026-07-31, 6 corridas con las variables
 controladas). Evidencia: `14_deriva_slam_caracterizada.txt`.
 
@@ -2142,6 +2145,47 @@ el comportamiento normal del sistema.
 
 ✅ **Consecuencia: la localización ya NO es un bloqueante para Nav2.** De los tres que había,
 queda uno menos.
+
+### 9.12a 🔴 CORRECCIÓN: a 2.3 m, SLAM falla la mitad de las veces
+
+**Repetido el 2026-07-31 con n=6 por distancia** (12 corridas en total, mismo método).
+Evidencia: `21_deriva_roll_y_fallo_largo.txt`, sección 3.
+
+```
+CORTA (158 cm, n=6)   0.9  1.0  1.0  1.2  2.1  2.2  2.9
+  -> mediana 1.65 cm · peor 2.9 cm · corridas > 5 cm: 0 de 6        ✅
+
+LARGA (233 cm, n=6)   0.9  1.1  1.2  |  12.0  16.0  56.1
+  -> mediana 6.60 cm · peor 56.1 cm · corridas > 5 cm: 3 de 6  🔴 el 50 %
+```
+
+🔴 **Es BIMODAL: o ~1 cm o ≥ 12 cm, sin nada en medio.** Eso no es deriva gradual — es el
+emparejado de barridos **enganchando o perdiéndose**. Los errores angulares acompañan: 0.9–2.4°
+en las buenas, **5.2–28.1°** en las malas.
+
+| | 9.12 (n=3) | **9.12a (n=6)** |
+|---|---|---|
+| CORTA mediana | 1.0 cm | 1.65 cm |
+| LARGA mediana | 2.7 cm | **6.60 cm** |
+| **peor caso** | 3.2 cm | **56.1 cm** 🔴 |
+
+**Y esto resucita la anomalía de la Fase 4.** Aquella corrida de 2.62 m con 87.8 cm y 10.9° se
+atribuyó a que el robot rozó obstáculos, y el 9.12 la dio por explicada. **Es el mismo fallo
+bimodal: no era una anomalía, es la mitad de las veces.**
+
+**Los fallos no siguen a ninguna condición controlada**: fueron las corridas largas 2ª, 3ª y 4ª
+—contiguas— repartidas entre las dos ramas del experimento del cap. 13.6, y decrecieron
+(56.1 → 16.0 → 12.0) antes de desaparecer.
+
+⏳ **Causa sin determinar.** La firma temporal apunta a algo del entorno que cambió y volvió,
+pero **no hay evidencia** y no se le atribuye causa. Lo primero sería repetir **solo corridas
+largas**, muchas, registrando la **pose absoluta de partida** de cada una.
+
+⚠️ **Consecuencia para Nav2, y es la que importa:** SLAM es fiable hasta ~1.6 m de recorrido y
+deja de serlo a ~2.3 m **en este entorno**. Las navegaciones que salieron bien (8–10 cm de
+error, cap. 11) eran de **0.9–1.5 m**: por debajo del umbral. **Objetivos más largos entran en
+la zona donde SLAM se pierde la mitad de las veces**, y eso es hoy el problema abierto más
+serio del proyecto.
 
 🔴 **La inclinación de ~8°**, confirmada por **tres vías independientes** (árbol TF, Roll de la
 IMU y acelerómetro). Causa sin determinar.
@@ -2935,115 +2979,113 @@ seguridad solo se activó cuatro veces, ninguna como parada.
 
 ---
 
-## Capítulo 13 — La «inclinación de ~8°» no existe
+## Capítulo 13 — La inclinación del RVR: es el acelerómetro, no el robot
 
-✅ **Resuelto el 2026-07-31**, y no con software: con una regla.
+✅ **Resuelto el 2026-07-31**, tras **dos conclusiones mías retiradas** por el camino. Evidencia:
+`00_auditoria/evidencia_24_04/21_deriva_roll_y_fallo_largo.txt`.
 
-### 13.1 Lo que se creía
+### 13.1 La cifra correcta, y dónde vive
 
-Desde el principio el proyecto arrastraba que **el robot está inclinado ~8°**, y el driver lo
-daba por bueno explícitamente:
-
-```python
-# Se conservan roll y pitch: el robot está inclinado ~8° y esa
-# inclinación es real, no un error de referencia.
+```
+roll  +1.10°      pitch  +6.74°      TOTAL  6.83–6.96°
+                   ^^^^^
 ```
 
-La confianza venía de que estaba **«confirmado por tres vías independientes»**: el árbol TF, el
-Roll de la IMU y el acelerómetro.
+🔴 **La documentación decía «~8° de ROLL». Son ~6.9° y están casi todos en el PITCH.**
 
-### 13.2 🔴 Las tres vías eran una sola
+⚠️ **Y no son fijos: roll y pitch se reparten según el rumbo.** Medido — tras dos giros el roll
+pasó de +1.10° a +0.15° mientras el pitch subía a +6.87°. **Lo único estable es el módulo.**
+Cualquier comprobación que mire solo el roll da un falso negativo (13.5).
 
-| «vía» | de dónde sale de verdad |
-|---|---|
-| árbol TF | de `odom.pose.pose.orientation`… |
-| cuaternión del RVR | …que el driver copia tal cual del cuaternión, **que calcula la IMU** |
-| acelerómetro | el **mismo chip** |
+### 13.2 🔴 Dos conclusiones retiradas — y por qué ninguna valía
 
-Leyendo `_h_quaternion` se ve: el driver toma el cuaternión del RVR, le resta el yaw de
-arranque, **conserva roll y pitch** y publica eso en `/odom` **y en TF**. El árbol TF no
-confirma nada — **repite** lo que dice la IMU.
+**Retirada 1: «la inclinación no existe, el LIDAR está nivelado en los cuatro puntos».**
+La regla mide alturas **desde el suelo**. Un robot plano sobre un suelo inclinado da las cuatro
+medidas iguales. Esa medida no podía distinguir «nivelado respecto al chasis» de «horizontal
+respecto a la gravedad».
 
-> Tres medidas del mismo sensor no son tres confirmaciones. Es la regla nº4 del proyecto
-> («mide antes de atribuir») fallando por el lado contrario: no se atribuyó sin medir, se midió
-> tres veces **lo mismo** creyendo que eran tres cosas.
+**Retirada 2: «es física: el pitch cambia de signo al girar 180°, luego el suelo tiene 12 % de
+pendiente».** El cambio de signo solo prueba que el error está en el **marco del mundo**, y eso
+lo producen **dos** causas: un suelo inclinado **o** una referencia de gravedad torcida.
+Presenté como resuelto un caso con dos explicaciones — justo lo que la regla nº4 prohíbe.
 
-### 13.3 ✅ La medida que lo cierra
+### 13.3 ✅ Lo que sí lo zanja
 
-El usuario midió del suelo al disco del LIDAR **en cuatro puntos** —delante, detrás, izquierda,
-derecha— y salen **iguales**. El disco del X2 mide ~7.6 cm: 8° habrían dado **~1.1 cm** de
-diferencia entre un lado y otro. Se habrían visto con esa misma regla.
+**a) El suelo está plano.** Medido con nivel en cuatro puntos: 0.22°, 0.29°, 0.30°, 0.40°.
 
-El LIDAR va sobre un piso plano atornillado a la tapa del RVR, así que **el robot está
-físicamente horizontal**.
+**b) El acelerómetro crudo NO gira con el robot.** Es el discriminador limpio porque no pasa
+por ninguna fusión:
 
-🔴 **Los ~8° son un desvío de la IMU del RVR**, no una inclinación del robot.
+| | ANTES | DESPUÉS del giro de 177.8° | |
+|---|---|---|---|
+| pitch | +6.72° | **−6.99°** | cambia de signo |
+| `accel.x` | −1.091 | **−1.158** | **NO cambia** |
+| `accel.y` | −0.199 | **−0.197** | **NO cambia** |
 
-### 13.4 ⏳ Cómo se va a medir — y por qué no se ha hecho ya
+Un error **fijo en el marco del robot** + suelo plano = **el sensor está descalibrado**, no el
+robot inclinado.
 
-Hoy el driver publica ese roll falso en `/odom` y en el árbol TF. Un roll en
-`odom → base_footprint` **inclina el plano del láser**, y eso comprime los alcances por
-`cos(8°) = 0.990`: un **1 %**, ~**1 cm por metro**.
+**c) El módulo lo confirma:** `|g| = 9.435` contra 9.807 — **3.8 % corto**. Un acelerómetro que
+no acierta el módulo tampoco acierta la dirección.
 
-La deriva de SLAM medida es de **1–3 cm** en recorridos de 1.6–2.4 m (cap. 9.12). **El orden de
-magnitud coincide**, así que este roll falso **podría ser parte de ella**.
+**d) No es la referencia de arranque.** Se apagó el RVR, se dejó plano en el suelo y se encendió
+allí: la inclinación siguió igual (6.83° contra 6.83°).
 
-✅ **El interruptor ya está puesto y verificado** (2026-07-31):
+### 13.4 ⏳ Lo que queda sin explicar
+
+**Por qué el cuaternión fusionado gira con el rumbo mientras el sesgo del acelerómetro no.** Una
+traza de 90 s tras el giro descarta que sea un transitorio: el pitch se queda clavado en
+−6.9/−7.0. Es una rareza de la fusión del RVR y se deja como pregunta abierta, **sin inventarle
+mecanismo**.
+
+**Consecuencia práctica:** el driver publica en `/odom` y en TF una inclinación espuria que
+**además cambia con el rumbo**. Una inclinación dependiente de la dirección es peor que una
+constante: degrada el emparejado de forma direccional.
+
+### 13.5 El interruptor, y el falso positivo que provocó
 
 ```bash
 ros2 launch atriz_rvr_bringup robot.launch.py publicar_inclinacion:=false
 ```
 
-Con `false`, `/odom` publica `roll +0.00° pitch +0.00°` — comprobado sobre **414 muestras**. El
-valor por defecto sigue siendo `true`: es un interruptor de **medición**, no de operación.
+Por defecto `true`. Con `false`, `_h_quaternion` pone `roll = pitch = 0`. Verificado:
+`roll +0.00° pitch +0.00°` sobre 414 muestras.
 
-#### El diseño de la prueba, y por qué no se puede recortar
+🔴 El experimento de 13.6 **abortó a los 2 minutos** con un falso positivo: su guardián
+comprobaba solo el **roll**, que en ese momento valía +0.11° porque la inclinación estaba
+entera en el pitch. Arreglado para mirar `hypot(roll, pitch)`.
 
-- 🔴 **La línea base anterior no vale.** Aquellas 6 corridas se hicieron con `laser_z = 0.1745`,
-  y el desplazamiento lateral que el roll induce escala con esa altura (`laser_z × sin(roll)`):
-  2.4 cm entonces, **2.2 cm ahora**. Hay que rehacer las dos mitades.
-- 🔴 **Las condiciones se ALTERNAN**, no 6 con roll y luego 6 sin él. Así un corte a mitad deja
-  datos **balanceados**, y de paso el nivel de batería y el calentamiento no se cuelan como
-  variable — que es justo el tipo de confusión que ya costó una retractación en este proyecto.
-- ⚠️ **Y no se puede recortar a 2 corridas por condición.** El efecto buscado es de ~**1 cm** y
-  la dispersión ya medida de la deriva es de **σ = 0.6–1.0 cm**: saldría dentro del ruido. Hacen
-  falta ≥3 repeticiones de cada distancia por condición.
+✅ Que abortara es lo correcto: mejor un falso positivo a los 2 min que 45 min de datos con el
+interruptor sin efecto.
 
-⏳ **Pendiente de ejecutar**: son ~40 min de robot moviéndose y el 2026-07-31 la batería estaba
-al **34 %**. Se decidió **cargar primero**, porque el consumo del RVR por minuto **no está
-medido** y arriesgarse a un corte a mitad daría un «no concluyente» habiendo gastado la carga.
+### 13.6 ⚠️ El experimento NO responde la pregunta
 
-⚠️ Mientras tanto, `/odom` y `/imu` publican una orientación con ~8° de roll que **no
-corresponde a la realidad física**. Quien fusione esa orientación (por ejemplo
-`robot_localization` en el futuro) tiene que saberlo.
+12 corridas, 3 bloques de cada condición **alternando**, `slam_toolbox` reiniciado de cero en
+cada una:
 
-### 13.5 🔴 Dos trampas que salieron al montar el interruptor
+| | | mediana | σ | valores |
+|---|---|---|---|---|
+| CORTA (158 cm) | CON roll | 2.10 cm | 0.95 | 2.1, 1.0, 2.9 |
+| | SIN roll | 1.20 cm | 0.64 | 2.2, 1.0, 1.2 |
+| LARGA (233 cm) | CON roll | 1.10 cm | 8.66 | 1.1, **16.0**, 0.9 |
+| | SIN roll | 12.00 cm | 29.08 | **56.1**, **12.0**, 1.2 |
 
-**Una excepción en un manejador de telemetría mata `/odom` e `/imu` EN SILENCIO.**
+⚠️ **No se puede concluir nada sobre el roll.** El efecto buscado era de ~1 cm y apareció un
+fallo de 12–56 cm que lo entierra. Repetirlo tal cual no serviría: hay que arreglar antes el
+fallo del **cap. 9.12a**.
 
-Al añadir el parámetro se leyó mal el nombre de una variable, así que
-`self._publicar_inclinacion` se usaba sin haberse asignado. Resultado:
+📝 **El diseño alternado sí cumplió su función:** deja ver que los fallos **no** se reparten por
+condición (1 CON roll, 2 SIN roll). Con 6 y 6 en bloque, los tres habrían caído en una sola
+condición y habrían parecido su causa.
 
-| | |
-|---|---|
-| `AttributeError` en `_h_quaternion` | **ni una línea en el log** |
-| `/odom` y `/imu` | **cero mensajes**, pero los topics existían |
-| `/scan` | funcionando |
-| el detector de silencio | **no saltó** |
+### 13.7 ✅ Consumo de batería — un dato que el proyecto no tenía
 
-Y el detector de silencio no salta **por diseño**: mide el tiempo desde la última **muestra
-del RVR**, no desde la última publicación. Las muestras llegaban perfectamente — se ve en el
-log el `origen del yaw fijado en +10.2°`, que sale de la primera. Lo que fallaba era el
-manejador que las convierte.
+Medido de paso: **92 % → 85 %** en los 6 bloques, mediana **2 puntos** por bloque de 2.7 min de
+movimiento → **~0.74 %/min**, o del orden de **2 horas de conducción** por carga.
 
-> **Atajo de diagnóstico:** si `/scan` va y `/odom` no, y **no hay ningún error ni aviso de
-> silencio**, sospecha de una excepción dentro de un manejador. El síntoma es «el topic existe
-> y no publica», que es exactamente el mismo que da un RVR dormido — pero el RVR dormido **sí**
-> dispara el detector de silencio. **Esa es la diferencia que los separa.**
-
-**`/battery_state.percentage` es una fracción 0–1, no un porcentaje.** Es lo que manda
-`sensor_msgs/BatteryState` («Charge percentage on 0 to 1 range») y el driver lo respeta. Leerlo
-como 0–100 hace que un robot al 34 % parezca estar al **0 %** y provoque una falsa alarma.
+⚠️ Primera estimación, no una medida fina: `/battery_state` llega en pasos de 1 %, los bloques
+son cortos, y el ritmo cayó a lo largo del experimento (1.12 → 0.74 → 0.37 %/min), que es lo
+típico de una curva de descarga no lineal.
 
 ---
 

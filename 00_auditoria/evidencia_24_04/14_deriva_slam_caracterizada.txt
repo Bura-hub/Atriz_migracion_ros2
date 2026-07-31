@@ -1,4 +1,33 @@
 ═══════════════════════════════════════════════════════════════════════════════
+🔴 SUPERADO POR MEDIDAS POSTERIORES — LEER ANTES QUE NADA
+═══════════════════════════════════════════════════════════════════════════════
+Este fichero concluyo que la deriva era "pequeña y estable" y que el error "cabe
+dentro de una celda del mapa". **Con n=3 por distancia tuvo suerte.**
+
+El 2026-07-31 se repitio con n=6 por distancia (fichero 21):
+
+                       aqui (n=3)      con n=6
+    CORTA mediana        1.0 cm         1.65 cm
+    LARGA mediana        2.7 cm         6.60 cm
+    PEOR CASO            3.2 cm        56.10 cm   🔴
+
+  🔴 LAS CORRIDAS LARGAS (2.3 m) FALLAN EL 50 % DE LAS VECES, y de forma
+     BIMODAL: o ~1 cm o >= 12 cm, sin nada en medio.
+
+        0.9  1.1  1.2  |  12.0  16.0  56.1
+
+  Y eso RESUCITA la anomalia de la Fase 4 —2.62 m con 87.8 cm de error— que este
+  fichero dio por explicada. No era una anomalia: es la mitad de las veces.
+
+  ✅ Lo que SI sigue valiendo de aqui: las corridas CORTAS (1.6 m) son fiables,
+     0 de 6 por encima de 5 cm, y el metodo (reiniciar slam_toolbox en cada
+     repeticion, controlar que nadie cruce) es el correcto.
+
+  Detalle en `21_deriva_roll_y_fallo_largo.txt`, seccion 3.
+═══════════════════════════════════════════════════════════════════════════════
+
+
+═══════════════════════════════════════════════════════════════════════════════
 DERIVA DE SLAM — CARACTERIZADA CON 6 CORRIDAS
 Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
 ═══════════════════════════════════════════════════════════════════════════════

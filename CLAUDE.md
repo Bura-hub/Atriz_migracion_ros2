@@ -195,9 +195,26 @@ viene de una ficha. **Ya está todo medido** salvo `imu_z`, que exige abrir el r
 proyecto dio por buena una inclinación de ~8° del robot durante días porque la confirmaban el
 árbol TF, el Roll de la IMU y el acelerómetro. **Las tres salen de la IMU**: el TF copia
 `odom.pose.pose.orientation`, que el driver copia del cuaternión del RVR, que calcula la IMU, y
-el acelerómetro es el mismo chip. Una regla y cuatro medidas alrededor del disco del LIDAR
-bastaron para ver que **el robot está horizontal** (manual, cap. 13). → **Antes de decir
-"confirmado por N vías", traza de dónde sale el dato de cada una.**
+el acelerómetro es el mismo chip. → **Antes de decir "confirmado por N vías", traza de dónde
+sale el dato de cada una.**
+
+**🔴 Y la inclinación costó DOS conclusiones retiradas más.** Merece leerse entero el cap. 13,
+porque las dos son errores de método fáciles de repetir:
+- «El LIDAR está nivelado en 4 puntos, luego el robot está horizontal» — **la regla mide desde
+  el SUELO**, así que no distingue «nivelado respecto al chasis» de «horizontal respecto a la
+  gravedad».
+- «El pitch cambia de signo al girar 180°, luego la inclinación es física» — **el cambio de
+  signo solo dice que el error está en el marco del MUNDO**, y eso lo producen dos causas: un
+  suelo inclinado **o** una referencia de gravedad torcida.
+
+✅ **Lo que sí lo zanja: el acelerómetro CRUDO no gira con el robot** (`accel.x` −1.091 →
+−1.158 tras girar 177.8°) mientras el pitch fusionado sí cambia de signo. Error fijo en el
+marco del robot + suelo plano medido con nivel = **el sensor está descalibrado**. Y `|g|` sale
+**3.8 % corto**, que lo confirma.
+
+**⚠️ La inclinación del RVR vive en el PITCH (~6.9°), no en el roll (~1°), y los dos SE
+REPARTEN SEGÚN EL RUMBO.** Cualquier comprobación que mire solo el roll da un falso negativo —
+abortó un experimento de 45 min por eso. Mira siempre `hypot(roll, pitch)`.
 
 **🔴 UNA EXCEPCIÓN EN UN MANEJADOR DE TELEMETRÍA MATA `/odom` E `/imu` EN SILENCIO.** Pasó el
 2026-07-31 al añadir un parámetro al driver: se usó `self._publicar_inclinacion` sin asignarla
@@ -522,7 +539,11 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | Alto del RVR (suelo → tapa) | **7.0 cm** — la ficha decía 11.4 | 2026-07-31 |
 | Radio circunscrito | **0.142 m** → `robot_radius: 0.145` | derivado de lo anterior |
 | Paso mínimo con `radius: 0.18` | **no cruza 40 cm** — necesita ~36 cm + margen | 2026-07-31 |
-| **Deriva de SLAM** | mediana **1.0 cm** (1.6 m de recorrido) y **2.7 cm** (2.4 m); peor caso 3.2 cm, n=6 | 2026-07-31 |
+| **Deriva de SLAM, 1.6 m** | mediana **1.65 cm**, peor 2.9 cm, **0 de 6** fallos | 2026-07-31, n=6 |
+| 🔴 **Deriva de SLAM, 2.3 m** | **BIMODAL**: 0.9/1.1/1.2 cm o **12/16/56 cm**. Falla el **50 %** | 2026-07-31, n=6 |
+| Inclinación que reporta el RVR | **6.9° y está en el PITCH** (roll ~1°), y se reparte con el rumbo | 2026-07-31 |
+| `\|g\|` del acelerómetro | **9.435 m/s²** contra 9.807 — **3.8 % corto**, está descalibrado | 2026-07-31 |
+| Consumo del RVR conduciendo | **~0.74 %/min** → ~2 h por carga (estimación gruesa) | 2026-07-31 |
 | CPU de `slam_toolbox` | **4.5 %** de un núcleo, 49 MB | 2026-07-30, async |
 | Todo a la vez (driver+LIDAR+RSP+SLAM) | **~24 %** de un núcleo, ~200 MB, loadavg 0.62, 62.3 °C, `throttled=0x0` | 2026-07-30 |
 

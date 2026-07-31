@@ -39,7 +39,7 @@ la corrida 1 salió tan mal.
 ESPACIO NECESARIO
 ═══════════════════════════════════════════════════════════════════════════════
 
-Pasillo despejado, **el robot en el CENTRO** mirando a lo largo:
+Pasillo despejado. Lo que hace falta es **espacio POR DELANTE**:
 
     |<──────────────── 3 m ────────────────>|
     ┌───────────────────────────────────────┐
@@ -49,14 +49,40 @@ Pasillo despejado, **el robot en el CENTRO** mirando a lo largo:
     └───────────────────────────────────────┘
                   EL CENTRO
 
-En el centro porque la prueba avanza y **retrocede la misma distancia**: desde un
-extremo, la mitad del recorrido se sale del pasillo.
+🔴 CORREGIDO 2026-07-31: aquí ponía «el robot en el CENTRO, porque avanza y
+retrocede la misma distancia». Es impreciso. El patrón real es **giro 360° →
+avanza N tramos → retrocede los mismos N y vuelve al punto de partida**: NO pasa
+por detrás del inicio. Lo que hace falta es:
+
+  · POR DELANTE:  N × PASO_M + 0.091 (medio robot) + margen
+                  con la corrida larga: 1.20 + 0.091 = **1.29 m mínimo**
+  · ALREDEDOR:    0.142 m (radio circunscrito) para el giro de 360°
+  · POR DETRÁS:   solo para que el retorno no se pase de largo
+
+Centrarlo es una recomendación segura, no un requisito. Un robot pegado al fondo
+del pasillo y mirando hacia el otro extremo cumple igual.
 
 🔴 **El robot NO esquiva obstáculos.** Solo tiene el watchdog de `cmd_vel`, que
 para los motores si dejan de llegar órdenes, no si hay algo delante. Nada a menos
 de 60 cm. Y el LIDAR barre en horizontal a 15.5 cm: pasa por encima de zócalos y
 por debajo de mesas, así que «despejado a ras de suelo» no basta.
 ═══════════════════════════════════════════════════════════════════════════════
+
+🔴 ARRÁNCALO CON LA CAPA DE SEGURIDAD DESACTIVADA:
+
+    ros2 launch atriz_rvr_bringup robot.launch.py collision_monitor:=false
+
+Esta herramienta es ANTERIOR al `collision_monitor` y publica en `/cmd_vel`
+directamente, así que con el monitor activo **saltaría la seguridad en silencio**
+— justo el fallo contra el que avisa `collision_monitor.yaml`. Desactivarlo lo
+hace explícito.
+
+Y además conviene para la medida: con el monitor en el lazo, `approach` frenaría
+al acercarse a los extremos del pasillo y metería una variable de más en un
+experimento que compara derivas.
+
+⚠️ Con el monitor desactivado el robot **no esquiva nada**: solo queda el watchdog
+   de `cmd_vel`. De ahí la insistencia en el espacio despejado.
 """
 from __future__ import annotations
 

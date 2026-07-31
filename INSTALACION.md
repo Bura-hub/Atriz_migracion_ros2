@@ -84,9 +84,12 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      F14 Interruptor del roll de la IMU        manual, cap. 13.4               ✅
          └── publicar_inclinacion:=false · verificado: roll y pitch a +0.00°
 
-     F15 Lo que queda                                                          ⏳ SIGUIENTE
-         1. CARGAR el robot y lanzar las 12 corridas de deriva           ← AQUÍ
-         2. Medir el consumo del RVR por minuto conduciendo
+     F15 Inclinación resuelta + deriva re-medida  manual, cap. 13 y 9.12a     ✅
+         └── es el ACELERÓMETRO, no el robot · y sale un fallo grave (abajo)
+
+     F16 Lo que queda                                                          ⏳ SIGUIENTE
+         1. 🔴 SLAM falla el 50 % a 2.3 m       manual, cap. 9.12a      ← AQUÍ
+         2. La pregunta del roll, sin responder (enterrada por lo anterior)
          2. Un obstáculo que aparezca DURANTE la navegación
          4. Fase 4c: map_server + AMCL        plan, Fase 4c
          5. Los 16 servicios y 4 topics del driver sin portar
@@ -94,7 +97,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          7. Clonar a los 16 robots            FLOTA.md
 ```
 
-> **Las etapas A a F14 están recorridas y verificadas sobre la máquina real.** Los capítulos
+> **Las etapas A a F15 están recorridas y verificadas sobre la máquina real.** Los capítulos
 > 1, 3, 4, 5, 7, 8, 8bis, 9, 10, **11 (Nav2)** y **12 (seguridad)** del manual dejaron de ser
 > NO VERIFICADO: el robot navega solo y para antes de chocar. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
@@ -109,7 +112,9 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 > ([`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md)) y eso cerró de paso la
 > «inclinación de ~8°», que **no existe** (manual, cap. 13). Las paradas contra pared ya están
 > **re-medidas** con las cotas buenas, y el **interruptor del roll de la IMU** está puesto y
-> verificado. El siguiente paso es **cargar el robot** y lanzar las 12 corridas de deriva.
+> verificado. 🔴 **Pero al medir la deriva con n=6 apareció un fallo serio: a 2.3 m de recorrido
+> SLAM falla el 50 % de las veces**, con errores de 12 a 56 cm (manual, cap. 9.12a). Es hoy el
+> problema abierto más importante y el siguiente paso.
 >
 > ### Un solo comando para saber si el robot está bien
 >

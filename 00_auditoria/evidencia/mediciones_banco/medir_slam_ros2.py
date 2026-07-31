@@ -56,6 +56,22 @@ MIDE EL EFECTO, NO LA INTENCIÓN (regla del proyecto): no comprueba «he publica
 cmd_vel», comprueba **cuántas celdas conocidas tiene el mapa antes y después**.
 
 ═══════════════════════════════════════════════════════════════════════════════
+
+🔴 ARRÁNCALO CON LA CAPA DE SEGURIDAD DESACTIVADA:
+
+    ros2 launch atriz_rvr_bringup robot.launch.py collision_monitor:=false
+
+Esta herramienta es ANTERIOR al `collision_monitor` y publica en `/cmd_vel`
+directamente, así que con el monitor activo **saltaría la seguridad en silencio**
+— justo el fallo contra el que avisa `collision_monitor.yaml`. Desactivarlo lo
+hace explícito.
+
+Y además conviene para la medida: con el monitor en el lazo, `approach` frenaría
+al acercarse a los extremos del pasillo y metería una variable de más en un
+experimento que compara derivas.
+
+⚠️ Con el monitor desactivado el robot **no esquiva nada**: solo queda el watchdog
+   de `cmd_vel`. De ahí la insistencia en el espacio despejado.
 """
 from __future__ import annotations
 

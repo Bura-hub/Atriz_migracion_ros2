@@ -1,0 +1,218 @@
+═══════════════════════════════════════════════════════════════════════════════
+LA INCLINACION DEL RVR, Y UN FALLO DE SLAM QUE ESTABA TAPADO
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Manual, cap. 13 (reescrito) y 9.12. Herramientas:
+  mediciones_banco/comparar_deriva_roll.py   (nueva)
+  mediciones_banco/deriva_roll_resultados.jsonl
+
+RESUMEN:
+  ⚠️ La pregunta que se venia a responder (¿el roll de la IMU empeora la deriva?)
+     queda SIN RESPUESTA: el efecto buscado era de ~1 cm y aparecio un fallo de
+     12-56 cm que lo entierra.
+  🔴 Y ese fallo es el hallazgo de verdad: en recorridos de 2.3 m, SLAM falla
+     catastroficamente el 50 % de las veces.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. LA INCLINACION: NO ES DEL ROBOT, ES DEL ACELEROMETRO
+───────────────────────────────────────────────────────────────────────────────
+  🔴 PRIMERO, DOS CONCLUSIONES MIAS RETIRADAS. Las dos sobre lo mismo, y ninguno
+     de los dos argumentos valia:
+
+   RETIRADA 1 — "la inclinacion no existe, el LIDAR esta nivelado en 4 puntos".
+     La regla mide alturas DESDE EL SUELO. Un robot plano sobre un suelo
+     inclinado da las cuatro medidas iguales. Esa medida no podia distinguir
+     "nivelado respecto al chasis" de "horizontal respecto a la gravedad".
+
+   RETIRADA 2 — "es fisica: el pitch cambia de signo al girar 180°, luego el
+     suelo tiene 12 % de pendiente".
+     El cambio de signo solo prueba que el error esta en el MARCO DEL MUNDO, y
+     eso lo producen DOS causas distintas: un suelo inclinado, o una referencia
+     de gravedad torcida. Presente como resuelto un caso con dos explicaciones.
+
+  ── LO QUE SI LO ZANJA ──
+
+  a) EL SUELO ESTA PLANO. Medido por el usuario con nivel, cuatro puntos:
+       detras 0.22°  ·  delante 0.29°  ·  derecha 0.30°  ·  izquierda 0.40°
+     Maximo 0.40°, y 0.07° entre delante y detras.
+
+  b) EL ACELEROMETRO CRUDO NO GIRA CON EL ROBOT. Es el discriminador limpio
+     porque no pasa por ninguna fusion:
+
+                        ANTES      DESPUES del giro de 177.8°
+         pitch         +6.72°        -6.99°     <- cambia de signo
+         accel.x       -1.091        -1.158     <- NO cambia
+         accel.y       -0.199        -0.197     <- NO cambia
+
+     Un error FIJO EN EL MARCO DEL ROBOT + suelo plano = el sensor esta
+     descalibrado, no el robot inclinado.
+
+  c) Y EL MODULO LO CONFIRMA:  |g| = 9.435 m/s²  contra 9.807  ->  3.8 % CORTO.
+     Un acelerometro que no acierta el modulo tampoco acierta la direccion.
+
+  d) NO ES LA REFERENCIA DE ARRANQUE. Se apago el RVR, se dejo plano en el suelo
+     y se encendio alli: la inclinacion siguio igual (6.83° contra 6.83°).
+
+  ── LA CIFRA CORRECTA, Y DONDE VIVE ──
+
+    roll   +1.10°      pitch  +6.74°      TOTAL  6.83-6.96°
+                        ^^^^^
+    🔴 La documentacion decia "~8° de ROLL". Son ~6.9° y estan casi todos en el
+       PITCH. El roll es de 1°.
+
+    ⚠️ Y NO SON FIJOS: roll y pitch SE REPARTEN SEGUN EL RUMBO. Medido: tras dos
+       giros el roll paso de +1.10° a +0.15° mientras el pitch subio a +6.87°.
+       Lo unico estable es el MODULO. Cualquier comprobacion que mire solo el
+       roll da un falso negativo — le paso a este experimento (seccion 4).
+
+  ── ⏳ SIN EXPLICAR ──
+     Por que el cuaternion FUSIONADO gira con el yaw mientras el sesgo del
+     acelerometro NO. Una traza de 90 s tras el giro descarta que sea un
+     transitorio de la fusion: el pitch se queda clavado en -6.9/-7.0.
+     Es una rareza de la fusion del RVR y se deja como pregunta abierta, sin
+     inventarle mecanismo.
+
+  ── CONSECUENCIA PRACTICA ──
+     El driver publica en /odom y en TF una inclinacion espuria que ADEMAS
+     CAMBIA CON EL RUMBO. Una inclinacion dependiente de la direccion es peor
+     que una constante: degrada el emparejado de forma direccional.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. ⚠️ EL EXPERIMENTO NO RESPONDE LA PREGUNTA
+───────────────────────────────────────────────────────────────────────────────
+  12 corridas, 3 bloques de cada condicion ALTERNANDO, slam_toolbox reiniciado
+  de cero en cada una. Bateria 92 % -> 85 %.
+
+    CORTA (158 cm)   CON roll  n=3  mediana 2.10 cm  σ 0.95   [2.1, 1.0, 2.9]
+                     SIN roll  n=3  mediana 1.20 cm  σ 0.64   [2.2, 1.0, 1.2]
+                     -> diferencia +0.90 cm, con σ 0.95: DENTRO DEL RUIDO
+
+    LARGA (233 cm)   CON roll  n=3  mediana  1.10 cm  σ  8.66  [1.1, 16.0, 0.9]
+                     SIN roll  n=3  mediana 12.00 cm  σ 29.08  [56.1, 12.0, 1.2]
+                     -> sin sentido: la dispersion es 30 veces el efecto buscado
+
+  ⚠️ NO SE PUEDE CONCLUIR NADA sobre el roll. El efecto era de ~1 cm y aparecio
+     un fallo de 12-56 cm que lo entierra. Repetirlo tal cual no serviria: hay
+     que arreglar antes el fallo de la seccion 3.
+
+  📝 El diseño alternado SI cumplio su funcion: permite ver que los fallos NO se
+     reparten por condicion (1 CON roll, 2 SIN roll). Con 6 y 6 en bloque, los
+     tres fallos habrian caido en una sola condicion y habrian parecido su causa.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 EL HALLAZGO: SLAM FALLA EL 50 % DE LAS VECES A 2.3 m
+───────────────────────────────────────────────────────────────────────────────
+  Juntando las dos condiciones, que para esto son la misma:
+
+    CORTA (158 cm, n=6)   0.9  1.0  1.0  1.2  2.1  2.2  2.9
+      -> mediana 1.65 cm · peor 2.9 cm · corridas > 5 cm: 0 de 6   ✅
+
+    LARGA (233 cm, n=6)   0.9  1.1  1.2  |  12.0  16.0  56.1
+      -> mediana 6.60 cm · peor 56.1 cm · corridas > 5 cm: 3 de 6  🔴 50 %
+
+  🔴 ES BIMODAL: o ~1 cm o >= 12 cm, sin NADA en medio. Eso no es deriva
+     gradual: es el emparejado de barridos ENGANCHANDO O PERDIENDOSE. Los
+     errores angulares acompañan: 0.9-2.4° en las buenas, 5.2-28.1° en las malas.
+
+  ── ¿SIGUE A LA CONDICION O AL ORDEN? ──
+
+     #   bloque    condicion   tipo    deriva   angulo
+     2     A1      CON roll    LARGA    1.10 cm   2.4°
+     4     B1      SIN roll    LARGA   56.10 cm  28.1°  🔴
+     6     A2      CON roll    LARGA   16.00 cm   9.7°  🔴
+     8     B2      SIN roll    LARGA   12.00 cm   5.2°  🔴
+    10     A3      CON roll    LARGA    0.90 cm   1.0°
+    12     B3      SIN roll    LARGA    1.20 cm   0.9°
+
+    Los tres fallos son las corridas largas 2ª, 3ª y 4ª — CONTIGUAS — y abarcan
+    las dos condiciones. Y decrecen: 56.1 -> 16.0 -> 12.0 -> luego buenas.
+
+    ⏳ CAUSA SIN DETERMINAR. La firma temporal (un bloque contiguo en mitad del
+       experimento, que empieza y termina) apunta a algo del entorno que cambio
+       y volvio, pero NO HAY EVIDENCIA de ello y no se le atribuye causa.
+
+  ── 🔴 CORRIGE AL FICHERO 14 ──
+
+                          fichero 14 (n=3)   AHORA (n=6)
+      CORTA mediana            1.0 cm          1.65 cm
+      LARGA mediana            2.7 cm          6.60 cm
+      PEOR CASO GLOBAL         3.2 cm         56.10 cm   🔴
+
+    El fichero 14 concluyo que la deriva era "pequeña y estable" y que el error
+    "cabe dentro de una celda del mapa". **Con n=3 por distancia tuvo suerte.**
+    Con n=6, la mitad de las corridas largas fallan.
+
+  ── Y RESUCITA LA ANOMALIA DE LA FASE 4 ──
+    Aquella corrida de 2.62 m que dio 87.8 cm y 10.9° se atribuyo a que el robot
+    rozo obstaculos, y el fichero 14 la dio por explicada por la distancia. **Es
+    el mismo fallo bimodal.** No era una anomalia: es la mitad de las veces.
+
+  ── CONSECUENCIA PARA NAV2 ──
+    SLAM es fiable hasta ~1.6 m de recorrido y deja de serlo a ~2.3 m EN ESTE
+    ENTORNO. Las navegaciones de Nav2 que salieron bien (8-10 cm de error) eran
+    de 0.9-1.5 m: por debajo del umbral. **Objetivos mas largos entran en la
+    zona donde SLAM se pierde la mitad de las veces.**
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. 🔴 UN FALLO DE LA HERRAMIENTA, QUE ADEMAS ES EL AVISO
+───────────────────────────────────────────────────────────────────────────────
+  El primer lanzamiento aborto a los 2 min:
+
+      /odom: roll +0.11°
+      🔴 EL INTERRUPTOR NO HIZO EFECTO (esperaba ≠0). Se aborta.
+
+  Falso positivo. El guardian comprobaba solo el ROLL, y la inclinacion de este
+  robot vive en el PITCH. Tras los giros el roll estaba en +0.11° y el pitch en
+  +6.87°.
+
+  ARREGLADO: el guardian mira la inclinacion TOTAL, hypot(roll, pitch).
+
+  ✅ Que abortara es lo correcto: mejor un falso positivo a los 2 min que 45 min
+     de datos con el interruptor sin efecto. Tras el arreglo:
+       /odom: roll +0.15°  pitch +6.87°  TOTAL 6.88°   -> pasa
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. ✅ CONSUMO DE BATERIA — un dato que el proyecto no tenia
+───────────────────────────────────────────────────────────────────────────────
+  Medido de paso, leyendo /battery_state al principio y al final de cada bloque:
+
+      92 % -> 85 % en los 6 bloques
+      caida por bloque (2.7 min de movimiento): mediana 2 puntos
+      ritmo: 0.37 - 1.12 %/min, mediana ~0.74 %/min
+
+  -> A ~0.74 %/min, una carga completa da del orden de **2 horas de conduccion**.
+
+  ⚠️ ES UNA PRIMERA ESTIMACION, no una medida fina: /battery_state llega en
+     pasos de 1 %, los bloques son cortos (2.7 min) y el ritmo cayo a lo largo
+     del experimento (1.12 -> 0.74 -> 0.37 %/min), que es lo tipico de una curva
+     de descarga no lineal. Para un numero bueno haria falta una descarga larga
+     y continua.
+
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+🔴 EL FALLO BIMODAL A 2.3 m. Es lo mas importante que hay abierto en el
+   proyecto: afecta a la fiabilidad de Nav2 con 16 robots y estudiantes.
+   Sospechas por comprobar, ninguna medida:
+     · algo del entorno que cambio durante el experimento
+     · el punto de partida del robot derivando entre corridas
+     · pocos rasgos distintivos en el tramo lejano del pasillo
+   Lo primero seria repetir SOLO corridas largas, muchas, registrando la pose
+   absoluta de partida de cada una.
+
+⏳ La pregunta del roll, sin responder. No tiene sentido repetirla hasta que el
+   fallo de arriba este entendido.
+
+⏳ Por que el cuaternion fusionado gira con el rumbo y el acelerometro no.
+
+⏳ Compensar el sesgo del acelerometro en el driver. Ahora que se sabe que es
+   sesgo del sensor y no inclinacion real, se puede restar — pero hay que
+   medirlo en varias orientaciones primero.
+
+⏳ El barrido de `radius` del collision_monitor contra un mismo paso estrecho.

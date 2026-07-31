@@ -4,6 +4,112 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — 🔴 SLAM falla el 50 % a 2.3 m, y la inclinación es del acelerómetro
+
+Evidencia: `00_auditoria/evidencia_24_04/21_deriva_roll_y_fallo_largo.txt`, manual **cap. 13**
+(reescrito) y **9.12a** (nuevo). Herramienta nueva: `mediciones_banco/comparar_deriva_roll.py`.
+
+### 🔴 El hallazgo: a 2.3 m, la mitad de las corridas fallan
+
+Se iba a medir si el roll de la IMU empeora la deriva. **No respondió esa pregunta** — apareció
+algo mayor. 12 corridas, `slam_toolbox` reiniciado de cero en cada una:
+
+```
+CORTA (158 cm, n=6)   0.9  1.0  1.0  1.2  2.1  2.2  2.9
+  -> mediana 1.65 cm · peor 2.9 cm · corridas > 5 cm: 0 de 6        ✅
+
+LARGA (233 cm, n=6)   0.9  1.1  1.2  |  12.0  16.0  56.1
+  -> mediana 6.60 cm · peor 56.1 cm · corridas > 5 cm: 3 de 6  🔴 el 50 %
+```
+
+🔴 **Es BIMODAL: o ~1 cm o ≥12 cm, sin nada en medio.** No es deriva gradual — es el emparejado
+de barridos **enganchando o perdiéndose**. Los errores angulares acompañan: 0.9–2.4° en las
+buenas, **5.2–28.1°** en las malas.
+
+**Corrige la caracterización anterior**, que con n=3 por distancia **tuvo suerte**:
+
+| | fichero 14 (n=3) | ahora (n=6) |
+|---|---|---|
+| CORTA mediana | 1.0 cm | 1.65 cm |
+| LARGA mediana | 2.7 cm | **6.60 cm** |
+| **peor caso** | 3.2 cm | **56.1 cm** 🔴 |
+
+**Y resucita la anomalía de la Fase 4** — aquella corrida de 2.62 m con 87.8 cm y 10.9° se
+atribuyó a que el robot rozó obstáculos, y el fichero 14 la dio por explicada. **Es el mismo
+fallo bimodal: no era una anomalía, es la mitad de las veces.**
+
+⚠️ **Consecuencia para Nav2:** SLAM es fiable hasta ~1.6 m de recorrido y deja de serlo a
+~2.3 m. Las navegaciones que salieron bien (8–10 cm de error) eran de **0.9–1.5 m**: por debajo
+del umbral. **Objetivos más largos entran en la zona donde SLAM se pierde la mitad de las
+veces.** Con 16 robots y estudiantes, no es desplegable así.
+
+⏳ Causa sin determinar. Los tres fallos fueron corridas largas **contiguas** (2ª, 3ª y 4ª),
+repartidas entre las dos ramas del experimento, y decrecientes (56.1 → 16.0 → 12.0). La firma
+temporal apunta a algo del entorno que cambió y volvió, pero **no hay evidencia** y no se le
+atribuye causa.
+
+### ✅ La inclinación: es el acelerómetro, no el robot — tras dos retractaciones
+
+**La cifra correcta:** `roll +1.10°`, `pitch +6.74°`, **total ~6.9°**. La documentación decía
+«~8° de **roll**»: son ~6.9° y están casi todos en el **pitch**. ⚠️ Y **se reparten según el
+rumbo** — lo único estable es el módulo.
+
+🔴 **Dos conclusiones retiradas, y ninguno de los dos argumentos valía:**
+
+1. «No existe, el LIDAR está nivelado en 4 puntos» — **la regla mide desde el SUELO**, así que
+   no distingue «nivelado respecto al chasis» de «horizontal respecto a la gravedad».
+2. «Es física, el pitch cambia de signo al girar 180°» — **el cambio de signo solo dice que el
+   error está en el marco del MUNDO**, y eso lo producen dos causas: suelo inclinado **o**
+   referencia de gravedad torcida. Presenté como resuelto un caso con dos explicaciones.
+
+✅ **Lo que sí lo zanja**, y es el acelerómetro **crudo** porque no pasa por ninguna fusión:
+
+| | ANTES | DESPUÉS del giro de 177.8° | |
+|---|---|---|---|
+| pitch | +6.72° | **−6.99°** | cambia de signo |
+| `accel.x` | −1.091 | **−1.158** | **NO cambia** |
+
+Error **fijo en el marco del robot** + suelo plano medido con nivel (≤0.40°) = **el sensor está
+descalibrado**. Lo confirma el módulo: `|g| = 9.435` contra 9.807, **3.8 % corto**. Y no es la
+referencia de arranque: se apagó, se dejó plano en el suelo y se encendió allí — igual.
+
+⏳ **Sin explicar:** por qué el cuaternión fusionado gira con el rumbo mientras el sesgo del
+acelerómetro no. Una traza de 90 s descarta que sea un transitorio. Se deja como pregunta
+abierta, **sin inventarle mecanismo**.
+
+### El experimento del roll queda sin responder
+
+| | | mediana | σ |
+|---|---|---|---|
+| CORTA | CON roll / SIN roll | 2.10 / 1.20 cm | 0.95 / 0.64 |
+| LARGA | CON roll / SIN roll | 1.10 / 12.00 cm | 8.66 / 29.08 |
+
+El efecto buscado era de ~1 cm y la dispersión de las largas es de 30. **No se puede concluir
+nada**, y repetirlo no serviría hasta arreglar el fallo bimodal.
+
+📝 **El diseño alternado sí cumplió su función**: deja ver que los fallos **no** se reparten por
+condición (1 CON roll, 2 SIN roll). Con 6 y 6 en bloque habrían caído todos en una rama y
+habrían parecido su causa.
+
+### 🔴 Un falso positivo del guardián — que aun así fue lo correcto
+
+El primer lanzamiento abortó a los 2 min: el guardián comprobaba solo el **roll**, que valía
++0.11° porque la inclinación estaba entera en el pitch. Arreglado a `hypot(roll, pitch)`.
+**Mejor un falso positivo a los 2 min que 45 min de datos con el interruptor sin efecto.**
+
+### ✅ Consumo de batería — un dato que el proyecto no tenía
+
+**92 % → 85 %** en 6 bloques; mediana **2 puntos** por bloque de 2.7 min → **~0.74 %/min**, del
+orden de **2 horas de conducción** por carga. ⚠️ Estimación gruesa: `/battery_state` va en pasos
+de 1 %, los bloques son cortos y el ritmo cayó (1.12 → 0.74 → 0.37 %/min).
+
+**Ficheros:** `21_deriva_roll_y_fallo_largo.txt` (nuevo), `14_deriva_slam_caracterizada.txt`
+(aviso de superado), manual cap. 13 (reescrito) y 9.12a (nuevo),
+`mediciones_banco/comparar_deriva_roll.py` (nuevo), `caracterizar_deriva_slam.py`,
+`medir_slam_ros2.py`, `TRASPASO.md`, `INSTALACION.md` (F15 ✅ → F16), `CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — ⏳ Interruptor del roll de la IMU: puesto y verificado, medida pendiente
 
 Para poder **medir** si el roll falso de ~8° contribuye a la deriva de SLAM, en vez de

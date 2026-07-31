@@ -23,9 +23,10 @@ huecos sin el arreglo (manual, cap. 9.8).
 mapa pasó de **2367 a 3299 celdas** (5.92 → 8.25 m²). Hicieron falta tres arreglos y corregir
 dos herramientas propias, y **ninguno de los fallos daba un error** (manual, cap. 9.11).
 
-✅ **Y la deriva de la localización está caracterizada**: 6 corridas dan una mediana de
-**1.0 cm** (recorridos de 1.6 m) y **2.7 cm** (2.4 m), con un peor caso de 3.2 cm. El error
-cabe en una celda del mapa, así que **la pose ya no bloquea Nav2**.
+🔴 **Y la deriva de la localización NO está tan bien como creíamos.** Repetida con n=6 por
+distancia el 2026-07-31: a **1.6 m** es fiable (mediana 1.65 cm, 0 fallos de 6), pero a **2.3 m
+falla el 50 % de las veces** y de forma **bimodal** — o ~1 cm o **12–56 cm**, sin nada en medio.
+La caracterización anterior (n=3, peor caso 3.2 cm) **tuvo suerte**. Manual, **cap. 9.12a**.
 
 ✅ **Y los TRES bugs de marcos de referencia de `/odom` están arreglados y verificados.** Los
 sensores del RVR siempre estuvieron bien —`Velocity` es exacto, el locator acierta con 1 mm en
@@ -73,14 +74,16 @@ la boca, con el camino despejado delante y sin tocar nada, y se bloqueó — el 
 **10.6 / 10.7 cm** a 0.40 — a 1–2 mm del recálculo, y con 1 mm de dispersión entre las dos
 corridas a 0.40. Ya no hay ningún número recalculado sin verificar.
 
-✅ **Y el interruptor para medir el roll de la IMU está puesto y verificado**:
-`publicar_inclinacion:=false` deja `/odom` en `roll +0.00° pitch +0.00°` (414 muestras).
+✅ **Y la inclinación del RVR está resuelta**: no es el robot, es el **acelerómetro**, que da
+`|g|` un 3.8 % corto y un error **fijo en el marco del robot**. Son **6.9° y viven en el PITCH**
+(el roll es de 1°), no «~8° de roll» como decía la documentación. Costó **dos conclusiones mías
+retiradas**; están explicadas en el **cap. 13** porque las dos son errores de método fáciles de
+repetir.
 
-⏳ **La medida en sí está PENDIENTE**: son ~40 min de robot moviéndose y la batería estaba al
-**34 %**. Se decidió **cargar primero** — el consumo del RVR por minuto no está medido, y
-arriesgar un corte a mitad daría un «no concluyente» habiendo gastado la carga.
+⚠️ **El experimento de la deriva con y sin ese roll NO responde la pregunta**: el efecto buscado
+era de ~1 cm y apareció el fallo de 12–56 cm que lo entierra.
 
-**Lo siguiente es cargar el robot y lanzar las 12 corridas.**
+**Lo siguiente es el fallo bimodal a 2.3 m** — es hoy el problema abierto más serio.
 
 ---
 
@@ -329,6 +332,27 @@ va del suelo a 7 cm — justo como se ve el RVR.
 
 ✅ **El modelo geométrico está completo.** Solo falta `imu_z`, que exige abrir el robot y hoy
 no afecta a nada. El LIDAR está confirmado **centrado y nivelado**.
+
+### 🔴 Lo más importante que hay abierto: SLAM falla a 2.3 m
+
+```
+CORTA (158 cm, n=6)   0.9  1.0  1.0  1.2  2.1  2.2  2.9     -> 0 de 6 fallos  ✅
+LARGA (233 cm, n=6)   0.9  1.1  1.2  |  12.0  16.0  56.1     -> 3 de 6        🔴
+```
+
+**Bimodal**: o ~1 cm o ≥12 cm, sin nada en medio. No es deriva gradual, es el emparejado de
+barridos **enganchando o perdiéndose** — los errores angulares acompañan (0.9–2.4° en las
+buenas, **5.2–28.1°** en las malas).
+
+🔴 **Resucita la anomalía de la Fase 4** (2.62 m → 87.8 cm), que se había dado por explicada
+como «rozó obstáculos». Es el mismo fallo.
+
+⚠️ **Y afecta a Nav2 directamente:** las navegaciones que salieron bien eran de **0.9–1.5 m**,
+por debajo del umbral. Objetivos más largos entran en la zona donde SLAM se pierde la mitad de
+las veces. Con 16 robots y estudiantes, eso no es desplegable.
+
+⏳ Causa sin determinar. Lo primero: repetir **solo corridas largas**, muchas, registrando la
+**pose absoluta de partida** de cada una.
 
 ### ✅ Hecho: las paradas re-medidas
 
