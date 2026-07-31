@@ -2530,9 +2530,166 @@ Pero el Pi 4 aguanta sin throttling y **queda margen para `rosbridge`**.
 
 ---
 
-## Capítulos 6, 12
+## Capítulo 12 — El `collision_monitor` (la capa de seguridad)
 
-⏳ **No escritos todavía.** Se redactan al ejecutar las fases 1–6 del
+✅ **VERIFICADO el 2026-07-31** contra una pared, a 0.25 y 0.40 m/s. Evidencia cruda:
+`00_auditoria/evidencia_24_04/17_collision_monitor.txt`.
+
+### 12.1 🔴 No va con Nav2, aunque el ejemplo oficial lo ponga ahí
+
+Los estudiantes teleoperan el robot **sin Nav2**: la web hablará por rosbridge y publicará
+velocidades directamente. Con el monitor colgando de `nav2.launch.py`, el caso peligroso de
+verdad —una persona conduciendo el robot contra una pared **desde otro edificio**— no estaría
+protegido en absoluto.
+
+Vive en `robot.launch.py`, con **su propio `lifecycle_manager`**, porque tiene que funcionar
+cuando `nav2.launch.py` ni siquiera está corriendo.
+
+**La regla que lo hace funcionar: `/cmd_vel` tiene un solo publicador.**
+
+```
+    Nav2 (velocity_smoother) ─┐
+    web / rosbridge          ─┼─► /cmd_vel_raw ─► collision_monitor ─► /cmd_vel ─► driver
+    teleop / scripts         ─┘
+```
+
+⚠️ Publicar en `/cmd_vel` **funciona** —el driver obedece— pero **salta la seguridad sin dar
+ningún aviso**. Por eso la verificación es contar publicadores, no mirar si hay error.
+
+### 12.2 🔴 Un agujero real, encontrado contando publicadores
+
+```
+$ ros2 topic info /cmd_vel --verbose
+Publisher count: 6
+  behavior_server      ← ×5
+  collision_monitor
+```
+
+El `behavior_server` abre **un publicador de `cmd_vel` por conducta**: `spin`, `backup`,
+`drive_on_heading`, `wait`, `assisted_teleop`. Los cinco publicaban **directamente al robot**.
+
+Y es el peor sitio posible para un agujero: las conductas de recuperación se ejecutan justo
+cuando el robot está **atascado**, o sea pegado a algo. `backup` habría retrocedido a ciegas.
+
+Arreglo: remapear `cmd_vel → cmd_vel_raw` también en el `behavior_server`. **No lo delataba
+ningún error** — solo salió de mirar el número.
+
+### 12.3 🔴 `approach` no es una parada de seguridad
+
+Primera configuración, con `radius: 0.11` (el mismo `robot_radius` de los costmaps):
+
+```
+avanzando a 0.25 m/s contra la pared
+HUECO REAL AL PARAR   1.1 cm     🔴 casi tocando
+```
+
+El monitor **sí actuó** (el log muestra `slowdown` y luego `approach`). Lo que estaba mal era
+el modelo:
+
+> `approach` escala la velocidad para que el choque caiga **justo** en
+> `time_before_collision`. Según baja la distancia baja la velocidad, así que el robot se
+> acerca **asintóticamente al contacto**. Es un frenado suave, no una parada.
+
+Con `radius` 0.11 y media longitud de chasis **0.109** (URDF), la asíntota era 0.1 cm. Paró a
+1.1 cm — exactamente como está escrito que funciona.
+
+**La holgura se consigue inflando el círculo:**
+
+```
+hueco ≈ radius − 0.109 + ~1 cm
+radius: 0.18  →  asíntota 7.1 cm  →  predicción 8 cm
+```
+
+### 12.4 ✅ Medido — y el hueco no empeora con la velocidad
+
+| velocidad | recorrido | dist. LIDAR | **hueco real** | predicción |
+|---|---|---|---|---|
+| 0.25 m/s | 191 cm | 0.189 m | **8.0 cm** | 8 cm |
+| 0.40 m/s | 191 cm | 0.199 m | **9.0 cm** | — |
+
+📝 A 0.40 m/s (el máximo del robot) para **más lejos**, no más cerca: el controlador empieza a
+frenar antes cuanto mayor es la velocidad.
+
+### 12.5 ✅ No queda atrapado — lo que justifica todo el diseño
+
+Un polígono `stop` fijo para **cualquier** movimiento mientras haya algo dentro. Un robot
+pegado a una pared se congela: ni retrocede ni gira. En un laboratorio **remoto** no hay nadie
+que lo levante — ese robot queda inservible hasta que alguien vaya al edificio.
+
+Por eso los dos polígonos son **`approach` y `slowdown`, nunca `stop`**. Verificado dos veces:
+
+| Situación | Resultado |
+|---|---|
+| pegado a la pared, 1.1 cm | retrocedió **196 cm** ✅ |
+| a 9.0 cm | retrocedió 8.6 cm + giró en el sitio ✅ |
+
+⚠️ **Salir de un rincón es lento.** Los 8.6 cm salen de que la caja `Precaucion` sigue viendo
+la pared y frena al 40 %: `0.15 × 0.4 × 1.5 s = 9 cm`. Correcto, pero conviene saberlo antes
+de pensar que el robot no responde.
+
+### 12.6 ✅ Sin LIDAR el robot no conduce — comprobado
+
+`source_timeout: 0.5`, no los 5.0 del ejemplo: cinco segundos a 0.25 m/s son **1.25 m
+conduciendo a ciegas**.
+
+```
+kill -9 al ydlidar_ros2_driver_node
+comandando 0.10 m/s durante 2.5 s   (deberían ser ~25 cm)
+SE MOVIÓ 0.0 cm     ✅ BLOQUEADO
+```
+
+⚠️ **Consecuencia operativa:** si el LIDAR falla, el robot no se mueve y **no da un error
+obvio en el lado que conduce**. Es lo correcto en un laboratorio remoto, pero hay que
+decírselo a los estudiantes. La salida es `robot.launch.py collision_monitor:=false`.
+
+### 12.7 ✅ Nav2 sigue llegando con la seguridad en medio
+
+La pregunta que decide si esto es desplegable: un robot inflado a 0.18, ¿deja de alcanzar
+objetivos?
+
+```
+pared a 0.97 m · objetivo 0.56 m adelante
+resultado    SUCCEEDED ✅    error 9 cm    hueco a la pared 39 cm
+conductas de recuperación 0 · fallos de planificación 0
+activaciones del monitor  1  (slowdown 3.6 s)
+```
+
+📝 **Observado y sin explicar:** el `distance_remaining` osciló mucho (0.48 → 6.50 → 2.08 →
+4.15 → 0.20 m) para un objetivo de 56 cm. El robot se desplazó **48 cm netos** y no hubo
+recuperaciones ni fallos de plan, así que son longitudes del plan global recalculado, **no
+distancia recorrida**. No se le atribuye causa hasta medirlo.
+
+### 12.8 🔴 El límite que ninguna configuración arregla
+
+El plano de barrido del X2 está a **17.45 cm del suelo** (URDF, `laser_z`).
+
+> **Todo lo que esté por debajo de 17.45 cm es invisible para el `collision_monitor`, y el
+> robot lo embestirá sin frenar.** Un zócalo bajo, una regleta, un pie de mesa que se ensancha
+> abajo, un cable grueso.
+
+No es un fallo de configuración: es lo que un LIDAR 2D puede ver. **Tiene que ir en las
+instrucciones a los estudiantes.**
+
+📝 Lo que sí está cubierto: el X2 tiene `range_min: 0.1` y va montado en el centro
+(`laser_x: 0.0`), así que su punto ciego de 10 cm cae **dentro del chasis** (media longitud
+0.109 m). No hay zona muerta alrededor del robot.
+
+### 12.9 Verificar tras arrancar
+
+```bash
+ros2 lifecycle get /collision_monitor   # active [3] ← si no, NO FILTRA NADA
+ros2 topic info /cmd_vel --verbose      # Publisher count: 1, y es collision_monitor
+```
+
+⏳ **Lo que queda:** subir `desired_linear_vel` a 0.40 (ya no hay excusa), probar con
+obstáculos que haya que **rodear** —aquí solo se ha probado contra una pared frontal—, y
+ajustar `min_points: 2` contra obstáculos finos de verdad.
+
+---
+
+## Capítulo 6
+
+⏳ **No escrito todavía.** Se redacta al ejecutar las fases 1–6 del
 [plan](../01_plan/PLAN_MIGRACION_ROS2.md), capítulo a capítulo, tras verificar cada paso.
 
 Hasta entonces, para reconstruir el sistema **Noetic** el procedimiento válido es el

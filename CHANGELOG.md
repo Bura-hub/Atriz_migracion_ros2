@@ -4,6 +4,106 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — ✅ La capa de seguridad: el robot para antes de chocar
+
+`collision_monitor` configurado, medido contra una pared y verificado. Evidencia:
+`00_auditoria/evidencia_24_04/17_collision_monitor.txt`, manual **cap. 12**.
+
+### La decisión de arquitectura: no va con Nav2
+
+El ejemplo oficial lo pone con la navegación. Aquí no, y la razón sale del propio proyecto:
+**los estudiantes teleoperan sin Nav2** —la web hablará por rosbridge (plan, Fase 5)—, así que
+con el monitor colgando de `nav2.launch.py` el caso peligroso de verdad, una persona
+conduciendo el robot contra una pared **desde otro edificio**, no estaría protegido.
+
+Vive en `robot.launch.py`, con su propio `lifecycle_manager`. Y la regla que lo hace funcionar:
+
+```
+    Nav2 (velocity_smoother) ─┐
+    web / rosbridge          ─┼─► /cmd_vel_raw ─► collision_monitor ─► /cmd_vel ─► driver
+    teleop / scripts         ─┘
+```
+
+**`/cmd_vel` tiene un solo publicador.** Publicar ahí funciona —el driver obedece— pero salta
+la seguridad sin dar ningún aviso.
+
+### 🔴 Un agujero real, encontrado contando publicadores
+
+```
+$ ros2 topic info /cmd_vel --verbose
+Publisher count: 6      ← behavior_server ×5  +  collision_monitor
+```
+
+El `behavior_server` abre **un publicador por conducta** (`spin`, `backup`,
+`drive_on_heading`, `wait`, `assisted_teleop`). Los cinco publicaban directamente al robot. Y
+es el peor sitio posible: las conductas de recuperación se ejecutan justo cuando el robot está
+**atascado**, o sea pegado a algo — `backup` habría retrocedido a ciegas.
+
+Arreglado con un remapeo. **No lo delataba ningún error**: solo salió de mirar el número.
+
+### 🔴 `approach` no es una parada de seguridad, y lo puse mal
+
+Primera configuración, `radius: 0.11` (el `robot_radius` de los costmaps). El robot paró a
+**1.1 cm de la pared**. El monitor actuó —el log muestra `slowdown` y `approach`—; lo que
+estaba mal era mi modelo:
+
+> `approach` escala la velocidad para que el choque caiga justo en `time_before_collision`.
+> Según baja la distancia baja la velocidad, así que el robot se acerca **asintóticamente al
+> contacto**. Es un frenado suave, no una parada.
+
+Con media longitud de chasis 0.109 m, la asíntota era 0.1 cm. **Funcionó exactamente como está
+escrito.** La holgura se consigue **inflando el círculo**: `hueco ≈ radius − 0.109 + ~1 cm`.
+
+### ✅ Medido con `radius: 0.18`
+
+| velocidad | recorrido | **hueco real** | predicción |
+|---|---|---|---|
+| 0.25 m/s | 191 cm | **8.0 cm** | 8 cm |
+| 0.40 m/s | 191 cm | **9.0 cm** | — |
+
+A 0.40 m/s —el máximo del robot— para **más lejos**, no más cerca: el controlador empieza a
+frenar antes cuanto mayor es la velocidad.
+
+### ✅ No queda atrapado, y sin LIDAR no conduce
+
+Los dos polígonos son `approach` y `slowdown`, **nunca `stop`**, y la razón es operativa: un
+`stop` fijo para *cualquier* movimiento mientras haya algo dentro, así que un robot pegado a
+una pared se congela. En un laboratorio **remoto no hay nadie que lo levante**.
+
+| Prueba | Resultado |
+|---|---|
+| escape desde 1.1 cm pegado a la pared | retrocedió **196 cm** ✅ |
+| `kill -9` al LIDAR + comandar 0.10 m/s 2.5 s | **0.0 cm** ✅ bloqueado |
+| Nav2 con la seguridad en medio | **SUCCEEDED**, 9 cm de error, 39 cm a la pared |
+
+⚠️ Salir de un rincón es **lento**: la caja de precaución sigue viendo la pared y frena al
+40 %. Conviene saberlo antes de pensar que el robot no responde.
+
+### 🔴 El límite que ninguna configuración arregla
+
+El plano de barrido del X2 está a **17.45 cm del suelo**. Todo lo más bajo —un zócalo, una
+regleta, un pie de mesa que se ensancha abajo— es **invisible** y el robot lo embestirá sin
+frenar. No es un fallo de configuración: es lo que un LIDAR 2D puede ver. **Tiene que ir en
+las instrucciones a los estudiantes.**
+
+📝 Lo que sí está cubierto: el `range_min: 0.1` del X2, montado en el centro, deja su punto
+ciego **dentro del chasis**. No hay zona muerta alrededor del robot.
+
+### Y un error propio, dos veces
+
+Me maté el shell dos veces con `pgrep -f "…[y]"`: el truco del corchete protege de que el
+patrón se encuentre a sí mismo, **no** de que la cadena buscada aparezca en otra parte de la
+misma orden (un heredoc con la ruta, un `nohup` más abajo). Documentado en `CLAUDE.md` junto a
+la trampa de `pkill -f` que ya estaba, con la alternativa: matar por `comm` con `ps`, sin `-f`.
+
+**Ficheros:** `atriz_rvr_bringup/config/collision_monitor.yaml` (nuevo),
+`launch/robot.launch.py`, `launch/nav2.launch.py`,
+`mediciones_banco/medir_collision_monitor.py` (nuevo), manual cap. 12,
+`17_collision_monitor.txt` (nuevo), `TRASPASO.md`, `INSTALACION.md` (F8 ✅ → F9),
+`CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — ✅ Nav2 NAVEGA: primera navegación autónoma
 
 **El robot llega solo a un punto del mapa.** Dos objetivos completados, ida y vuelta:

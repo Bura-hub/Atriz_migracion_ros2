@@ -130,6 +130,28 @@ responde. **~10 s** = dos timeouts de 5 s = no responde.
 shell que lo ejecuta y **mata tu terminal**. Pasó dos veces. Usa `pgrep -f "[A]triz..."` con
 el corchete, o el PID directamente.
 
+**🔴 Y EL TRUCO DEL CORCHETE NO BASTA.** Mordió otras dos veces el 2026-07-31, así:
+
+```bash
+# Esto se mata a sí mismo, AUNQUE lleve corchete:
+for p in $(pgrep -f "nav2\.launch\.p[y]"); do kill -INT $p; done
+python3 - <<'EOF'
+p = 'atriz_rvr_bringup/launch/nav2.launch.py'   # ← el texto buscado, aquí abajo
+EOF
+```
+
+El corchete protege de que el patrón **se encuentre a sí mismo**. No protege de que la cadena
+buscada aparezca **en otra parte de la misma orden** — un heredoc, una ruta, un `nohup ... &`
+más abajo. `pgrep -f` mira la línea de comando **entera** del `bash -c`.
+
+→ **La regla operativa:** no metas en la misma orden un `pgrep -f X` y cualquier otra mención
+  de `X`. Mejor todavía, mata sin `-f`:
+
+```bash
+# por nombre de proceso exacto (comm, 15 caracteres), nunca por línea de comando
+ps -eo pid,ppid,comm | awk '$3=="rvr_driver_node"{print $2}'   # el PID del launch padre
+```
+
 **`uart0_pins` vacío tras `disable-bt` es NORMAL.** El overlay lo vacía a propósito: en
 Raspberry Pi es el *firmware* quien asigna los pines. No es un fallo, y perseguirlo cuesta
 tiempo.
@@ -436,6 +458,8 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | **Nav2 navegando** | error final **9–10 cm** (= la tolerancia configurada) | 2026-07-31 |
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |
 | Nav2 solo | ~58 % de un núcleo — la pieza más pesada | 2026-07-31 |
+| **Parada del `collision_monitor`** | **8.0 cm** a 0.25 m/s · **9.0 cm** a 0.40 m/s | 2026-07-31 |
+| Plano de barrido del LIDAR | **17.45 cm** del suelo — por debajo, el robot no ve nada | URDF |
 | **Deriva de SLAM** | mediana **1.0 cm** (1.6 m de recorrido) y **2.7 cm** (2.4 m); peor caso 3.2 cm, n=6 | 2026-07-31 |
 | CPU de `slam_toolbox` | **4.5 %** de un núcleo, 49 MB | 2026-07-30, async |
 | Todo a la vez (driver+LIDAR+RSP+SLAM) | **~24 %** de un núcleo, ~200 MB, loadavg 0.62, 62.3 °C, `throttled=0x0` | 2026-07-30 |

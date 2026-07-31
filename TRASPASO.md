@@ -37,9 +37,14 @@ marco del robot con un **2 % de error** mire donde mire (`15_velocidad_odom.txt`
 es la tolerancia configurada. Coste: ~89 % de **un** núcleo con todo el stack, `loadavg` 2.53
 sobre 4, sin throttling. Manual, **cap. 11**.
 
-**Lo siguiente es el `collision_monitor`** — la capa de seguridad. Ahora que se ha visto navegar
-al robot, sus umbrales se pueden elegir con criterio, y **hace falta antes de dejar esto con
-estudiantes**.
+✅ **Y la capa de seguridad está puesta y medida.** El `collision_monitor` para el robot a
+**8 cm de una pared a 0.25 m/s y a 9 cm a 0.40 m/s**, sin dejarlo atrapado, y sin LIDAR
+**bloquea la conducción por completo** (0.0 cm de movimiento, comprobado matando el nodo).
+De paso destapó un agujero: el `behavior_server` de Nav2 publicaba en `/cmd_vel`
+**saltándose la seguridad**. Manual, **cap. 12**.
+
+**Lo siguiente es subir `desired_linear_vel` de 0.25 a 0.40** y probar con obstáculos que haya
+que **rodear** — hasta ahora solo se ha probado contra una pared frontal.
 
 ---
 
@@ -178,15 +183,37 @@ into the future` en `odom → map`. Se comprobó antes de tocar nada — toleran
 TF del controlador, aún sin llenar con los nodos recién arrancados. ⚠️ **Da unos segundos entre
 activar Nav2 y el primer objetivo.**
 
-### 1. ⏳ El `collision_monitor` — es lo siguiente
+### ✅ Hecho: la capa de seguridad
 
-Es la capa de seguridad que para el robot ante un obstáculo cercano, independientemente del
-costmap. **Hace falta antes de dejar esto en manos de estudiantes**, y ahora sus umbrales se
-pueden elegir con criterio porque ya se ha visto navegar al robot.
+| Prueba | Resultado |
+|---|---|
+| parada contra pared a 0.25 m/s | **8.0 cm** de hueco |
+| parada contra pared a 0.40 m/s | **9.0 cm** — más margen, no menos |
+| escape pegado a la pared (1.1 cm) | retrocedió **196 cm** ✅ |
+| LIDAR muerto, comandando 0.10 m/s | **0.0 cm** ✅ bloqueado |
+| Nav2 con la seguridad en medio | **SUCCEEDED**, 9 cm de error |
 
-Después: subir `desired_linear_vel` de 0.25 a **0.40** (el robot llega, medido), y **probar con
-obstáculos de por medio** — las dos navegaciones fueron en línea recta por un pasillo
-despejado, así que se ha probado que **llega**, no que **rodee**.
+🔴 **Dos hallazgos que no daban ningún error:**
+
+1. **El `behavior_server` de Nav2 publicaba en `/cmd_vel`** — cinco publicadores, uno por
+   conducta de recuperación (`spin`, `backup`…), saltándose el monitor. Y son justo las que se
+   ejecutan cuando el robot está atascado, o sea pegado a algo. Salió de **contar
+   publicadores**: salían seis donde debía haber uno. Arreglado.
+2. **`approach` no es una parada de seguridad, es un frenado suave.** Con `radius: 0.11` el
+   robot paró a **1.1 cm** de la pared: la asíntota del controlador es el contacto. La holgura
+   se consigue **inflando el círculo** — `hueco ≈ radius − 0.109`.
+
+🔴 **El límite que ninguna configuración arregla:** el plano del LIDAR está a **17.45 cm** del
+suelo. Todo lo más bajo es **invisible** y el robot lo embestirá. Tiene que ir en las
+instrucciones a los estudiantes.
+
+### 1. ⏳ Subir la velocidad y probar con obstáculos — es lo siguiente
+
+Ya no hay excusa para dejar `desired_linear_vel` en 0.25: el robot llega a 0.40 (medido) y a
+0.40 la seguridad deja **más** hueco que a 0.25.
+
+Y todo lo probado hasta ahora es **contra una pared frontal**: se ha demostrado que el robot
+**para**, no que **rodee**.
 
 ### 2. 🔴 La inclinación de ~8°, confirmada por TRES vías
 

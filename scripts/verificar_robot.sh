@@ -541,6 +541,34 @@ if command -v ros2 >/dev/null && [[ -n "${ROS_DISTRO:-}" ]]; then
                           "arranca con slam.launch.py (autostart), o: ros2 lifecycle set /slam_toolbox configure && ... activate" ;;
         esac
     fi
+
+    # ── La capa de seguridad (manual, cap. 12) ───────────────────────────────
+    # También es nodo de ciclo de vida, y aquí un `unconfigured` es PEOR que en
+    # slam_toolbox: el robot parecería protegido y no lo estaría.
+    if timeout 6 ros2 node list 2>/dev/null | grep -q 'collision_monitor'; then
+        ESTADO="$(timeout 8 ros2 lifecycle get /collision_monitor 2>/dev/null | head -1)"
+        case "$ESTADO" in
+            active*) _ok "collision_monitor en '$ESTADO'" ;;
+            "")      _avi "collision_monitor existe pero no responde a lifecycle get" "" ;;
+            *)       _mal "collision_monitor en '$ESTADO': vivo pero NO FILTRA NADA" \
+                          "arranca el robot con robot.launch.py (autostart)" ;;
+        esac
+
+        # 🔴 LA comprobación de la capa de seguridad: contar publicadores.
+        # Si el behavior_server de Nav2 no está remapeado salen SEIS, y sus cinco
+        # conductas de recuperación conducen el robot saltándose el monitor.
+        # Nada da error: hay que mirar el número (manual, cap. 12.2).
+        N_PUB="$(timeout 8 ros2 topic info /cmd_vel --verbose 2>/dev/null \
+                 | awk '/Publisher count:/{print $3; exit}')"
+        if [[ -z "$N_PUB" ]]; then
+            _avi "no se pudo contar los publicadores de /cmd_vel" ""
+        elif [[ "$N_PUB" == "1" ]]; then
+            _ok "/cmd_vel tiene UN publicador (es el collision_monitor)"
+        else
+            _mal "/cmd_vel tiene $N_PUB publicadores: algo conduce SALTÁNDOSE la seguridad" \
+                 "mira quién con: ros2 topic info /cmd_vel --verbose. Si es behavior_server, falta su remapeo a cmd_vel_raw"
+        fi
+    fi
 fi
 
 _nota "PENDIENTE de añadir aquí cuando exista: unidades systemd del stack,"

@@ -62,24 +62,29 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      F7  Nav2 NAVEGA                          manual, cap. 11                 ✅
          └── dos objetivos autónomos, 9-10 cm de error · ~89 % de un núcleo
 
-     F8  Lo que queda                                                          ⏳ SIGUIENTE
-         1. collision_monitor — la capa de seguridad   ← AQUÍ
-         2. La inclinación de ~8° (tres vías, causa sin determinar, NO urgente)
-         3. Los 16 servicios y 4 topics del driver sin portar
-         4. Plataforma web                    plan, Fase 5
-         5. Clonar a los 16 robots            FLOTA.md
+     F8  collision_monitor: la capa de seguridad  manual, cap. 12            ✅
+         └── para a 8-9 cm de una pared · sin LIDAR no conduce · no queda atrapado
+
+     F9  Lo que queda                                                          ⏳ SIGUIENTE
+         1. desired_linear_vel 0.25 -> 0.40, y obstáculos que rodear   ← AQUÍ
+         2. Fase 4c: map_server + AMCL        plan, Fase 4c
+         3. La inclinación de ~8° (tres vías, causa sin determinar, NO urgente)
+         4. Los 16 servicios y 4 topics del driver sin portar
+         5. Plataforma web                    plan, Fase 5
+         6. Clonar a los 16 robots            FLOTA.md
 ```
 
-> **Las etapas A a F7 están recorridas y verificadas sobre la máquina real.** Los capítulos
-> 1, 3, 4, 5, 7, 8, 8bis, 9, 10 y **11 (Nav2)** del manual dejaron de ser NO VERIFICADO: el
-> robot navega solo. La evidencia cruda de cada paso está
+> **Las etapas A a F8 están recorridas y verificadas sobre la máquina real.** Los capítulos
+> 1, 3, 4, 5, 7, 8, 8bis, 9, 10, **11 (Nav2)** y **12 (seguridad)** del manual dejaron de ser
+> NO VERIFICADO: el robot navega solo y para antes de chocar. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
 > comparar cuando un robot nuevo de la flota no dé lo mismo.
 >
 > **🟢 El go/no-go salió GO**, ROS 2 Jazzy está instalado y el robot funciona entero: driver en
 > `rclpy`, URDF, LIDAR, SLAM, y la odometría con sus tres marcos corregidos. **Nav2 ya está
-> instalado y NAVEGANDO** con los valores medidos del robot. El siguiente paso es el
-> **`collision_monitor`** (manual, cap. 11.10).
+> instalado y NAVEGANDO** con los valores medidos del robot, y con la **capa de seguridad
+> puesta y medida** (manual, cap. 12). El siguiente paso es subir `desired_linear_vel` a 0.40 y
+> probar con obstáculos que haya que rodear.
 >
 > ### Un solo comando para saber si el robot está bien
 >
