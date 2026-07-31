@@ -7,9 +7,14 @@
 #     sudo bash fase_7_systemd.sh --simular    # enseña qué haría, sin tocar nada
 #     sudo bash fase_7_systemd.sh --quitar     # desinstala
 #
-# 📝 NO VERIFICADO de extremo a extremo — escrito el 2026-07-31. Lo verificado es
-#    cada pieza por separado; la comprobación final está al final del script y la
-#    ejecuta él mismo.
+# ✅ VERIFICADO DE EXTREMO A EXTREMO el 2026-07-31, con un reinicio de verdad:
+#    el servicio volvió SOLO (PID 711, o sea del arranque), /scan a 0.00 Hz,
+#    /odom a 16.49 Hz y el robot bloqueado sin barrido (0.0 cm contra 9.9 del
+#    control). Evidencia 33.
+#
+# 📝 Lo que NO se ha ejercitado: la espera de puertos del envoltorio —las tres
+#    veces salió `tras 0s`, udev llega antes— y `Restart=always`. Son redes de
+#    seguridad sin estrenar, no comprobaciones aprobadas.
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 # QUÉ INSTALA

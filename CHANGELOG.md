@@ -4,6 +4,57 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — El robot se levanta solo al encender ✅
+
+La prueba que justifica que exista `atriz-robot.service`: en un laboratorio remoto nadie puede
+entrar a arrancar un proceso.
+
+```
+uptime                  1 min
+Active: active (running) since 14:59:28
+Main PID: 711 (ros2)                     <- del arranque, no de una mano
+ExecStartPost=atriz-escaneo off          status=0/SUCCESS
+systemd-analyze         5.5s kernel + 16.6s userspace
+```
+
+Y arrancó **en el estado correcto**, comprobado por efecto: `/scan` a **0.00 Hz**, `/odom` a
+**16.49 Hz**, `/cmd_vel` con un solo publicador, `collision_monitor` en `active [3]`, y el
+`ROS_DOMAIN_ID` viniendo de `/etc/profile.d` —no del `~/.bashrc`, que systemd no lee.
+
+### La afirmación que sostiene el diseño, medida con control
+
+Arrancar con el lidar parado solo es aceptable si el robot **no puede moverse** así:
+
+| barrido | mismo comando por `/cmd_vel_raw` | desplazamiento |
+|---|---|---|
+| **apagado** | 0.10 m/s · 1.5 s | **0.0 cm** ✅ |
+| **encendido** (control) | 0.10 m/s · 1.0 s | **9.9 cm** |
+
+🔴 Sin el control, «0.0 cm» es indistinguible de un `cmd_vel` que nunca llegó.
+
+📝 Corroboración accidental: una primera pasada del control falló por un bug de la herramienta
+—esperaba `/odom` 2 s fijos y llegó a los 2.5— pero el robot **sí ejecutó** el comando, y se ve
+en la pasada buena: la posición de partida era +0.092 m. Dos medidas del mismo efecto.
+
+### 📝 Lo que NO se ha ejercitado, y no se va a presentar como si sí
+
+- **La espera de puertos del envoltorio nunca ha llegado a esperar**: las tres veces `tras 0s`,
+  también en frío. Red de seguridad **sin estrenar**.
+- **`Restart=always` tampoco.** Y no arregla el fallo típico de este robot: el RVR dormido deja
+  el proceso vivo.
+- **n=1.** Un reinicio. Sin corte de corriente ni arranque con el hardware desconectado.
+
+### El coste: cinco fallos, ninguno visible leyendo el código
+
+Dos los cazaron `systemd-analyze verify` y `env -i` antes de instalar. Los otros tres solo
+aparecieron al arrancarlo de verdad, y el peor fue **arreglar un fallo en un fichero y no
+buscarlo en su hermano**: el `ExecStartPost` murió con `status=1/FAILURE` dejando el servicio
+`active (running)` y el barrido **encendido** — el estado exacto que existía para evitar.
+
+Batería al terminar: 34 %. Evidencia 33 · manual cap. 17.
+
+---
+
 ## 2026-07-31 — systemd arrancado de verdad: cinco fallos que solo salen al ejecutar
 
 El servicio quedó instalado, habilitado y **arrancado**, y comprobado por efecto:

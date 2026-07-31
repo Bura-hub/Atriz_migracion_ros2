@@ -512,9 +512,15 @@ tarea que no habla de lidares.
 → **Diseño a aplicar al escribir las unidades systemd:** el robot arranca con todo levantado y
 listo para responder, pero con el escaneo **parado**, y se activa al empezar una sesión.
 
-✅ La seguridad encaja sola: ya está verificado que **sin lidar el robot no conduce** — el
-`collision_monitor` bloquea el movimiento sin `/scan` (cap. 12), así que un robot con el escaneo
-parado no puede moverse por accidente.
+✅ **Y medido con control**, porque es la afirmación que sostiene todo el diseño: arrancar con el
+lidar parado solo es aceptable si el robot no puede moverse en ese estado.
+
+| barrido | mismo comando por `/cmd_vel_raw` | desplazamiento |
+|---|---|---|
+| **apagado** | 0.10 m/s · 1.5 s | **0.0 cm** ✅ bloqueado |
+| **encendido** (control) | 0.10 m/s · 1.0 s | **9.9 cm** |
+
+🔴 Sin el control, «0.0 cm» no demuestra nada: es indistinguible de un `cmd_vel` que nunca llegó.
 
 #### ⏳ Lo que queda sin medir
 
@@ -3687,7 +3693,10 @@ nodo. → **Para saber si un servicio existe, usa un cliente.** La lista puede m
 > /cmd_vel Publisher count: 1   <- la capa de seguridad intacta
 > ```
 >
-> 📝 **Falta lo único que demuestra que un robot remoto se recupera solo: un `sudo reboot`.**
+> ✅ **Y PROBADO CON UN REINICIO DE VERDAD**, que es lo único que demuestra el motivo por el que
+> existe: `uptime` 1 min, servicio `active (running)` desde el arranque, **PID 711** —los
+> procesos lanzados a mano tienen PIDs de miles—, y `/scan` a 0.00 Hz con `/odom` a 16.49.
+> Arranque: 5.5 s de kernel + **16.6 s** de userspace.
 
 ### 17.1 Por qué, y por qué no basta con un `ExecStart`
 
@@ -3817,8 +3826,17 @@ Para quitarlo: `sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --quitar`.
 
 ### 17.6 ⏳ Lo que queda abierto
 
-- **La prueba del reinicio.** `sudo reboot` y comprobar que el servicio vuelve solo. Es lo único
-  que demuestra el motivo por el que existe todo esto.
+📝 **Lo que NO se ha ejercitado, aunque el servicio funcione:**
+
+- **La espera de puertos del envoltorio nunca ha llegado a esperar.** Las tres veces salió
+  `tras 0s`, también en frío: udev crea los enlaces antes de que systemd llegue a esta unidad.
+  Es una red de seguridad **sin estrenar**, no una comprobación aprobada.
+- **`Restart=always` tampoco.** No se ha matado el proceso para ver si vuelve. Y ojo: no arregla
+  el fallo típico de este robot —el RVR dormido deja el proceso **vivo**—, de eso se encarga el
+  keepalive del driver.
+- **n=1.** Un solo reinicio. Sin corte de corriente, ni arranque con el RVR apagado o el lidar
+  desenchufado.
+
 - **`provision.sh` no lo instala todavía.** Si no se añade, la imagen dorada saldrá **sin
   arranque automático** y habrá que hacerlo robot a robot — justo lo que la imagen evita.
   Está sin hacer a propósito: mientras se desarrolla en el robot de referencia, un servicio

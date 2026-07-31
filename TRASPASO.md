@@ -481,20 +481,17 @@ nada**.
 **en el robot 7 de 16**, con seis ya desplegados.
 Detalle: `00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.
 
-### 1. 🟡 Las unidades systemd — INSTALADAS Y ARRANCADAS, falta el reinicio
+### 1. ✅ Las unidades systemd — FUNCIONANDO, probadas con un reinicio
 
 ✅ Instalado, habilitado y **arrancado** el 2026-07-31, comprobado por efecto: `ExecStartPost`
 `status=0/SUCCESS`, `/scan` a **0.00 Hz** (barrido parado), `/odom` a **16.54 Hz** y `/cmd_vel`
 con un solo publicador.
 
-📝 **Falta el `sudo reboot`** — lo único que demuestra que un robot remoto se recupera solo, que
-es el motivo por el que existe todo esto:
+✅ **Y probado con un reinicio de verdad:** volvió solo (PID 711), `/scan` a 0.00 Hz, `/odom` a
+16.49, y el robot **bloqueado sin barrido** — 0.0 cm contra 9.9 del control.
 
-```bash
-sudo reboot
-systemctl status atriz-robot        # debe volver a active (running) solo
-atriz-escaneo estado                # debe decir apagado
-```
+📝 Sin ejercitar: la espera de puertos del envoltorio (siempre `tras 0s`) y `Restart=always`.
+Son redes de seguridad sin estrenar. Evidencia 33.
 
 ⏳ Y **`provision.sh` no lo instala todavía**: se añade **cuando se cierre el robot de
 referencia** (decisión tuya, 2026-07-31). 🔴 Es un **requisito para la imagen dorada** — si se

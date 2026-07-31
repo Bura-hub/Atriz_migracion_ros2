@@ -1,0 +1,104 @@
+═══════════════════════════════════════════════════════════════════════════════
+✅ EL ROBOT SE LEVANTA SOLO AL ENCENDER — probado con un reinicio de verdad
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Es la unica prueba que justifica que exista `atriz-robot.service`: en un
+laboratorio REMOTO nadie puede entrar a arrancar un proceso.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. ✅ ARRANCO SOLO
+───────────────────────────────────────────────────────────────────────────────
+    $ uptime
+     15:00:28 up 1 min
+
+    $ systemctl status atriz-robot
+    Active: active (running) since 14:59:28 -05; 1min 0s ago
+    Process: 716 ExecStartPost=/usr/local/bin/atriz-escaneo off (status=0/SUCCESS)
+    Main PID: 711 (ros2)
+
+  📝 **PID 711.** Es la prueba de que lo arranco el sistema y no una mano: los
+     procesos lanzados a mano en una sesion ya iniciada tienen PIDs de miles.
+
+  $ systemd-analyze
+    5.504s (kernel) + 16.600s (userspace) = 22.105s
+
+  📝 16.6 s de userspace, contra **1 min 39 s** de la linea base de 24.04 recien
+     instalado. La higiene del SO (fase_1) sigue haciendo su trabajo.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. ✅ Y ARRANCO EN EL ESTADO CORRECTO — comprobado por EFECTO
+───────────────────────────────────────────────────────────────────────────────
+    [atriz-robot] ROS_DOMAIN_ID=1  RMW=rmw_fastrtps_cpp  hostname=rvr-01
+    [atriz-robot] ✓ /dev/rvr      (tras 0s)
+    [atriz-robot] ✓ /dev/ydlidar  (tras 0s)
+    [atriz-robot] arrancando robot.launch.py
+    ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+
+    /scan     0.00 Hz     <- barrido parado, que es lo que se pedia
+    /odom    16.49 Hz     <- el robot vive, a la frecuencia de referencia
+    /cmd_vel  Publisher count: 1     <- la capa de seguridad intacta
+    collision_monitor: active [3]
+
+  🔴 Y el ROS_DOMAIN_ID viene de /etc/profile.d, no del ~/.bashrc: systemd no
+     ejecuta un shell de login. Es lo que evita que los 16 robots acaben en el
+     dominio 0 viendose entre si, sin ningun error.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. ✅ Y LO QUE SOSTIENE EL DISEÑO: SIN BARRIDO EL ROBOT NO CONDUCE
+───────────────────────────────────────────────────────────────────────────────
+  Arrancar con el LIDAR parado solo es aceptable si el robot NO puede moverse en
+  ese estado. Se midio, con CONTROL, publicando en `/cmd_vel_raw` —la entrada de
+  la cadena, la que pasa por el monitor—:
+
+      barrido APAGADO    0.10 m/s · 1.5 s  ->  **0.0 cm**    ✅ bloqueado
+      barrido ENCENDIDO  0.10 m/s · 1.0 s  ->  **9.9 cm**    (control)
+
+  🔴 SIN EL CONTROL, «0.0 cm» no demuestra nada: es indistinguible de un cmd_vel
+     que nunca llego. Con el, queda demostrado que el comando SI circula y que lo
+     que lo detiene es el `collision_monitor`.
+
+  📝 Corroboracion accidental: una primera pasada del control fallo por un bug de
+     la herramienta (esperaba /odom 2 s fijos y llego a los 2.5). El robot SI
+     ejecuto el comando, y se ve en la pasada buena: la posicion de partida era
+     +0.092 m, o sea los ~9 cm de aquella. Dos medidas independientes del mismo
+     efecto.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. 📝 LO QUE **NO** SE HA EJERCITADO — y conviene saberlo
+───────────────────────────────────────────────────────────────────────────────
+  ⚠️ **La espera de puertos del envoltorio NUNCA ha llegado a esperar.** Las tres
+     veces salio `tras 0s`, tambien en el arranque en frio: udev crea
+     `/dev/rvr` y `/dev/ydlidar` antes de que systemd llegue a esta unidad.
+
+     Es una red de seguridad **sin estrenar**. Esta ahi porque el fallo que
+     evitaria —un nodo vivo y mudo por no encontrar el puerto— es el mas caro de
+     diagnosticar de este proyecto, pero **no cuenta como verificada**.
+
+     Se estrenara, si acaso, en un robot con otro reparto de tiempos de arranque.
+
+  ⚠️ **Un solo reinicio.** n=1. No se ha probado un corte de corriente, ni un
+     arranque con el RVR apagado, ni con el LIDAR desenchufado.
+
+  ⚠️ Y **`Restart=always` tampoco se ha ejercitado**: no se ha matado el proceso
+     para ver si vuelve. Ojo: no arregla el fallo tipico de este robot (el RVR
+     dormido deja el proceso VIVO), de eso se encarga el keepalive del driver.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. EL COSTE: CINCO FALLOS, NINGUNO VISIBLE LEYENDO EL CODIGO
+───────────────────────────────────────────────────────────────────────────────
+  1. `StartLimitIntervalSec` en [Service] se IGNORA         (systemd-analyze)
+  2. los setup.bash de ROS no toleran `set -u`              (env -i)
+  3. el MISMO fallo en el script hermano, sin buscarlo      (primer arranque)
+  4. `ros2 topic echo` se suscribe RELIABLE                 (al arreglar el 3)
+  5. y con --no-daemon falla 2 de 3 al descubrir el tipo    (al arreglar el 4)
+
+  Los tres ultimos costaron que el `ExecStartPost` muriera con `status=1/FAILURE`
+  dejando el servicio `active (running)` y el barrido ENCENDIDO — o sea, el
+  estado exacto que ese ExecStartPost existia para evitar.
+
+  Bateria al terminar: 34 %.
