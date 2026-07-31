@@ -69,8 +69,12 @@ la boca, con el camino despejado delante y sin tocar nada, y se bloqueó — el 
 - 🔴 **La inclinación de ~8° NO EXISTE** (ver abajo). Un problema abierto desde el principio,
   cerrado con una regla.
 
-**Lo siguiente es repetir las paradas contra pared** con las cotas buenas: los huecos
-publicados están **recalculados, no vueltos a medir**.
+✅ **Y las paradas contra pared se repitieron con las cotas buenas**: **9.9 cm** a 0.25 m/s y
+**10.6 / 10.7 cm** a 0.40 — a 1–2 mm del recálculo, y con 1 mm de dispersión entre las dos
+corridas a 0.40. Ya no hay ningún número recalculado sin verificar.
+
+**Lo siguiente es medir la deriva de SLAM con y sin el roll falso de la IMU** — la hipótesis
+que quedó planteada y sin aplicar.
 
 ---
 
@@ -320,11 +324,25 @@ va del suelo a 7 cm — justo como se ve el RVR.
 ✅ **El modelo geométrico está completo.** Solo falta `imu_z`, que exige abrir el robot y hoy
 no afecta a nada. El LIDAR está confirmado **centrado y nivelado**.
 
-### 1. ⏳ Repetir las paradas con las cotas buenas — es lo siguiente
+### ✅ Hecho: las paradas re-medidas
 
-Los huecos publicados (9.8 y 10.8 cm) están **recalculados, no vueltos a medir**. Y el
-**barrido de `radius`** contra un mismo paso, fijando el hueco para que el buscador no elija
-otro.
+| velocidad | n | **medido** | recalculado | dif |
+|---|---|---|---|---|
+| 0.25 m/s | 1 | **9.9 cm** | 9.8 | +0.1 |
+| 0.40 m/s | 2 | **10.6 / 10.7 cm** | 10.8 | −0.2 |
+
+El modelo afinado: asíntota `0.18 − 0.091 = 8.9 cm`, y el margen sobre ella **crece con la
+velocidad** (+1.0 cm a 0.25, +1.8 a 0.40). La holgura **no se degrada al acelerar: mejora**.
+
+📝 Cambiar `laser_z` y `wheel_radius` **no alteró el comportamiento**, como se preveía: son
+traslaciones en Z y el monitor trabaja en el plano.
+
+### 1. ⏳ La deriva de SLAM con y sin el roll de la IMU — es lo siguiente
+
+Es la hipótesis que quedó planteada: el roll falso de ~8° comprime los alcances un 1 %
+(~1 cm/m) y la deriva medida es de 1–3 cm. Repetir `caracterizar_deriva_slam.py` con el roll
+tal cual y con `roll = pitch = 0`, y comparar. Y el **barrido de `radius`** contra un mismo
+paso estrecho.
 
 ### 2. ✅ RESUELTO: la inclinación de ~8° no existe
 

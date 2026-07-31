@@ -2746,14 +2746,30 @@ radius: 0.18  →  asíntota 9 cm
 
 ### 12.4 ✅ Medido — y el hueco no empeora con la velocidad
 
-| velocidad | recorrido | dist. LIDAR | **hueco real** |
-|---|---|---|---|
-| 0.25 m/s | 191 cm | 0.189 m | **9.8 cm** |
-| 0.40 m/s | 191 cm | 0.199 m | **10.8 cm** |
+✅ **Re-medido con las cotas buenas** el 2026-07-31, después de corregir el URDF:
 
-⚠️ Estos huecos son **2 cm mayores** de lo que se publicó el 2026-07-31: se habían calculado
-con la media longitud del URDF (0.109), que estaba mal (12.10). Están **recalculados, no
-vueltos a medir**.
+| velocidad | n | **hueco real medido** | recalculado | dif |
+|---|---|---|---|---|
+| 0.25 m/s | 1 | **9.9 cm** | 9.8 | +0.1 |
+| 0.40 m/s | 2 | **10.6 / 10.7 cm** | 10.8 | −0.2 |
+
+Las diferencias son de **1–2 mm**, por debajo de la resolución útil de la medida: el recálculo
+era correcto. Y **repite**: las dos corridas a 0.40 dan 10.6 y 10.7.
+
+**El modelo, afinado:**
+
+```
+asíntota = radius − media longitud = 0.18 − 0.091 = 8.9 cm
+a 0.25 m/s  →  9.9 cm    margen +1.0 cm
+a 0.40 m/s  → 10.65 cm   margen +1.8 cm
+```
+
+📝 **El margen crece con la velocidad.** Confirma lo ya visto: `approach` empieza a frenar
+antes cuanto más rápido va, así que la holgura **no se degrada al acelerar — mejora**.
+
+📝 Cambiar `laser_z` (0.1745 → 0.155) y `wheel_radius` (0.032 → 0.035) **no alteró el
+comportamiento**, como se preveía: son traslaciones en Z y el monitor trabaja en el plano. Los
+números lo confirman.
 
 📝 A 0.40 m/s (el máximo del robot) para **más lejos**, no más cerca: el controlador empieza a
 frenar antes cuanto mayor es la velocidad.
@@ -2769,7 +2785,7 @@ Por eso los dos polígonos son **`approach` y `slowdown`, nunca `stop`**. Verifi
 | Situación | Resultado |
 |---|---|
 | pegado a la pared, 2.9 cm | retrocedió **196 cm** ✅ |
-| a 10.8 cm | retrocedió 8.6 cm + giró en el sitio ✅ |
+| a 10.65 cm | retrocedió 8.6 cm + giró en el sitio ✅ |
 | dentro de un paso de 40 cm (12.10) | retrocedió **58 cm** ✅ |
 
 ⚠️ **Salir de un rincón es lento.** Los 8.6 cm salen de que la caja `Precaucion` sigue viendo

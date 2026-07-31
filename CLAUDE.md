@@ -495,7 +495,7 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | **Nav2 navegando** | error final **9–10 cm** (= la tolerancia configurada) | 2026-07-31 |
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |
 | Nav2 solo | ~58 % de un núcleo — la pieza más pesada | 2026-07-31 |
-| **Parada del `collision_monitor`** | **8.0 cm** a 0.25 m/s · **9.0 cm** a 0.40 m/s | 2026-07-31 |
+| **Parada del `collision_monitor`** | **9.9 cm** a 0.25 m/s · **10.6-10.7 cm** a 0.40 (n=2) | 2026-07-31 |
 | Nav2 a 0.40 m/s | meseta **0.407 m/s** en 0.9 s · error de objetivo **8 cm** | 2026-07-31 |
 | Rodeando un obstáculo | desvío **26–32 cm**, error **8–9 cm**, 4 de 4 SUCCEEDED | 2026-07-31 |
 | **Tamaño del robot** | **18.2 cm** frente-atrás × **21.7 cm** lado-lado, con orugas | 2026-07-31 |

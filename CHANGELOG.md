@@ -4,6 +4,44 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — ✅ Paradas contra pared re-medidas: el recálculo era correcto
+
+Los huecos publicados estaban **recalculados, no vueltos a medir** — la corrección de las cotas
+del robot había cambiado la constante sin repetir el experimento. Repetido con el robot ya bien
+modelado (media longitud 0.091, `laser_z` 0.155, `wheel_radius` 0.035) y `radius: 0.18`:
+
+| velocidad | n | **medido** | recalculado | dif |
+|---|---|---|---|---|
+| 0.25 m/s | 1 | **9.9 cm** | 9.8 | +0.1 |
+| 0.40 m/s | 2 | **10.6 / 10.7 cm** | 10.8 | −0.2 |
+
+**Las diferencias son de 1–2 mm**, por debajo de la resolución útil de la medida. Y **repite**:
+las dos corridas a 0.40 dan 10.6 y 10.7, 1 mm de dispersión.
+
+### El modelo, afinado
+
+```
+asíntota = radius − media longitud = 0.18 − 0.091 = 8.9 cm
+a 0.25 m/s  →  9.9 cm    margen +1.0 cm
+a 0.40 m/s  → 10.65 cm   margen +1.8 cm
+```
+
+📝 **El margen crece con la velocidad**, lo que confirma con más resolución lo que ya se había
+visto: `approach` empieza a frenar antes cuanto más rápido va, así que la holgura **no se
+degrada al acelerar — mejora**.
+
+📝 Y cambiar `laser_z` (0.1745 → 0.155) y `wheel_radius` (0.032 → 0.035) **no alteró el
+comportamiento**, como se preveía: son traslaciones en Z y el monitor trabaja en el plano. Los
+números lo confirman en vez de suponerlo.
+
+Comprobado al arrancar, con el URDF nuevo: `base_footprint → laser` = `[0.000, 0.000, 0.155]`,
+exactamente lo medido con la regla.
+
+**Ficheros:** `17_collision_monitor.txt` (bloque «RE-MEDIDO»), manual cap. 12.4,
+`03_operacion/MEDIDAS_ROBOT.md`, `TRASPASO.md`, `INSTALACION.md` (F13 ✅ → F14), `CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — ✅ El robot medido entero, y la «inclinación de ~8°» resulta no existir
 
 El usuario midió todas las cotas de

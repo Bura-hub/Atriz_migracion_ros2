@@ -188,8 +188,9 @@ fusiona con la odometría. **El modelo geométrico del robot está completo y ve
 
 ### ⏳ Lo que hay que REPETIR ahora que las cotas son buenas
 
-1. **Las paradas contra pared** a 0.25 y 0.40 m/s. Los huecos publicados (9.8 y 10.8 cm) están
-   **recalculados, no vueltos a medir**.
+1. ✅ ~~**Las paradas contra pared**~~ — **hechas** el 2026-07-31 con las cotas buenas:
+   **9.9 cm** a 0.25 m/s y **10.6 / 10.7 cm** a 0.40 (dos corridas). A 1–2 mm del recálculo, así
+   que el recálculo era correcto. Manual, cap. 12.4.
 2. **El barrido de `radius`** (0.14 / 0.16 / 0.18) contra un mismo paso estrecho, fijando el
    hueco para que el buscador no elija otro — daría la curva completa del compromiso entre
    «parar lejos de las paredes» y «cruzar huecos estrechos».

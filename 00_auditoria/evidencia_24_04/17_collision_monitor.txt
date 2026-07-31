@@ -8,10 +8,10 @@ tenia largo y ancho CRUZADOS. La media longitud real es 0.09.
 
   TODOS LOS HUECOS DE ESTE FICHERO SALEN 2 cm CORTOS:
 
-      prueba                          aqui pone   ES EN REALIDAD
-      radius 0.11 · pared 0.25 m/s      1.1 cm       3.0 cm
-      radius 0.18 · pared 0.25 m/s      8.0 cm       9.9 cm
-      radius 0.18 · pared 0.40 m/s      9.0 cm      10.9 cm
+      prueba                          aqui pone   ES EN REALIDAD   (RE-MEDIDO)
+      radius 0.11 · pared 0.25 m/s      1.1 cm       2.9 cm         —
+      radius 0.18 · pared 0.25 m/s      8.0 cm       9.8 cm         9.9 cm ✅
+      radius 0.18 · pared 0.40 m/s      9.0 cm      10.8 cm        10.65 cm ✅
 
   ✅ El MODELO no se cae, solo cambia la constante:
        hueco ≈ radius − media longitud + ~1 cm
@@ -19,7 +19,9 @@ tenia largo y ancho CRUZADOS. La media longitud real es 0.09.
      inflar el circulo, no queda atrapado, sin LIDAR no conduce) siguen valiendo
      todas.
 
-  📝 Los numeros de arriba estan RECALCULADOS, no vueltos a medir.
+  ✅ Y YA NO son solo recalculados: se repitieron contra pared el mismo dia y
+     salio 9.9 cm a 0.25 m/s y 10.6/10.7 a 0.40 — a 1-2 mm del recalculo. Ver el
+     bloque "RE-MEDIDO con las cotas buenas" al final de este fichero.
 
   Detalle completo en `19_paso_estrecho.txt`, seccion 4.
 ═══════════════════════════════════════════════════════════════════════════════
@@ -260,3 +262,44 @@ LO QUE SIGUE ABIERTO
 ⏳ Fase 4c: map_server + AMCL.
 
 🔴 La inclinacion de ~8°, sin causa determinada.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ RE-MEDIDO con las cotas buenas — 2026-07-31
+═══════════════════════════════════════════════════════════════════════════════
+El aviso de la cabecera decia que los huecos estaban RECALCULADOS, no vueltos a
+medir. Repetido contra pared con el robot ya bien modelado (media longitud 0.091,
+laser_z 0.155, wheel_radius 0.035) y `radius: 0.18`.
+
+  velocidad    n           MEDIDO      recalculado    diferencia
+   0.25 m/s    1           9.9 cm         9.8 cm        +0.1 cm
+   0.40 m/s    2   10.6 / 10.7 cm        10.8 cm        -0.2 cm
+
+  -> El recalculo era CORRECTO. Las diferencias (1-2 mm) estan por debajo de la
+     resolucion util de la medida.
+  -> Y repite: las dos corridas a 0.40 dan 10.6 y 10.7. 1 mm de dispersion.
+
+  Detalle de las corridas:
+    0.25 m/s   pared a 2.163 m -> recorrido 195 cm -> 0.190 m del LIDAR
+    0.40 m/s   pared a 2.144 m -> recorrido 193 cm -> 0.197 m del LIDAR
+    0.40 m/s   pared a 2.131 m -> recorrido 192 cm -> 0.198 m del LIDAR
+
+── EL MODELO, AFINADO ──
+
+    asintota = radius − media longitud = 0.18 − 0.091 = 8.9 cm
+
+    a 0.25 m/s   hueco 9.9 cm    -> margen sobre la asintota  +1.0 cm
+    a 0.40 m/s   hueco 10.65 cm  -> margen sobre la asintota  +1.8 cm
+
+  📝 El margen CRECE con la velocidad: +1.0 cm a 0.25 y +1.8 a 0.40. Confirma lo
+     que ya se habia visto — `approach` empieza a frenar antes cuanto mas rapido
+     va, asi que la holgura no se degrada al acelerar, MEJORA.
+
+── COMPROBACIONES DE ARRANQUE, con el URDF nuevo ──
+    base_footprint -> laser   Translation [0.000, 0.000, 0.155]   ✅ = lo medido
+    collision_monitor         active [3] · Aproximacion.radius 0.18
+    recta de pruebas          plana a 2.16 m de -9° a +9°, resto a |y| ≈ 0.40
+
+  📝 El cambio de `laser_z` (0.1745 -> 0.155) y de `wheel_radius` (0.032 ->
+     0.035) NO altero el comportamiento, como se preveia: son traslaciones en Z
+     y el monitor trabaja en el plano. Los numeros lo confirman.
