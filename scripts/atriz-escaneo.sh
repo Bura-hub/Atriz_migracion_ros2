@@ -28,18 +28,30 @@
 #    Los servicios de movimiento del driver SÍ funcionan — hablan al RVR por el
 #    puerto serie y se saltan el monitor (CLAUDE.md).
 #
-# 📝 NO VERIFICADO como script instalado. Lo que sí está verificado son las dos
-#    llamadas a servicio que hace, en ROS y por oído (manual, cap. 8.4a).
+# ✅ VERIFICADO el 2026-07-31 contra el servicio corriendo: `on`, `off` y
+#    `estado` — este último 3 de 3 en cada estado, después de reescribirlo (ver
+#    el comentario de `hay_scan`, que tenía DOS fallos).
 # ═══════════════════════════════════════════════════════════════════════════════
 set -euo pipefail
 
 ESPERA=${ATRIZ_ESPERA_SRV:-30}
 
+# 🔴 `set -u` APAGADO mientras se cargan los setup de ROS. No son compatibles:
+#     /opt/ros/jazzy/setup.bash: line 8: AMENT_TRACE_SETUP_FILES: unbound variable
+#
+#    Y esto NO es teoría: el 2026-07-31, la primera vez que systemd arrancó el
+#    robot de verdad, el `ExecStartPost` murió justo aquí con `status=1/FAILURE`.
+#    El servicio siguió en pie —el `-` de la unidad hizo su trabajo— pero el
+#    barrido se quedó ENCENDIDO, que era el único motivo de llamarlo.
+#
+#    El mismo fallo estaba arreglado en `atriz-robot.sh` y no se aplicó aquí.
+set +u
 # shellcheck disable=SC1091
 source /opt/ros/jazzy/setup.bash
 [[ -f /etc/profile.d/atriz-robot.sh ]] && source /etc/profile.d/atriz-robot.sh
 [[ -f /home/sphero/atriz_ws/install/setup.bash ]] \
     && source /home/sphero/atriz_ws/install/setup.bash
+set -u
 
 llamar() {
     local srv=$1
@@ -57,10 +69,41 @@ llamar() {
     return 1
 }
 
-# ¿Llega /scan? Se mide el RITMO, no si el topic existe: un topic registrado y
-# mudo es el síntoma estrella de este proyecto.
+# ¿Llega /scan? Se mide que LLEGA UN MENSAJE, no que el topic exista: un topic
+# registrado y mudo es el síntoma estrella de este proyecto.
+#
+# 🔴 AQUÍ NO SIRVE `ros2 topic echo`, POR DOS RAZONES DISTINTAS, y las dos se
+#    descubrieron ejecutándolo el 2026-07-31:
+#
+#    1. `/scan` se publica BEST_EFFORT y `echo` se suscribe RELIABLE por
+#       defecto. Sin `--qos-reliability best_effort` no llega nada nunca.
+#    2. Y ni con eso: con `--no-daemon` tiene que DESCUBRIR el tipo del topic, y
+#       falla de forma intermitente —2 de cada 3 intentos— con
+#       `Could not determine the type for the passed topic`, con el LIDAR
+#       girando perfectamente. Un comprobador que acierta un tercio de las veces
+#       es peor que no tenerlo.
+#
+#    Un suscriptor propio no tiene ninguno de los dos problemas: el tipo se dice,
+#    no se descubre, y el QoS se elige.
 hay_scan() {
-    timeout 8 ros2 topic echo /scan --once --no-daemon > /dev/null 2>&1
+    timeout 15 python3 -c '
+import time
+import rclpy
+from rclpy.executors import SingleThreadedExecutor
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import LaserScan
+import sys
+rclpy.init()
+n = Node("atriz_escaneo_estado"); c = [0]
+n.create_subscription(LaserScan, "scan", lambda m: c.__setitem__(0, c[0] + 1),
+                      QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
+ex = SingleThreadedExecutor(); ex.add_node(n)
+t0 = time.monotonic()
+while time.monotonic() - t0 < 5.0 and c[0] < 3:
+    ex.spin_once(timeout_sec=0.1)
+sys.exit(0 if c[0] >= 3 else 1)
+' 2>/dev/null
 }
 
 case "${1:-}" in

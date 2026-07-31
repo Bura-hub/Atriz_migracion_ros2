@@ -3742,8 +3742,33 @@ Con `set -euo pipefail` eso mata el envoltorio **antes de arrancar nada**. Se de
 ejecutándolo con `env -i`; leyéndolo no se ve. El arreglo es `set +u` alrededor de los `source`
 y `set -u` después.
 
+**c) Y el mismo `set -u` volvió a morder en el script hermano, en el primer arranque real.**
+Se arregló en `atriz-robot.sh` y **no se aplicó a `atriz-escaneo.sh`**. La primera vez que
+systemd levantó el robot de verdad:
+
+```
+Process: 6074 ExecStartPost=/usr/local/bin/atriz-escaneo off (code=exited, status=1/FAILURE)
+/opt/ros/jazzy/setup.bash: line 8: AMENT_TRACE_SETUP_FILES: unbound variable
+```
+
+El servicio quedó `active (running)` —el `-` de la unidad hizo justo su trabajo— pero **el
+barrido se quedó encendido**, que era el único motivo de llamarlo. Un fallo que no tumba nada y
+deja el sistema en el estado que querías evitar.
+
+**d) Y al arreglarlo aparecieron DOS fallos más en `hay_scan`**, los dos de la misma familia:
+
+1. `ros2 topic echo /scan` se suscribe **RELIABLE** y `/scan` es **BEST_EFFORT**: no llega nada
+   nunca. Decía «apagado» con el LIDAR a 8 Hz.
+2. Y ni con `--qos-reliability best_effort`: con `--no-daemon`, `echo` tiene que **descubrir el
+   tipo** del topic y falla **2 de cada 3 veces** con `Could not determine the type for the
+   passed topic`, con el LIDAR girando perfectamente.
+
+→ Reescrito como suscriptor propio: el tipo **se dice**, no se descubre, y el QoS se elige.
+✅ 3 de 3 aciertos en los dos estados.
+
 → **La regla del proyecto otra vez:** comprobar el efecto, no la intención. Un fichero de
-unidad que *parece* correcto y un script que *parece* correcto fallaban los dos.
+unidad que *parece* correcto y dos scripts que *parecen* correctos fallaban los tres. Y el
+patrón que se repite: **arreglar un fallo en un fichero y no buscarlo en sus hermanos**.
 
 ### 17.4 Instalar
 

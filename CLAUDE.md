@@ -280,6 +280,23 @@ estuvo **dentro del verificador** sin que nadie lo notara — porque el bloque s
 contaba como aprobada.
 → Mide con un suscriptor BEST_EFFORT propio.
 
+**🔴 `ros2 topic echo --no-daemon` FALLA 2 DE CADA 3 VECES con `Could not determine the type
+for the passed topic`** — con el topic publicando perfectamente. Tiene que descubrir el tipo por
+sí mismo y es una carrera. Y ademas se suscribe RELIABLE, así que en `/scan` o `/odom` no
+recibiría nada aunque acertara el tipo.
+→ Para comprobar si un topic PUBLICA, escribe un suscriptor: el tipo **se dice**, no se
+  descubre, y el QoS se elige. Un comprobador que acierta un tercio de las veces es peor que no
+  tenerlo.
+
+**🔴 LOS `setup.bash` DE ROS NO SON COMPATIBLES CON `set -u`** — `AMENT_TRACE_SETUP_FILES:
+unbound variable`. Con `set -euo pipefail` matan el script antes de hacer nada, y el mensaje no
+menciona ROS. Envuelve los `source` en `set +u` / `set -u`.
+→ ⚠️ **Y búscalo en TODOS los scripts, no solo en el que falló.** Se arregló en
+  `atriz-robot.sh` y no en `atriz-escaneo.sh`; en el primer arranque real bajo systemd el
+  `ExecStartPost` murió con `status=1/FAILURE`, el servicio quedó `active (running)` y el
+  barrido del LIDAR se quedó **encendido** — el estado que ese `ExecStartPost` existía para
+  evitar.
+
 **🔴 `ros2 topic list` INCLUYE TOPICS DE NODOS MUERTOS.** El daemon los conserva. El verificador
 veía `/odom` en la lista con el robot **apagado**, medía 0 y declaraba «el RVR está dormido».
 → Para saber si algo corre, mira el **proceso**: `ps -eo comm | grep -qx rvr_driver_node`.
