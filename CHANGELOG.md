@@ -4,6 +4,68 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — ✅ Fase 4c: `map_server` + AMCL, y Nav2 navegando sobre el mapa
+
+Evidencia: `00_auditoria/evidencia_24_04/24_fase4c_amcl.txt`, manual **cap. 14** (nuevo).
+Nuevos: `config/localizacion_amcl.yaml` y `launch/localizacion.launch.py`.
+
+### ✅ El ciclo completo, de principio a fin
+
+```
+a) MAPEAR con slam_toolbox         celdas 486 → 2774
+b) GUARDAR con map_saver_cli       mapa_amcl.pgm, 5989 bytes
+c) PARAR SLAM                      `map` deja de existir  ✅ punto de partida limpio
+d) LOCALIZAR                       map_server y amcl active [3]
+                                   map → odom: (−0.004, 0.011), yaw +0.65°
+e) ¿SIGUE LA POSE?  60 cm          ODOM 61.8 · AMCL 61.9 · dif 0.1 cm  ✅
+f) NAVEGAR con Nav2 sobre el mapa  SUCCEEDED, error 8 cm
+                                   ODOM 73.4 · AMCL 72.3 · dif 1.1 cm  ✅
+```
+
+### 🔴 AMCL cuesta CASI EL DOBLE que SLAM — al revés de lo que suponía
+
+| | CPU | RAM |
+|---|---|---|
+| `slam_toolbox` | **4.8 %** | 49.1 MB |
+| `amcl` + `map_server` | **8.8 %** | 85.9 MB |
+
+En el YAML había escrito «se espera menos, pero **se mide, no se supone**». Menos mal.
+
+**El argumento para AMCL no es la CPU: es el marco compartido.** 16 robots sobre un mismo `map`
+es lo que permite que la web diga «ve a la mesa 3» y que todos entiendan lo mismo. Con 16 SLAM
+hay 16 mapas del mismo sitio, cada uno con su origen.
+
+⚠️ **Nota de método que afecta a números ya publicados:** `ps -o %cpu` da el **promedio desde
+que arrancó el proceso**, no el instantáneo. Las cifras de arriba se midieron muestreando
+`/proc` dos veces con 20 s. Las anteriores del proyecto usaron `ps`; `slam_toolbox` vuelve a
+salir 4.8 % con el método bueno, así que el orden de magnitud aguanta. En `CLAUDE.md`.
+
+### ✅ Dos salvaguardas en el launch, probadas
+
+🔴🔴 **AMCL y `slam_toolbox` publican los dos `map → odom`.** Juntos parten el árbol TF **sin dar
+ningún error** — es el fallo que costó la Fase 4. El launch **se niega a arrancar** si
+`slam_toolbox` está vivo, y también si el mapa no existe (y entonces dice cómo hacerlo).
+
+📝 La comprobación usa `ps -eo comm`, **no `pgrep -f`**: el patrón de `-f` casa con la propia
+línea de comando y eso ya ha matado la terminal dos veces en este proyecto.
+
+### ⚠️ Lo que NO está resuelto
+
+🔴 **La σyaw crece:** 6.7° tras avanzar 60 cm, **18.0°** tras navegar 80. Es mucho. La sospecha
+es que el mapa es pequeño y poco distintivo, pero **no está comprobado**.
+
+🔴 **La pose inicial.** AMCL cree que el robot está en (0,0,0). Si no lo está, empieza
+equivocado y puede no recuperarse. ⏳ **Para la flota tendrá que venir por robot.**
+
+⚠️ Y estas pruebas comprobaron la **consistencia** de la pose con la odometría (0.1 y 1.1 cm),
+**no su corrección absoluta** — para eso haría falta una referencia externa medida con cinta.
+
+**Ficheros:** `config/localizacion_amcl.yaml` (nuevo), `launch/localizacion.launch.py` (nuevo),
+`24_fase4c_amcl.txt` (nuevo), manual cap. 14, `mapas/mapa_amcl.*` (nuevo), `TRASPASO.md`,
+`INSTALACION.md` (F19 ✅ → F20), `CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — ✅ Decidido: no se persigue el roll, y el driver deja de publicarlo
 
 Decisión del usuario, y una consecuencia que **no** se deriva de ella.

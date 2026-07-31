@@ -366,13 +366,33 @@ falsa** (suelo plano con nivel, error del acelerómetro fijo en el marco del rob
 3.8 % corto). Publicar 6.9° que no existen en `odom → base_footprint` es publicar un dato
 incorrecto. Verificado: `/odom` da `roll +0.00° pitch +0.00°`.
 
-### 1. ⏳ Fase 4c: `map_server` + AMCL — es lo siguiente
+### ✅ Hecho: Fase 4c — `map_server` + AMCL
 
-Es lo que hace viable la flota: **mapear una vez y localizar con AMCL en los 16 robots**, en
-lugar de 16 `slam_toolbox` simultáneos. El `.pgm`/`.yaml` ya se genera (manual, 11.11).
+El ciclo completo funciona: **mapear → guardar → localizar → navegar** sobre el mapa, sin SLAM.
 
-🔴 **AMCL y `slam_toolbox` publican los dos `map → odom`.** Arrancarlos a la vez parte el árbol
-TF **sin dar error** — es el fallo que costó la Fase 4. Tienen que ser launches excluyentes.
+```
+mapear con slam_toolbox      celdas 486 → 2774
+guardar con map_saver_cli    mapa_amcl.pgm
+parar SLAM                   `map` deja de existir  ✅
+localizar                    map_server y amcl active [3]
+seguir la pose               ODOM 61.8 cm · AMCL 61.9 · dif 0.1 cm
+navegar con Nav2             SUCCEEDED, error 8 cm · dif ODOM/AMCL 1.1 cm
+```
+
+✅ **Y el launch se niega a arrancar** si `slam_toolbox` está vivo o si el mapa no existe — las
+dos probadas. Los dos publican `map → odom` y juntos parten el árbol TF **sin dar error**.
+
+🔴 **AMCL cuesta casi el doble que SLAM** (8.8 % contra 4.8 %), al revés de lo que suponía.
+**El argumento para AMCL es el marco compartido, no el coste.**
+
+⚠️ **Sin resolver:** la σyaw sube a **18°** navegando (mapa pequeño y poco distintivo, sin
+comprobar), y **la pose inicial tendrá que venir por robot** para la flota. Manual, **cap. 14**.
+
+### 1. ⏳ Mapear el laboratorio real y resolver la pose inicial — es lo siguiente
+
+Los mapas hechos tienen entre 1.5 y 7.1 m² de espacio libre: son la esquina de pruebas, no el
+laboratorio. Y cada robot arranca en su sitio, así que `set_initial_pose` tiene que venir por
+robot — del `robot_id.txt` o de un argumento del launch.
 
 ### ✅ Hecho: las paradas re-medidas
 

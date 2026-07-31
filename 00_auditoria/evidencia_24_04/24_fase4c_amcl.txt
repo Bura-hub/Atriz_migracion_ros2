@@ -1,0 +1,144 @@
+═══════════════════════════════════════════════════════════════════════════════
+FASE 4c — map_server + AMCL: localizar sobre un mapa conocido
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Manual, cap. 14. Configuracion en Atriz_rvr:
+  atriz_rvr_bringup/config/localizacion_amcl.yaml
+  atriz_rvr_bringup/launch/localizacion.launch.py
+
+✅ ESTADO: el ciclo completo funciona — mapear, guardar, localizar y NAVEGAR
+   sobre el mapa, sin SLAM corriendo.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. POR QUE ESTA FASE, Y POR QUE NO ES POR CPU
+───────────────────────────────────────────────────────────────────────────────
+  Con SLAM cada uno de los 16 robots construye su propio mapa: 16 mapas del mismo
+  laboratorio, cada uno con su origen, y ninguna coordenada comun. Con AMCL se
+  mapea UNA vez, el .pgm se reparte con la imagen dorada y los 16 se localizan
+  sobre el. Mismo marco `map` para todos.
+
+  🔴 EL ARGUMENTO NO ES LA CPU, Y ESO LO DESCUBRI MIDIENDO. En el YAML habia
+     escrito «se espera menos, pero se mide, no se supone». Menos mal:
+
+       slam_toolbox           4.8 %  ·  49.1 MB
+       amcl + map_server      8.8 %  ·  85.9 MB      <- CASI EL DOBLE
+
+     Mismo metodo, mismo robot quieto. AMCL cuesta mas, no menos.
+
+     El argumento es el MARCO COMPARTIDO: es lo que permite que la web diga «ve a
+     la mesa 3» y que los 16 robots entiendan lo mismo.
+
+  ⚠️ NOTA DE METODO, y afecta a numeros ya publicados: `ps -o %cpu` da el
+     PROMEDIO DESDE QUE ARRANCO EL PROCESO, no el instantaneo. Infla lo recien
+     lanzado. Las cifras de arriba estan medidas muestreando /proc dos veces con
+     20 s de diferencia, que es lo correcto.
+
+     Las cifras de CPU anteriores del proyecto (stack completo «~89 % de un
+     nucleo», slam_toolbox «4.5 %») se tomaron con `ps`. La de slam vuelve a
+     salir 4.8 % con el metodo bueno, asi que el orden de magnitud aguanta, pero
+     conviene saberlo.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. ✅ LAS DOS SALVAGUARDAS DEL LAUNCH, PROBADAS
+───────────────────────────────────────────────────────────────────────────────
+  🔴🔴 AMCL y slam_toolbox publican LOS DOS `map -> odom`. Juntos parten el arbol
+       TF SIN DAR NINGUN ERROR: TF se queda con el ultimo mensaje que llegue y la
+       pose salta entre las dos estimaciones. Es el fallo que costo la Fase 4.
+
+  a) CON slam_toolbox CORRIENDO -> se niega a arrancar:
+
+       🔴 slam_toolbox ESTÁ CORRIENDO. localizacion.launch.py no arranca.
+          AMCL y slam_toolbox publican los dos `map -> odom`. Juntos parten
+          el árbol TF SIN DAR NINGÚN ERROR [...]
+
+  b) CON UN MAPA QUE NO EXISTE -> se niega, y dice como hacerlo:
+
+       🔴 el mapa no existe: /no/existe.yaml
+          Hazlo primero con slam.launch.py y guárdalo con el método verificado:
+            ros2 run nav2_map_server map_saver_cli -f <ruta> -p save_map_timeout:=10.0
+
+  📝 La comprobacion de slam usa `ps -eo comm` y NO `pgrep -f`: el patron de -f
+     casa con la propia linea de comando de quien lo ejecuta, y en este proyecto
+     eso ya ha matado la terminal dos veces.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. ✅ EL CICLO COMPLETO, DE PRINCIPIO A FIN
+───────────────────────────────────────────────────────────────────────────────
+  a) MAPEAR con slam_toolbox, moviendo el robot 60 cm x4:
+       celdas conocidas  486 -> 2774
+
+  b) GUARDAR con el metodo verificado (el servicio falla ~1 de cada 3):
+       ros2 run nav2_map_server map_saver_cli -f .../mapa_amcl \
+           --ros-args -p save_map_timeout:=10.0
+       -> Map saved successfully · mapa_amcl.pgm 5989 bytes
+          origin [-0.623, -1.053, 0] · resolution 0.050
+
+  c) PARAR SLAM y comprobar que `map -> odom` DESAPARECE:
+       Invalid frame ID "map" [...] frame does not exist    ✅ punto de partida limpio
+
+  d) LOCALIZAR:
+       map_server  active [3]
+       amcl        active [3]
+       map -> odom  Translation [-0.004, 0.011, 0.000] · yaw +0.65°
+       -> AMCL corrige poquisimo, que es lo esperado arrancando en el origen
+
+  e) ¿SIGUE LA POSE? Avanzando 60 cm con el robot quieto de partida:
+       recorrido segun ODOM   61.8 cm
+       recorrido segun AMCL   61.9 cm
+       diferencia              0.1 cm      ✅
+
+  f) NAVEGAR con Nav2 SOBRE EL MAPA, sin SLAM:
+       objetivo 80 cm adelante
+       resultado SUCCEEDED ✅  (3 s)
+       error al objetivo  8 cm
+       recorrido ODOM 73.4 cm · AMCL 72.3 cm · dif 1.1 cm
+
+  📝 /amcl_pose NO LLEGA CON EL ROBOT QUIETO, y no es un fallo: AMCL solo
+     actualiza tras moverse `update_min_d` (0.15 m). Perseguirlo como si fuera un
+     error costaria tiempo.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. ⚠️ LO QUE NO ESTA RESUELTO
+───────────────────────────────────────────────────────────────────────────────
+  🔴 LA INCERTIDUMBRE DE RUMBO CRECE. Medida en las dos pruebas:
+
+        tras avanzar 60 cm      σyaw  6.7°
+        tras navegar 80 cm      σyaw 18.0°   ·  σx 0.172 m · σy 0.083 m
+
+     18° de incertidumbre en el rumbo es mucho. La sospecha es que el mapa es
+     pequeño y con pocos rasgos distintivos —una sala casi rectangular da poca
+     informacion angular—, pero NO ESTA COMPROBADO. Con un mapa mayor del
+     laboratorio real deberia mejorar.
+
+  🔴 LA POSE INICIAL. `set_initial_pose: true` con (0,0,0) hace que AMCL crea que
+     el robot esta en el origen del mapa. Si no lo esta, empieza equivocado y
+     puede no recuperarse: en una sala con simetrias, casi seguro.
+
+     ⏳ PARA LA FLOTA: cada robot arranca en su sitio, asi que la pose inicial
+        tiene que venir POR ROBOT — del robot_id.txt o de un argumento del
+        launch. SIN RESOLVER.
+
+  ⚠️ Y las corridas de esta prueba se hicieron con AMCL arrancando en el origen
+     del mapa CON EL ROBOT DESPLAZADO ~60 cm de el, porque el reinicio de la
+     localizacion reseteo la pose inicial. Que la navegacion saliera bien
+     igualmente sugiere que AMCL convergio, pero NO se comprobo la correccion
+     ABSOLUTA de la pose contra una referencia externa. Solo la CONSISTENCIA
+     con la odometria (0.1 y 1.1 cm).
+
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE FALTA
+───────────────────────────────────────────────────────────────────────────────
+⏳ Mapear el laboratorio REAL, no la esquina de pruebas. Los mapas hechos tienen
+   entre 1.5 y 7.1 m² de espacio libre.
+⏳ Pose inicial por robot para la flota.
+⏳ Comprobar la correccion ABSOLUTA de la pose de AMCL contra una referencia
+   externa (una marca en el suelo medida con cinta).
+⏳ Entender la σyaw de 18°.
+⏳ Unidades systemd de arranque automatico.
+⏳ Los 16 servicios y 4 topics del driver sin portar.
+⏳ Plataforma web (Fase 5), incluida la parada de emergencia que hoy no hace nada.

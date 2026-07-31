@@ -260,6 +260,19 @@ protocolo, **una hora después**, dio lo contrario: fallaron las cortas y las la
 perfectas. **El fallo cambió de distancia.** → Con un fenómeno intermitente (~21 % aquí),
 **replica antes de atribuir**. Manual, cap. 9.12b.
 
+**🔴 `ps -o %cpu` NO da la CPU instantánea: da el PROMEDIO desde que arrancó el proceso.** Un
+nodo recién lanzado sale inflado, y uno que lleva horas sale diluido. Las cifras de CPU
+anteriores de este fichero se tomaron con `ps`; `slam_toolbox` vuelve a salir 4.8 % con el
+método bueno, así que el orden de magnitud aguanta. → Para comparar procesos, **muestrea
+`/proc/<pid>/stat` dos veces** (`utime+stime`) con 20 s de diferencia.
+
+**🔴 AMCL cuesta MÁS que SLAM en este robot**, al revés de lo que se suponía: 8.8 % contra
+4.8 %. → **El argumento para AMCL no es la CPU, es el marco compartido**: 16 robots sobre un
+mismo `map` es lo que permite que la web diga «ve a la mesa 3». Manual, cap. 14.1.
+
+**📝 `/amcl_pose` no llega con el robot quieto, y no es un fallo.** AMCL solo actualiza tras
+moverse `update_min_d` (0.15 m). Mueve el robot antes de dar por roto nada.
+
 **El X2 no ve un objeto fino en un solo barrido.** A 0.68 m tira un rayo cada 1.7 cm, así que
 un objeto de 5 cm da 2-3 puntos y en un barrido suelto puede desaparecer. → Para geometría
 fina, **acumula 6-8 s de barridos y toma la mediana por sector angular**. Un `/scan` suelto no
@@ -570,7 +583,9 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | Inclinación que reporta el RVR | **6.9° y está en el PITCH** (roll ~1°), y se reparte con el rumbo | 2026-07-31 |
 | `\|g\|` del acelerómetro | **9.435 m/s²** contra 9.807 — **3.8 % corto**, está descalibrado | 2026-07-31 |
 | Consumo del RVR conduciendo | **~0.74 %/min** → ~2 h por carga (estimación gruesa) | 2026-07-31 |
-| CPU de `slam_toolbox` | **4.5 %** de un núcleo, 49 MB | 2026-07-30, async |
+| CPU de `slam_toolbox` | **4.8 %** de un núcleo, 49.1 MB (medido desde `/proc`) | 2026-07-31 |
+| 🔴 CPU de `amcl` + `map_server` | **8.8 %**, 85.9 MB — **casi el doble que SLAM** | 2026-07-31 |
+| AMCL siguiendo la pose | **0.1 cm** en 61.8 cm · **1.1 cm** en 73.4 navegando | 2026-07-31 |
 | Todo a la vez (driver+LIDAR+RSP+SLAM) | **~24 %** de un núcleo, ~200 MB, loadavg 0.62, 62.3 °C, `throttled=0x0` | 2026-07-30 |
 
 **SLAM sale barato.** El presupuesto de CPU de este robot lo consume el driver del RVR
@@ -621,6 +636,7 @@ lo que produce deriva entre documentación y realidad.
 | El driver publica `odom → base_footprint`, **no** `odom → base_link` | manual, cap. 9.4 · REP-105 y un frame = un padre |
 | `async_slam_toolbox_node`, no el `sync` | no bloquea por barrido, y cuesta 4.5 % · manual cap. 9 |
 | SLAM va en un launch **aparte** de `robot.launch.py` | el robot tiene que arrancar sin SLAM, y SLAM reiniciarse sin soltar `/dev/rvr` |
+| **`localizacion.launch.py` es EXCLUYENTE con `slam.launch.py`** y lo comprueba al arrancar | los dos publican `map → odom`; juntos parten el árbol TF sin dar error. Manual, cap. 14.2 |
 | **El driver publica la orientación PLANA** (`publicar_inclinacion: false`) | la inclinación de 6.9° del RVR es un artefacto de su acelerómetro descalibrado, no del robot: suelo plano medido con nivel y error fijo en el marco del robot. Manual, cap. 13 |
 | **NO se persigue el efecto del roll en la deriva** | medido ~1 cm sin significación (p=0.142). Cerrarlo costaría ~62 corridas y 5 h de robot, para 1 cm sobre una tolerancia de objetivo de 10. Decisión del usuario, 2026-07-31 |
 

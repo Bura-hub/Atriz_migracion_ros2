@@ -3250,6 +3250,83 @@ típico de una curva de descarga no lineal.
 
 ---
 
+## Capítulo 14 — `map_server` + AMCL: localizar sobre un mapa (Fase 4c)
+
+✅ **VERIFICADO el 2026-07-31**: el ciclo completo funciona — mapear, guardar, localizar y
+**navegar** sobre el mapa, sin SLAM. Evidencia: `00_auditoria/evidencia_24_04/24_fase4c_amcl.txt`.
+
+### 14.1 Por qué esta fase — y por qué NO es por CPU
+
+Con SLAM, cada uno de los 16 robots construye **su propio mapa**: 16 mapas del mismo
+laboratorio, cada uno con su origen, y **ninguna coordenada común**. Con AMCL se mapea una vez,
+el `.pgm` se reparte con la imagen dorada, y los 16 se localizan sobre él.
+
+🔴 **El argumento no es la CPU, y eso salió midiendo.** En el YAML había escrito «se espera
+menos, pero se mide, no se supone». Menos mal:
+
+| | CPU | RAM |
+|---|---|---|
+| `slam_toolbox` | **4.8 %** | 49.1 MB |
+| `amcl` + `map_server` | **8.8 %** | 85.9 MB |
+
+**AMCL cuesta casi el doble.** El argumento es el **marco compartido**: es lo que permite que la
+web diga «ve a la mesa 3» y que los 16 robots entiendan lo mismo.
+
+⚠️ **Nota de método, y afecta a números ya publicados:** `ps -o %cpu` da el **promedio desde que
+arrancó el proceso**, no el instantáneo, así que infla lo recién lanzado. Las cifras de arriba
+se midieron muestreando `/proc` dos veces con 20 s de diferencia. Las cifras de CPU anteriores
+del proyecto se tomaron con `ps`; la de `slam_toolbox` vuelve a salir 4.8 % con el método bueno,
+así que el orden de magnitud aguanta — pero conviene saberlo.
+
+### 14.2 ✅ Las dos salvaguardas del launch
+
+🔴🔴 **AMCL y `slam_toolbox` publican los dos `map → odom`.** Juntos parten el árbol TF **sin dar
+ningún error**: TF se queda con el último mensaje y la pose salta entre las dos estimaciones. Es
+el fallo que costó la Fase 4 (cap. 9.4). Por eso el launch **se niega a arrancar**:
+
+```
+🔴 slam_toolbox ESTÁ CORRIENDO. localizacion.launch.py no arranca.
+🔴 el mapa no existe: /no/existe.yaml
+   Hazlo primero con slam.launch.py y guárdalo con el método verificado: […]
+```
+
+Las dos probadas. 📝 La comprobación usa `ps -eo comm`, **no `pgrep -f`** — el patrón de `-f`
+casa con la propia línea de comando y en este proyecto eso ya ha matado la terminal dos veces.
+
+### 14.3 ✅ El ciclo completo
+
+```
+a) MAPEAR con slam_toolbox            celdas 486 → 2774
+b) GUARDAR con map_saver_cli          mapa_amcl.pgm, 5989 bytes
+c) PARAR SLAM                         `map` deja de existir  ✅ punto de partida limpio
+d) LOCALIZAR                          map_server y amcl active [3]
+                                      map → odom: (−0.004, 0.011), yaw +0.65°
+e) ¿SIGUE LA POSE?  avance de 60 cm   ODOM 61.8 cm · AMCL 61.9 cm · dif 0.1 cm  ✅
+f) NAVEGAR con Nav2 sobre el mapa     SUCCEEDED, error 8 cm
+                                      ODOM 73.4 cm · AMCL 72.3 cm · dif 1.1 cm  ✅
+```
+
+📝 **`/amcl_pose` no llega con el robot quieto, y no es un fallo:** AMCL solo actualiza tras
+moverse `update_min_d` (0.15 m). Perseguirlo como si fuera un error cuesta tiempo.
+
+### 14.4 ⚠️ Lo que NO está resuelto
+
+🔴 **La incertidumbre de rumbo crece:** σyaw **6.7°** tras avanzar 60 cm, **18.0°** tras navegar
+80 cm. Es mucho. La sospecha es que el mapa es pequeño y con pocos rasgos distintivos —una sala
+casi rectangular da poca información angular— pero **no está comprobado**.
+
+🔴 **La pose inicial.** `set_initial_pose: true` con (0,0,0) hace que AMCL crea que el robot está
+en el origen del mapa. Si no lo está, empieza equivocado y **puede no recuperarse**: en una sala
+con simetrías, casi seguro. ⏳ **Para la flota, la pose inicial tiene que venir por robot** — del
+`robot_id.txt` o de un argumento del launch. Sin resolver.
+
+⚠️ **Y estas pruebas no comprobaron la corrección ABSOLUTA de la pose**, solo su **consistencia**
+con la odometría (0.1 y 1.1 cm). De hecho AMCL arrancó creyéndose en el origen con el robot
+desplazado ~60 cm de él. Que la navegación saliera bien sugiere que convergió, pero para
+afirmarlo haría falta una referencia externa — una marca en el suelo medida con cinta.
+
+---
+
 ## Capítulo 6
 
 ⏳ **No escrito todavía.** Se redacta al ejecutar las fases 1–6 del
