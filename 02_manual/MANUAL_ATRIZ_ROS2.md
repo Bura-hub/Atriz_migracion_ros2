@@ -2730,22 +2730,30 @@ el modelo:
 > `time_before_collision`. Según baja la distancia baja la velocidad, así que el robot se
 > acerca **asintóticamente al contacto**. Es un frenado suave, no una parada.
 
-Con `radius` 0.11 y media longitud de chasis **0.109** (URDF), la asíntota era 0.1 cm. Paró a
-1.1 cm — exactamente como está escrito que funciona.
+Con `radius` 0.11 y media longitud de chasis **0.09** ✅ medida, la asíntota era 2 cm. Paró a
+3.0 cm — exactamente como está escrito que funciona.
 
 **La holgura se consigue inflando el círculo:**
 
 ```
-hueco ≈ radius − 0.109 + ~1 cm
-radius: 0.18  →  asíntota 7.1 cm  →  predicción 8 cm
+hueco ≈ radius − 0.09 + ~1 cm
+radius: 0.18  →  asíntota 9 cm
 ```
+
+📝 La holgura **depende de la dirección**, porque el robot no es un círculo: de frente
+`0.18 − 0.09 = 9.0 cm`, de costado `0.18 − 0.11 = 7.0 cm`, y en esquina
+`0.18 − 0.142 = 3.8 cm`, que es el caso peor.
 
 ### 12.4 ✅ Medido — y el hueco no empeora con la velocidad
 
-| velocidad | recorrido | dist. LIDAR | **hueco real** | predicción |
-|---|---|---|---|---|
-| 0.25 m/s | 191 cm | 0.189 m | **8.0 cm** | 8 cm |
-| 0.40 m/s | 191 cm | 0.199 m | **9.0 cm** | — |
+| velocidad | recorrido | dist. LIDAR | **hueco real** |
+|---|---|---|---|
+| 0.25 m/s | 191 cm | 0.189 m | **9.9 cm** |
+| 0.40 m/s | 191 cm | 0.199 m | **10.9 cm** |
+
+⚠️ Estos huecos son **2 cm mayores** de lo que se publicó el 2026-07-31: se habían calculado
+con la media longitud del URDF (0.109), que estaba mal (12.10). Están **recalculados, no
+vueltos a medir**.
 
 📝 A 0.40 m/s (el máximo del robot) para **más lejos**, no más cerca: el controlador empieza a
 frenar antes cuanto mayor es la velocidad.
@@ -2760,8 +2768,9 @@ Por eso los dos polígonos son **`approach` y `slowdown`, nunca `stop`**. Verifi
 
 | Situación | Resultado |
 |---|---|
-| pegado a la pared, 1.1 cm | retrocedió **196 cm** ✅ |
-| a 9.0 cm | retrocedió 8.6 cm + giró en el sitio ✅ |
+| pegado a la pared, 3.0 cm | retrocedió **196 cm** ✅ |
+| a 10.9 cm | retrocedió 8.6 cm + giró en el sitio ✅ |
+| dentro de un paso de 40 cm (12.10) | retrocedió **58 cm** ✅ |
 
 ⚠️ **Salir de un rincón es lento.** Los 8.6 cm salen de que la caja `Precaucion` sigue viendo
 la pared y frena al 40 %: `0.15 × 0.4 × 1.5 s = 9 cm`. Correcto, pero conviene saberlo antes
@@ -2814,6 +2823,74 @@ instrucciones a los estudiantes.**
 (`laser_x: 0.0`), así que su punto ciego de 10 cm cae **dentro del chasis** (media longitud
 0.109 m). No hay zona muerta alrededor del robot.
 
+### 12.10 🔴 No cruza un paso de 40 cm — y las cotas del robot estaban mal
+
+**El resultado:** con `radius: 0.18` el robot **entró en la boca de un paso de 40 cm y se
+quedó bloqueado**. Medido con `/scan` acumulado en esa posición:
+
+```
+ang −84°…−99°   d=0.23   ← objeto derecho, a 22 cm del centro
+ang +72°…+87°   d=0.18   ← objeto izquierdo, a 17 cm del centro
+al frente, a menos de 60 cm: NADA
+```
+
+No tocaba nada (media anchura 11 cm contra 17 y 22 de holgura) y tenía el camino **despejado
+delante**. Lo paró el monitor porque su círculo mide 18 cm y el borde estaba a 17: **le sobraba
+1 cm**. ✅ Y **pudo salir marcha atrás** (58 cm) — `approach` en vez de `stop`, otra vez.
+
+📝 **Nav2 no llegó a intentarlo**: con el paso abierto por los lados (65 y 63 cm), el
+planificador se fue por la ruta ancha. Es lo correcto. La prueba que responde de verdad es
+conducir recto por `/cmd_vel_raw`, sin planificador que pueda escaquearse.
+
+**No es un fallo: es el compromiso, ahora medido.** El `radius` fija dos cosas en sentidos
+opuestos:
+
+| `radius` | para a | pasillo mínimo |
+|---|---|---|
+| 0.14 | 5 cm | 28 cm |
+| 0.16 | 7 cm | 32 cm |
+| **0.18** | **9 cm** | **36 cm** ← el actual |
+| 0.20 | 11 cm | 40 cm |
+
+Para 16 robots en un laboratorio **remoto donde nadie puede levantarlos**, parar a 9–11 cm de
+las paredes vale más que cruzar huecos de 40 cm. Pero es una **decisión de laboratorio**, no
+una verdad técnica.
+
+#### 🔴 Y por el camino salió que el URDF tenía las cotas cruzadas
+
+| | medido (usuario) | URDF (ficha) |
+|---|---|---|
+| frente-atrás | **18 cm** | 21.8 cm |
+| lado-lado | **22 cm** | 18.5 cm |
+
+Modelaba un robot **más largo que ancho** siendo al revés. Dos consecuencias:
+
+1. **Los huecos publicados salían 2 cm cortos** (se calculaban con media longitud 0.109 en vez
+   de 0.09). Corregidos en 12.4. El modelo `hueco ≈ radius − media longitud + 1 cm` **no se
+   cae**, solo cambia la constante.
+2. 🔴 **`robot_radius: 0.11` estaba mal**, y esto sí es un error real. Lo llamé «radio
+   circunscrito» y es aritmética mal hecha: el circunscrito es `√(0.09² + 0.11²) = 0.142` con
+   las cotas medidas, y **0.143 incluso con las del URDF**. Con cualquiera de los dos, 0.11 se
+   queda corto — el planificador puede trazar rutas donde una **esquina** roza, **sin dar
+   ningún error**. Lo tapaba el `collision_monitor` con sus 0.18, que es probablemente por qué
+   `approach` saltaba al rodear (11.13). **Corregido a 0.145.**
+
+📝 El URDF solo cambia la caja de colisión y la inercia: las ruedas usan `wheel_separation`,
+independiente, así que **ningún frame TF se mueve** y la odometría no se toca.
+
+⚠️ **Qué falta medir para dejar esto firme:** [`03_operacion/MEDIDAS_ROBOT.md`](../03_operacion/MEDIDAS_ROBOT.md).
+Lo más urgente es `laser_z` (hoy **derivado** de dos fichas de fabricante) y **si el LIDAR está
+nivelado**, que es la mejor pista sobre la inclinación de ~8°.
+
+#### 📝 Un fallo de medición que vale la pena conocer
+
+Los dos objetos daban **solo 2 y 3 puntos** de LIDAR cada uno: a 0.68 m el X2 tira un rayo cada
+1.7 cm. Con **un solo barrido** pueden desaparecer y el detector de huecos deja de ver el paso.
+Los escaneos que funcionaron **acumulaban 6–8 s** y tomaban la mediana por sector.
+
+→ Para geometría fina, **acumula barridos**. Y es un aviso sobre `min_points: 2`: con objetos
+así de finos está justo en el límite.
+
 ### 12.9 Verificar tras arrancar
 
 ```bash
@@ -2821,8 +2898,10 @@ ros2 lifecycle get /collision_monitor   # active [3] ← si no, NO FILTRA NADA
 ros2 topic info /cmd_vel --verbose      # Publisher count: 1, y es collision_monitor
 ```
 
-⏳ **Lo que queda:** probar con obstáculos que haya que **rodear** —aquí solo se ha probado
-contra una pared frontal— y ajustar `min_points: 2` contra obstáculos finos de verdad.
+⏳ **Lo que queda:** medir lo del [`MEDIDAS_ROBOT.md`](../03_operacion/MEDIDAS_ROBOT.md) y
+**repetir las paradas contra pared** —los huecos de 12.4 están recalculados, no vueltos a
+medir—; el barrido de `radius` contra un mismo paso; y ajustar `min_points: 2` contra
+obstáculos finos.
 
 ✅ `desired_linear_vel` ya está en **0.40** (cap. 11.10), y navegando a esa velocidad la
 seguridad solo se activó cuatro veces, ninguna como parada.

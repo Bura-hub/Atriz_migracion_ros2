@@ -4,6 +4,92 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — 🔴 El paso de 40 cm no se cruza, y el URDF tenía las cotas cruzadas
+
+Evidencia: `00_auditoria/evidencia_24_04/19_paso_estrecho.txt`, manual **cap. 12.10**.
+
+### El límite, medido
+
+Con `radius: 0.18` el robot **entró en la boca de un paso de 40 cm y se quedó bloqueado**:
+
+```
+ang −84°…−99°   objeto derecho, a 22 cm del centro
+ang +72°…+87°   objeto izquierdo, a 17 cm del centro
+al frente, a menos de 60 cm: NADA
+```
+
+No tocaba nada y tenía el camino despejado delante. Lo paró el monitor porque su círculo mide
+18 cm y el borde estaba a 17: **le sobraba 1 cm**. ✅ Salió marcha atrás (58 cm) — `approach`
+en vez de `stop`, otra vez.
+
+📝 **Nav2 no llegó a intentarlo**: con el paso abierto por los lados (65 y 63 cm) el
+planificador se fue por la ruta ancha, que es lo correcto. La prueba que responde es conducir
+recto por `/cmd_vel_raw`, sin planificador que pueda escaquearse.
+
+**No es un fallo: es el compromiso, ahora cuantificado.**
+
+| `radius` | para a | pasillo mínimo |
+|---|---|---|
+| 0.14 | 5 cm | 28 cm |
+| **0.18** | **9 cm** | **36 cm** ← el actual |
+| 0.20 | 11 cm | 40 cm |
+
+Para 16 robots en un laboratorio **remoto donde nadie puede levantarlos**, parar a 9–11 cm de
+las paredes vale más que cruzar huecos de 40 cm. Es una **decisión de laboratorio**.
+
+### 🔴 Y por el camino: el URDF tenía largo y ancho cruzados
+
+El usuario midió el robot con una cinta, de punta a punta y con orugas:
+
+| | medido | URDF (ficha, «NO MEDIDO») |
+|---|---|---|
+| frente-atrás | **18 cm** | 21.8 cm |
+| lado-lado | **22 cm** | 18.5 cm |
+
+**Dos consecuencias, de distinto peso:**
+
+1. Los huecos publicados hoy salían **2 cm cortos** (media longitud 0.109 en vez de 0.09):
+   8.0 → **9.9 cm** a 0.25 m/s, 9.0 → **10.9 cm** a 0.40. El modelo
+   `hueco ≈ radius − media longitud + 1 cm` **no se cae**, solo cambia la constante, y las
+   conclusiones del fichero 17 siguen valiendo. Están **recalculados, no vueltos a medir**.
+2. 🔴 **`robot_radius: 0.11` estaba mal, y eso sí es un error real.** Lo escribí llamándolo
+   «radio circunscrito» y es aritmética mal hecha: el circunscrito es **0.142** con las cotas
+   medidas y **0.143 incluso con las del URDF**. Con cualquiera de los dos se queda corto — el
+   planificador puede trazar rutas donde una **esquina** roza, **sin dar ningún error**. Lo
+   tapaba el `collision_monitor` con sus 0.18, que es probablemente por qué `approach` saltaba
+   al rodear obstáculos. **Corregido a 0.145** en los dos costmaps.
+
+URDF corregido a 18 × 22. Solo cambia la caja de colisión y la inercia: las ruedas usan
+`wheel_separation`, independiente, así que **ningún frame TF se mueve**.
+
+### Nuevo: `03_operacion/MEDIDAS_ROBOT.md`
+
+Lista **todas** las cotas del modelo, cuáles están medidas y cuáles vienen de una ficha, y qué
+se rompe si cada una está mal. Lo urgente: **`laser_z`** —la altura a la que el robot ve, hoy
+**derivada** de dos fichas de fabricante— y **si el LIDAR está nivelado**, que es la mejor
+pista sobre la inclinación de ~8° que sigue abierta.
+
+Explica también qué es `wheel_separation` y por qué aquí **no hace nada**: el RVR resuelve su
+propia cinemática, así que solo dibuja las orugas en RViz. Pero está **inconsistente** —
+0.150 + 0.025 dan 17.5 cm de oruga a oruga contra 22 cm de robot.
+
+### Dos errores propios
+
+- **Un `radius: 0.15` de contraste que no vale.** Lo lancé para dar la curva completa del
+  compromiso y **midió otro hueco** (33.9 cm a −61.5° de rumbo, porque el robot se había
+  reorientado). Cruzó *un* hueco, no *el* hueco. Descartado; el valor volvió a 0.18.
+- **El X2 no ve un objeto fino en un solo barrido.** Los dos objetos daban 2 y 3 puntos; con un
+  `/scan` suelto desaparecen y el detector de huecos deja de ver el paso. Los escaneos que
+  funcionaron acumulaban 6–8 s. En `CLAUDE.md`.
+
+**Ficheros:** `atriz_rvr_description/urdf/rvr.urdf.xacro`, `config/nav2_atriz.yaml`,
+`config/collision_monitor.yaml`, `mediciones_banco/medir_collision_monitor.py`,
+manual cap. 12.3–12.5 y 12.10, `19_paso_estrecho.txt` (nuevo), `17_collision_monitor.txt`
+(aviso de corrección), `03_operacion/MEDIDAS_ROBOT.md` (nuevo), `TRASPASO.md`,
+`INSTALACION.md` (F11 ✅ → F12), `CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — ✅ Rodea obstáculos, y la seguridad hacía abortar a Nav2
 
 Cierra la última laguna: hasta ahora todo se había probado **contra una pared frontal**, así

@@ -1,0 +1,185 @@
+═══════════════════════════════════════════════════════════════════════════════
+UN PASO DE 40 cm — y las cotas del robot, que estaban mal
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Manual, cap. 12.10. Cierra la pregunta que dejo abierta el fichero 18: rodear un
+obstaculo se probo con 63 cm de holgura. ¿Y con un paso apretado?
+
+🔴 RESULTADO: con `radius: 0.18` el robot NO cruza un paso de 40 cm.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. LA PREDICCION, ESCRITA ANTES DE MEDIR
+───────────────────────────────────────────────────────────────────────────────
+  El collision_monitor trata al robot como un disco de radio 0.18, o sea que
+  necesita 36 cm de pasillo. Con 40 cm quedan 2 cm por lado.
+
+  Se predijo:
+    · el planificador SI encontrara ruta (con robot_radius 0.11, tras inflar
+      quedaban 18 cm de corredor)
+    · el monitor es el que aprieta
+
+  Las dos partes resultaron ciertas, pero por caminos distintos a los previstos.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. NAV2 NO CRUZO EL PASO: SE FUE POR OTRO LADO
+───────────────────────────────────────────────────────────────────────────────
+  Objetivo a 1.50 m con el paso de 40 cm en medio:
+
+    resultado SUCCEEDED, error 12 cm
+    pero la trayectoria al llegar a la altura del paso:
+      t=3.5s  x=+0.72  y=+0.52     <- 30 cm a la IZQUIERDA del paso
+
+  Encontro una ruta mas ancha y la prefirio. Es lo correcto: la capa de inflado
+  encarece el hueco estrecho y NavFn minimiza coste.
+
+  MEDIDO con /scan, los tres huecos que habia:
+
+      a la derecha del objeto A     65.3 cm
+      EL PASO                       40.4 cm  (42.3 perpendicular)
+      a la izquierda del objeto B   62.8 cm
+
+  -> para forzar el paso harian falta ~1.3 m mas de barrera (65 cm a un lado,
+     61 al otro). En vez de pedir material, se aisla la pregunta de otra forma.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. ✅ LA PRUEBA QUE SI RESPONDE: conducir recto por /cmd_vel_raw
+───────────────────────────────────────────────────────────────────────────────
+  Sin planificador de por medio, el robot no puede escaquearse por otro lado.
+  Encarado al centro del paso (error de rumbo -1.5°) y avanzando a 0.15 m/s:
+
+      recorrido 67 cm   ·   el paso estaba a 63 cm
+      BLOQUEADO: 4 s sin avanzar
+
+  DONDE QUEDO, medido con /scan acumulado:
+
+      ang -84°..-99°   d=0.23   <- objeto derecho, a 22 cm del centro
+      ang +72°..+87°   d=0.18   <- objeto izquierdo, a 17 cm del centro
+      al frente, a menos de 60 cm: NADA
+
+    · el robot estaba DENTRO del paso
+    · NO tocaba nada (media anchura 11 cm contra 17 y 22 de holgura)
+    · tenia el camino delante COMPLETAMENTE DESPEJADO
+    · y aun asi el monitor no le dejaba seguir
+
+  CAUSA, exacta: el circulo del monitor mide 18 cm y el borde izquierdo estaba a
+  17. Le sobraba 1 cm. `approach` predice choque y corta el avance.
+
+  ✅ Y PUDO SALIR: retrocedio 58 cm. La decision de usar `approach` y no `stop`
+     (fichero 17, seccion 5) vuelve a evitar que el robot quede inservible. Con
+     un `stop` fijo se habria quedado ahi hasta que alguien fuera a recogerlo.
+
+  📝 NO es un fallo: es el compromiso que ya estaba escrito en el YAML. El
+     `radius` fija DOS cosas a la vez y en sentidos opuestos:
+
+         hueco al parar ≈ radius − media longitud
+         pasillo minimo ≈ 2 × radius
+
+       radius   para a    pasillo minimo
+        0.14     5 cm        28 cm
+        0.16     7 cm        32 cm
+        0.18     9 cm        36 cm      <- el actual
+        0.20    11 cm        40 cm
+
+     Para 16 robots en un laboratorio REMOTO donde nadie puede levantarlos, parar
+     a 9-11 cm de las paredes vale mas que cruzar huecos de 40 cm. Pero es una
+     decision de diseño del laboratorio, no una verdad tecnica.
+
+  ⚠️ RETIRADO: se intento medir el mismo paso con `radius: 0.15` para dar la
+     curva completa. El buscador de huecos eligio OTRO hueco (33.9 cm, a -61.5°
+     de rumbo) porque el robot se habia reorientado. Cruzo un hueco, no EL hueco.
+     No cuenta como evidencia y se descarto; el valor volvio a 0.18.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. 🔴 LAS COTAS DEL ROBOT ESTABAN MAL — y una de ellas importa
+───────────────────────────────────────────────────────────────────────────────
+  El usuario midio el robot de punta a punta, CON LAS ORUGAS:
+
+                        usuario (medido)    URDF (ficha, sin medir)
+    frente-atras (X)        18 cm                21.8 cm
+    lado-lado  (Y)          22 cm                18.5 cm
+
+  🔴 ESTABAN CRUZADOS: el URDF modelaba un robot mas largo que ancho y es al
+     revés. Venia de la ficha publicada del RVR, declarada "NO MEDIDO".
+
+  CONSECUENCIA 1 — los huecos medidos el 2026-07-31 salieron 2 cm CORTOS.
+  Se calcularon como `distancia_LIDAR − 0.109`; la media longitud real es 0.09:
+
+      prueba                          reportado   CORREGIDO
+      radius 0.11 · pared 0.25 m/s      1.1 cm      3.0 cm
+      radius 0.18 · pared 0.25 m/s      8.0 cm      9.9 cm
+      radius 0.18 · pared 0.40 m/s      9.0 cm     10.9 cm
+
+    ✅ El MODELO no se cae, solo cambia la constante:
+         hueco ≈ radius − media longitud + ~1 cm
+         radius 0.11 -> asintota 2.0 cm, medido 3.0   (+1.0)
+         radius 0.18 -> asintota 9.0 cm, medido 9.9   (+0.9)
+       Las conclusiones del fichero 17 siguen valiendo.
+
+  CONSECUENCIA 2 — y esta es un ERROR REAL, no un ajuste de constante:
+
+      `robot_radius: 0.11` en nav2_atriz.yaml estaba etiquetado como "radio
+      circunscrito". Es aritmetica mal hecha.
+
+        con las cotas medidas   circunscrito = √(0.09² + 0.11²) = 0.142
+        con las del URDF        circunscrito = √(0.109² + 0.0925²) = 0.143
+
+      Con CUALQUIERA de los dos, 0.11 se queda corto. Un `robot_radius` corto
+      hace que el planificador trace rutas donde una ESQUINA del robot roza, y
+      **no da ningun error**. Lo tapaba el collision_monitor con sus 0.18 — que
+      es probablemente por que `approach` saltaba al rodear obstaculos
+      (fichero 18, seccion 3).
+
+    ARREGLADO: robot_radius 0.11 -> 0.145 en los dos costmaps.
+               URDF base_length 0.218 -> 0.18, base_width 0.185 -> 0.22.
+
+    📝 El URDF solo cambia la caja de colision y la inercia. Las ruedas usan
+       `wheel_separation`, independiente, asi que NINGUN frame TF se mueve y la
+       odometria no se toca. Verificado: el xacro compila y da 0.18 x 0.22 x 0.114.
+
+  ⚠️ SIN RESOLVER: `wheel_separation` 0.150 + `wheel_width` 0.025 dan 17.5 cm de
+     oruga a oruga, pero el robot mide 22 cm. O la separacion esta corta o el
+     cuerpo sobresale. Es solo visual —la odometria la da el locator del RVR— pero
+     queda anotado.
+
+  📝 Y la geometria del poligono `Precaucion` NO se ha cambiado al corregir las
+     cotas: se dejo como estaba porque es la que se probo en 4 navegaciones
+     (fichero 18). Cambiarla obligaria a repetirlas. Sus holguras reales pasan a
+     ser 27 cm delante, 15 detras y 9 a los lados.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. UN FALLO DE MEDICION QUE VALE LA PENA CONOCER
+───────────────────────────────────────────────────────────────────────────────
+  Los dos objetos daban SOLO 2 y 3 puntos de LIDAR cada uno: a 0.68 m el X2 tira
+  un rayo cada 1.7 cm. Con un solo barrido pueden desaparecer y los bloques se
+  funden, y el detector de huecos deja de ver el paso. Los escaneos que
+  funcionaron acumulaban 6-8 s y tomaban la mediana por sector angular.
+
+  -> Para geometria fina, ACUMULAR barridos. Un barrido suelto del X2 no basta.
+  -> Y es un aviso sobre `min_points: 2` del monitor: con objetos asi de finos
+     esta justo en el limite.
+
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+⏳ REPETIR las paradas contra pared con las cotas corregidas. Los numeros de
+   arriba estan recalculados, no vueltos a medir.
+
+⏳ El barrido de `radius` (0.14 / 0.16 / 0.18) contra EL MISMO paso, fijando el
+   hueco para que el buscador no elija otro. Daria la curva completa del
+   compromiso.
+
+⏳ Decidir el `radius` definitivo. Es una decision de laboratorio: parar lejos de
+   las paredes o cruzar huecos estrechos.
+
+⏳ Un obstaculo que aparezca DURANTE la navegacion.
+
+⏳ Fase 4c: map_server + AMCL.
+
+🔴 La inclinacion de ~8°, sin causa determinada. Con las cotas cruzadas
+   corregidas, merece volver a mirarse: el modelo del robot ha cambiado.

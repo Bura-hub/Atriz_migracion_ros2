@@ -183,6 +183,19 @@ log de slam_toolbox**. Y guarda los mapas así, que es lo verificado:
 ros2 run nav2_map_server map_saver_cli -f <ruta> --ros-args -p save_map_timeout:=10.0
 ```
 
+**🔴 Las cotas del robot del URDF estuvieron CRUZADAS hasta el 2026-07-31.** Ponía
+`base_length 0.218` × `base_width 0.185` (ficha del RVR, declarado «NO MEDIDO») cuando el robot
+mide **18 × 22 cm**: modelaba un robot más largo que ancho siendo al revés. Se descubrió porque
+el usuario lo midió con una cinta. → **Antes de dimensionar nada con el tamaño del robot,
+comprueba en [`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md) qué está medido y
+qué viene de una ficha.** Quedan sin medir `laser_z` (¡la altura a la que ve!), `wheel_radius`
+y `wheel_separation`.
+
+**El X2 no ve un objeto fino en un solo barrido.** A 0.68 m tira un rayo cada 1.7 cm, así que
+un objeto de 5 cm da 2-3 puntos y en un barrido suelto puede desaparecer. → Para geometría
+fina, **acumula 6-8 s de barridos y toma la mediana por sector angular**. Un `/scan` suelto no
+basta, y hace dudar de `min_points: 2` con obstáculos así.
+
 **Una capa de seguridad hace abortar a Nav2 por «no progresar».** El `SimpleProgressChecker`
 de fábrica exige 0.5 m en 10 s; el `collision_monitor` frena al 40 % y `approach` baja más la
 velocidad junto a un obstáculo, así que salta `Failed to make progress` con el robot
@@ -478,6 +491,9 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | Plano de barrido del LIDAR | **17.45 cm** del suelo — por debajo, el robot no ve nada | URDF |
 | Nav2 a 0.40 m/s | meseta **0.407 m/s** en 0.9 s · error de objetivo **8 cm** | 2026-07-31 |
 | Rodeando un obstáculo | desvío **26–32 cm**, error **8–9 cm**, 4 de 4 SUCCEEDED | 2026-07-31 |
+| **Tamaño del robot** | **18 cm** frente-atrás × **22 cm** lado-lado, con orugas | 2026-07-31 |
+| Radio circunscrito | **0.142 m** → `robot_radius: 0.145` | derivado de lo anterior |
+| Paso mínimo con `radius: 0.18` | **no cruza 40 cm** — necesita ~36 cm + margen | 2026-07-31 |
 | **Deriva de SLAM** | mediana **1.0 cm** (1.6 m de recorrido) y **2.7 cm** (2.4 m); peor caso 3.2 cm, n=6 | 2026-07-31 |
 | CPU de `slam_toolbox` | **4.5 %** de un núcleo, 49 MB | 2026-07-30, async |
 | Todo a la vez (driver+LIDAR+RSP+SLAM) | **~24 %** de un núcleo, ~200 MB, loadavg 0.62, 62.3 °C, `throttled=0x0` | 2026-07-30 |

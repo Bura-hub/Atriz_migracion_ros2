@@ -1,4 +1,31 @@
 ═══════════════════════════════════════════════════════════════════════════════
+🔴 CORRECCION POSTERIOR — LEER ANTES QUE NADA
+═══════════════════════════════════════════════════════════════════════════════
+Los "huecos reales" de este fichero se calcularon como `distancia_LIDAR − 0.109`,
+con la media longitud que daba el URDF. El 2026-07-31 el usuario MIDIO el robot
+—18 cm de frente a atras, 22 de lado a lado, con orugas— y resulto que el URDF
+tenia largo y ancho CRUZADOS. La media longitud real es 0.09.
+
+  TODOS LOS HUECOS DE ESTE FICHERO SALEN 2 cm CORTOS:
+
+      prueba                          aqui pone   ES EN REALIDAD
+      radius 0.11 · pared 0.25 m/s      1.1 cm       3.0 cm
+      radius 0.18 · pared 0.25 m/s      8.0 cm       9.9 cm
+      radius 0.18 · pared 0.40 m/s      9.0 cm      10.9 cm
+
+  ✅ El MODELO no se cae, solo cambia la constante:
+       hueco ≈ radius − media longitud + ~1 cm
+     y las conclusiones (approach es asintotico al contacto, la holgura sale de
+     inflar el circulo, no queda atrapado, sin LIDAR no conduce) siguen valiendo
+     todas.
+
+  📝 Los numeros de arriba estan RECALCULADOS, no vueltos a medir.
+
+  Detalle completo en `19_paso_estrecho.txt`, seccion 4.
+═══════════════════════════════════════════════════════════════════════════════
+
+
+═══════════════════════════════════════════════════════════════════════════════
 COLLISION_MONITOR — la capa de seguridad, medida contra una pared
 Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
 ═══════════════════════════════════════════════════════════════════════════════

@@ -51,9 +51,19 @@ a 0.25. La capa de seguridad solo se activó cuatro veces y ninguna fue una para
 medio del camino: **todas `SUCCEEDED`, todas por la derecha, 8–9 cm de error** — el mismo que
 sin obstáculo. Manual, **cap. 11.13**.
 
-**Lo siguiente es un paso estrecho de verdad**, cerca de los 36 cm mínimos que exige el
-monitor: aquí había 63 cm de holgura. Y un obstáculo que aparezca **durante** la navegación,
-porque todo lo probado estaba puesto antes de arrancar.
+🔴 **Y el paso estrecho dio el límite: con `radius: 0.18` NO cruza 40 cm.** El robot entró en
+la boca, con el camino despejado delante y sin tocar nada, y se bloqueó — el borde estaba a
+17 cm y su círculo mide 18. Salió marcha atrás sin problema. No es un fallo: es el compromiso
+`parar lejos de las paredes` ↔ `cruzar huecos estrechos`, ahora medido.
+
+🔴 **Y por el camino salió que el URDF tenía largo y ancho CRUZADOS.** El robot mide **18 × 22
+cm** (medido con orugas), no 21.8 × 18.5. Los huecos publicados salían 2 cm cortos —corregidos—
+y **`robot_radius: 0.11` estaba mal**: el circunscrito real es 0.142. Corregido a 0.145.
+
+**Lo siguiente es medir el robot en condiciones**:
+[`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md). Lo urgente es `laser_z` —hoy
+**derivado** de dos fichas de fabricante— y **si el LIDAR está nivelado**, que es la mejor
+pista sobre la inclinación de ~8°.
 
 ---
 
@@ -265,11 +275,31 @@ Relajado a 0.25 m en 15 s; tras el cambio, **cero abortos en cuatro navegaciones
 cada 3 (0, **255**, 0); `map_saver_cli` con `save_map_timeout:=10.0` funciona. Confirma que era
 una carrera contra el `map_update_interval: 5.0`.
 
-### 1. ⏳ Un paso estrecho de verdad — es lo siguiente
+### ✅ Hecho: el paso de 40 cm, y las cotas corregidas
 
-El monitor trata al robot como un disco de 36 cm. Aquí pasó con **63 cm** de holgura: no se ha
-probado el caso apretado. Y todo lo probado estaba puesto **antes** de arrancar — falta un
-obstáculo que aparezca **durante** la navegación.
+Con `radius: 0.18` **no cruza**. Y el compromiso queda cuantificado:
+
+| `radius` | para a | pasillo mínimo |
+|---|---|---|
+| 0.14 | 5 cm | 28 cm |
+| **0.18** | **9 cm** | **36 cm** ← el actual |
+| 0.20 | 11 cm | 40 cm |
+
+Para 16 robots en un laboratorio remoto **donde nadie puede levantarlos**, parar a 9–11 cm de
+las paredes vale más que cruzar huecos de 40 cm — pero es una **decisión de laboratorio**.
+
+**Corregido:** URDF a 18 × 22 cm y `robot_radius` 0.11 → **0.145**. Ningún frame TF se mueve.
+
+⚠️ **Retirado:** intenté medir el mismo paso con `radius: 0.15` para dar la curva completa, y
+el buscador eligió **otro hueco** (33.9 cm, a −61.5° de rumbo). Cruzó *un* hueco, no *el*
+hueco. No cuenta.
+
+### 1. ⏳ Medir el robot en condiciones — es lo siguiente
+
+[`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md) lista las cotas y qué rompe
+cada una. Con `laser_z` y la nivelación del LIDAR medidas, toca **repetir las paradas contra
+pared** (los huecos de hoy están recalculados, no vueltos a medir) y el **barrido de `radius`**
+contra un mismo paso.
 
 ### 2. 🔴 La inclinación de ~8°, confirmada por TRES vías
 
