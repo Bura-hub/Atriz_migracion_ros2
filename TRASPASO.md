@@ -33,8 +33,13 @@ sensores del RVR siempre estuvieron bien —`Velocity` es exacto, el locator aci
 dirección de avance coincide con él (**+0.03°**), y `odom.twist.linear` da la velocidad en el
 marco del robot con un **2 % de error** mire donde mire (`15_velocidad_odom.txt`).
 
-🟡 **Nav2 está instalado, medido y configurado — pero SIN PROBAR contra el robot.** Manual,
-**cap. 11**. Lo siguiente es exactamente eso: arrancarlo y mandarle un objetivo.
+✅ **Y Nav2 NAVEGA.** Dos objetivos autónomos completados con **9–10 cm de error final**, que
+es la tolerancia configurada. Coste: ~89 % de **un** núcleo con todo el stack, `loadavg` 2.53
+sobre 4, sin throttling. Manual, **cap. 11**.
+
+**Lo siguiente es el `collision_monitor`** — la capa de seguridad. Ahora que se ha visto navegar
+al robot, sus umbrales se pueden elegir con criterio, y **hace falta antes de dejar esto con
+estudiantes**.
 
 ---
 
@@ -157,20 +162,31 @@ parásito**, dice «Finished», y el cambio **nunca llega al sistema**. Pasó do
   TurtleBot es **el doble** del real, y con él el robot se negaría a pasar por huecos por los
   que cabe.
 
-### 1. ⏳ Probar Nav2 — es lo siguiente
+### ✅ Hecho: Nav2 navega
 
-```bash
-ros2 launch atriz_rvr_bringup robot.launch.py    # terminal 1
-ros2 launch atriz_rvr_bringup slam.launch.py     # terminal 2
-ros2 launch atriz_rvr_bringup nav2.launch.py     # terminal 3
-```
+| | Desde | Hasta | Resultado | Error |
+|---|---|---|---|---|
+| ida | (0.00, 0.00) | (1.00, −0.03) | **SUCCEEDED** | **10 cm** |
+| vuelta | (0.90, 0.00) | (0.00, 0.00) | **SUCCEEDED** | **9 cm** |
 
-🔴 **Antes de mandar ningún objetivo**, comprobar que los cinco nodos llegan a `active [3]` y
-que `/scan` tiene **dos** suscriptores en BEST_EFFORT. Si el QoS no emparejara, el costmap se
-quedaría vacío **sin dar error** y el robot navegaría creyendo que no hay nada delante.
+✅ El riesgo del QoS de `/scan` era **infundado**: tres suscriptores, todos BEST_EFFORT, y los
+costmaps ven obstáculos de verdad (905 y 1983 celdas ocupadas).
 
-⚠️ Necesita el pasillo despejado y alguien mirando: el robot se moverá solo hasta 0.25 m/s y
-**no tiene evitación reactiva** — el `collision_monitor` aún no está configurado.
+🔴 **El primer objetivo abortó**, y no era la configuración: `Lookup would require extrapolation
+into the future` en `odom → map`. Se comprobó antes de tocar nada — tolerancias puestas,
+`use_sim_time` coherente, y `map → odom` a 50.0 Hz con **cero** huecos > 200 ms. Era el buffer
+TF del controlador, aún sin llenar con los nodos recién arrancados. ⚠️ **Da unos segundos entre
+activar Nav2 y el primer objetivo.**
+
+### 1. ⏳ El `collision_monitor` — es lo siguiente
+
+Es la capa de seguridad que para el robot ante un obstáculo cercano, independientemente del
+costmap. **Hace falta antes de dejar esto en manos de estudiantes**, y ahora sus umbrales se
+pueden elegir con criterio porque ya se ha visto navegar al robot.
+
+Después: subir `desired_linear_vel` de 0.25 a **0.40** (el robot llega, medido), y **probar con
+obstáculos de por medio** — las dos navegaciones fueron en línea recta por un pasillo
+despejado, así que se ha probado que **llega**, no que **rodee**.
 
 ### 2. 🔴 La inclinación de ~8°, confirmada por TRES vías
 

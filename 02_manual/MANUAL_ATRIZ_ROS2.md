@@ -2320,9 +2320,8 @@ ls -d ~/atriz_ws/src/*/build 2>/dev/null && echo "🔴 workspace parásito: bór
 
 ## Capítulo 11 — Nav2 (Fase 4b)
 
-🟡 **PARCIAL** — instalado, medido y configurado el 2026-07-31. **La navegación en sí
-todavía NO se ha probado contra el robot.** Todo lo que aparece con un número está medido;
-lo que falta está marcado ⏳.
+✅ **VERIFICADO el 2026-07-31 — el robot navega solo.** Dos objetivos autónomos completados,
+9–10 cm de error final. Lo que queda abierto está marcado ⏳ en el 11.7.
 
 Evidencia: `00_auditoria/evidencia_24_04/16_nav2_preparacion.txt`.
 
@@ -2429,7 +2428,7 @@ entero y `map → odom`.
 `unconfigured`, vivos y sin hacer nada. Lo gestiona el `lifecycle_manager`, y **el orden
 importa** — los costmaps deben estar activos antes que el controlador que los lee.
 
-### 11.6 ⏳ Verificar ANTES de mandar un objetivo
+### 11.6 Verificar ANTES de mandar un objetivo
 
 ```bash
 ros2 lifecycle get /controller_server    # active [3]
@@ -2454,16 +2453,80 @@ ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
 costmap: el `collision_monitor` todavía no está configurado. Espacio despejado y alguien
 mirando.
 
-### 11.7 ⏳ Lo que queda
+### 11.7 ✅ Verificado: el robot navega
 
-- **Probar la navegación.** Nada de este capítulo se ha ejecutado contra el robot.
-- **`collision_monitor`** — la capa de seguridad. Hace falta **antes** de dejar esto en manos
-  de estudiantes, pero configurar sus umbrales sin haber visto navegar al robot sería adivinar.
-- **Fase 4c: `map_server` + AMCL.** Hoy Nav2 se apoya en `slam_toolbox`. Meter AMCL ahora
-  pondría **dos nodos publicando `map → odom`**, y eso parte el árbol TF sin dar error — el
-  fallo que costó la Fase 4.
-- 🔴 La **inclinación de ~8°**, que sigue sin causa determinada. No bloquea SLAM (2.7 cm de
-  deriva) pero por REP-105 `odom → base_footprint` debería ser plana.
+**Primera navegación autónoma del proyecto**, y repetible:
+
+| | Desde | Hasta | Resultado | Error final |
+|---|---|---|---|---|
+| ida | (0.00, 0.00) | (1.00, −0.03) | **SUCCEEDED** | **10 cm** |
+| vuelta | (0.90, 0.00) | (0.00, 0.00) | **SUCCEEDED** | **9 cm** |
+
+El error coincide con la `xy_goal_tolerance: 0.10` configurada — no es casualidad: el
+controlador para al entrar en tolerancia.
+
+📝 En la ida, la distancia restante subió una vez (0.39 → 0.52). Es una **replanificación**,
+no un fallo.
+
+✅ **Y el riesgo del QoS de `/scan` era infundado**: `/scan` acabó con **tres** suscriptores
+—`slam_toolbox`, `local_costmap` y `global_costmap`— todos en BEST_EFFORT. Nav2 usa el perfil
+de datos de sensor, que empareja con el driver. Comprobado además que los costmaps **ven
+obstáculos de verdad**: 905 celdas ocupadas en el local, 1983 en el global.
+
+### 11.8 🔴 El primer objetivo abortó — y no era la configuración
+
+```
+[controller_server] [ERROR] [RPPPathHandler]: Exception in transformPose:
+  Lookup would require extrapolation into the future … from frame [odom] to frame [map]
+[controller_server] Unable to transform robot pose into global plan's frame
+[bt_navigator] Goal failed
+```
+
+Antes de tocar nada se comprobó, en vez de suponer:
+
+| Sospecha | Medido |
+|---|---|
+| ¿faltan tolerancias? | RPP **0.2**, costmaps **0.3** — puestas |
+| ¿`use_sim_time` incoherente? | **False** en los cinco nodos, en SLAM y en el driver |
+| ¿`map → odom` con huecos? | **50.0 Hz**, mediana 20.0 ms, **máximo 25 ms**, cero huecos > 200 ms |
+
+**Era transitorio**: el buffer TF del controlador aún no se había llenado, con los nodos recién
+arrancados. El segundo objetivo, idéntico, funcionó.
+
+⚠️ **Consecuencia práctica: da unos segundos entre activar Nav2 y mandar el primer objetivo.**
+Un `ABORTED` inmediato tras arrancar **no** significa que la configuración esté mal.
+
+### 11.9 Coste en el Pi 4, con todo corriendo
+
+| Proceso | CPU | RSS |
+|---|---|---|
+| `rvr_driver_node` | 19.7 % | 89.5 MB |
+| `bt_navigator` | 14.4 % | 71.3 MB |
+| `controller_server` | 13.1 % | 53.7 MB |
+| `behavior_server` | 11.7 % | 49.2 MB |
+| `planner_server` | 11.4 % | 53.5 MB |
+| `velocity_smoother` | 7.0 % | 35.7 MB |
+| `async_slam_toolbox_node` | 6.9 % | 53.5 MB |
+| `ydlidar_ros2_driver_node` | 3.5 % | 34.5 MB |
+| `robot_state_publisher` | 1.1 % | 35.7 MB |
+| **total** | **~89 %** de un núcleo | **~477 MB** |
+
+`loadavg` 2.53 sobre 4 núcleos · **58.9 °C** · `throttled=0x0` · RAM 1.5 GB de 7.6.
+
+**Nav2 solo son ~58 % de un núcleo**: es la pieza más pesada con diferencia, como se preveía.
+Pero el Pi 4 aguanta sin throttling y **queda margen para `rosbridge`**.
+
+### 11.10 ⏳ Lo que queda
+
+- **`collision_monitor`.** Ahora que se ha visto navegar al robot, sus umbrales se pueden
+  elegir con criterio. **Hace falta antes de dejar esto con estudiantes.**
+- **Subir `desired_linear_vel` de 0.25 a 0.40.** El robot llega (medido) y ha navegado sin
+  incidentes. Mejor con el `collision_monitor` ya puesto.
+- **Probar con obstáculos de por medio.** Las dos navegaciones fueron en línea recta por un
+  pasillo despejado: se ha probado que **llega**, no que **rodee**.
+- **Fase 4c: `map_server` + AMCL** — mapear una vez y localizar en los 16 robots, en lugar de
+  16 SLAM simultáneos. El `.pgm`/`.yaml` ya se genera.
+- 🔴 La **inclinación de ~8°**, sin causa determinada.
 
 ---
 

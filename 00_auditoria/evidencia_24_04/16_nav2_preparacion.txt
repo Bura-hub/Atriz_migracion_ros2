@@ -6,8 +6,8 @@ Manual, cap. 11. Configuracion en Atriz_rvr:
   atriz_rvr_bringup/config/nav2_atriz.yaml
   atriz_rvr_bringup/launch/nav2.launch.py
 
-⏳ ESTADO: instalado y configurado. **SIN PROBAR CONTRA EL ROBOT TODAVIA.**
-   Lo que sigue esta MEDIDO; la navegacion en si, no.
+✅ ESTADO: instalado, configurado y **NAVEGANDO**. Dos objetivos autonomos
+   completados con exito, 9-10 cm de error final. Detalle al final del fichero.
 
 
 ───────────────────────────────────────────────────────────────────────────────
@@ -156,7 +156,7 @@ Manual, cap. 11. Configuracion en Atriz_rvr:
 
 
 ───────────────────────────────────────────────────────────────────────────────
-5. ⏳ LO QUE FALTA POR PROBAR
+5. LAS COMPROBACIONES PREVIAS — hacerlas SIEMPRE antes de un objetivo
 ───────────────────────────────────────────────────────────────────────────────
   ANTES de mandar ningun objetivo:
 
@@ -177,3 +177,112 @@ Manual, cap. 11. Configuracion en Atriz_rvr:
 
   ⚠️ El robot se movera solo hasta 0.25 m/s y NO tiene evitacion reactiva.
      Espacio despejado, y alguien mirando.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ NAV2 NAVEGA — verificado el 2026-07-31
+═══════════════════════════════════════════════════════════════════════════════
+Primera navegacion autonoma del proyecto.
+
+── ANTES DE MANDAR NADA, las tres comprobaciones ──
+
+  1. Los cinco nodos en active [3]:
+       controller_server · planner_server · behavior_server
+       bt_navigator · velocity_smoother
+
+  2. El QoS de /scan — TRES suscriptores, todos BEST_EFFORT:
+       ydlidar_ros2_driver_node (publicador)
+       slam_toolbox · local_costmap · global_costmap
+     -> el riesgo del cap. 11.6 era infundado: Nav2 usa el perfil de datos de
+        sensor, que empareja con el driver.
+
+  3. Los costmaps VEN obstaculos (no basta con que esten suscritos):
+       local_costmap    60x60 a 5 cm = 3.0 x 3.0 m
+                        ocupado 905 · inflado 776 · libre 1919
+       global_costmap  148x139 a 5 cm = 7.4 x 7.0 m
+                        ocupado 1983 · inflado 859 · libre 1849
+
+── LAS DOS NAVEGACIONES ──
+
+  IDA:     desde (0.00, 0.00) hasta (1.00, -0.03)
+           quedan 1.02 -> 0.89 -> 0.77 -> 0.64 -> 0.52 -> 0.39 -> 0.52 -> 0.42
+                  -> 0.29 -> 0.14
+           resultado SUCCEEDED · recorrido 90 cm · error final 10 cm
+
+  VUELTA:  desde (0.90, 0.00) hasta el origen (0.00, 0.00)
+           quedan 0.89 -> 0.74 -> 0.59 -> 0.42 -> 0.27 -> 0.09
+           resultado SUCCEEDED · error final 9 cm
+
+  -> REPETIBLE, y el error final coincide con la `xy_goal_tolerance: 0.10`
+     configurada. No es casualidad: el controlador para cuando entra en
+     tolerancia.
+
+  📝 El salto 0.39 -> 0.52 de la ida es una replanificacion, no un fallo: el
+     planificador global recalcula y la distancia restante sube un poco.
+
+── 🔴 EL PRIMER OBJETIVO ABORTO — y la causa importa ──
+
+  [controller_server] [ERROR] [RPPPathHandler]: Exception in transformPose:
+    Lookup would require extrapolation into the future. Requested time
+    ...475.981145 but the latest data is at ...475.966602, when looking up
+    transform from frame [odom] to frame [map]
+  [controller_server] Unable to transform robot pose into global plan's frame
+  [bt_navigator] Goal failed
+
+  Se comprobo, en vez de suponer:
+    · transform_tolerance en ejecucion: RPP 0.2 · costmaps 0.3  -> puestas
+    · use_sim_time: False en los cinco nodos + slam + driver  -> coherente
+    · map->odom: 1001 mensajes en 20 s = 50.0 Hz, mediana 20.0 ms,
+      MAXIMO 25 ms, huecos > 200 ms: 0  -> sin huecos
+
+  -> Era TRANSITORIO: el buffer TF del controlador aun no se habia llenado con
+     los nodos recien arrancados. El SEGUNDO objetivo, identico, funciono.
+
+  ⚠️ CONSECUENCIA PRACTICA: **dar unos segundos entre activar Nav2 y mandar el
+     primer objetivo.** Un `ABORTED` inmediato tras arrancar no significa que la
+     configuracion este mal.
+
+── COSTE EN EL PI 4, con TODO corriendo ──
+
+    rvr_driver_node            19.7 %    89.5 MB
+    bt_navigator               14.4 %    71.3 MB
+    controller_server          13.1 %    53.7 MB
+    behavior_server            11.7 %    49.2 MB
+    planner_server             11.4 %    53.5 MB
+    velocity_smoother           7.0 %    35.7 MB
+    async_slam_toolbox_node     6.9 %    53.5 MB
+    ydlidar_ros2_driver_node    3.5 %    34.5 MB
+    robot_state_publisher       1.1 %    35.7 MB
+                             ~89 %      ~477 MB
+
+    loadavg 2.53 / 3.07 / 1.86  (Pi 4 = 4 nucleos)
+    temp 58.9 °C · throttled=0x0 · RAM 1.5 GB de 7.6
+
+  -> Nav2 solo son ~58 % de un nucleo: es la pieza mas pesada con diferencia,
+     como se preveia. Pero con loadavg 2.53 sobre 4 nucleos y sin throttling,
+     el Pi 4 aguanta. Queda margen para rosbridge.
+
+── MAPA GUARDADO ──
+    mapas/mapa_nav2_navegado.pgm    20726 bytes
+    mapas/mapa_nav2_navegado.yaml     140 bytes
+
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+⏳ `collision_monitor` — la capa de seguridad. Ahora YA se ha visto navegar al
+   robot, asi que se pueden elegir sus umbrales con criterio. Hace falta ANTES
+   de dejar esto con estudiantes.
+
+⏳ Subir `desired_linear_vel` de 0.25 a 0.40. El robot llega (medido, meseta al
+   100 %) y ha navegado sin incidentes. Conviene hacerlo con el
+   collision_monitor ya puesto.
+
+⏳ Fase 4c: `map_server` + AMCL, para mapear UNA vez y localizar en los 16
+   robots en vez de 16 SLAM simultaneos. El .pgm/.yaml ya se genera.
+
+⏳ Probar con OBSTACULOS de por medio. Las dos navegaciones fueron en linea
+   recta por un pasillo despejado: se ha probado que el robot llega, NO que
+   rodee nada.
+
+🔴 La inclinacion de ~8°, sin causa determinada.

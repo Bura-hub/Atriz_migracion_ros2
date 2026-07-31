@@ -4,6 +4,74 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — ✅ Nav2 NAVEGA: primera navegación autónoma
+
+**El robot llega solo a un punto del mapa.** Dos objetivos completados, ida y vuelta:
+
+| | Desde | Hasta | Resultado | Error final |
+|---|---|---|---|---|
+| ida | (0.00, 0.00) | (1.00, −0.03) | **SUCCEEDED** | **10 cm** |
+| vuelta | (0.90, 0.00) | (0.00, 0.00) | **SUCCEEDED** | **9 cm** |
+
+El error coincide con la `xy_goal_tolerance: 0.10` configurada — el controlador para al entrar
+en tolerancia, así que **no es casualidad**.
+
+### El riesgo del QoS de `/scan` era infundado
+
+Se avisaba en el cap. 11.6 de que un desemparejamiento BEST_EFFORT/RELIABLE dejaría el costmap
+**vacío sin dar error**. Comprobado: `/scan` acabó con **tres** suscriptores —`slam_toolbox`,
+`local_costmap` y `global_costmap`— todos BEST_EFFORT. Nav2 usa el perfil de datos de sensor,
+que empareja con el driver.
+
+Y no basta con que estén suscritos: se verificó que los costmaps **ven obstáculos de verdad**
+— 905 celdas ocupadas en el local (60×60), 1983 en el global (148×139).
+
+### 🔴 El primer objetivo abortó, y no era la configuración
+
+```
+[controller_server] [ERROR] [RPPPathHandler]: Exception in transformPose:
+  Lookup would require extrapolation into the future … from frame [odom] to frame [map]
+```
+
+Antes de tocar nada se midió, en vez de suponer (regla nº4):
+
+| Sospecha | Medido |
+|---|---|
+| ¿faltan tolerancias? | RPP **0.2**, costmaps **0.3** — puestas |
+| ¿`use_sim_time` incoherente? | **False** en los cinco nodos, en SLAM y en el driver |
+| ¿`map → odom` con huecos? | **50.0 Hz**, mediana 20.0 ms, **máximo 25 ms**, cero huecos > 200 ms |
+
+**Era transitorio**: el buffer TF del controlador aún no se había llenado con los nodos recién
+arrancados. El segundo objetivo, idéntico, funcionó.
+
+⚠️ **Consecuencia práctica: dar unos segundos entre activar Nav2 y mandar el primer objetivo.**
+Un `ABORTED` inmediato tras arrancar **no** significa que la configuración esté mal. Queda en
+el manual (11.8) porque es exactamente el tipo de falso positivo que hace perder una tarde.
+
+### El Pi 4 aguanta el stack entero
+
+~**89 %** de un núcleo y ~477 MB entre los nueve procesos (driver 19.7 %, `bt_navigator`
+14.4 %, `controller_server` 13.1 %…). `loadavg` **2.53** sobre 4 núcleos, **58.9 °C**,
+`throttled=0x0`, RAM 1.5 GB de 7.6.
+
+**Nav2 solo son ~58 % de un núcleo**: es la pieza más pesada con diferencia, como se preveía —
+pero **queda margen para `rosbridge`** en la Fase 5.
+
+### Lo que esto NO prueba
+
+Las dos navegaciones fueron **en línea recta por un pasillo despejado**. Se ha probado que el
+robot **llega**; no que **rodee** un obstáculo. Eso queda pendiente, junto con el
+`collision_monitor` —la capa de seguridad, necesaria antes de dejar esto con estudiantes— y
+subir `desired_linear_vel` de 0.25 a 0.40 (el robot llega a 0.40, ya medido).
+
+Mapa guardado: `mapas/mapa_nav2_navegado.pgm` (20726 bytes).
+
+**Ficheros:** `00_auditoria/evidencia_24_04/16_nav2_preparacion.txt` (sección final),
+manual cap. 11.7–11.10, `TRASPASO.md`, `INSTALACION.md` (F7 ✅ → F8 = `collision_monitor`),
+`CLAUDE.md` (valores de referencia).
+
+---
+
 ## 2026-07-31 (parte 7) — Nav2 instalado, y otra retractación mía
 
 ### Nav2: `navigation2`, NO `nav2-bringup`
