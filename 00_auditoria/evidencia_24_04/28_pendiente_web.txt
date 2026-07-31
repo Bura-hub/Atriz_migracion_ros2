@@ -89,3 +89,79 @@ Fase 5 no tenga que reconstruirlo.
 
   ⚠️ Y rotarla no basta: hay que quitarla del HISTORIAL de git, no solo del
      ultimo commit. Mientras siga en el historial, sigue publica.
+
+═══════════════════════════════════════════════════════════════════════════════
+AMPLIACION 2026-07-31 (tarde) — TRES COSAS NUEVAS, Y UNA CORRECCION
+═══════════════════════════════════════════════════════════════════════════════
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 CORRECCION: la parada de emergencia SI corta Nav2 desde hoy
+───────────────────────────────────────────────────────────────────────────────
+  Mas arriba en este fichero se dice que la parada «no corta lo que venga de
+  Nav2». **Ya no es cierto.**
+
+  El nodo `cancelar_nav2` (lo arranca `nav2.launch.py`) cancela los objetivos al
+  pulsarla. Y el agujero real no era el que se creia: la parada SI paraba el
+  robot —el driver descarta todo cmd_vel—, pero **al LIBERARLA el robot arrancaba
+  solo**, porque el objetivo de Nav2 seguia vivo.
+
+      con cancelar_nav2:  objetivo CANCELED,  0.0 cm al liberar
+      sin el (control):   objetivo ACTIVO,   34.7 cm — arranco solo
+
+  → PARA LA WEB: soltar la parada es seguro. Pero **sigue siendo un acto
+    explicito**: `/release_emergency_stop`, nunca automatico al reconectar.
+
+
+───────────────────────────────────────────────────────────────────────────────
+🔴🔴 NUEVO Y OBLIGATORIO: LA WEB TIENE QUE ENCENDER EL BARRIDO DEL LIDAR
+───────────────────────────────────────────────────────────────────────────────
+  Desde el 2026-07-31 los robots arrancan solos al encender (`atriz-robot.service`)
+  **con el barrido del lidar PARADO**. Y sin `/scan` el `collision_monitor`
+  bloquea el movimiento: medido **0.0 cm** contra **9.9 cm** del control.
+
+  ⚠️ ESTO SIGNIFICA QUE UN ROBOT RECIEN ENCENDIDO **NO OBEDECE cmd_vel**, y desde
+     la web se vera exactamente como un robot averiado.
+
+  LO QUE HAY QUE HACER, y es de una linea:
+
+      al EMPEZAR una sesion:   llamar al servicio  /start_scan   (std_srvs/Empty)
+      al TERMINARLA:           llamar a            /stop_scan
+
+  Por que existe: el X2 gira SIEMPRE, y DTR solo elige la velocidad — 2.7 Hz en
+  reposo contra 11.8 escaneando (4.3x, medido y confirmado por oido). Si los 16
+  robots arrancaran escaneando, girarian a tope 24/7 aunque no los use nadie.
+
+  📝 `/stop_scan` NO apaga el lidar: lo deja en el mismo reposo al que llega solo.
+     Apagarlo del todo exigiria cortar los 5 V del USB, y la Pi 4 no puede.
+
+  ✅ Y la seguridad juega a favor: un robot con el barrido parado **no puede
+     moverse por accidente**, ni siquiera si a la web se le escapa un cmd_vel.
+
+
+───────────────────────────────────────────────────────────────────────────────
+📝 NUEVO: la web ya NO tiene que arrancar nada por SSH
+───────────────────────────────────────────────────────────────────────────────
+  El robot se levanta solo al encender y se recupera solo de un reinicio
+  (probado). La web solo tiene que:
+
+      1. conectar por rosbridge
+      2. /start_scan
+      3. trabajar
+      4. /stop_scan
+
+  Si el robot no responde, el diagnostico para un operador es, en este orden:
+      · ¿esta encendido?            (ping / rosbridge conecta)
+      · ¿esta el barrido encendido? (¿llega /scan?)
+      · ¿esta la parada activa?     (el driver lo dice en su log)
+
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 RECORDATORIO DE QoS, porque muerde con rosbridge
+───────────────────────────────────────────────────────────────────────────────
+  `/odom`, `/imu`, `/color` y `/scan` se publican **BEST_EFFORT**. Un suscriptor
+  con el perfil por defecto pide RELIABLE, **DDS no empareja, y no llega NADA** —
+  sin error y sin aviso en el suscriptor.
+
+  Es la trampa que ya costo tres fallos silenciosos de la parada de emergencia y
+  una comprobacion muerta dentro del verificador. Si la web «no recibe odometria»
+  y todo lo demas parece bien, **mira el QoS antes que el codigo**.

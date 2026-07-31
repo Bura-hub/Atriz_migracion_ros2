@@ -109,18 +109,29 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      F22 provision.sh y verificar_robot.sh al día                            ✅
          └── provision NUNCA instalaba navigation2 · verificador 50 -> 84
 
-     F23 Lo que queda                                                          ⏳ SIGUIENTE
-         1. Unidades systemd de arranque automático                     ← AQUÍ
+     F23 El lidar gira siempre: 2.7 Hz en reposo, 11.8 escaneando   cap. 8.4a  ✅
+         └── y por eso systemd tiene que arrancar con el barrido PARADO
+
+     F24 La parada de emergencia cancela Nav2         manual, cap. 15.4      ✅
+         └── el fallo estaba al LIBERARLA: el robot arrancaba solo
+         └── medido con control: 0.0 cm con el arreglo, 34.7 cm sin él
+
+     F25 Arranque automático con systemd              manual, cap. 17        ✅
+         └── probado con un reinicio de verdad: volvió solo, PID 711
+         └── costó CINCO fallos, ninguno visible leyendo el código
+         └── ⚠️ sin ejercitar: la espera de puertos y Restart=always
+
+     F26 Lo que queda                                                          ⏳ SIGUIENTE
+         1. La plataforma web                 plan, Fase 5                ← AQUÍ
+         2. Añadir systemd a provision.sh     al cerrar el robot de referencia
+         3. Confirmar los 0 fallos de SLAM con otra tanda (p=0.113, sugerente)
+         4. Un obstáculo que aparezca DURANTE la navegación
+         5. Clonar a los 16 robots            FLOTA.md
+         6. Rotar la credencial `sphero` y purgarla del historial  👤 usuario
+
          🔴 SUPOSICIÓN ACEPTADA: provision.sh no se ha pasado entero sobre un
             24.04 limpio (no se reflashea rvr-01). Ver evidencia 29.
-         3. Unidades systemd de arranque automático
-         4. Un obstáculo que aparezca DURANTE la navegación
          📌 aplazado: mapear el laboratorio real y pose inicial por robot
-         3. Confirmar los 0 fallos con otra tanda (p=0.113, sugerente)
-         4. Los 16 servicios y 4 topics del driver sin portar
-         5. Unidades systemd de arranque automático
-         6. Plataforma web                    plan, Fase 5
-         7. Clonar a los 16 robots            FLOTA.md
 ```
 
 > **Las etapas A a F22 están recorridas y verificadas sobre la máquina real.** Los capítulos

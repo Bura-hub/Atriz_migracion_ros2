@@ -36,6 +36,39 @@ robots de la flota, el equivalente es la **imagen dorada** — ver
 
 ---
 
+## 0-bis. Rescate rápido: el arranque automático da problemas
+
+**No hace falta reflashear nada por esto.** Desde el 2026-07-31 el robot levanta
+`atriz-robot.service` al encender, y si ese servicio se porta mal —bucle de reinicio, pelea por
+`/dev/rvr`, un `colcon build` a medias— la vuelta atrás es de un comando.
+
+```bash
+sudo systemctl disable --now atriz-robot     # para AHORA y no vuelve al reiniciar
+```
+
+🔴 **El SSH y la red NO dependen de este servicio.** Aunque el robot arranque en bucle, siempre
+puedes entrar. Es a propósito: un servicio que se lleve por delante el acceso remoto convertiría
+cada fallo en un viaje al edificio.
+
+Para quitarlo del todo, incluidos los ficheros instalados:
+
+```bash
+sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --quitar
+```
+
+Y para diagnosticar antes de rendirse:
+
+```bash
+systemctl status atriz-robot
+journalctl -u atriz-robot -b --no-pager | tail -50
+```
+
+⚠️ **Un fallo que NO es un fallo:** si el robot arranca pero **no conduce**, casi seguro es que
+el barrido del lidar está apagado a propósito y el `collision_monitor` bloquea el movimiento.
+`atriz-escaneo on` y ya. Ver [RUNBOOK](RUNBOOK.md).
+
+---
+
 ## 0. Preparar la Pi antes de apagarla
 
 **Ejecuta esto primero, en la Raspberry Pi:**

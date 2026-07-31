@@ -9,10 +9,44 @@
 
 ## Arrancar el robot
 
-**Estado actual: no hay arranque automático.** No existe ninguna unidad systemd, así que
-hay que hacerlo a mano. Se resuelve en la Fase 1 del plan (`atriz-rvr.service`).
+✅ **El robot arranca SOLO al encender.** Desde el 2026-07-31 hay `atriz-robot.service`, y está
+probado con un reinicio de verdad (manual, cap. 17). No tienes que hacer nada.
 
 ```bash
+systemctl status atriz-robot        # active (running)
+```
+
+### 🔴 Y arranca CON EL BARRIDO DEL LIDAR APAGADO, así que NO CONDUCE
+
+**No está roto.** Es a propósito: si no, el X2 giraría a 11.8 Hz de forma permanente en los 16
+robots, se usen o no. Sin `/scan` el `collision_monitor` bloquea el movimiento — medido: 0.0 cm
+con el barrido apagado contra 9.9 cm con él encendido, mismo comando.
+
+```bash
+atriz-escaneo on        # el X2 sube a 11.8 Hz y el robot ya conduce
+atriz-escaneo estado
+atriz-escaneo off       # al terminar la sesión
+```
+
+⚠️ **Si el robot «no responde a `cmd_vel`», esto es lo PRIMERO que hay que mirar.**
+📝 Los **servicios de movimiento** del driver sí funcionan con el barrido apagado: hablan al RVR
+por el puerto serie y se saltan el monitor.
+
+### Pararlo y arrancarlo a mano
+
+```bash
+sudo systemctl stop atriz-robot       # no lo deshabilita: volverá al encender
+sudo systemctl start atriz-robot
+sudo systemctl restart atriz-robot
+journalctl -u atriz-robot -f          # Ctrl-C para salir
+```
+
+### Si necesitas lanzarlo a mano (para depurar con argumentos)
+
+🔴 **Para el servicio primero**, o los dos se pelearán por `/dev/rvr`:
+
+```bash
+sudo systemctl stop atriz-robot
 source /opt/ros/jazzy/setup.bash && source ~/atriz_ws/install/setup.bash
 
 # Terminal 1 — el robot: driver del RVR + URDF + LIDAR
@@ -33,7 +67,13 @@ Argumentos útiles:
 ros2 launch atriz_rvr_bringup robot.launch.py lidar:=false          # solo el RVR
 ros2 launch atriz_rvr_bringup robot.launch.py keepalive_period:=0.0 # reproduce el sueño a propósito
 ros2 launch atriz_rvr_bringup slam.launch.py autostart:=false       # deja slam_toolbox sin activar
+ros2 launch atriz_rvr_bringup robot.launch.py color_detection:=true # enciende el LED del sensor de color
+ros2 launch atriz_rvr_bringup robot.launch.py publicar_inclinacion:=true  # /odom con el pitch de 6.9°
 ```
+
+📝 `color_detection` y `publicar_inclinacion` van a **false** por defecto, y por buenas razones:
+el primero deja un LED blanco encendido bajo el chasis, y el segundo publica una inclinación que
+es un artefacto del acelerómetro descalibrado, no del robot (manual, cap. 13 y 16).
 
 ### Antes de arrancar, dos comprobaciones de 5 segundos
 
@@ -99,7 +139,9 @@ bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
 ## Parar
 
 ```bash
-# Parada normal: Ctrl+C en cada launch.
+sudo systemctl stop atriz-robot     # lo normal desde el 2026-07-31
+
+# Si lo lanzaste a mano: Ctrl+C en cada launch.
 # Si quedan procesos colgados, por PID:
 kill -INT $(pgrep -f "[r]os2 launch atriz_rvr_bringup")
 sleep 3
@@ -118,6 +160,14 @@ pgrep -af "[r]vr_driver_node|[y]dlidar_ros2_driver_node|async_slam_toolbox_node"
 
 **Cuando termines de trabajar, para los nodos.** Con el driver activo el RVR permanece
 despierto y consume batería — y ahora además el keepalive lo mantiene despierto a propósito.
+
+⚠️ **`stop` NO deshabilita el servicio**: volverá solo en el próximo arranque, que es lo que
+queremos. Para que deje de hacerlo —solo si algo va mal— hace falta
+`sudo systemctl disable --now atriz-robot`.
+
+📝 Y si solo quieres bajar el consumo sin apagar el robot, **`atriz-escaneo off`** deja el X2 en
+2.7 Hz en vez de 11.8. No lo apaga: el láser y la electrónica siguen alimentados mientras haya
+5 V en el USB, y la Pi 4 no puede cortarlos (manual, cap. 8.4a).
 
 ---
 
@@ -227,6 +277,22 @@ ras de suelo» no basta.
 Con `--solo-giro` el robot **no se desplaza** y basta un círculo de 50 cm — pero recuerda que
 girando el mapa no crece, así que eso no vale como prueba de SLAM.
 
+### 🔴 El robot no conduce, pero todo lo demás va — EMPIEZA POR AQUÍ
+
+Desde que hay arranque automático, **la causa nº1 es que el barrido del LIDAR está apagado**, y
+el robot no está roto: sin `/scan` el `collision_monitor` bloquea el movimiento a propósito.
+
+```bash
+atriz-escaneo estado      # ¿"apagado"?
+atriz-escaneo on          # y ya conduce
+```
+
+Medido: **0.0 cm** con el barrido apagado contra **9.9 cm** con él encendido, mismo comando por
+`/cmd_vel_raw`. Si tras encenderlo sigue sin moverse, pasa al apartado siguiente.
+
+📝 Segunda causa, si el barrido está encendido: **la parada de emergencia activa**. El log del
+driver lo dice, y los servicios de movimiento responden *«parada de emergencia ACTIVA»*.
+
 ### El robot no responde
 
 Diagnostica **de abajo hacia arriba**. El orden importa: cada paso descarta una capa.
@@ -289,24 +355,39 @@ No todos los adaptadores la exponen. **El adaptador es el primer sospechoso, no 
 
 ### La parada de emergencia
 
-🔴 **La de la plataforma web NO FUNCIONA** (confirmado 2026-07-29). Publica en
-`/rvr/emergency_stop`, un topic que no existe. Falla en silencio con `200 OK`.
+✅ **Funciona, y la de la web también** desde el 2026-07-31. Escucha los **tres** nombres, así
+que da igual cuál uses:
 
-**La que sí funciona:**
 ```bash
-rostopic pub -1 /is_emergency_stop std_msgs/Empty '{}'
-rosparam get /emergency_stop           # debe devolver: true
+ros2 topic pub --once /rvr/emergency_stop std_msgs/msg/Empty "{}"   # el que usa la web
+ros2 topic pub --once /emergency_stop     std_msgs/msg/Empty "{}"
 ```
 
-Para liberarla:
+Para liberarla — y es un acto **explícito**, a propósito:
+
 ```bash
-rosservice call /release_emergency_stop
-rosparam get /emergency_stop           # debe devolver: false
+ros2 service call /release_emergency_stop std_srvs/srv/Empty
 ```
 
-> **No hay watchdog.** Si se cae la red, el robot **sigue con el último comando**. Hasta
-> que se implemente (Fase 2), la parada física —apagar el robot— es la única defensa
-> fiable. Tenlo presente al teleoperar.
+**Qué hace exactamente:** el driver pone una bandera, llama a `drive_stop()` y a partir de ahí
+**descarta todo `cmd_vel`**. Con Nav2 mandando a 10 Hz el robot se queda quieto igualmente.
+
+🔴 **Y desde el 2026-07-31 CANCELA los objetivos de Nav2.** Antes no lo hacía, y el fallo estaba
+donde nadie miraba: `/release_emergency_stop` solo baja la bandera, así que al soltarla **el
+robot arrancaba solo** — el objetivo seguía vivo y el controlador nunca dejó de publicar. Medido:
+**34.7 cm** sin el arreglo, **0.0 cm** con él. Lo hace el nodo `cancelar_nav2`, que arranca
+`nav2.launch.py`.
+
+✅ **También para los servicios de movimiento** (`move_timed`, `raw_motors`, `move_to_pose`…):
+comprueban la bandera y se niegan con *«parada de emergencia ACTIVA: llama primero a
+/release_emergency_stop»*. Lo que esos servicios **se saltan** es el `collision_monitor` —hablan
+al RVR por el puerto serie, no publican en ningún topic—, que es un asunto distinto.
+
+**Historial, porque esta función ha fallado CUATRO veces y siempre en silencio:**
+nombre del topic (ROS 1) → namespace → QoS → y no cancelar Nav2. Manual, cap. 15.
+
+> ✅ **Y sí hay watchdog** desde la Fase 2: si dejan de llegar `cmd_vel`, el driver para los
+> motores en ~0.35 s. Este apartado decía lo contrario, y era del sistema viejo.
 
 ### El sistema va lento
 
@@ -371,8 +452,8 @@ hubo que rehacer trabajo. Es el error más caro de la sesión, y el más fácil 
 ls -l /dev/rvr /dev/ttyUSB0
 python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/raw_uart.py
 
-# Ritmo de telemetría
-python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir.py
+# Ritmo de telemetría  (medir.py era de ROS 1 y ya no arranca)
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_ritmo_ros2.py
 
 # LIDAR sin driver ROS
 python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/x2_parse.py
@@ -380,9 +461,14 @@ python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/x2_parse.py
 # Salud del SDK
 python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
 
-# Emergencia (la que funciona)
-rostopic pub -1 /is_emergency_stop std_msgs/Empty '{}'
-rosservice call /release_emergency_stop
+# El servicio del robot
+systemctl status atriz-robot
+journalctl -u atriz-robot -f
+atriz-escaneo on | off | estado
+
+# Emergencia
+ros2 topic pub --once /rvr/emergency_stop std_msgs/msg/Empty "{}"
+ros2 service call /release_emergency_stop std_srvs/srv/Empty
 
 # Estabilidad prolongada (12 min)
 python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/estabilidad.py

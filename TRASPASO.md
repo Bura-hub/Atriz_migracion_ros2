@@ -455,7 +455,14 @@ Lo que le afecta de todo lo hecho está recogido en
 reconstruirlo. En resumen:
 
 - ✅ **La parada de emergencia ya funciona sin tocar la web**: el driver escucha
-  `/rvr/emergency_stop` con el QoS que usa rosbridge. ⚠️ Pero **no corta lo que venga de Nav2**.
+  `/rvr/emergency_stop` con el QoS que usa rosbridge, y desde el 2026-07-31 **también cancela
+  los objetivos de Nav2** — antes, al *liberarla*, el robot arrancaba solo (34.7 cm medidos).
+- 🔴 **NUEVO Y OBLIGATORIO: la web tendrá que llamar a `/start_scan` al empezar una sesión.**
+  Los robots arrancan solos pero con el barrido del lidar **parado**, y sin `/scan` el
+  `collision_monitor` bloquea el movimiento. Un robot recién encendido **no obedece `cmd_vel`**,
+  y desde la web se verá igual que uno averiado.
+- 📝 La web ya **no tiene que arrancar nada por SSH**: `atriz-robot.service` lo hace, y se
+  recupera solo de un reinicio (probado).
 - La web puede usar ya **18 servicios y 5 topics**. 🔴 Con dos avisos: los servicios de
   movimiento **se saltan la capa de seguridad**, y hay que publicar en **`/cmd_vel_raw`**, no en
   `/cmd_vel`.

@@ -4,6 +4,56 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — Barrido documental: llevar lo de hoy a los sitios donde se busca
+
+Todo lo de esta sesión estaba en el manual, el CHANGELOG y las evidencias. **No estaba donde lo
+buscaría alguien que solo quiere operar el robot.** Ocho ficheros corregidos.
+
+### Lo más grave: el RUNBOOK decía cómo arrancar el robot, y ya no era así
+
+Decía *«no hay arranque automático, hay que hacerlo a mano»* y su sección de parada de
+emergencia seguía siendo de **ROS 1** (`rostopic`, `rosparam`), afirmando cosas ya arregladas.
+Reescritas las dos, más una sección nueva —**«el robot no conduce pero todo lo demás va»**— que
+es el síntoma que va a producir el nuevo diseño y que sin explicación parece una avería.
+
+### `medir.py` estaba roto y aun así se recomendaba
+
+Es de ROS 1: muere con `ModuleNotFoundError: rospy`. Seguía en `CLAUDE.md` y en el RUNBOOK como
+herramienta de diagnóstico. **Una herramienta rota que se recomienda es peor que ninguna.**
+Portada como `medir_ritmo_ros2.py`… y de paso volvió a morder lo mismo:
+
+🔴 **Mi primera versión daba 15.03 Hz mientras su propio intervalo medio decía 60.4 ms** (=16.55).
+La diferencia era el descubrimiento de DDS metido en el denominador. Con el ritmo calculado
+desde los intervalos: **16.54 Hz**. Van **tres** formas distintas de medir mal una frecuencia en
+este proyecto —`ros2 topic hz` (QoS), `spin_once` en bucle (pierde mensajes) y `mensajes/duración`
+(descubrimiento)— y las tres dan números **bajos** sobre un robot sano.
+
+### El repositorio del robot describía otro software
+
+`README.md` y `CHANGELOG.md` de `Atriz_rvr` eran **enteros de ROS 1**: catkin, `/cmd_degrees` y
+**5 servicios cuando hay 18**. Se conservan —documentan Noetic, que es la ruta de vuelta atrás—
+pero ahora lo dicen en la primera línea, y encima llevan una referencia ROS 2 con lo que de
+verdad corre. La lista de servicios se sacó **del código**, no de memoria.
+
+### Y una afirmación sobre la web que hoy dejó de ser cierta
+
+`28_pendiente_web.txt` decía que la parada de emergencia «no corta lo que venga de Nav2». Ya sí.
+Y se le añadió lo que la Fase 5 **tendrá que** implementar:
+
+🔴 **La web tendrá que llamar a `/start_scan` al empezar cada sesión.** Los robots arrancan solos
+pero con el barrido parado, y sin `/scan` el `collision_monitor` bloquea el movimiento. Un robot
+recién encendido **no obedece `cmd_vel`**, y desde la web se verá exactamente igual que uno
+averiado. Es una línea de código, pero hay que saberla.
+
+### El resto
+
+`README.md` (el estado decía que el siguiente paso era caracterizar la deriva, hecho hace
+horas), `INSTALACION.md` (la lista de pendientes repetía «systemd» **tres veces**),
+`FLOTA.md`, `RECUPERACION.md` —con un **rescate de un comando** si el arranque automático da
+problemas, y la nota de que el SSH no depende de él— y `CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — El robot se levanta solo al encender ✅
 
 La prueba que justifica que exista `atriz-robot.service`: en un laboratorio remoto nadie puede

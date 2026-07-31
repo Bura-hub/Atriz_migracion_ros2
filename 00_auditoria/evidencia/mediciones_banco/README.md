@@ -120,3 +120,20 @@ Salida completa en `estabilidad_12min_2026-07-29.txt`. Resumen:
 
 Cadencia por minuto: 997 mensajes, constante en los 12 intervalos. Ni una sola
 reconexión del UART.
+
+## Añadidas el 2026-07-31
+
+| Herramienta | Qué mide | Mueve el robot |
+|---|---|---|
+| `medir_ritmo_ros2.py` | ritmo y jitter de `/odom`, `/imu` y `/scan`. **Sustituye a `medir.py`**, que es de ROS 1 y ya no arranca | no |
+| `medir_parada_nav2.py` | si el robot **arranca solo** al liberar la parada de emergencia con Nav2 navegando | ⚠️ ~2 m |
+| `medir_sensor_color.py` | si el sensor de color sirve sin encender su luz (no sirve: 4 contra 741) | no |
+| `medir_collision_monitor.py` | dónde para de verdad la capa de seguridad | ⚠️ sí |
+| `comparar_deriva_roll.py` | deriva de SLAM con y sin el roll de la IMU | ⚠️ sí |
+| `referenciar_posicion.py` | devuelve el robot a su punto de partida entre corridas | ⚠️ sí |
+
+🔴 **`medir_ritmo_ros2.py` documenta tres formas distintas de medir mal un ritmo**, las tres
+descubiertas el mismo día y las tres dando números bajos sobre un robot sano: `ros2 topic hz`
+(QoS incompatible), `rclpy.spin_once` en bucle (pierde mensajes) y `mensajes/duración` (mete el
+descubrimiento de DDS en el denominador). Merece leerse la cabecera antes de escribir cualquier
+medida de frecuencia en este proyecto.

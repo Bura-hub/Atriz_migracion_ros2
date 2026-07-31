@@ -623,7 +623,8 @@ En `00_auditoria/evidencia/mediciones_banco/`:
 ```bash
 raw_uart.py      # ¿contesta el RVR a nivel de bytes?  <- EL MÁS ÚTIL
 x2_parse.py      # ¿funciona el LIDAR? (sin driver ROS)
-medir.py         # frecuencia y jitter de /odom e /imu
+medir_ritmo_ros2.py  # frecuencia y jitter de /odom, /imu y /scan
+#                     ⚠️ `medir.py` es de ROS 1 y YA NO ARRANCA (rospy)
 sdk_full.py 60   # ritmo del SDK con los 8 sensores
 estabilidad.py   # 12 min: huecos, pérdidas, fugas de memoria
 
@@ -649,8 +650,18 @@ fase_0_1_fix_uart.sh          # repara el UART (sudo + reinicio)
 fase_1_higiene_so.sh          # headless, governor, journal, WiFi (sudo)
 fase_0_3_respaldo.sh          # prepara la SD antes de reflashear
 fase_1_validar_sdk_py312.py   # GO/NO-GO de la migración
+fase_7_systemd.sh --id NN     # arranque automático (sudo) · --simular · --quitar
 diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 ```
+
+**✅ El robot arranca SOLO desde el 2026-07-31.** `atriz-robot.service`, probado con un reinicio
+de verdad. Dos consecuencias que cambian el día a día:
+
+- **Al arrancar NO conduce**, y no está roto: el barrido del lidar arranca **apagado** a
+  propósito y sin `/scan` el `collision_monitor` bloquea el movimiento (medido: 0.0 cm contra
+  9.9 del control). Se despierta con **`atriz-escaneo on`**.
+- **Antes de lanzar `robot.launch.py` a mano, para el servicio**: `sudo systemctl stop
+  atriz-robot`. Si no, los dos se pelean por `/dev/rvr`.
 
 ---
 
@@ -797,6 +808,8 @@ Su regla es **comprobar el efecto, no la intención**. Si añades comprobaciones
 | `preparar_tarjeta.sh --id NN` | en el **PC** | Tarjeta recién grabada: `cmdline.txt`, `config.txt`, `robot_id.txt` |
 | `provision.sh` | en el robot | De un 24.04 limpio a robot terminado. Idempotente: sirve para actualizar |
 | `verificar_robot.sh` | en el robot | Decide si el robot está listo |
+| `fase_7_systemd.sh --id NN` | en el robot | Arranque automático. ✅ Probado con un reinicio real. `provision.sh` **todavía no lo llama** |
+| `atriz-escaneo on\|off\|estado` | en el robot | Enciende/apaga el barrido del lidar. **Sin barrido el robot no conduce** |
 
 **La imagen dorada es el atajo; `provision.sh` es la verdad.** Si divergen, gana el script y se
 reconstruye la imagen. Procedimiento completo en `03_operacion/FLOTA.md`.
