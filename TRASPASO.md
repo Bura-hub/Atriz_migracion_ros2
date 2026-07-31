@@ -481,16 +481,19 @@ nada**.
 **en el robot 7 de 16**, con seis ya desplegados.
 Detalle: `00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.
 
-### 1. 🟡 Las unidades systemd — ESCRITAS, falta arrancarlas (necesita `sudo`)
+### 1. 🟡 Las unidades systemd — INSTALADAS Y ARRANCADAS, falta el reinicio
 
-Ya están en `scripts/`: `atriz-robot.service`, el envoltorio `atriz-robot.sh`, el ayudante
-`atriz-escaneo` y el instalador `fase_7_systemd.sh`. **El servicio nunca se ha arrancado**, así
-que sigue **NO VERIFICADO** de extremo a extremo.
+✅ Instalado, habilitado y **arrancado** el 2026-07-31, comprobado por efecto: `ExecStartPost`
+`status=0/SUCCESS`, `/scan` a **0.00 Hz** (barrido parado), `/odom` a **16.54 Hz** y `/cmd_vel`
+con un solo publicador.
+
+📝 **Falta el `sudo reboot`** — lo único que demuestra que un robot remoto se recupera solo, que
+es el motivo por el que existe todo esto:
 
 ```bash
-sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --simular --id 1   # en seco
-sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --id 1             # de verdad
-sudo systemctl start atriz-robot && systemctl status atriz-robot
+sudo reboot
+systemctl status atriz-robot        # debe volver a active (running) solo
+atriz-escaneo estado                # debe decir apagado
 ```
 
 ⏳ Y **`provision.sh` no lo instala todavía**: se añade **cuando se cierre el robot de

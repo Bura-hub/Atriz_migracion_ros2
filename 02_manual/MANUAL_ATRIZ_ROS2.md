@@ -3676,9 +3676,18 @@ nodo. → **Para saber si un servicio existe, usa un cliente.** La lista puede m
 
 ## Capítulo 17 — Arranque automático con systemd
 
-> 📝 **NO VERIFICADO de extremo a extremo.** Escrito el 2026-07-31. Cada pieza se probó por
-> separado —y dos fallos reales salieron de probarlas, ver 17.3—, pero el servicio **nunca se
-> ha arrancado bajo systemd**. Instalarlo requiere `sudo`.
+> ✅ **ARRANCADO Y VERIFICADO bajo systemd el 2026-07-31**, y de arrancarlo salieron **cinco**
+> fallos más (17.3). Comprobado por efecto, no por mensaje:
+>
+> ```
+> Active: active (running)
+> ExecStartPost=/usr/local/bin/atriz-escaneo off   status=0/SUCCESS  (10 s)
+> /scan    0.00 Hz   <- barrido parado, que es lo que se pedía
+> /odom   16.54 Hz   <- el robot vive, a la frecuencia de referencia
+> /cmd_vel Publisher count: 1   <- la capa de seguridad intacta
+> ```
+>
+> 📝 **Falta lo único que demuestra que un robot remoto se recupera solo: un `sudo reboot`.**
 
 ### 17.1 Por qué, y por qué no basta con un `ExecStart`
 
@@ -3808,6 +3817,8 @@ Para quitarlo: `sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --quitar`.
 
 ### 17.6 ⏳ Lo que queda abierto
 
+- **La prueba del reinicio.** `sudo reboot` y comprobar que el servicio vuelve solo. Es lo único
+  que demuestra el motivo por el que existe todo esto.
 - **`provision.sh` no lo instala todavía.** Si no se añade, la imagen dorada saldrá **sin
   arranque automático** y habrá que hacerlo robot a robot — justo lo que la imagen evita.
   Está sin hacer a propósito: mientras se desarrolla en el robot de referencia, un servicio

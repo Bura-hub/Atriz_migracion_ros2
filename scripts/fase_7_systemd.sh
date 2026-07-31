@@ -175,11 +175,24 @@ say "2/5 · ¿Hay ya un robot.launch.py corriendo a mano?"
 # 🔴 Kill por `comm` con ps, NUNCA con pkill -f: el patrón coincidiría con la
 # línea de comandos de este mismo script y mataría el shell. Pasó dos veces
 # (CLAUDE.md).
-VIVOS=$(ps -eo pid,comm | awk '$2=="rvr_driver_node"{print $1}' | tr '\n' ' ')
+# Y se descarta el driver DEL PROPIO SERVICIO: al reinstalar sobre un robot ya
+# arrancado, este aviso salía señalando al hijo de systemd como si fuera un
+# lanzamiento a mano. Un aviso que asusta sin motivo se acaba ignorando igual que
+# un fallo falso. Se distingue por el cgroup, que es de dónde cuelga de verdad.
+VIVOS=""
+for P in $(ps -eo pid,comm | awk '$2=="rvr_driver_node"{print $1}'); do
+    if grep -q 'atriz-robot\.service' "/proc/$P/cgroup" 2>/dev/null; then
+        continue
+    fi
+    VIVOS="$VIVOS $P"
+done
+VIVOS="${VIVOS# }"
 if [[ -n "$VIVOS" ]]; then
-    avis "hay un driver corriendo (PID $VIVOS)"
+    avis "hay un driver lanzado A MANO (PID $VIVOS)"
     avis "systemd NO lo tocará, pero los dos se pelearán por /dev/rvr"
     avis "páralo antes de arrancar el servicio, o reinicia la Pi"
+elif systemctl is-active --quiet atriz-robot 2>/dev/null; then
+    ok "solo corre el driver del propio servicio (se reiniciará al aplicar esto)"
 else
     ok "nada corriendo, el puerto está libre"
 fi

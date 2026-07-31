@@ -4,6 +4,52 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — systemd arrancado de verdad: cinco fallos que solo salen al ejecutar
+
+El servicio quedó instalado, habilitado y **arrancado**, y comprobado por efecto:
+
+```
+Active: active (running)
+ExecStartPost=/usr/local/bin/atriz-escaneo off   status=0/SUCCESS  (10 s)
+/scan    0.00 Hz   · barrido parado, que es lo que se pedía
+/odom   16.54 Hz   · el robot vive, a la frecuencia de referencia
+/cmd_vel Publisher count: 1   · la capa de seguridad intacta
+```
+
+### Los cinco fallos, y el patrón que los une
+
+**1 y 2 · antes de instalar** (`systemd-analyze verify` y `env -i`): `StartLimitIntervalSec` en
+`[Service]` se ignora, y los `setup.bash` de ROS no son compatibles con `set -u`.
+
+**3 · en el primer arranque real.** El mismo `set -u` **en el script hermano**, que se arregló
+en `atriz-robot.sh` y no se buscó en `atriz-escaneo.sh`. El `ExecStartPost` murió con
+`status=1/FAILURE`, el servicio quedó `active (running)` gracias al `-` de la unidad, y **el
+barrido se quedó encendido** — exactamente el estado que ese `ExecStartPost` existía para evitar.
+
+**4 y 5 · al arreglar el 3.** `ros2 topic echo /scan` se suscribe RELIABLE mientras `/scan` es
+BEST_EFFORT (decía «apagado» con el LIDAR a 8 Hz); y ni con `--qos-reliability best_effort`,
+porque con `--no-daemon` tiene que **descubrir el tipo** del topic y falla **2 de cada 3 veces**.
+Reescrito como suscriptor propio: el tipo se dice, no se descubre. 3 de 3 en los dos estados.
+
+🔴 **El patrón, que es lo que hay que llevarse:** arreglar un fallo en un fichero y **no buscarlo
+en sus hermanos**. Costó el único paso que este diseño tenía que garantizar.
+
+### Y un aviso engañoso, también corregido
+
+Al reinstalar sobre un robot ya arrancado, el paso 2/5 señalaba al driver **del propio servicio**
+como si fuera un lanzamiento a mano. Ahora se distingue por el cgroup. Un aviso que asusta sin
+motivo se acaba ignorando igual que un fallo falso.
+
+### ⏳ Falta
+
+**El `sudo reboot`** — lo único que demuestra que un robot remoto se recupera solo, que es el
+motivo por el que existe todo esto. Y añadirlo a `provision.sh` cuando se cierre el robot de
+referencia.
+
+Manual, cap. 17.
+
+---
+
 ## 2026-07-31 — La parada de emergencia, verificada con control. Y el verificador mentía tres veces
 
 ### ✅ El agujero de la parada de emergencia, tapado y demostrado
