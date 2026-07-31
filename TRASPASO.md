@@ -120,7 +120,7 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 | ~~La parada de emergencia de la web no hace nada~~ | seguridad | ✅ **resuelta 2026-07-31**. Había **tres** causas, no una: nombre, **namespace** (`/rvr/`) y **QoS** (`TRANSIENT_LOCAL` en el suscriptor no empareja con nadie). Verificada por los tres nombres, 0 avisos de QoS. Manual, cap. 15 |
 | **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — **acción del usuario**. Y no basta con rotarla: hay que quitarla del **historial** de git, no solo del último commit |
 | ~~Sin arranque automático~~ | operación | ✅ **resuelto 2026-07-31**: `atriz-robot.service`, probado con un reinicio real. Falta que `provision.sh` lo instale |
-| ~~16 de 20 servicios sin portar~~ | funcionalidad | ✅ **18 portados y probados 2026-07-31**. Quedan **2**, `ConfigureStreaming` y `StartStreaming`, ⏳ diferidos **a propósito**: pueden romper la telemetría del propio driver |
+| **La integración con el SDK NO está completa** | funcionalidad | 🔴 abierto. 18 servicios portados, pero **el driver usa 27 de los 94 métodos del SDK**. Cuatro huecos sin equivalente (`reset_odom`, `ambient_light`, recibir IR, topic `encoders`) y falta lo más valioso: **notificaciones de motor atascado y de fallo de motor**. Evidencia 34 |
 | ~~No hay watchdog de `cmd_vel`~~ | seguridad | ✅ **resuelto**: para en 527 ms / 7.9 cm |
 | ~~No hay URDF → árbol TF partido~~ | bloqueante | ✅ **resuelto**: `atriz_rvr_description` |
 | ~~Driver ROS del LIDAR no instalado~~ | bloqueante | ✅ **resuelto**: `/scan` a 10.1 Hz |

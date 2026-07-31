@@ -1,0 +1,152 @@
+═══════════════════════════════════════════════════════════════════════════════
+🔴 ¿ESTÁ TODO EL SPHERO EN ROS 2? NO. Esto es lo que falta y lo que cuesta
+Robot: rvr-01 · 2026-07-31 · para la SIGUIENTE sesión
+═══════════════════════════════════════════════════════════════════════════════
+Pregunta del usuario al cerrar el día: «la integracion con ROS 2 esta completa,
+ya tenemos disponible en ROS absolutamente todo lo que tiene el sphero?».
+
+Se comprobo en vez de darlo por bueno, y la respuesta es NO.
+Este fichero es el punto de partida de la proxima sesion.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. LOS NUMEROS
+───────────────────────────────────────────────────────────────────────────────
+  `SpheroRvrAsync` expone  **94 metodos publicos**
+  El driver usa            **27**
+                           ── 67 no llegan a ROS por ninguna via
+
+  Medido asi (reproducible):
+
+      python3 -c "import inspect; from sphero_sdk import SpheroRvrAsync; ..."
+      # y se cruza con las menciones `.metodo(` en rvr_driver_node.py
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. FRENTE AL DRIVER DE ROS 1: CASI COMPLETO, PERO NO DEL TODO
+───────────────────────────────────────────────────────────────────────────────
+  ROS 1 tenia 20 servicios y 7 topics publicados. ROS 2 tiene 18 servicios,
+  3 topics del driver + /battery_state + /scan del LIDAR.
+
+  ✅ Y CUATRO PIEZAS QUE ROS 1 NO TENIA:
+       set_leds · trigger_led_event · set_pos_and_yaw
+       y `battery_state` paso de SERVICIO a TOPIC — mejor: la web no pregunta,
+       recibe. Es ademas el latido del keepalive (cada 30 s exactos).
+
+
+  🔴 CUATRO HUECOS SIN EQUIVALENTE — esto es lo que hay que hacer:
+
+  ┌─ a) `reset_odom` (std_srvs/Empty)                    COSTE: ~30 min, sin mover
+  │
+  │  El driver llama a `reset_locator_x_and_y()` AL ARRANCAR y no hay forma de
+  │  volver a hacerlo en caliente. Para una sesion larga de laboratorio —o para
+  │  la web, que querra «poner el robot a cero» entre estudiantes— esto se va a
+  │  notar. Hoy la unica forma es reiniciar el servicio.
+  │
+  │  ⚠️ Y OJO AL IMPLEMENTARLO: `reset_locator_x_and_y()` REALINEA EL MARCO DEL
+  │     LOCATOR (CLAUDE.md, modelo de marcos). O sea que no solo pone la posicion
+  │     a cero: cambia la referencia. Hay que decidir —y medir— si tambien se
+  │     re-fija `yaw₀`, o el yaw publicado quedara descolgado de la posicion.
+  │     Es exactamente el tipo de cosa que este proyecto ya ha pagado dos veces.
+  │
+  ├─ b) topic `ambient_light` (Float32)                  COSTE: ~30 min, sin mover
+  │
+  │  El SDK tiene `get_ambient_light_sensor_value` y no se usa. El sensor esta
+  │  VERIFICADO (evidencia 10, 2026-07-30). Es añadir el sensor al streaming y
+  │  publicar.
+  │  📝 Pero comprobar antes si llega por el stream o hay que sondearlo: si es lo
+  │     segundo, compite con la telemetria por el puerto serie.
+  │
+  ├─ c) topic `infrared_messages` (InfraredMessage)      COSTE: mayor, ver abajo
+  │
+  │  🔴 SE PUEDE ENVIAR IR PERO NO RECIBIR. El tipo de mensaje **ya esta
+  │     definido** en `atriz_rvr_msgs/msg/InfraredMessage.msg` y no lo publica
+  │     nadie.
+  │  Requiere enganchar `on_robot_to_robot_infrared_message_received_notify` al
+  │  ciclo de ROS: es un callback del SDK que corre en el hilo de asyncio, no un
+  │  sondeo. Mas trabajo que (a) y (b), y con un riesgo conocido: publicar desde
+  │  ese hilo mal hecho es como se mato /odom en silencio una vez.
+  │
+  └─ d) topic `encoders` (Encoder)                       COSTE: ~20 min
+     Existe el servicio `get_encoders`, asi que HAY acceso; falta el flujo
+     continuo. Los encoders son la unica fuente que **no depende del marco de
+     referencia** (7792 ticks/m, calibrados), asi que un topic continuo tiene
+     valor para depurar la odometria.
+
+
+  📌 DIFERIDOS A PROPOSITO, cada uno con su razon MEDIDA — no volver a plantearlos:
+
+     · `configure_streaming` / `start_streaming`
+         `_registrar_sensores` ya configura el streaming. Reconfigurarlo en
+         caliente deja /odom mudo — es el mismo mecanismo por el que
+         `enable_color_detection` no hace nada una vez configurado.
+     · `enable_color` (SetBool)
+         🔴 NO PUEDE FUNCIONAR como servicio. Medido: 481 mensajes de /color,
+         todos ceros, durante la llamada. Sustituido por el parametro de launch
+         `color_detection`, que se aplica ANTES de `add_sensor_data_handler`.
+     · `cmd_degrees` (DegreesTwist)
+         `/cmd_vel` en rad/s es REP-103 y es lo que habla Nav2. Un segundo topic
+         de entrada con otras unidades es una fuente de errores.
+     · `ir_messages` (String)
+         duplicado sin tipar de `infrared_messages`.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. Y EL SDK OFRECE MUCHO MAS QUE EL DRIVER DE ROS 1 — 67 metodos sin exponer
+───────────────────────────────────────────────────────────────────────────────
+  De los 67, estos tienen uso REAL en un laboratorio remoto. Ordenados por lo
+  que aportarian:
+
+  🔴 LO MAS VALIOSO — diagnostico de fallos que hoy son invisibles:
+     · `enable_motor_stall_notify` / `on_motor_stall_notify`
+     · `enable_motor_fault_notify` / `on_motor_fault_notify`
+       → HOY UN ROBOT CON UNA ORUGA TRABADA SE VE IGUAL QUE UNO QUE NAVEGA MAL.
+         Con 16 robots en otro edificio, esa diferencia es la que decide si
+         alguien tiene que ir hasta alli.
+     · `on_will_sleep_notify` / `on_did_sleep_notify`
+       → el RVR AVISA antes de dormirse. El proyecto lo resolvio con un keepalive
+         de 30 s y un detector de silencio; con esto seria explicito.
+     · `get_motor_thermal_protection_status` + su notify
+       → proteccion termica de los motores.
+
+  📊 SENSORES QUE NO SE USAN:
+     · `get_magnetometer_reading` + `magnetometer_calibrate_to_north`
+       → un rumbo absoluto ayudaria con la deriva de yaw. ⚠️ En interiores y
+         cerca de motores el magnetometro miente: habria que MEDIRLO antes de
+         fiarse (regla 4 del proyecto).
+     · `get_temperature`
+     · `get_battery_voltage_in_volts` / `get_battery_voltage_state`
+       → mas resolucion que el porcentaje entero. Es lo que haria viable medir
+         el consumo del LIDAR (pendiente, evidencia 30).
+     · `get_ambient_light_sensor_value`  (ver 2b)
+     · `get_bot_to_bot_infrared_readings`
+
+  🎨 MENOR:
+     · paletas de color (`load/save/set/get_*_color_palette`)
+     · modos de conduccion alternativos (`drive_tank_*`, `drive_with_heading`,
+       `drive_with_yaw_*`, `drive_to_position_*`)
+       📝 `drive_with_heading` NO conviene: frena mucho peor —11.3 cm de deriva
+          contra 1.1 de `drive_rc_si_units` (medido).
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. LO QUE SI SE PUEDE AFIRMAR HOY, SIN EXAGERAR
+───────────────────────────────────────────────────────────────────────────────
+  ✅ «Todo lo que el laboratorio usaba en ROS 1 esta en ROS 2», menos los cuatro
+     huecos de la seccion 2, y con cuatro piezas nuevas.
+
+  🔴 NO se puede decir «esta todo lo que el Sphero puede hacer». Es falso: son
+     27 de 94.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. ORDEN SUGERIDO PARA LA PROXIMA SESION
+───────────────────────────────────────────────────────────────────────────────
+  1. `reset_odom`          ~30 min · sin mover el robot · lo pedira la web
+  2. notificaciones de motor atascado / fallo   ← lo de mas valor operativo
+  3. `ambient_light` y topic `encoders`         ~50 min los dos, sin mover
+  4. recibir IR                                 el mas caro, y hoy nadie lo usa
+
+  ⚠️ Los cuatro son trabajo de rclpy, NO de averiguar si el hardware responde:
+     los sensores estan verificados desde el 2026-07-30 (evidencia 10). Si un
+     port no funciona, el fallo esta en el port.

@@ -4,6 +4,64 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — «¿Está todo el Sphero en ROS?» — No: 27 de 94
+
+Pregunta del usuario al cerrar el día. Se comprobó en vez de darla por buena, y la respuesta
+cambia lo que va primero en la próxima sesión.
+
+### Los números
+
+`SpheroRvrAsync` expone **94 métodos públicos**. El driver usa **27**.
+
+### Frente al driver de ROS 1 estamos casi completos… pero no del todo
+
+Tenía 20 servicios; hay **18**, más **cuatro piezas que ROS 1 no tenía** (`set_leds`,
+`trigger_led_event`, `set_pos_and_yaw`, y `battery_state` pasó de servicio a **topic**).
+
+🔴 **Pero quedan cuatro huecos sin equivalente**, y el inventario que el propio driver llevaba
+en un comentario **no los mencionaba** — decía «16 servicios pendientes», de los que 14 se
+portaron esa misma tarde, y se quedó ahí:
+
+- **`reset_odom`** — el locator se resetea al arrancar y **no hay forma de repetirlo en
+  caliente**. La web lo va a pedir entre estudiantes. ⚠️ Y al implementarlo hay que decidir y
+  **medir** si se re-fija también `yaw₀`: `reset_locator_x_and_y()` **realinea el marco**, no
+  solo pone la posición a cero.
+- **`ambient_light`** — el SDK lo expone, el sensor está verificado, y no llega a ROS.
+- **Recibir IR** — se puede **enviar** pero no recibir, y el tipo de mensaje **ya está definido**
+  en `atriz_rvr_msgs` sin que nadie lo publique.
+- **Topic `encoders`** — hay servicio, falta el flujo continuo. Son la única fuente que no
+  depende del marco de referencia.
+
+Cuatro más están diferidos **a propósito**, cada uno con su razón medida
+(`configure_streaming`/`start_streaming`, `enable_color`, `cmd_degrees`, `ir_messages`).
+
+### 🔴 Y lo que más valor tendría no estaba ni en la lista
+
+De los 67 métodos que no llegan a ROS, los que cambian la operación de un laboratorio remoto:
+
+**`motor_stall_notify` y `motor_fault_notify`.** Hoy **un robot con una oruga trabada se ve
+exactamente igual que uno que navega mal**. Con 16 robots en otro edificio, esa diferencia es la
+que decide si alguien tiene que ir hasta allí.
+
+También: `on_will_sleep_notify` (el RVR **avisa** antes de dormirse — el proyecto lo resolvió con
+un keepalive y un detector de silencio), protección térmica de motores, magnetómetro, temperatura
+y tensión de batería en voltios (que es lo que haría viable medir el consumo del lidar, pendiente
+desde la evidencia 30).
+
+### Lo que sí se puede afirmar
+
+✅ «Todo lo que el laboratorio usaba en ROS 1 está en ROS 2», menos esos cuatro huecos y con
+cuatro piezas nuevas. 🔴 **No** «está todo lo que el Sphero puede hacer».
+
+Plan y costes en `00_auditoria/evidencia_24_04/34_que_falta_del_sphero.txt`. Los cuatro huecos son
+trabajo de **rclpy**, no de averiguar si el hardware responde: los sensores están verificados
+desde el 2026-07-30.
+
+📝 Batería al cerrar la sesión: **26 %** (45 % tras la prueba de Nav2, 34 % al cerrar la parada
+de emergencia). El servicio se dejó parado.
+
+---
+
 ## 2026-07-31 — Revisión de alineación: la documentación contra el sistema real
 
 Petición: *«revisa que todo lo realizado ahora esté alineado»*. No bastaba con releer — se

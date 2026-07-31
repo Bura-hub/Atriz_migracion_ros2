@@ -122,7 +122,10 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          └── ⚠️ sin ejercitar: la espera de puertos y Restart=always
 
      F26 Lo que queda                                                          ⏳ SIGUIENTE
-         1. La plataforma web                 plan, Fase 5                ← AQUÍ
+         0. Cerrar la integración con el SDK  evidencia 34                ← AQUÍ
+            27 de 94 métodos · 4 huecos sin equivalente · lo más valioso
+            son las notificaciones de motor atascado y fallo de motor
+         1. La plataforma web                 plan, Fase 5
          2. Añadir systemd a provision.sh     al cerrar el robot de referencia
          3. Confirmar los 0 fallos de SLAM con otra tanda (p=0.113, sugerente)
          4. Un obstáculo que aparezca DURANTE la navegación
