@@ -4,6 +4,72 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — El lidar gira siempre: qué se puede hacer y qué no
+
+Pregunta del usuario, al oír el robot: *«el lidar siempre está girando nada más encender el
+sistema. Solo va más rápido cuando se usa. ¿No se ahorraría si girara solo cuando hace falta?»*
+
+### La observación era correcta, y tiene un mecanismo
+
+**DTR no enciende el motor del X2: elige su velocidad.** Medido alternando cada 12 s sin cerrar
+el puerto entre tramos —cerrarlo reinicia las líneas de control y falsea la medida—:
+
+| línea | giro (5 tramos) | checksums |
+|---|---|---|
+| `DTR=1` | 11.86 · 11.77 · 11.85 · 11.85 · 11.76 Hz | 99.8 % |
+| `DTR=0` | 2.66 · 2.74 · 2.73 · 2.63 · 2.74 Hz | 99.8–100 % |
+
+**4.3×**, diez tramos, ninguno fuera de sitio. ✅ Y **confirmado por oído**: el usuario escuchó
+los dos minutos y reportó «cambio claro cada ~12 s». Dos vías de verdad independientes —una
+mecánica, otra el contenido de las tramas— que es lo que este proyecto aprendió a exigir tras
+el «confirmado por tres vías» que era una sola.
+
+Además aparecieron `/stop_scan` y `/start_scan`, dos servicios del driver que no estaban
+documentados aquí. Verificados en ROS (11.81 → 0.00 → 13.44 Hz) **y por oído**, que es lo que
+demuestra que frenan el motor y no solo callan el topic.
+
+### Y el usuario tenía razón en la objeción
+
+*«Entonces simplemente son los estados de cuando el robot se enciende y cuando está escaneando,
+o sea que no aporta nada.»* Exacto. **`/stop_scan` no baja de 2.7 Hz**: llega al mismo reposo al
+que llega solo el lidar cuando no hay driver. Hoy, con el robot apagándose entre sesiones, no
+hay nada que ahorrar — el salto grande ya ocurre solo. Y pararlo del todo no está en la mano del
+software: el láser y la electrónica siguen alimentados mientras haya 5 V, y la Pi 4 no puede
+cortar VBUS.
+
+### 🔴 Dónde sí importa: el arranque automático, que es lo siguiente
+
+En cuanto los 16 robots levanten `robot.launch.py` solos al encender, el lidar pasará a
+**11.8 Hz permanentes, 24/7, en los 16**. Sería *peor* que ahora, y habría llegado como efecto
+secundario de una tarea que no habla de lidares. → Las unidades systemd arrancarán con el
+escaneo **parado**. La seguridad encaja sola: sin `/scan` el `collision_monitor` no deja
+conducir, y eso ya estaba verificado.
+
+### 🔴 Una medida retirada, y la regla que deja
+
+Para saber si `/stop_scan` bajaba DTR se abrió un segundo descriptor sobre el tty y se hizo
+`TIOCMGET`: daba `DTR=1` en los dos estados → «no toca el motor». **Falso.** Al validar el
+lector poniendo `DTR=0` a propósito seguía diciendo `1`: no solo mentía, **además perturbaba el
+estado que medía**, porque `open()` sobre un tty vuelve a levantar la línea.
+
+→ **Antes de creerte un instrumento, pon el sistema en un estado que conozcas y comprueba que
+el instrumento lo ve.** Dos minutos, y evitó documentar lo contrario de lo que pasa. El eslabón
+se cerró con el oído del usuario, que no toca el puerto serie.
+
+### ⏳ Sin medir, a propósito
+
+**Cuánta corriente se ahorra entre 11.8 y 2.7 Hz: NO MEDIDO.** Serían horas de robot con
+`/battery_state` para un número que solo matiza el systemd. Decisión del usuario: documentar y
+seguir. No se estima de la ficha — la del RVR ya mintió en las tres dimensiones del robot.
+
+📝 Y un coste que no es eléctrico y puede pesar más: el X2 gira **desde que se enciende la Pi
+hasta que se apaga**, siempre. Desgaste de rodamiento continuo en 16 unidades; es el argumento
+más fuerte para un interruptor físico en los 5 V.
+
+Evidencia: `00_auditoria/evidencia_24_04/30_lidar_giro_dtr.txt` · manual, cap. 8.4a.
+
+---
+
 ## 2026-07-31 — Una suposición aceptada a propósito: `provision.sh` sin probar entero
 
 Cierre del día. `provision.sh` gana hoy la instalación de Nav2 y el verificador sube a 84

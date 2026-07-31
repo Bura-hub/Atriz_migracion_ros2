@@ -486,6 +486,16 @@ Detalle: `00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.
 En un laboratorio remoto los robots tienen que levantarse solos al arrancar. Necesita `sudo`, así
 que te lo prepararía como script exacto.
 
+🔴 **Y tiene que arrancar con el lidar PARADO.** Medido el 2026-07-31: el X2 gira siempre, a
+2.7 Hz en reposo y 11.8 Hz escaneando. Hoy se queda en 2.7 porque no hay nada corriendo; en
+cuanto los 16 robots levanten `robot.launch.py` solos, pasará a **11.8 Hz permanentes, 24/7, en
+los 16**. Sería peor que ahora, y llegaría como efecto secundario de una tarea que no habla de
+lidares.
+
+El driver ya trae `/stop_scan` y `/start_scan` (verificados, y frenan el motor de verdad), así
+que basta con arrancar parado y activar al empezar la sesión. La seguridad encaja sola: sin
+`/scan` el `collision_monitor` no deja conducir. Manual, cap. 8.4a.
+
 Todo lo de hoy —`collision_monitor`, localización con AMCL, URDF corregido,
 `publicar_inclinacion`, `color_detection`, `robot_radius`, los 18 servicios— **tiene que estar
 en el script de aprovisionamiento y en el verificador**, o la imagen dorada no lo tendrá. Es la

@@ -456,6 +456,26 @@ ls -d ~/atriz_ws/src/*/build 2>/dev/null && echo "🔴 hay workspace parásito: 
 launch corriendo entre llamadas, usa `setsid nohup … < /dev/null &` y `disown`. Sin eso el
 proceso desaparece y el diagnóstico siguiente miente.
 
+**🔴 EL X2 GIRA SIEMPRE, Y AL PONER systemd PASARÁ A GIRAR SIEMPRE **RÁPIDO**.** DTR no
+enciende el motor: elige su velocidad. Medido el 2026-07-31, diez tramos alternados y
+confirmado por oído: `DTR=1` → **11.8 Hz**, `DTR=0` → **2.7 Hz** (4.3×, checksums 99.8 % en los
+dos). Hoy el robot se queda en 2.7 porque no hay nada corriendo; **en cuanto los 16 arranquen
+`robot.launch.py` solos, será 11.8 Hz permanentes, 24/7**, se use el robot o no.
+→ El driver ya trae **`/stop_scan` y `/start_scan`** (`std_srvs/Empty`), verificados, y frenan
+  el motor de verdad — no solo callan el topic. **Las unidades systemd tienen que arrancar con
+  el escaneo parado.** La seguridad encaja sola: sin `/scan` el `collision_monitor` no deja
+  conducir.
+→ ⚠️ `/stop_scan` **no baja de 2.7 Hz**: es el mismo reposo, no un apagado. Pararlo del todo
+  exige cortar los 5 V, y la Pi 4 no puede. Manual, cap. 8.4a.
+
+**🔴 NO PUEDES LEER DTR ABRIENDO UN SEGUNDO DESCRIPTOR: EL PROPIO `open()` LA LEVANTA.** Se
+intentó comprobar con `TIOCMGET` si `/stop_scan` bajaba DTR, y daba `DTR=1` en los dos estados
+→ conclusión «no toca el motor», que era **falsa**. Al validar el lector poniendo `DTR=0` a
+propósito seguía diciendo `1`: no solo mentía, **además perturbaba el estado que medía**.
+→ **La regla, y es general: antes de creerte un instrumento, pon el sistema en un estado que
+  conozcas y comprueba que el instrumento lo ve.** Costó dos minutos y evitó documentar lo
+  contrario de lo que pasa.
+
 **El `frequency` del X2 no hace nada.** Se pide 10 Hz y gira a 10.1–11.75. Medido sin driver:
 11.48 Hz. Es de canal único y el motor va libre. **La mejora de resolución angular bajando el
 giro a 7 Hz, que propone el manual 8.3, no es alcanzable por software.**
@@ -593,6 +613,8 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | Temperatura | 55–58 °C | con el driver activo |
 | Puerto del RVR | `/dev/rvr` → `ttyAMA0` (PL011) | |
 | Puerto del LIDAR | `/dev/ydlidar` → `ttyUSB0` (CP2102, serie `0001` genérico) | regla udev por `ID_PATH` |
+| **Giro del X2 en reposo** (nada corriendo, DTR baja) | **2.7 Hz** — sigue midiendo bien | 2026-07-31, n=5 |
+| **Giro del X2 escaneando** (DTR alta) | **11.8 Hz** — 4.3× el reposo | 2026-07-31, n=5 |
 | `/scan` | **10.1 Hz**, 255 puntos, 226 válidos (89 %), resolución **1.42°** | 2026-07-30, con el driver ROS 2 |
 | Firmware del RVR | 9.1.462 (Nordic) | |
 | `/map` | **0.200 Hz** exactos (= `map_update_interval` 5 s) | 2026-07-30 |
@@ -673,6 +695,8 @@ lo que produce deriva entre documentación y realidad.
 | SLAM va en un launch **aparte** de `robot.launch.py` | el robot tiene que arrancar sin SLAM, y SLAM reiniciarse sin soltar `/dev/rvr` |
 | **`localizacion.launch.py` es EXCLUYENTE con `slam.launch.py`** y lo comprueba al arrancar | los dos publican `map → odom`; juntos parten el árbol TF sin dar error. Manual, cap. 14.2 |
 | **El driver publica la orientación PLANA** (`publicar_inclinacion: false`) | la inclinación de 6.9° del RVR es un artefacto de su acelerómetro descalibrado, no del robot: suelo plano medido con nivel y error fijo en el marco del robot. Manual, cap. 13 |
+| **Las unidades systemd arrancarán con el lidar PARADO** (`/stop_scan`) | si no, el X2 gira a 11.8 Hz 24/7 en los 16 robots en vez de a 2.7. Manual, cap. 8.4a |
+| **NO se mide ahora el consumo del lidar** entre 11.8 y 2.7 Hz | serían horas de robot con `/battery_state` para un número que solo decide un matiz del systemd. Se anota **NO MEDIDO**. Decisión del usuario, 2026-07-31 |
 | **NO se persigue el efecto del roll en la deriva** | medido ~1 cm sin significación (p=0.142). Cerrarlo costaría ~62 corridas y 5 h de robot, para 1 cm sobre una tolerancia de objetivo de 10. Decisión del usuario, 2026-07-31 |
 
 ---

@@ -436,6 +436,100 @@ El X2 alimenta su motor por la línea **DTR** del adaptador USB (de ahí el
 
 **El adaptador es el primer sospechoso, no el lidar.**
 
+### 8.4a ✅ El X2 gira SIEMPRE, a dos velocidades — **medido 2026-07-31**
+
+Pregunta del usuario: *el lidar siempre está girando nada más encender el sistema, y solo va
+más rápido cuando se usa. ¿Está bien? ¿No se ahorraría si girara solo cuando hace falta?*
+
+La observación es correcta y tiene un mecanismo. **DTR no enciende el motor: elige su
+velocidad.** Medido alternando cada 12 s sin cerrar el puerto entre tramos — cerrarlo
+reinicia las líneas de control y falsea la medida:
+
+| línea | giro (5 tramos cada una) | checksums |
+|---|---|---|
+| `DTR=1` | 11.86 · 11.77 · 11.85 · 11.85 · 11.76 Hz | 99.8 % |
+| `DTR=0` | 2.66 · 2.74 · 2.73 · 2.63 · 2.74 Hz | 99.8–100 % |
+
+**4.3×**, diez tramos, ninguno fuera de sitio. A 2.7 Hz el lidar **sigue midiendo bien**: solo
+gira más despacio, con menos resolución angular.
+
+Los dos estados que se oyen son exactamente estos:
+
+```
+sin nada corriendo   ->  puerto cerrado  ->  DTR cae  ->   2.7 Hz    (el «lento»)
+driver arrancado     ->                      DTR sube ->  11.8 Hz    (el «rápido»)
+```
+
+✅ **Confirmado por oído**, que es una vía independiente del protocolo: el usuario escuchó los
+dos minutos y reportó «cambio claro cada ~12 s». En este proyecto ya costó caro un «confirmado
+por tres vías» que era una sola vía contada tres veces (cap. 13), así que aquí importa que una
+medida sea mecánica y la otra sea el contenido de las tramas.
+
+#### `/stop_scan` y `/start_scan` existen, y frenan el motor de verdad
+
+El `ydlidar_ros2_driver_node` publica dos servicios `std_srvs/srv/Empty` que este proyecto no
+tenía documentados:
+
+```
+/stop_scan   ->  CYdLidar::turnOff()  ->  stop()  ->  stopMotor()  ->  clearDTR()
+/start_scan  ->  CYdLidar::turnOn()             ->  startMotor()  ->  setDTR()
+```
+
+```
+/scan escaneando      : 11.81 Hz
+/scan tras stop_scan  :  0.00 Hz
+/scan tras start_scan : 13.44 Hz     <- se recupera solo, sin reiniciar nada
+```
+
+✅ Y se confirmó **también por oído** que además frena el motor, no solo calla el topic:
+alternando `/stop_scan` ↔ `/start_scan` cada 12 s el usuario oyó «el mismo cambio que antes».
+Sin esa segunda pasada solo sabríamos que el topic se calla, que es mucho más débil.
+
+📝 `support_motor_dtr: true` se verificó con `ros2 param get` sobre el **nodo vivo**, no
+leyendo el YAML: es la diferencia entre comprobar el efecto y comprobar la intención.
+
+📝 Curiosidad del SDK: `ydlidar_help.h:548 isSupportMotorCtrl()` calcula un `ret` mirando el
+modelo (X4, S2, S4, S4B) y luego hace **`return true;`** ignorándolo. Es un bug, pero aquí
+juega a favor: sin él el X2 no entraría por la rama del motor.
+
+#### ⚠️ Lo que esto NO resuelve, que es la mitad de la respuesta
+
+**`/stop_scan` no baja de 2.7 Hz.** Llega exactamente al mismo reposo al que llega solo el
+lidar cuando no hay driver. No es un apagado. Así que hoy, con el robot apagándose entre
+sesiones, **no hay nada que ahorrar**: el salto grande ya ocurre solo.
+
+Y **pararlo del todo no está en la mano del software**: DTR frena el motor, pero el láser, el
+receptor y el MCU siguen alimentados mientras haya 5 V en el USB, y la Pi 4 no puede cortar
+VBUS. Haría falta un interruptor físico en la línea de 5 V, en 16 robots.
+
+#### 🔴 Dónde sí cambia la respuesta: el arranque automático con systemd
+
+Hoy el lidar se queda a 2.7 Hz porque no hay nada corriendo. **En cuanto los 16 robots arranquen
+`robot.launch.py` solos al encender, pasará a 11.8 Hz permanentes, 24/7, en los 16**, se use el
+robot o no. Sería *peor* que la situación actual, y habría llegado como efecto secundario de una
+tarea que no habla de lidares.
+
+→ **Diseño a aplicar al escribir las unidades systemd:** el robot arranca con todo levantado y
+listo para responder, pero con el escaneo **parado**, y se activa al empezar una sesión.
+
+✅ La seguridad encaja sola: ya está verificado que **sin lidar el robot no conduce** — el
+`collision_monitor` bloquea el movimiento sin `/scan` (cap. 12), así que un robot con el escaneo
+parado no puede moverse por accidente.
+
+#### ⏳ Lo que queda sin medir
+
+**Cuánta corriente se ahorra entre 11.8 y 2.7 Hz: NO MEDIDO.** No se estima de la ficha a
+propósito — la del RVR ya mintió en las tres dimensiones del robot y la del X2 con el
+`frequency` configurable. Se mide con `/battery_state`, el robot quieto, un par de horas por
+estado. La premisa del usuario sí es buena: **la Pi se alimenta del puerto USB del RVR**, así
+que ese consumo sale de la batería del robot.
+
+📝 Y hay un coste que no es eléctrico y puede pesar más: el X2 gira **desde que se enciende la
+Pi hasta que se apaga**, siempre. Eso es desgaste de rodamiento continuo en 16 unidades — el
+argumento más fuerte para un interruptor físico.
+
+Evidencia cruda: `00_auditoria/evidencia_24_04/30_lidar_giro_dtr.txt`.
+
 ### 8.5 ✅ Driver ROS 2 — **instalado y verificado 2026-07-30**
 
 **No hay paquete apt.** Comprobado: `ros-jazzy-ydlidar-ros2-driver`, `ros-jazzy-ydlidar` y

@@ -1,0 +1,158 @@
+═══════════════════════════════════════════════════════════════════════════════
+EL X2 GIRA SIEMPRE — cuanto, por que, y que se puede hacer
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Pregunta del usuario: «el lydar siempre esta girando, al apenas encender el
+sistema ¿eso esta bien? lo unico que cambia es que al usarlo gira mas rapido,
+creo que se ahorraria mucho si solo girara cuando es necesario».
+
+Herramientas: /tmp (scratchpad) — `alternar.py`, `giro2.py`. El framing es el de
+`mediciones_banco/x2_parse.py`, que es el unico validado del proyecto.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. LA OBSERVACION ERA CORRECTA, Y TIENE UN MECANISMO: LA LINEA DTR
+───────────────────────────────────────────────────────────────────────────────
+  El motor del X2 lo gobierna la linea **DTR** del puerto serie, no un comando.
+  Medido alternando cada 12 s sin cerrar el puerto entre tramos (cerrarlo
+  reinicia las lineas de control y falsea la medida):
+
+      DTR=1   11.86  11.77  11.85  11.85  11.76 Hz
+      DTR=0    2.66   2.74   2.73   2.63   2.74 Hz
+
+  **4.3x**, diez tramos, ni uno fuera de sitio. Checksums 99.8-100 % en los dos
+  estados: a 2.7 Hz el LIDAR sigue midiendo bien, solo mas despacio.
+
+  ✅ CONFIRMADO POR OIDO. El usuario escucho los dos minutos y reporto «cambio
+     claro cada ~12 s». Son dos vias de verdad INDEPENDIENTES —una mecanica y
+     otra el contenido de las tramas— y es lo que hace falta aqui, porque este
+     proyecto ya se comio un «confirmado por tres vias» que era una sola.
+
+  DE DONDE SALEN LOS DOS ESTADOS, que es lo que el usuario ya notaba:
+
+      sin nada corriendo  -> puerto cerrado -> DTR cae -> 2.7 Hz   (el «lento»)
+      driver arrancado    -> DTR sube       ->          11.8 Hz    (el «rapido»)
+
+  La cadena en el codigo:
+    `support_motor_dtr: true` en `ydlidar_x2.yaml`  (✅ verificado con
+    `ros2 param get` sobre el nodo VIVO, no leyendo el fichero)
+      -> YDlidarDriver::startMotor()  ->  setDTR(1)
+      -> YDlidarDriver::stopMotor()   ->  clearDTR(0)
+
+  📝 CURIOSIDAD DEL SDK: `ydlidar_help.h:548 isSupportMotorCtrl()` calcula un
+     `ret` mirando el modelo (X4, S2, S4, S4B) y despues hace **`return true;`**
+     ignorandolo. Es un bug, pero aqui juega a favor: sin el, el X2 no entraria
+     por la rama del motor.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. ✅ `/stop_scan` Y `/start_scan` YA EXISTEN, Y FRENAN EL MOTOR DE VERDAD
+───────────────────────────────────────────────────────────────────────────────
+  El `ydlidar_ros2_driver_node` publica dos servicios `std_srvs/srv/Empty` que
+  no estaban documentados en este proyecto:
+
+      /stop_scan    -> CYdLidar::turnOff() -> stop() -> stopMotor() -> clearDTR()
+      /start_scan   -> CYdLidar::turnOn()             -> startMotor() -> setDTR()
+
+  MEDIDO en ROS:
+      /scan escaneando      : 11.81 Hz
+      /scan tras stop_scan  :  0.00 Hz
+      /scan tras start_scan : 13.44 Hz     <- se recupera solo, sin reiniciar nada
+
+  ✅ Y CONFIRMADO POR OIDO que ademas FRENA EL MOTOR, no solo deja de publicar:
+     se alterno `/stop_scan` ↔ `/start_scan` cada 12 s durante 143 s y el usuario
+     oyo «el mismo cambio que antes». Sin esa segunda pasada solo sabriamos que
+     el topic se calla, que es una afirmacion mucho mas debil.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 UNA MEDIDA RETIRADA: NO SE PUEDE LEER DTR DESDE OTRO PROCESO
+───────────────────────────────────────────────────────────────────────────────
+  Para cerrar el eslabon «¿baja DTR cuando llamo a /stop_scan?» se abrio un
+  SEGUNDO descriptor sobre `/dev/ttyUSB0` (el driver ya lo tenia abierto, asi que
+  en teoria no se reinicializa el hardware) y se hizo `TIOCMGET`.
+
+      escaneando        DTR=1
+      tras /stop_scan   DTR=1      <- «luego /stop_scan no toca el motor»
+
+  ESA CONCLUSION ERA FALSA. Se valido el lector poniendo DTR=0 A PROPOSITO desde
+  otro proceso y leyendolo:
+
+      puesto DTR=1 ->  DTR=1
+      puesto DTR=0 ->  DTR=1      🔴 miente
+      puesto DTR=1 ->  DTR=1
+
+  **Abrir un segundo descriptor sobre el tty vuelve a levantar DTR.** El lector
+  no solo daba un valor equivocado: ADEMAS PERTURBABA EL ESTADO QUE MEDIA.
+
+  → La leccion, que es general: antes de creerte un instrumento, **pon el sistema
+    en un estado que conozcas y comprueba que el instrumento lo ve**. Costo dos
+    minutos y evito documentar lo contrario de lo que pasa.
+  → Y por eso el eslabon se cerro con el OIDO del usuario, que es un instrumento
+    que no toca el puerto serie.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. ⚠️ LO QUE ESTO **NO** RESUELVE — y es la mitad de la respuesta
+───────────────────────────────────────────────────────────────────────────────
+  Observacion del usuario, y es correcta: «entonces simplemente son los estados
+  de cuando el robot se enciende y cuando esta escaneando, o sea que no aporta
+  nada».
+
+  Efectivamente. `/stop_scan` **NO baja de 2.7 Hz**: llega exactamente al mismo
+  reposo al que llega solo el LIDAR cuando no hay driver. No es un apagado.
+
+  Asi que HOY, con el robot apagandose entre sesiones, **no hay nada que
+  ahorrar**. El salto grande (11.8 -> 2.7) ya ocurre solo.
+
+  Y PARARLO DEL TODO NO ESTA EN LA MANO DEL SOFTWARE:
+    · DTR frena el motor, pero el laser, el receptor y el MCU siguen alimentados
+      mientras haya 5 V en el USB.
+    · La Pi 4 no puede cortar VBUS por software (falta comprobar si el hub lo
+      soporta: `sudo lsusb -v -s 001:002 | grep -i "power switching"`).
+    · Haria falta un interruptor fisico en la linea de 5 V. En 16 robots.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. ✅ DONDE SI CAMBIA LA RESPUESTA: EL ARRANQUE AUTOMATICO CON systemd
+───────────────────────────────────────────────────────────────────────────────
+  🔴 ESTE ES EL HALLAZGO QUE HAY QUE RECORDAR.
+
+  Hoy el LIDAR se queda a 2.7 Hz porque no hay nada corriendo. En cuanto los 16
+  robots arranquen `robot.launch.py` SOLOS al encender —que es justo lo siguiente
+  del plan— el LIDAR pasara a **11.8 Hz de forma permanente, 24/7, en los 16**,
+  se use el robot o no.
+
+  Eso seria PEOR que la situacion actual, y habria llegado sin que nadie lo
+  decidiera: un efecto secundario de una tarea que no habla de LIDARes.
+
+  → DISEÑO A APLICAR CUANDO SE ESCRIBAN LAS UNIDADES systemd:
+    el robot arranca con todo levantado y listo para responder, pero con el
+    escaneo PARADO (`/stop_scan`), y se activa al empezar una sesion.
+
+  ✅ Y LA SEGURIDAD ENCAJA SOLA, no hay que añadir nada: ya esta verificado que
+     **sin LIDAR el robot no conduce** (fichero 17, seccion 6). El
+     `collision_monitor` bloquea el movimiento sin `/scan`, asi que un robot con
+     el escaneo parado no puede moverse por accidente.
+
+
+───────────────────────────────────────────────────────────────────────────────
+6. ⏳ LO QUE QUEDA SIN MEDIR — decision del usuario: no ahora
+───────────────────────────────────────────────────────────────────────────────
+  **CUANTA CORRIENTE SE AHORRA entre 11.8 y 2.7 Hz: NO MEDIDO.**
+
+  No se estima de la ficha del X2 a proposito. En este proyecto la ficha del RVR
+  ya mintio en las tres dimensiones del robot, y la del X2 ya mintio con el
+  `frequency` configurable. Un numero de catalogo aqui no es evidencia.
+
+  COMO SE MIDE CUANDO TOQUE:
+    `/battery_state` con el robot quieto, un par de horas por estado, sin tocarlo.
+    La Pi se alimenta del puerto USB del RVR (manual, cap. 1), asi que el consumo
+    del LIDAR SI sale de la bateria del robot — la premisa del usuario es buena.
+    Alternativa mas rapida si el SDK diera tension con mas resolucion que el
+    porcentaje entero: sin explorar.
+
+  📝 Y hay un coste que no es de consumo y puede pesar mas: el X2 gira DESDE QUE
+     SE ENCIENDE LA PI HASTA QUE SE APAGA, siempre, lo use alguien o no. Eso es
+     desgaste de rodamiento continuo en 16 unidades. Es el argumento mas fuerte
+     para un interruptor fisico, mas que el ahorro electrico.
