@@ -304,6 +304,11 @@ rosrun atriz_rvr_driver Atriz_rvr_node.py &
 python3 00_auditoria/evidencia/mediciones_banco/medir.py         # a traves de ROS
 ```
 
+📝 **Ese bloque es de la época ROS 1 y ya no se puede ejecutar**: `medir.py` usa `rospy` y muere
+con `ModuleNotFoundError`. Se conserva porque documenta cómo se obtuvo aquella medida. El
+equivalente hoy es `mediciones_banco/medir_ritmo_ros2.py`, con el robot corriendo bajo
+`atriz-robot.service`.
+
 ### 2.5 Estabilidad verificada
 
 12 minutos continuos con `interval=60`:
@@ -919,7 +924,10 @@ números es exactamente la deriva que este repositorio existe para evitar.
 
 ```bash
 systemd-analyze                     # antes: 1 min 39 s de userspace -> objetivo < 15 s
-ps -e | wc -l                       # antes: 187 tareas -> objetivo < 120
+ps -e | wc -l                       # antes: 187 tareas
+# ⚠️ el objetivo '< 120' estaba MAL PLANTEADO: ps -e cuenta ~123 hilos de
+#    kernel, y con atriz-robot.service corriendo suma 86 tareas más.
+#    Medido el 2026-07-31: 166 totales = 80 del SO + 86 del robot.
 cat /proc/pressure/io               # antes: 'full total' 74.6 s en 34 min
 cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor   # performance
 iw dev wlan0 get power_save         # Power save: off

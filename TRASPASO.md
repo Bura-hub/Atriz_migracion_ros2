@@ -119,7 +119,7 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 | 🔴 **El robot está inclinado ~8°** (árbol TF, Roll de la IMU y acelerómetro: **tres** vías) | calidad de Nav2 | 🔴 abierto, causa sin determinar. **No urgente**: con ella la deriva de SLAM es de 2.7 cm |
 | ~~La parada de emergencia de la web no hace nada~~ | seguridad | ✅ **resuelta 2026-07-31**. Había **tres** causas, no una: nombre, **namespace** (`/rvr/`) y **QoS** (`TRANSIENT_LOCAL` en el suscriptor no empareja con nadie). Verificada por los tres nombres, 0 avisos de QoS. Manual, cap. 15 |
 | **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — **acción del usuario**. Y no basta con rotarla: hay que quitarla del **historial** de git, no solo del último commit |
-| **Sin arranque automático** — ninguna unidad systemd | operación | ⏳ pendiente |
+| ~~Sin arranque automático~~ | operación | ✅ **resuelto 2026-07-31**: `atriz-robot.service`, probado con un reinicio real. Falta que `provision.sh` lo instale |
 | 16 de 20 servicios y 4 topics sin portar | funcionalidad | ⏳ diferido por el usuario |
 | ~~No hay watchdog de `cmd_vel`~~ | seguridad | ✅ **resuelto**: para en 527 ms / 7.9 cm |
 | ~~No hay URDF → árbol TF partido~~ | bloqueante | ✅ **resuelto**: `atriz_rvr_description` |
@@ -430,13 +430,13 @@ RVR por el puerto serie, no por un topic. Solo los para la parada de emergencia.
 driver, LIDAR y SLAM — y **no podía navegar, ni tenía capa de seguridad, ni localización**.
 Añadido, comprobando además que los binarios existan y que no entre el simulador.
 
-**`verificar_robot.sh` pasa de 50 a 84 comprobaciones** (con `--hardware`): los binarios de
+**`verificar_robot.sh` pasa de 50 a 84 comprobaciones** (con `--hardware`, y esa misma tarde a **91**): los binarios de
 Nav2, los 9 ficheros de config y launch, los **valores medidos** (`robot_radius` 0.145, URDF
 0.182 × 0.217, `laser_z` 0.155), los valores **por defecto que son decisiones**
 (`publicar_inclinacion` y `color_detection` en `false`, la parada en VOLATILE), y los **18
 servicios preguntando a un cliente** — no a `ros2 service list`, que miente por omisión.
 
-🔴 **Y el verificador tenía tres fallos propios**, encontrados al ejecutarlo: comprobaba el
+🔴 **Y el verificador tenía tres fallos propios** —esa misma tarde salieron **tres más**, van seis (evidencia 32)—, encontrados al ejecutarlo: comprobaba el
 driver de **ROS 1**, contaba un **comentario** como si fuera un ajuste, y daba el LIDAR por roto
 cuando el driver tenía el puerto ocupado. Los tres corregidos.
 
@@ -855,7 +855,8 @@ Todas en `00_auditoria/evidencia/mediciones_banco/`, con su README:
 ```bash
 raw_uart.py      # ¿contesta el RVR a nivel de bytes?     <- el más útil
 x2_parse.py      # ¿funciona el LIDAR? (sin driver ROS)
-medir.py         # frecuencia y jitter de /odom e /imu
+medir_ritmo_ros2.py  # frecuencia y jitter de /odom, /imu y /scan
+#                     ⚠️ medir.py es de ROS 1 y YA NO ARRANCA
 sdk_full.py 60   # ritmo del SDK con los 8 sensores
 estabilidad.py   # 12 min: huecos, pérdidas, fugas de memoria
 test_rvr.py      # diálogo básico con el SDK

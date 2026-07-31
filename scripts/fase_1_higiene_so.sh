@@ -5,9 +5,19 @@
 #     sudo bash fase_1_higiene_so.sh
 #     sudo reboot
 #
-# 📝 NO VERIFICADO en Ubuntu 24.04. Escrito a partir de lo medido en 20.04.
-#    Al ejecutarlo por primera vez, comprobar cada paso y corregir el capítulo 4
-#    del manual en el mismo momento.
+# ✅ EJECUTADO Y VERIFICADO en Ubuntu 24.04 el 2026-07-30. Comprobado en vivo el
+#    2026-07-31: governor `performance`, `multi-user.target`, `iw` instalado con
+#    power_save `off`, netplan en 600, y el arranque de userspace en **16.6 s**
+#    contra 1 min 39 s de la línea base.
+#
+# ⚠️ DOS COMPROBACIONES QUE PARECEN FALLAR Y NO FALLAN:
+#    · `systemctl is-enabled cloud-init` dice **enabled** igualmente. cloud-init
+#      se desactiva con el FICHERO `/etc/cloud/cloud-init.disabled`, no con
+#      systemctl. Lo que importa es que las tres unidades estén `inactive`.
+#    · `ps -e | wc -l` da ~166 con el robot corriendo, contra el objetivo «<120».
+#      **86 de esas tareas son de `atriz-robot.service`**: el SO solo tiene 80.
+#      `verificar_robot.sh` lo mide bien; el objetivo del plan estaba mal
+#      planteado y contaba además ~123 hilos de kernel.
 #
 # Cada medida responde a algo MEDIDO en la auditoría, no a preferencias:
 #

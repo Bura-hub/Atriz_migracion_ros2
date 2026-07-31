@@ -13,8 +13,13 @@
 #   el dominio 0, viéndose entre sí. Que es justo lo que la decisión D1 de
 #   `ARQUITECTURA.md` quiere evitar, y falla en silencio.
 #
-# 📝 NO VERIFICADO bajo systemd — escrito el 2026-07-31. Lo que sí se ha probado
-#    está anotado en cada sitio.
+# ✅ VERIFICADO bajo systemd el 2026-07-31, con un reinicio de verdad: el robot
+#    volvió solo (PID 711), ROS_DOMAIN_ID salió de /etc/profile.d y /odom a
+#    16.49 Hz. Evidencia 33.
+#
+# 📝 Lo que NO se ha ejercitado: la espera de puertos de más abajo. Las tres
+#    veces salió `tras 0s` —udev llega antes—, también en frío. Es una red de
+#    seguridad SIN ESTRENAR, no una comprobación aprobada.
 # ═══════════════════════════════════════════════════════════════════════════════
 set -euo pipefail
 

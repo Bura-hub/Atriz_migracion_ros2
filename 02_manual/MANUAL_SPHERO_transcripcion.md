@@ -460,6 +460,10 @@ Finalmente, al tener estas 4 ventanas o Nodos en ejecución se logrará teleoper
 > mano en cada arranque. Con 16 robots es inviable. El propio manual lo reconoce
 > como pendiente ("Automatización de inicio del start_ros_sh"), y es justo lo que
 > resuelve la Fase 1 del plan de migración.
+>
+> ✅ **RESUELTO el 2026-07-31**, ya en ROS 2: `atriz-robot.service` levanta el robot al
+> encender, probado con un reinicio real. Ver el manual de migración, cap. 17. Este párrafo
+> describe el sistema **Noetic**, y se conserva como tal.
 
 ---
 

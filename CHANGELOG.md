@@ -4,6 +4,71 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — Revisión de alineación: la documentación contra el sistema real
+
+Petición: *«revisa que todo lo realizado ahora esté alineado»*. No bastaba con releer — se
+contrastó cada afirmación contra el sistema en marcha y contra los ficheros de configuración.
+
+### Afirmaciones vigentes que habían dejado de ser ciertas
+
+`TRASPASO` seguía listando «sin arranque automático — ninguna unidad systemd ⏳ pendiente»
+(resuelto hacía una hora). Los conteos del verificador estaban en **84/76** en cuatro ficheros.
+`CLAUDE.md` decía «tres fallos propios» cuando iban seis. `INSTALACION` decía «etapas A a F22».
+Y `scripts/README` marcaba `fase_7_systemd.sh` como *«probado en seco, nunca se ha arrancado»*
+después de haberlo arrancado con un reinicio real.
+
+🔴 **Y una contradicción directa entre dos ficheros:** `fase_1_higiene_so.sh` se declaraba
+**NO VERIFICADO en 24.04** mientras su propio `README` decía **✅ ejecutado y verificado**. Se
+comprobó en el sistema —governor `performance`, `multi-user.target`, `iw` con power_save `off`,
+netplan en 600, arranque de userspace en 16.6 s contra 1 min 39 s— y la razón la tenía el README.
+
+### Dos comprobaciones que parecen fallar y no fallan
+
+Al verificar lo anterior salieron dos trampas nuevas, las dos capaces de hacer creer que la
+higiene del SO no funcionó:
+
+- **`systemctl is-enabled cloud-init` dice `enabled`** — se desactiva con el **fichero**
+  `/etc/cloud/cloud-init.disabled`, no con systemctl. Las tres unidades están `inactive`.
+- **`ps -e | wc -l` da 166 contra el objetivo «< 120»** — pero **86 de esas tareas son de
+  `atriz-robot.service`**: el SO solo tiene **80**. Y el objetivo estaba mal planteado de todos
+  modos: `ps -e` cuenta ~123 hilos de kernel.
+
+### 🔴 Y el verificador tenía DOS fallos más — van ocho
+
+Los creó el trabajo del propio día, y los dos daban **FALLO sobre un robot recién arrancado y
+sano**:
+
+**7 · «el LIDAR no publica» sobre el estado NORMAL del robot.** Cierto que `/scan` daba 0: el
+barrido **arranca parado a propósito**. El verificador declaraba roto el reposo. → Ahora, con
+`--hardware`, lo **enciende, mide y lo deja como estaba**.
+
+**8 · Contar un comentario como si fuera un ajuste. Otra vez.** Al quitar
+`export ROS_DOMAIN_ID=1` del `.bashrc` se dejó un comentario explicando por qué ya no está, y el
+`grep -q 'ROS_DOMAIN_ID'` casaba con él: **fallaba justo después de arreglar el problema**. Es el
+mismo error que el fallo nº2, repetido a las pocas horas. → Anclado a
+`^[[:space:]]*export[[:space:]]+ROS_DOMAIN_ID=`.
+
+### El `.bashrc`, limpiado
+
+`ROS_DOMAIN_ID` y `RMW_IMPLEMENTATION` vivían **en el `.bashrc` y en `/etc/profile.d`**. El
+`.bashrc` se lee después y gana, así que un clon de la imagen dorada se habría quedado en el
+dominio 1 fuera cual fuera su `robot_id` — la trampa que el propio bloque avisaba. Quitados del
+`.bashrc`; los tres tipos de shell siguen dando 1, ahora desde **una sola fuente**.
+
+### Valores contra la configuración real
+
+`robot_radius` 0.145, `desired_linear_vel` 0.40, `radius` 0.18, `base_length` 0.182,
+`base_width` 0.217, `laser_z` 0.155, `support_motor_dtr` true — **todos coinciden**. Solo falló
+un comentario dentro de `collision_monitor.yaml`, que citaba un `robot_radius: 0.11` corregido a
+0.145 ese mismo día.
+
+### Estado final
+
+**91 comprobaciones con `--hardware`** (89 sin él), **0 fallos**. El único aviso que queda es
+real: los `.bak` de apt.
+
+---
+
 ## 2026-07-31 — Barrido documental: llevar lo de hoy a los sitios donde se busca
 
 Todo lo de esta sesión estaba en el manual, el CHANGELOG y las evidencias. **No estaba donde lo

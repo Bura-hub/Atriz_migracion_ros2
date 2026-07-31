@@ -95,3 +95,49 @@ DESPUES
 
   LA REGLA, otra vez y con dos ejemplos nuevos: **comprobar el efecto, no la
   intencion** — y aqui, ademas, **comprobar el instrumento antes que la medida**.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+Y DOS MAS (van OCHO) — los creo el propio trabajo de ese dia
+═══════════════════════════════════════════════════════════════════════════════
+Salieron al REVISAR que todo estuviera alineado, no al escribirlo. Los dos daban
+FALLO sobre un robot que acababa de arrancar perfecto.
+
+───────────────────────────────────────────────────────────────────────────────
+FALLO 7 · «el LIDAR no publica» sobre el estado NORMAL del robot
+───────────────────────────────────────────────────────────────────────────────
+    ✗ el driver del LIDAR corre pero /scan da 0 barridos en 8 s
+
+  Y era cierto: **el barrido arranca PARADO a proposito** desde que hay systemd.
+  O sea que el verificador declaraba roto el estado de reposo del robot.
+
+  ARREGLO, y es el que corresponde con `--hardware`: si /scan da 0 y existe
+  `atriz-escaneo`, lo ENCIENDE, mide, y **lo deja como estaba**. Comprueba el
+  efecto de verdad —el lidar Y el control del barrido— en vez de rendirse.
+
+───────────────────────────────────────────────────────────────────────────────
+FALLO 8 · contar un COMENTARIO como si fuera un ajuste. OTRA VEZ.
+───────────────────────────────────────────────────────────────────────────────
+  Al quitar `export ROS_DOMAIN_ID=1` del ~/.bashrc se dejo un comentario
+  explicando por que ya no esta. La comprobacion hacia:
+
+      grep -q 'ROS_DOMAIN_ID' "$HOME/.bashrc"
+
+  ...y casaba con el comentario. **Fallaba justo despues de arreglar el
+  problema**, que es la peor forma posible de fallar.
+
+  Es EXACTAMENTE el mismo error que el fallo nº2 de este fichero, donde contaba
+  un comentario como un ajuste de `robot_radius`. Se repitio a las pocas horas.
+
+  ARREGLO: anclar a un export real.
+      grep -qE '^[[:space:]]*export[[:space:]]+ROS_DOMAIN_ID='
+
+  → LA LECCION, y ya van dos veces: **en un fichero de configuracion, `grep` de
+    una cadena suelta encuentra tanto el ajuste como lo que HABLA del ajuste.**
+    Ancla al principio de linea y a la sintaxis exacta, siempre.
+
+───────────────────────────────────────────────────────────────────────────────
+DESPUES
+───────────────────────────────────────────────────────────────────────────────
+  ✅ 91 comprobaciones con --hardware (89 sin el), 0 fallos.
+  El unico aviso que queda es real: los .bak de apt.

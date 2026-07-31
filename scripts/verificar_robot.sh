@@ -558,8 +558,13 @@ if all(k in d for k in "xyzw"):
 
     # Si existen los dos, .bashrc gana (se lee despues) y deja el dominio fijo a 1
     # en un robot que deberia ser otro. Fallo silencioso: dos robots, un dominio.
+    # 🔴 Anclado a un `export` REAL, no a que la cadena aparezca. La primera
+    #    versión hacía `grep -q 'ROS_DOMAIN_ID'` y **contaba el comentario que
+    #    explica por qué ya no está** como si fuera el ajuste: fallaba justo
+    #    después de arreglar el problema. Es el mismo error que ya se cometió
+    #    contando un comentario como un ajuste de `robot_radius`.
     if [[ -f /etc/profile.d/atriz-robot.sh ]] \
-       && grep -q 'ROS_DOMAIN_ID' "$HOME/.bashrc" 2>/dev/null; then
+       && grep -qE '^[[:space:]]*export[[:space:]]+ROS_DOMAIN_ID=' "$HOME/.bashrc" 2>/dev/null; then
         _mal "ROS_DOMAIN_ID está definido en ~/.bashrc Y en /etc/profile.d/atriz-robot.sh" \
              "el .bashrc gana y pisa la identidad del robot: quítalo del .bashrc"
     fi
@@ -663,6 +668,44 @@ PYEOF
 )"
         if [[ "${N_SCAN:-0}" -ge 40 ]]; then
             _ok "LIDAR X2 vía /scan: $N_SCAN barridos en 8 s (~$((N_SCAN/8)) Hz)"
+        elif [[ -x /usr/local/bin/atriz-escaneo ]]; then
+            # 🔴 CERO BARRIDOS NO ES UN FALLO DESDE EL 2026-07-31. El robot arranca
+            #    con el barrido PARADO a propósito (manual, cap. 17), así que este
+            #    es su estado NORMAL en reposo. Dar «✗ el LIDAR no publica» sobre
+            #    un robot recién arrancado y sano es exactamente el falso positivo
+            #    que este fichero lleva seis veces cometiendo.
+            #
+            #    Con --hardware sí se puede comprobar de verdad: se enciende, se
+            #    mide, y SE DEJA COMO ESTABA. Comprobar el efecto, no la intención.
+            _nota "/scan a 0: el barrido está parado (es lo normal en reposo). Encendiéndolo para medir…"
+            atriz-escaneo on >/dev/null 2>&1
+            sleep 2
+            N_SCAN2="$(timeout 25 python3 - <<'PYEOF' 2>/dev/null || echo 0
+import time, rclpy
+from rclpy.executors import SingleThreadedExecutor
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from sensor_msgs.msg import LaserScan
+q = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
+               history=HistoryPolicy.KEEP_LAST, depth=10)
+rclpy.init(); n = Node('verif_scan2'); c = []
+n.create_subscription(LaserScan, 'scan', lambda m: c.append(1), q)
+ex = SingleThreadedExecutor(); ex.add_node(n)
+t = time.time()
+while time.time() - t < 8:
+    ex.spin_once(timeout_sec=0.1)
+print(len(c)); n.destroy_node(); rclpy.shutdown()
+PYEOF
+)"
+            # Se restaura el estado de partida: quien pasa el verificador no
+            # espera que le deje el lidar girando a tope.
+            atriz-escaneo off >/dev/null 2>&1
+            if [[ "${N_SCAN2:-0}" -ge 40 ]]; then
+                _ok "LIDAR X2: $N_SCAN2 barridos en 8 s tras 'atriz-escaneo on' (y devuelto a off)"
+            else
+                _mal "ni con el barrido encendido llega /scan ($N_SCAN2 barridos en 8 s)" \
+                     "esperados ~80. Mira el log: journalctl -u atriz-robot -n 50"
+            fi
         else
             _mal "el driver del LIDAR corre pero /scan da $N_SCAN barridos en 8 s" \
                  "esperados ~80. Mira el log del ydlidar_ros2_driver"

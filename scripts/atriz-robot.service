@@ -6,8 +6,12 @@
 #
 # Lo instala fase_7_systemd.sh. No copiarlo a mano.
 #
-# 📝 NO VERIFICADO — escrito el 2026-07-31, sin haberse arrancado nunca bajo
-#    systemd. Instalarlo requiere sudo, que ejecuta el usuario.
+# ✅ VERIFICADO el 2026-07-31 con un reinicio real: el robot volvió solo,
+#    ExecStartPost en status=0/SUCCESS, /scan a 0.00 Hz y /odom a 16.49.
+#
+# 📝 Sin ejercitar: `Restart=always` (no se ha matado el proceso para ver si
+#    vuelve). Y ojo: NO arregla el fallo típico de este robot — el RVR dormido
+#    deja el proceso VIVO, de eso se encarga el keepalive del driver.
 
 [Unit]
 Description=Atriz — robot RVR (driver, LIDAR, TF, collision_monitor)

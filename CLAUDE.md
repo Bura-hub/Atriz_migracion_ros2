@@ -349,6 +349,16 @@ velocidad junto a un obstáculo, así que salta `Failed to make progress` con el
 funcionando bien. → **Ir despacio ya no es prueba de estar atascado**: relajado a 0.25 m en
 15 s (manual, cap. 11.13).
 
+**⚠️ DOS COMPROBACIONES DE LA HIGIENE DEL SO QUE PARECEN FALLAR Y NO FALLAN.** Las dos hacen
+pensar que `fase_1_higiene_so.sh` no funcionó, con el sistema perfecto:
+- **`systemctl is-enabled cloud-init` dice `enabled`.** cloud-init se desactiva con el **fichero**
+  `/etc/cloud/cloud-init.disabled`, no con systemctl. Lo que cuenta es que `cloud-init`,
+  `cloud-config` y `cloud-final` estén **`inactive`**.
+- **`ps -e | wc -l` da ~166 contra el objetivo «< 120».** **86 de esas tareas son de
+  `atriz-robot.service`** — el SO solo tiene **80**. Y el objetivo original estaba mal planteado
+  de todos modos: `ps -e` cuenta ~123 **hilos de kernel**, que son el suelo del sistema.
+  `verificar_robot.sh` ya lo mide bien (procesos de usuario, excluyendo `ppid==2`).
+
 **`unattended-upgrades` viene ACTIVO y actualiza el kernel solo.** Durante la instalación del
 2026-07-30 metió 8 lotes de paquetes en 4 minutos, incluido `linux-image-6.8.0-1060-raspi`
 sobre un sistema corriendo el 1047. **Cierra las actualizaciones y reinicia antes de tocar el
@@ -717,7 +727,7 @@ SO). Evidencia cruda en `00_auditoria/evidencia_24_04/`:
 | Métrica | 20.04 (sistema viejo) | 24.04 recién instalado | Objetivo tras la higiene |
 |---|---|---|---|
 | Arranque, userspace | 29.5 s | **1 min 39 s** (`cloud-final` = 1 min 7 s) | < 15 s |
-| Tareas | 273 | **187** | < 120 |
+| Tareas | 273 | **187** | ⚠️ `< 120` estaba mal planteado: ver la trampa de abajo |
 | `io.full total` | 47 s / 42 min | **74.6 s / 34 min** | mucho menor |
 | Journal | 784 MB | 17.7 MB | decenas de MB |
 | Governor | `ondemand` | `ondemand` | `performance` |
@@ -788,16 +798,34 @@ lo que produce deriva entre documentación y realidad.
 bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
 ```
 
-**86 aserciones** con `--hardware` (80 sin él) ✅ medido 2026-07-31, 0 fallos, código de salida ≠ 0 si algo falla, y cada
+**91 aserciones** con `--hardware` (89 sin él) ✅ medido 2026-07-31, 0 fallos, código de salida ≠ 0 si algo falla, y cada
 fallo viene con el comando que lo arregla. Existe porque el 2026-07-30 se verificó este robot a
 mano con ~25 comandos y aparecieron **cinco fallos silenciosos**. No repitas eso: pásalo al
 empezar y al cerrar.
 
-⚠️ **Y el verificador también se equivoca.** El 2026-07-31 tenía tres fallos propios: comprobaba
-el driver de **ROS 1** (que sigue en el repo, así que pasaba mirando un fichero que no se
-ejecuta), contaba un **comentario** como si fuera un ajuste, y daba el LIDAR por roto cuando el
-driver estaba corriendo y tenía el puerto ocupado. Los tres daban veredictos falsos. **Un
-verificador con falsos positivos se acaba ignorando, y eso es peor que no tenerlo.**
+⚠️ **Y el verificador también se equivoca: lleva SEIS fallos propios**, todos del 2026-07-31 y
+todos dando veredictos falsos sobre un robot sano.
+
+Por la mañana: comprobaba el driver de **ROS 1** (que sigue en el repo, así que pasaba mirando un
+fichero que no se ejecuta), contaba un **comentario** como si fuera un ajuste, y daba el LIDAR
+por roto cuando el driver tenía el puerto ocupado.
+
+Por la tarde, y peores: guardaba la comprobación de `/odom` con `ros2 topic list` —que **conserva
+topics de nodos muertos**— y gritaba «el RVR está dormido» sobre un robot **apagado**; usaba
+`ros2 topic hz`, que **no puede medir `/odom`** y nunca pudo (QoS), una comprobación muerta que
+contaba como aprobada; y el arreglo de eso medía **11.3 Hz sobre un robot a 16.5**, y *pasaba*.
+
+Y **dos más al revisar que todo estuviera alineado, van ocho**: declaraba roto el LIDAR sobre el
+estado **normal** del robot (el barrido arranca parado a propósito), y volvió a **contar un
+comentario como si fuera un ajuste** —esta vez el que explicaba que `ROS_DOMAIN_ID` ya no está en
+el `.bashrc`—, o sea que **fallaba justo después de arreglar el problema**.
+
+🔴 **Esa última es la segunda vez que se comete el mismo error.** En un fichero de configuración,
+un `grep` de una cadena suelta encuentra tanto el ajuste como lo que *habla* del ajuste. **Ancla
+al principio de línea y a la sintaxis exacta**: `^[[:space:]]*export[[:space:]]+VAR=`.
+
+**Un verificador con falsos positivos se acaba ignorando, y eso es peor que no tenerlo.**
+Evidencia 32.
 
 Su regla es **comprobar el efecto, no la intención**. Si añades comprobaciones, mantenla.
 

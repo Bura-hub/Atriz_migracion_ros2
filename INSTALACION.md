@@ -107,7 +107,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          └── todos probados · y /color publicaba [0,0,0] desde siempre
 
      F22 provision.sh y verificar_robot.sh al día                            ✅
-         └── provision NUNCA instalaba navigation2 · verificador 50 -> 84
+         └── provision NUNCA instalaba navigation2 · verificador 50 -> 84 -> 91
 
      F23 El lidar gira siempre: 2.7 Hz en reposo, 11.8 escaneando   cap. 8.4a  ✅
          └── y por eso systemd tiene que arrancar con el barrido PARADO
@@ -134,7 +134,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          📌 aplazado: mapear el laboratorio real y pose inicial por robot
 ```
 
-> **Las etapas A a F22 están recorridas y verificadas sobre la máquina real.** Los capítulos
+> **Las etapas A a F25 están recorridas y verificadas sobre la máquina real.** Los capítulos
 > 1, 3, 4, 5, 7, 8, 8bis, 9, 10, **11 (Nav2)** y **12 (seguridad)** del manual dejaron de ser
 > NO VERIFICADO: el robot navega solo y para antes de chocar. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
@@ -162,7 +162,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 > bash scripts/verificar_robot.sh --hardware
 > ```
 >
-> **84 comprobaciones** con `--hardware`, y sale con código ≠ 0 si algo falla. Pásalo al final
+> **91 comprobaciones** con `--hardware` (89 sin él), y sale con código ≠ 0 si algo falla. Pásalo al final
 > de cada etapa en lugar de recordar qué había que mirar. En `rvr-01`, el 2026-07-31: **84
 > correctas, 0 fallos**.
 >
@@ -388,7 +388,7 @@ de optimizar**:
 | Métrica | Antes (24.04 recién instalado) | Objetivo |
 |---|---|---|
 | `systemd-analyze` (userspace) | **1 min 39 s** (`cloud-final` = 1 min 7 s) | **< 15 s** |
-| `ps -e \| wc -l` | **187 tareas** | **< 120** |
+| `ps -e \| wc -l` | **187 tareas** | ⚠️ **< 120 estaba MAL PLANTEADO** — ver abajo |
 | governor | `ondemand` | `performance` |
 | `journalctl --disk-usage` | 17.7 MB | decenas de MB (con tope de 32M) |
 | `cat /proc/pressure/io` | `full total` 74.6 s / 34 min | mucho menor |
