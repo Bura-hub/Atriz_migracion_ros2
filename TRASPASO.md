@@ -311,11 +311,14 @@ hueco. No cuenta.
 | **suelo → centro del disco (`laser_z`)** | **15.5 cm** | 17.45 (derivado) |
 | ancho de oruga | **3.5 cm** | 2.5 (ficha) |
 | `wheel_separation` (entre centros) | **18.3 cm** | 15.0 (ficha) |
+| `wheel_radius` (suelo → eje) | **3.5 cm** | 3.2 (ficha) |
 
-✅ **Cierra solo**: `14.8 + 2 × 3.5 = 21.8 ≈ 21.7`. Las orugas ocupan todo el ancho, y ahí
-estaban los 4.5 cm que no cuadraban.
+✅ **Cierra por dos caminos independientes**: `14.8 + 2 × 3.5 = 21.8 ≈ 21.7` de ancho, y
+`wheel_radius 3.5` da una oruga de 7 cm de diámetro = `base_height`, así que la caja del chasis
+va del suelo a 7 cm — justo como se ve el RVR.
 
-⏳ Queda **`wheel_radius`** sin medir, y solo afecta al dibujo.
+✅ **El modelo geométrico está completo.** Solo falta `imu_z`, que exige abrir el robot y hoy
+no afecta a nada. El LIDAR está confirmado **centrado y nivelado**.
 
 ### 1. ⏳ Repetir las paradas con las cotas buenas — es lo siguiente
 

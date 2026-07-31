@@ -189,7 +189,7 @@ ros2 run nav2_map_server map_saver_cli -f <ruta> --ros-args -p save_map_timeout:
 el alto tenía **4.4 cm de más** — que es lo que hacía que `laser_z` estuviera 2 cm alto.
 → **Antes de dimensionar nada con el tamaño del robot, mira
 [`03_operacion/MEDIDAS_ROBOT.md`](03_operacion/MEDIDAS_ROBOT.md)**: dice qué está medido y qué
-viene de una ficha. Solo queda `wheel_radius` sin medir.
+viene de una ficha. **Ya está todo medido** salvo `imu_z`, que exige abrir el robot.
 
 **🔴 «Confirmado por tres vías independientes» puede ser una sola vía contada tres veces.** El
 proyecto dio por buena una inclinación de ~8° del robot durante días porque la confirmaban el

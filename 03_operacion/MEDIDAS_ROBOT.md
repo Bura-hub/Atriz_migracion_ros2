@@ -4,8 +4,9 @@
 > cruzados**: modelaba un robot de 21.8 × 18.5 cm cuando el real mide **18.2 × 21.7**. Venía de
 > la ficha publicada del RVR y estaba declarado «NO MEDIDO» desde el principio.
 >
-> ✅ **Medido entero el mismo día.** Queda una sola cota sin medir (`wheel_radius`, B1) y solo
-> afecta al dibujo. El repaso destapó **tres cosas**, y la tercera cierra un problema abierto:
+> ✅ **Medido entero el mismo día. No queda ninguna cota medible sin medir** — solo `imu_z`,
+> que exige abrir el robot y hoy no afecta a nada. El repaso destapó **tres cosas**, y la
+> tercera cierra un problema abierto:
 >
 > 1. la ficha del RVR daba **11.4 cm de alto** y son **7.0** — 4.4 de más;
 > 2. por eso `laser_z` estaba **2 cm alto**: el robot ve más abajo de lo documentado;
@@ -109,13 +110,14 @@ La ficha decía 11.4 cm: **4.4 cm de más**. Es el error que arrastraba `laser_z
 Merecen la pena porque el modelo se usa para RViz y para la caja de colisión, pero **no
 invalidan ninguna prueba** de las hechas.
 
-### B1 · ⏳ `wheel_radius` — del suelo al centro del eje de la oruga
+### B1 · ✅ `wheel_radius` — del suelo al centro del eje: **3.5 cm**
 
-**Es la única que queda.** Actual **0.032 m**, de la ficha. Es lo que separa `base_footprint`
-(el suelo) de `base_link`. Mide del suelo al **centro del eje** de la rueda motriz.
+La ficha decía 3.2. Es lo que separa `base_footprint` (el suelo) de `base_link`.
 
-⚠️ Solo afecta al dibujo: `laser_z` ya es un valor absoluto desde el suelo, así que un error
-aquí **no mueve el plano de barrido**. Por eso es B y no A.
+✅ **Y cierra el modelo por un segundo camino:** `wheel_radius 0.035` da una oruga de **7.0 cm
+de diámetro**, que es exactamente `base_height`. Con eso la caja del chasis va **del suelo a
+7 cm** — justo como se ve el RVR, con las orugas ocupando todo el alto del lateral. Dos
+medidas independientes que concuerdan.
 
 ### B2 · ✅ `wheel_separation` — entre centros: **18.3 cm**
 
@@ -143,7 +145,9 @@ afecta a nada**: la IMU no se fusiona con la odometría. Se deja como está y se
 | `wheel_separation` (entre centros) | **0.183 m** | 2026-07-31 |
 | `wheel_width` | **0.035 m** | 2026-07-31 |
 | `laser_x`, `laser_y` | **0, 0** — centrado | 2026-07-30 |
+| `wheel_radius` (suelo → centro del eje) | **0.035 m** | 2026-07-31 |
 | nivelación del LIDAR | **igual en los 4 puntos** | 2026-07-31 |
+| centrado del LIDAR | **confirmado** con las cotas nuevas | 2026-07-31 |
 
 **Derivados de lo anterior:**
 
@@ -154,8 +158,13 @@ radio inscrito      0.091 m
 radio circunscrito  0.142 m     -> robot_radius: 0.145   ✅ ya puesto
 ```
 
-📝 **Queda una reconfirmación barata**: el centrado del LIDAR con las cotas nuevas — del borde
-delantero al eje del disco deberían salir **9.1 cm**, y del borde izquierdo **10.85 cm**.
+✅ **El modelo cierra por dos caminos independientes:**
+
+```
+caja del chasis  →  de 0.000 a 0.070 m sobre el suelo   (= base_height, exacto)
+plano del láser  →  0.155 m sobre el suelo              (= laser_z medido, exacto)
+orugas           →  0.148 + 2 × 0.035 = 0.218 ≈ 0.217 de ancho total
+```
 
 ---
 
@@ -172,11 +181,10 @@ No lo midas, ya está resuelto y por vías mejores que una regla:
 
 ## Qué se puede repetir con cada medida
 
-### ⏳ Lo que falta
+### ✅ No falta nada medible
 
-1. **`wheel_radius`** (B1) — la única cota sin medir que se puede medir. Solo afecta al dibujo.
-2. **Reconfirmar el centrado del LIDAR** con las cotas nuevas (9.1 y 10.85 cm).
-3. `imu_z` — no se puede sin abrir el robot, y hoy no afecta a nada.
+Solo `imu_z` (0.05, suposición), que exige abrir el robot y hoy no afecta a nada: la IMU no se
+fusiona con la odometría. **El modelo geométrico del robot está completo y verificado.**
 
 ### ⏳ Lo que hay que REPETIR ahora que las cotas son buenas
 

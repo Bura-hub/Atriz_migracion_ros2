@@ -2888,9 +2888,10 @@ Modelaba un robot **más largo que ancho** siendo al revés. Dos consecuencias:
 independiente, así que **ningún frame TF se mueve** y la odometría no se toca.
 
 ✅ **Medido todo el mismo día**, incluidos `laser_z` y la nivelación del LIDAR:
-[`03_operacion/MEDIDAS_ROBOT.md`](../03_operacion/MEDIDAS_ROBOT.md). Queda una sola cota sin
-medir (`wheel_radius`) y solo afecta al dibujo. Dos hallazgos salieron de ahí: el plano de
-barrido está **2 cm más bajo** (12.8) y **la inclinación de ~8° no existe** (cap. 13).
+[`03_operacion/MEDIDAS_ROBOT.md`](../03_operacion/MEDIDAS_ROBOT.md). **No queda ninguna cota
+medible sin medir**, y el modelo cierra por dos caminos: la caja del chasis va de 0.000 a
+0.070 m (= `base_height`) y el láser a 0.155 m (= lo medido). Dos hallazgos salieron de ahí: el
+plano de barrido está **2 cm más bajo** (12.8) y **la inclinación de ~8° no existe** (cap. 13).
 
 #### 📝 Un fallo de medición que vale la pena conocer
 

@@ -82,8 +82,27 @@ Media longitud 0.090 → **0.091**: los huecos publicados bajan 1 mm (9.9 → **
 m/s, 10.9 → **10.8** a 0.40). El radio circunscrito sigue en **0.142**, así que
 `robot_radius: 0.145` no cambia.
 
-⏳ Queda **`wheel_radius`** sin medir (0.032, de la ficha) y solo afecta al dibujo: `laser_z` ya
-es absoluto desde el suelo.
+### ✅ Y el modelo cierra: `wheel_radius` **3.5 cm**, LIDAR centrado
+
+La última cota, medida también: **3.5 cm** del suelo al centro del eje (la ficha decía 3.2). Y
+el usuario confirmó el **centrado** del LIDAR con las cotas nuevas.
+
+**El modelo cuadra ahora por dos caminos independientes:**
+
+```
+wheel_radius 0.035  →  oruga de 0.070 de diámetro
+base_height         =  0.070   (medido del suelo a la tapa)
+→ la caja del chasis va DEL SUELO A 7 cm, justo como se ve el RVR:
+  las orugas ocupan todo el alto del lateral.
+
+0.148 + 2 × 0.035 = 0.218 ≈ 0.217 de ancho total medido.
+```
+
+Verificado sobre el URDF compilado: `base_footprint → base_link` = 0.035, láser a **0.155 m**
+sobre el suelo (= lo medido, exacto), caja del chasis de 0.000 a 0.070.
+
+✅ **No queda ninguna cota medible sin medir.** Solo `imu_z` (0.05, suposición), que exige abrir
+el robot y hoy no afecta a nada: la IMU no se fusiona con la odometría.
 
 **Ficheros:** `atriz_rvr_description/urdf/rvr.urdf.xacro`,
 `atriz_rvr_driver/scripts/atriz_rvr_driver/rvr_driver_node.py` (comentarios del cuaternión),
