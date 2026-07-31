@@ -333,6 +333,20 @@ celdas del mapa— y no que un proceso exista o un comando devuelva 0.
 ### 4b. Nav2 — ⏳ pendiente, y ya SIN bloqueantes de odometría
 
 - Nav2 con `nav2_regulated_pure_pursuit_controller` (diferencial), costmaps a resolución modesta (5 cm) y ventanas pequeñas — es la carga más pesada del Pi 4.
+
+🔴 **Instalar `ros-jazzy-navigation2`, NO `ros-jazzy-nav2-bringup`.** Comprobado el 2026-07-31:
+
+| | Paquetes | Qué arrastra |
+|---|---|---|
+| `ros-jazzy-navigation2` | **309** | lo que se usa: amcl, bt-navigator, controller, costmap-2d, planners, `map-server`… |
+| `ros-jazzy-nav2-bringup` | **621** | lo anterior **+ Gazebo**: `nav2-minimal-tb3-sim`, `tb4-sim`, `ros-gz-sim`, y hasta `pocketsphinx-en-us` |
+
+`nav2-bringup` son ficheros de ejemplo para TurtleBot en simulador. **Los launch y la
+configuración de Atriz los escribimos nosotros**, igual que con `slam_toolbox`. Y esos 312
+paquetes de más acabarían replicados en los **16 robots** vía imagen dorada.
+
+📝 De paso, `nav2-map-server` viene en `navigation2`, así que **`/slam_toolbox/save_map` dejará
+de fallar** con `result=255` (manual, cap. 9.5).
 - Guardar el mapa del laboratorio (`nav2_map_server`) y distribuirlo a los 16 robots: en un laboratorio fijo, **mapear una vez y localizar con AMCL** es mucho más barato que 16 SLAM simultáneos.
   - 📝 `nav2_map_server` **no está instalado todavía**, y por eso `/slam_toolbox/save_map`
     falla con `result=255`. Para guardar mapas hoy se usa `serialize_map`, que es nativo.
