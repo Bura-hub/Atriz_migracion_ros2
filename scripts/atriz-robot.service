@@ -1,0 +1,83 @@
+# atriz-robot.service
+#
+# Levanta el robot al arrancar: driver del RVR, LIDAR, robot_state_publisher y
+# collision_monitor. NO levanta SLAM, Nav2 ni localización — esos van en sus
+# propios launch, a propósito (ver CLAUDE.md, decisiones tomadas).
+#
+# Lo instala fase_7_systemd.sh. No copiarlo a mano.
+#
+# 📝 NO VERIFICADO — escrito el 2026-07-31, sin haberse arrancado nunca bajo
+#    systemd. Instalarlo requiere sudo, que ejecuta el usuario.
+
+[Unit]
+Description=Atriz — robot RVR (driver, LIDAR, TF, collision_monitor)
+Documentation=file:///home/sphero/atriz_migracion/02_manual/MANUAL_ATRIZ_ROS2.md
+# El robot no necesita red para funcionar, pero rosbridge y el DDS sí, y el
+# hostname tiene que estar ya fijado (lo hace atriz-first-boot.service).
+After=network-online.target atriz-first-boot.service
+Wants=network-online.target
+# Los puertos los espera el propio script, no systemd: udev puede crear el enlace
+# después de que la unidad arranque, y un After=dev-*.device no cubre ese caso.
+
+# Si falla cinco veces en cinco minutos, para de intentarlo: un bucle de reinicio
+# esconde la causa y machaca el journal. 🔴 Van en [Unit], no en [Service]:
+# systemd los ignora ahí sin dar error.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=sphero
+Group=sphero
+# Los dos puertos serie viven en el grupo `dialout`.
+SupplementaryGroups=dialout
+WorkingDirectory=/home/sphero
+
+ExecStart=/usr/local/bin/atriz-robot.sh
+
+# ── Arrancar con el LIDAR EN REPOSO ───────────────────────────────────────────
+# 🔴 Sin esto el X2 giraría a 11.8 Hz de forma permanente, 24/7, en los 16
+# robots, se usen o no. Hoy se queda a 2.7 Hz solo porque no hay nada corriendo;
+# el arranque automático se lo cargaría sin que nadie lo decidiera.
+# Medido el 2026-07-31: 11.8 vs 2.7 Hz (manual, cap. 8.4a).
+#
+# La seguridad encaja sola: sin /scan el collision_monitor no deja conducir, así
+# que un robot en reposo no puede moverse por accidente.
+#
+# `-` al principio: si falla, NO tumba el servicio. Un robot escaneando de más es
+# un problema de desgaste; un robot que no arranca es un problema de laboratorio.
+ExecStartPost=-/usr/local/bin/atriz-escaneo off
+
+# 🔴 El arranque puede ser LARGO y el tope por defecto son 90 s: el envoltorio
+# espera hasta 60 s a que udev cree los puertos, el launch tarda ~10 s, y el
+# ExecStartPost espera hasta 30 s a que aparezca /stop_scan. Sumado se pasa, y
+# systemd mataría un arranque que iba bien.
+TimeoutStartSec=180
+
+# ── Apagado ──────────────────────────────────────────────────────────────────
+# 🔴 SIGINT, no SIGTERM. El driver apaga los LEDs y —esto importa— el LED del
+# sensor de color en su manejador de SIGINT. Con SIGTERM el proceso muere sin
+# ejecutarlo y el robot se queda con una luz blanca encendida bajo el chasis
+# gastando batería, que ya pasó una vez.
+KillSignal=SIGINT
+KillMode=mixed
+# El apagado limpio habla con el RVR por el puerto serie: dale margen.
+TimeoutStopSec=30
+
+# ── Reinicio ─────────────────────────────────────────────────────────────────
+# ⚠️ Restart NO arregla el fallo típico de este robot: cuando el RVR se dormía,
+# el proceso seguía VIVO y mudo (CLAUDE.md). De eso se encarga el keepalive del
+# driver. Esto cubre las caídas de verdad.
+Restart=always
+RestartSec=15
+# 📝 El límite de reintentos NO va aquí: `StartLimitIntervalSec` y
+# `StartLimitBurst` viven en [Unit]. En [Service] systemd los IGNORA —lo dice
+# `systemd-analyze verify`, y solo si lo ejecutas— y el bucle de reinicio se
+# queda sin tope. Están arriba.
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=atriz-robot
+
+[Install]
+WantedBy=multi-user.target

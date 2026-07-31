@@ -4,6 +4,63 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — Arranque automático con systemd (escrito, sin arrancar todavía)
+
+En un laboratorio remoto nadie puede entrar a arrancar un proceso: si un robot se reinicia
+tiene que volver solo. Escritos `atriz-robot.service`, el envoltorio `atriz-robot.sh`, el
+ayudante `atriz-escaneo` y el instalador `fase_7_systemd.sh`.
+
+📝 **NO VERIFICADO de extremo a extremo:** el servicio nunca se ha arrancado bajo systemd.
+Instalarlo requiere `sudo`. Lo que sí se ejecutó está abajo.
+
+### Por qué hace falta un envoltorio y no un `ExecStart`
+
+systemd no ejecuta un shell de login: no lee `~/.bashrc` ni `/etc/profile.d`. Un `ExecStart`
+directo arrancaría **sin `ROS_DOMAIN_ID`**, o sea con los 16 robots en el dominio 0 viéndose
+entre sí — la decisión D1 de `ARQUITECTURA.md` rota, sin ningún error. El envoltorio carga el
+entorno, **se niega a arrancar si falta `ROS_DOMAIN_ID`**, espera a udev y hace `exec`.
+
+### El robot arrancará con el barrido del LIDAR apagado
+
+Consecuencia directa de lo medido hoy (11.8 vs 2.7 Hz): sin esto el arranque automático dejaría
+el X2 a 11.8 Hz permanentes en los 16 robots. La unidad llama a `atriz-escaneo off` en su
+`ExecStartPost`.
+
+⚠️ Y hay que saberlo: **un robot recién arrancado no conduce**. No está roto — sin `/scan` el
+`collision_monitor` bloquea el movimiento. Se activa con `atriz-escaneo on`.
+
+### 🔴 Dos fallos que solo aparecieron al ejecutar
+
+Los dos habrían fallado en el primer reinicio, con mensajes que no mencionan ni ROS ni systemd:
+
+- **`StartLimitIntervalSec` en `[Service]` se ignora** — va en `[Unit]`. Lo dijo
+  `systemd-analyze verify`. Efecto: bucle de reinicio **sin tope**.
+- **Los `setup.bash` de ROS no son compatibles con `set -u`**:
+  `AMENT_TRACE_SETUP_FILES: unbound variable`. Con `set -euo pipefail` mata el envoltorio antes
+  de arrancar nada. Salió de ejecutarlo con `env -i`; leyéndolo no se ve.
+
+Y un tercero, del propio instalador: creaba el fichero de identidad **durante la fase de
+comprobación**, antes de decidir si instalaba, y en simulación el `> /dev/null` se tragaba su
+propio aviso. Los dos corregidos.
+
+### Ejecutado y comprobado
+
+- `bash -n` en los tres scripts.
+- `systemd-analyze verify` sobre la unidad: limpio tras mover las dos directivas.
+- El envoltorio, con `env -i`: **se niega** sin `ROS_DOMAIN_ID` (código 1), y con él recorre
+  todo —entorno, RMW, espera de `/dev/rvr` y `/dev/ydlidar`— hasta el `exec`.
+- `fase_7_systemd.sh --simular --id 1`: recorre los cinco pasos.
+
+### ⏳ Abierto
+
+**`provision.sh` no instala esto todavía**, así que la imagen dorada saldría sin arranque
+automático. Está sin hacer a propósito: mientras se desarrolla en el robot de referencia, un
+servicio levantado pelearía por `/dev/rvr` con las pruebas a mano. Es una decisión del usuario.
+
+Manual, cap. 17.
+
+---
+
 ## 2026-07-31 — El lidar gira siempre: qué se puede hacer y qué no
 
 Pregunta del usuario, al oír el robot: *«el lidar siempre está girando nada más encender el

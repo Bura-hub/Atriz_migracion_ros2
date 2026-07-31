@@ -31,6 +31,9 @@ El procedimiento completo de alta de un robot está en
 | `fase_0_3_respaldo.sh` | 0.3 · A1 | no (sudo opcional) | ✅ **ejecutado** (2026-07-29). 📝 Sus dos correcciones del 2026-07-30 **sin reejecutar** |
 | `fase_1_higiene_so.sh` | 1 · C1 | sí | ✅ **ejecutado y verificado** en 24.04 (2026-07-30) |
 | `fase_1_validar_sdk_py312.py` | 1 · D2 | no | ✅ **ejecutado 2026-07-30 → 🟢 GO** (16.67 Hz en Python 3.12) |
+| `fase_7_systemd.sh` | 7 | sí | 🟡 **probado en seco** (`--simular` recorre los 5 pasos). El servicio **nunca se ha arrancado**: 📝 NO VERIFICADO |
+| `atriz-robot.sh` + `atriz-robot.service` | 7 | sí (instalarlos) | 🟡 el envoltorio **sí se ejecutó** (guardas y espera de puertos, 2026-07-31); la unidad pasa `systemd-analyze verify` |
+| `atriz-escaneo.sh` | 7 | no | 🟡 las dos llamadas que hace están **verificadas** en ROS y por oído; el script instalado, no |
 | `fase_6_preparar_imagen_dorada.sh` | 6 · F6 | sí | ⏳ **pendiente**, y 📝 **NO VERIFICADO** |
 
 > ⚠️ **`verificar_robot.sh` comprueba el EFECTO, no la intención**, y las dos aserciones que se
@@ -184,6 +187,8 @@ del [plan](../01_plan/PLAN_MIGRACION_ROS2.md).
 
 | Script | Qué pretende hacer |
 |---|---|
+| `fase_7_systemd.sh` | Instalar el arranque automático: el robot se levanta solo al encender, con el barrido del LIDAR apagado |
+| `atriz-escaneo.sh` | Encender/apagar el barrido del LIDAR (`atriz-escaneo on\|off\|estado`). Sin barrido el robot no conduce |
 | `fase_6_preparar_imagen_dorada.sh` | Limpiar el robot de referencia (claves de host, logs, `machine-id`) para convertirlo en imagen clonable |
 | `first-boot.sh` + `first-boot.service` | En cada robot clonado, leer `robot_id.txt` de `/boot/firmware` y fijar hostname, `ROS_DOMAIN_ID` y claves |
 

@@ -3616,6 +3616,125 @@ nodo. → **Para saber si un servicio existe, usa un cliente.** La lista puede m
 ⏳ **No escrito todavía.** Se redacta al ejecutar las fases 1–6 del
 [plan](../01_plan/PLAN_MIGRACION_ROS2.md), capítulo a capítulo, tras verificar cada paso.
 
+---
+
+## Capítulo 17 — Arranque automático con systemd
+
+> 📝 **NO VERIFICADO de extremo a extremo.** Escrito el 2026-07-31. Cada pieza se probó por
+> separado —y dos fallos reales salieron de probarlas, ver 17.3—, pero el servicio **nunca se
+> ha arrancado bajo systemd**. Instalarlo requiere `sudo`.
+
+### 17.1 Por qué, y por qué no basta con un `ExecStart`
+
+En un laboratorio **remoto** nadie puede entrar a arrancar un proceso. Si un robot se
+reinicia —corte de luz, kernel actualizado, watchdog— tiene que volver solo, o queda
+inservible hasta que alguien vaya al edificio.
+
+Lo que hace que esto no sea una línea de configuración:
+
+**systemd no ejecuta un shell de login.** No lee `~/.bashrc` ni `/etc/profile.d`. Un
+`ExecStart=ros2 launch ...` falla con `command not found`; y si se pone la ruta absoluta,
+arranca **sin `ROS_DOMAIN_ID`** — o sea con los 16 robots en el dominio 0, viéndose entre sí.
+Es exactamente lo que la decisión D1 de `ARQUITECTURA.md` existe para evitar, y **no da ningún
+error**: solo topics duplicados y TF que salta, lejos de la causa.
+
+Por eso hay un envoltorio, `atriz-robot.sh`, que carga el entorno, **se niega a arrancar si
+`ROS_DOMAIN_ID` no está definido**, espera a que udev cree `/dev/rvr` y `/dev/ydlidar`, y hace
+`exec` para que el launch herede el PID.
+
+### 17.2 🔴 El robot arranca con el barrido del LIDAR apagado
+
+Sin esto, el arranque automático empeoraría el robot: hoy el X2 se queda a **2.7 Hz** porque no
+hay nada corriendo, y en cuanto los 16 levanten `robot.launch.py` solos pasaría a **11.8 Hz
+permanentes, 24/7**, se use el robot o no (cap. 8.4a). Sería un efecto secundario de una tarea
+que no habla de lidares.
+
+La unidad llama a `atriz-escaneo off` en su `ExecStartPost`.
+
+⚠️ **Consecuencia que hay que conocer: un robot recién arrancado NO CONDUCE.** No está roto —
+sin `/scan` el `collision_monitor` bloquea el movimiento, que es justo lo que queremos. Para
+usarlo:
+
+```bash
+atriz-escaneo on        # el X2 sube a 11.8 Hz y el robot conduce
+atriz-escaneo estado
+atriz-escaneo off       # al terminar la sesión
+```
+
+Cuando exista la plataforma web (Fase 5), esa llamada la hará ella al empezar una sesión.
+
+📝 Los **servicios de movimiento** del driver sí funcionan con el barrido apagado: hablan al RVR
+por el puerto serie y se saltan el monitor (cap. 16). No es una contradicción, es la misma
+advertencia de siempre.
+
+### 17.3 Dos fallos reales que salieron de EJECUTAR, no de leer
+
+Los dos habrían fallado en el primer reinicio, con mensajes que no mencionan ni ROS ni el
+servicio:
+
+**a) `StartLimitIntervalSec` en `[Service]` se ignora.** Va en `[Unit]`. `systemd-analyze
+verify` lo dice —`Unknown key name … ignoring`— y solo si lo ejecutas. El efecto habría sido un
+bucle de reinicio **sin tope**, machacando el journal y escondiendo la causa.
+
+**b) Los `setup.bash` de ROS no son compatibles con `set -u`.**
+
+```
+/opt/ros/jazzy/setup.bash: line 8: AMENT_TRACE_SETUP_FILES: unbound variable
+```
+
+Con `set -euo pipefail` eso mata el envoltorio **antes de arrancar nada**. Se descubrió
+ejecutándolo con `env -i`; leyéndolo no se ve. El arreglo es `set +u` alrededor de los `source`
+y `set -u` después.
+
+→ **La regla del proyecto otra vez:** comprobar el efecto, no la intención. Un fichero de
+unidad que *parece* correcto y un script que *parece* correcto fallaban los dos.
+
+### 17.4 Instalar
+
+```bash
+# primero en seco, que no toca nada
+sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --simular --id 1
+
+# y de verdad
+sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --id 1
+```
+
+`--id` solo hace falta en el **robot de referencia**, donde `ROS_DOMAIN_ID` vive en el
+`~/.bashrc` y systemd no lo ve. En un clon lo crea `first-boot.sh` leyendo
+`/boot/firmware/robot_id.txt`, y el script lo detecta.
+
+⚠️ El script avisa si `~/.bashrc` y `/etc/profile.d/atriz-robot.sh` exportan **números
+distintos**: el `.bashrc` se lee después y gana, así que tus shells y el servicio acabarían en
+dominios DDS distintos sin un solo error.
+
+### 17.5 Verificar — y esto sí es lo que lo verifica
+
+```bash
+sudo systemctl start atriz-robot
+systemctl status atriz-robot            # active (running)
+journalctl -u atriz-robot -n 50
+
+atriz-escaneo estado                    # debe decir apagado
+atriz-escaneo on
+ros2 topic hz /scan --window 20
+
+# la prueba de verdad, la que dice si un robot remoto se recupera solo:
+sudo reboot
+systemctl status atriz-robot
+```
+
+Para quitarlo: `sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --quitar`.
+
+### 17.6 ⏳ Lo que queda abierto
+
+- **`provision.sh` no lo instala todavía.** Si no se añade, la imagen dorada saldrá **sin
+  arranque automático** y habrá que hacerlo robot a robot — justo lo que la imagen evita.
+  Está sin hacer a propósito: mientras se desarrolla en el robot de referencia, un servicio
+  levantado pelearía por `/dev/rvr` con las pruebas a mano.
+- La parada de emergencia **no cancela las acciones de Nav2**, solo para los motores.
+- `rosbridge` no tiene unidad todavía; llega con la Fase 5.
+
+
 Hasta entonces, para reconstruir el sistema **Noetic** el procedimiento válido es el
 [manual original anotado](MANUAL_SPHERO_transcripcion.md), aplicándole las correcciones
 marcadas en sus bloques `⚠️ AUDITORÍA` — en particular los nombres de paquete de los

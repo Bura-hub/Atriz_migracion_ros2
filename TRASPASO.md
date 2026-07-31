@@ -481,10 +481,20 @@ nada**.
 **en el robot 7 de 16**, con seis ya desplegados.
 Detalle: `00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.
 
-### 1. ⏳ Las unidades systemd de arranque automático — es lo siguiente
+### 1. 🟡 Las unidades systemd — ESCRITAS, falta arrancarlas (necesita `sudo`)
 
-En un laboratorio remoto los robots tienen que levantarse solos al arrancar. Necesita `sudo`, así
-que te lo prepararía como script exacto.
+Ya están en `scripts/`: `atriz-robot.service`, el envoltorio `atriz-robot.sh`, el ayudante
+`atriz-escaneo` y el instalador `fase_7_systemd.sh`. **El servicio nunca se ha arrancado**, así
+que sigue **NO VERIFICADO** de extremo a extremo.
+
+```bash
+sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --simular --id 1   # en seco
+sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --id 1             # de verdad
+sudo systemctl start atriz-robot && systemctl status atriz-robot
+```
+
+⏳ Y **`provision.sh` no lo instala todavía** — si no se añade, la imagen dorada saldrá sin
+arranque automático. Manual, cap. 17.
 
 🔴 **Y tiene que arrancar con el lidar PARADO.** Medido el 2026-07-31: el X2 gira siempre, a
 2.7 Hz en reposo y 11.8 Hz escaneando. Hoy se queda en 2.7 porque no hay nada corriendo; en
