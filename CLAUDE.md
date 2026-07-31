@@ -733,7 +733,7 @@ lo que produce deriva entre documentación y realidad.
 bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
 ```
 
-**84 aserciones** con `--hardware` (76 sin él), código de salida ≠ 0 si algo falla, y cada
+**78 aserciones sin `--hardware`** ✅ medido 2026-07-31 (con `--hardware` suma las del RVR y el LIDAR: **pendiente de re-contar** desde la sección 10), código de salida ≠ 0 si algo falla, y cada
 fallo viene con el comando que lo arregla. Existe porque el 2026-07-30 se verificó este robot a
 mano con ~25 comandos y aparecieron **cinco fallos silenciosos**. No repitas eso: pásalo al
 empezar y al cerrar.

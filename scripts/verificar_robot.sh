@@ -777,6 +777,79 @@ PYEOF
     fi
 fi
 
+sec "10 · Arranque automático y parada de emergencia con Nav2"
+
+# Lo del 2026-07-31. Aquí casi todo son AVISOS y no fallos a propósito: el
+# arranque automático se instala aparte (fase_7_systemd.sh) y la decisión del
+# usuario es añadirlo a provision.sh cuando se cierre el robot de referencia.
+# Un robot sin systemd NO está roto — todavía.
+
+INST="$HOME/atriz_ws/install"
+
+# ── El cancelador de Nav2: se comprueba lo INSTALADO, no el fuente ───────────
+# 🔴 `colcon build` desde el directorio equivocado dice «Finished» y no instala
+#    nada (CLAUDE.md). Mirar el fuente daría un falso OK.
+if [[ -x "$INST/atriz_rvr_driver/lib/atriz_rvr_driver/cancelar_nav2" ]]; then
+    _ok "cancelar_nav2 instalado (la parada corta los objetivos de Nav2)"
+else
+    _mal "cancelar_nav2 NO instalado" \
+         "cd ~/atriz_ws && colcon build --packages-select atriz_rvr_driver · manual cap. 15.4"
+fi
+NAV2_INST="$INST/atriz_rvr_bringup/share/atriz_rvr_bringup/launch/nav2.launch.py"
+if [[ -f "$NAV2_INST" ]] && grep -q "cancelar_nav2" "$NAV2_INST"; then
+    _ok "nav2.launch.py instalado arranca cancelar_nav2"
+else
+    _mal "el nav2.launch.py INSTALADO no arranca cancelar_nav2" \
+         "sin él, liberar la parada de emergencia devuelve el robot a navegar"
+fi
+
+# ── De dónde saca systemd el ROS_DOMAIN_ID ──────────────────────────────────
+# systemd no ejecuta un shell de login: no lee ~/.bashrc. Si el dominio solo
+# vive ahí, el servicio arrancaría sin él —los 16 robots en el dominio 0— o se
+# negaría a arrancar. En el robot de referencia esto es lo normal, todavía.
+if [[ -f /etc/profile.d/atriz-robot.sh ]]; then
+    DOM_P="$(sed -n 's/^export ROS_DOMAIN_ID=\([0-9]*\).*/\1/p' /etc/profile.d/atriz-robot.sh | head -1)"
+    _ok "/etc/profile.d/atriz-robot.sh (ROS_DOMAIN_ID=${DOM_P:-?})"
+    DOM_B="$(sed -n 's/^export ROS_DOMAIN_ID=\([0-9]*\).*/\1/p' "$HOME/.bashrc" 2>/dev/null | head -1)"
+    if [[ -n "$DOM_B" && -n "$DOM_P" && "$DOM_B" != "$DOM_P" ]]; then
+        # 🔴 El .bashrc se lee DESPUÉS y gana: shells y servicio en dominios
+        #    distintos, sin un solo error por ningún lado.
+        _mal "~/.bashrc dice ROS_DOMAIN_ID=$DOM_B y profile.d dice $DOM_P" \
+             "el .bashrc gana: tus shells y el servicio no se verían"
+    elif [[ -n "$DOM_B" ]]; then
+        _avi "~/.bashrc también exporta ROS_DOMAIN_ID=$DOM_B" \
+             "bórralo antes de la imagen dorada: dejaría los 16 clones en ese dominio"
+    fi
+else
+    _avi "sin /etc/profile.d/atriz-robot.sh" \
+         "systemd no lee ~/.bashrc: hace falta antes de fase_7_systemd.sh"
+fi
+
+# ── El servicio ──────────────────────────────────────────────────────────────
+if [[ -f /etc/systemd/system/atriz-robot.service ]]; then
+    _ok "atriz-robot.service instalado"
+    if systemctl is-enabled atriz-robot.service >/dev/null 2>&1; then
+        _ok "atriz-robot.service habilitado ($(systemctl is-enabled atriz-robot.service))"
+    else
+        _mal "atriz-robot.service NO habilitado" "sudo systemctl enable atriz-robot"
+    fi
+    # Comprobar el efecto: una unidad puede estar instalada y tener directivas
+    # que systemd IGNORA en silencio. Pasó con StartLimitIntervalSec en
+    # [Service] (manual, cap. 17.3).
+    QUEJAS="$(systemd-analyze verify /etc/systemd/system/atriz-robot.service 2>&1 \
+              | grep -v 'is not executable' | grep -c . || true)"
+    [[ "$QUEJAS" -eq 0 ]] && _ok "systemd-analyze verify: sin quejas" \
+        || _mal "systemd-analyze verify se queja ($QUEJAS línea(s))" \
+                "systemd-analyze verify /etc/systemd/system/atriz-robot.service"
+    [[ -x /usr/local/bin/atriz-robot.sh ]] && _ok "/usr/local/bin/atriz-robot.sh" \
+        || _mal "falta /usr/local/bin/atriz-robot.sh" "el ExecStart apunta a un fichero que no existe"
+    [[ -x /usr/local/bin/atriz-escaneo ]] && _ok "/usr/local/bin/atriz-escaneo" \
+        || _mal "falta /usr/local/bin/atriz-escaneo" "el ExecStartPost del servicio lo llama"
+else
+    _avi "sin arranque automático (atriz-robot.service)" \
+         "sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --id NN · manual cap. 17"
+fi
+
 # ─────────────────────────────────────────────────────────────────────────────
 printf '\n%s' "$AZUL"
 echo "======================================================================"
