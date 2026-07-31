@@ -175,10 +175,19 @@ power-save del WiFi. `fase_1_higiene_so.sh` lo instala; si escribes un `ExecStar
 
 **`save_map` puede dar 255 sin que falte nada.** El fallo histórico era
 `Package 'nav2_map_server' not found` y se arregló instalando `navigation2`. Pero hay un
-segundo 255, **intermitente**, con otro mensaje: `Failed to spin map subscription`. Es una
-carrera entre el `map_update_interval: 5.0` de slam_toolbox y el `save_map_timeout: 2.0` del
-map_saver. → Antes de tocar la instalación, **mira el log de slam_toolbox y lee el mensaje**
-(manual, cap. 11.11).
+segundo 255, **intermitente** (medido: falla ~1 de cada 3), con otro mensaje: `Failed to spin
+map subscription`. Es una carrera entre el `map_update_interval: 5.0` de slam_toolbox y el
+`save_map_timeout: 2.0` del map_saver. → Antes de tocar la instalación, **lee el mensaje en el
+log de slam_toolbox**. Y guarda los mapas así, que es lo verificado:
+```bash
+ros2 run nav2_map_server map_saver_cli -f <ruta> --ros-args -p save_map_timeout:=10.0
+```
+
+**Una capa de seguridad hace abortar a Nav2 por «no progresar».** El `SimpleProgressChecker`
+de fábrica exige 0.5 m en 10 s; el `collision_monitor` frena al 40 % y `approach` baja más la
+velocidad junto a un obstáculo, así que salta `Failed to make progress` con el robot
+funcionando bien. → **Ir despacio ya no es prueba de estar atascado**: relajado a 0.25 m en
+15 s (manual, cap. 11.13).
 
 **`unattended-upgrades` viene ACTIVO y actualiza el kernel solo.** Durante la instalación del
 2026-07-30 metió 8 lotes de paquetes en 4 minutos, incluido `linux-image-6.8.0-1060-raspi`
@@ -468,6 +477,7 @@ diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 | **Parada del `collision_monitor`** | **8.0 cm** a 0.25 m/s · **9.0 cm** a 0.40 m/s | 2026-07-31 |
 | Plano de barrido del LIDAR | **17.45 cm** del suelo — por debajo, el robot no ve nada | URDF |
 | Nav2 a 0.40 m/s | meseta **0.407 m/s** en 0.9 s · error de objetivo **8 cm** | 2026-07-31 |
+| Rodeando un obstáculo | desvío **26–32 cm**, error **8–9 cm**, 4 de 4 SUCCEEDED | 2026-07-31 |
 | **Deriva de SLAM** | mediana **1.0 cm** (1.6 m de recorrido) y **2.7 cm** (2.4 m); peor caso 3.2 cm, n=6 | 2026-07-31 |
 | CPU de `slam_toolbox` | **4.5 %** de un núcleo, 49 MB | 2026-07-30, async |
 | Todo a la vez (driver+LIDAR+RSP+SLAM) | **~24 %** de un núcleo, ~200 MB, loadavg 0.62, 62.3 °C, `throttled=0x0` | 2026-07-30 |

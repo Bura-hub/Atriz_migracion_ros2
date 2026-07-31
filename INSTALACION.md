@@ -68,9 +68,12 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      F9  Navegando a 0.40 m/s                  manual, cap. 11.10             ✅
          └── meseta 0.407 m/s · dos objetivos SUCCEEDED con 8 cm de error
 
-     F10 Lo que queda                                                          ⏳ SIGUIENTE
-         1. Obstáculos que haya que RODEAR (solo probado contra pared)  ← AQUÍ
-         2. save_map falla intermitente        manual, cap. 11.11
+     F10 Rodea obstáculos                     manual, cap. 11.13             ✅
+         └── 4 navegaciones esquivando una caja · 8-9 cm de error · repetible
+
+     F11 Lo que queda                                                          ⏳ SIGUIENTE
+         1. Un paso ESTRECHO (aquí hubo 63 cm de holgura)              ← AQUÍ
+         2. Un obstáculo que aparezca DURANTE la navegación
          3. Fase 4c: map_server + AMCL        plan, Fase 4c
          4. La inclinación de ~8° (tres vías, causa sin determinar, NO urgente)
          5. Los 16 servicios y 4 topics del driver sin portar
@@ -78,7 +81,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          7. Clonar a los 16 robots            FLOTA.md
 ```
 
-> **Las etapas A a F9 están recorridas y verificadas sobre la máquina real.** Los capítulos
+> **Las etapas A a F10 están recorridas y verificadas sobre la máquina real.** Los capítulos
 > 1, 3, 4, 5, 7, 8, 8bis, 9, 10, **11 (Nav2)** y **12 (seguridad)** del manual dejaron de ser
 > NO VERIFICADO: el robot navega solo y para antes de chocar. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
@@ -87,8 +90,8 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 > **🟢 El go/no-go salió GO**, ROS 2 Jazzy está instalado y el robot funciona entero: driver en
 > `rclpy`, URDF, LIDAR, SLAM, y la odometría con sus tres marcos corregidos. **Nav2 ya está
 > instalado y NAVEGANDO** con los valores medidos del robot, y con la **capa de seguridad
-> puesta y medida** (manual, cap. 12), navegando ya a **0.40 m/s**. El siguiente paso es probar
-> con obstáculos que haya que **rodear**.
+> puesta y medida** (manual, cap. 12), navegando a **0.40 m/s** y **rodeando obstáculos**. El
+> siguiente paso es un paso estrecho de verdad, cerca de los 36 cm mínimos del monitor.
 >
 > ### Un solo comando para saber si el robot está bien
 >

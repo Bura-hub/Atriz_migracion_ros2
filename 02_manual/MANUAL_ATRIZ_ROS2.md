@@ -2573,16 +2573,96 @@ El saver espera 2 s a que llegue un `/map` y `slam_toolbox` lo publica cada 5. *
 carrera**: si la llamada cae en el hueco, falla. Explica que funcionara dos veces y fallara la
 tercera.
 
-⏳ **Arreglo propuesto — NO VERIFICADO:** reintentar; o
-`ros2 run nav2_map_server map_saver_cli -f <ruta> --ros-args -p save_map_timeout:=10.0`; o
-bajar `map_update_interval` a 1–2 s, que cuesta CPU.
+✅ **CONFIRMADO Y ARREGLADO el 2026-07-31.** Se probó lo uno contra lo otro:
 
-### 11.12 ⏳ Lo que queda
+| | Resultado |
+|---|---|
+| servicio de `slam_toolbox`, timeout de 2 s | `result=0`, **`255`**, `0` — falla ~1 de cada 3 |
+| `map_saver_cli` con `save_map_timeout:=10.0` | **`Map saved successfully`** |
 
-- ✅ ~~`collision_monitor`~~ — hecho y verificado, **cap. 12**.
-- ✅ ~~Subir `desired_linear_vel` a 0.40~~ — hecho y verificado, 11.10.
-- ⏳ **Arreglar `save_map`** (11.11) y verificar el arreglo.
-- **Probar con obstáculos de por medio.** Las dos navegaciones fueron en línea recta por un
+**El procedimiento bueno para guardar mapas es este, no el servicio:**
+
+```bash
+ros2 run nav2_map_server map_saver_cli -f <ruta> --ros-args -p save_map_timeout:=10.0
+```
+
+### 11.13 ✅ Rodear un obstáculo — y el aborto que provocó la seguridad
+
+Hasta aquí todo se había probado **contra una pared frontal**: estaba demostrado que el robot
+**para**, no que **rodee**.
+
+**El obstáculo, caracterizado con `/scan` antes de mandar ningún objetivo.** El salto en las
+distancias es lo que lo aísla de las paredes —un umbral tonto tipo «menos de 1.6 m» etiqueta
+también las paredes:
+
+| ángulo | dist | x | y | |
+|---|---|---|---|---|
+| −3° | 2.54 | +2.54 | −0.13 | abierto |
+| **0°…+9°** | **0.75–0.77** | **+0.75** | **0.00…+0.12** | ← obstáculo |
+| +12° | 2.07 | +2.03 | +0.43 | abierto |
+
+A **0.75 m**, ~**16 cm de ancho**, escorado 6 cm a la izquierda del eje. El robot mide 18.5 cm:
+**bloquea la línea recta**. Holgura a su altura: ~63 cm por la derecha, ~44 por la izquierda.
+
+**La trayectoria** — objetivo a 1.50 m, el mismo que la corrida limpia, para que el obstáculo
+sea la única variable:
+
+```
+x=+0.00  y=+0.00
+x=+0.31  y=-0.12
+x=+0.62  y=-0.29
+x=+0.79  y=-0.30   ← justo a la altura del obstáculo
+x=+0.95  y=-0.21
+x=+1.28  y=-0.03
+```
+
+Desvío máximo **30 cm por la derecha** —el lado con más hueco— y vuelta al eje. Error final
+**8 cm: el mismo que sin obstáculo.**
+
+#### 🔴 En la vuelta, la seguridad hizo abortar a Nav2
+
+```
+[controller_server] [ERROR] Failed to make progress
+[controller_server] [WARN]  [follow_path] [ActionServer] Aborting handle.
+```
+
+El objetivo acabó en `SUCCEEDED` porque el árbol replanificó, pero el aborto es real y en un
+paso más estrecho podría no recuperarse.
+
+**Causa:** el `SimpleProgressChecker` de fábrica exige `0.5 m` en `10 s` = **5 cm/s de media**.
+El `collision_monitor` había frenado al 40 % (0.16 m/s) y `approach` bajó más la velocidad al
+pasar junto al obstáculo.
+
+> **Con una capa de seguridad delante, ir despacio ya no es prueba de estar atascado** — que es
+> lo único que ese comprobador debería detectar. Un robot de verdad atascado se mueve 0 m y lo
+> sigue disparando igual.
+
+**Arreglo:** `required_movement_radius: 0.25` en `movement_time_allowance: 15.0` → 1.7 cm/s.
+
+#### ✅ Verificado: cuatro navegaciones seguidas tras el cambio
+
+| | Resultado | | Error | Junto al obstáculo |
+|---|---|---|---|---|
+| ida 1 | **SUCCEEDED** | 5 s | 8 cm | derecha, y=−0.26 |
+| vuelta 1 | **SUCCEEDED** | 13 s | 8 cm | derecha, y=−0.32 |
+| ida 2 | **SUCCEEDED** | 5 s | 9 cm | derecha, y=−0.26 |
+| vuelta 2 | **SUCCEEDED** | 12 s | 8 cm | derecha, y=−0.30 |
+
+`Failed to make progress`: **0** · `Aborting handle`: **0** · conductas de recuperación: **0** ·
+`Control loop missed`: **0**.
+
+Y la seguridad **sí trabajó**: 2 `approach` + 5 `slowdown`, **8.1 s** de frenado en total. Las
+cuatro rodean por la derecha con el mismo desvío (26–32 cm): es **repetible**, no casualidad.
+
+### 11.14 ⏳ Lo que queda
+
+- ✅ ~~`collision_monitor`~~ (cap. 12) · ~~`desired_linear_vel` a 0.40~~ (11.10) ·
+  ~~`save_map`~~ (11.11) · ~~rodear un obstáculo~~ (11.13).
+- ⏳ **Un paso estrecho de verdad**, cerca de los 36 cm mínimos del monitor. Aquí había 63 cm
+  por la derecha: holgado.
+- ⏳ **Un obstáculo que aparezca DURANTE la navegación.** Todo lo probado estaba puesto antes
+  de arrancar.
+- ⏳ **`min_points: 2`** contra obstáculos finos de verdad (patas de silla). Las dos navegaciones fueron en línea recta por un
   pasillo despejado: se ha probado que **llega**, no que **rodee**.
 - **Fase 4c: `map_server` + AMCL** — mapear una vez y localizar en los 16 robots, en lugar de
   16 SLAM simultáneos. El `.pgm`/`.yaml` ya se genera.

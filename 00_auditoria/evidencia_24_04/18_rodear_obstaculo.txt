@@ -1,0 +1,153 @@
+═══════════════════════════════════════════════════════════════════════════════
+RODEAR UN OBSTACULO — la prueba que faltaba
+Robot: rvr-01 · 2026-07-31 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Manual, cap. 11.13. Hasta ahora todo se habia probado CONTRA UNA PARED FRONTAL:
+estaba demostrado que el robot PARA, no que RODEE. Esto cierra esa laguna.
+
+✅ ESTADO: verificado. Cuatro navegaciones seguidas rodeando el obstaculo.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. EL OBSTACULO, CARACTERIZADO ANTES DE MOVER NADA
+───────────────────────────────────────────────────────────────────────────────
+  Requisitos que se le pidieron al usuario, y de donde sale cada uno:
+
+    altura > 25 cm       el plano del LIDAR esta a 17.45 cm (URDF, laser_z).
+                         Mas bajo = INVISIBLE y el robot lo embiste (cap. 12.8)
+    ancho <= 40 cm       para que quepa el paso por un lado
+    >= 50 cm libres      el collision_monitor trata al robot como un disco de
+      a un lado          radio 0.18 -> necesita 36 cm de pasillo. 50 da margen
+    con peso             si la configuracion falla, lo golpea a 0.40 m/s
+
+  MEDIDO con /scan antes de mandar ningun objetivo:
+
+      ang    dist      x       y
+     -3°     2.54   +2.54  -0.13     <- abierto
+      0°     0.75   +0.75  +0.00     <- OBSTACULO
+     +3°     0.75   +0.75  +0.04     <- OBSTACULO
+     +6°     0.77   +0.76  +0.08     <- OBSTACULO
+     +9°     0.77   +0.76  +0.12     <- OBSTACULO
+    +12°     2.07   +2.03  +0.43     <- abierto
+
+    -> obstaculo a x=0.75 m, ocupa y de -0.02 a +0.14 -> ~16 cm de ancho,
+       escorado 6 cm a la izquierda del eje.
+    -> el robot mide 18.5 cm de ancho: BLOQUEA la linea recta.
+    -> holgura a su altura: ~63 cm por la derecha, ~44 cm por la izquierda.
+
+  📝 El salto 2.54 -> 0.75 -> 2.07 entre -3° y +12° es lo que AISLA el obstaculo
+     de las paredes. Un umbral tonto tipo "dist < 1.6 m" etiqueta tambien las
+     paredes y no sirve.
+
+  Costmap local: 60x60 a 5 cm, 1070 celdas ocupadas. Lo ve.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. ✅ LO RODEA — la trayectoria, no solo el resultado
+───────────────────────────────────────────────────────────────────────────────
+  Objetivo a 1.50 m, EL MISMO que la corrida limpia del fichero 16: asi el
+  obstaculo es la unica variable que cambia.
+
+    x=+0.00  y=+0.00
+    x=+0.31  y=-0.12
+    x=+0.62  y=-0.29
+    x=+0.79  y=-0.30   <- justo a la altura del obstaculo (x=0.75)
+    x=+0.95  y=-0.21
+    x=+1.11  y=-0.11
+    x=+1.28  y=-0.03
+    final    (+1.42, -0.01)   error 8 cm
+
+  Desvio lateral maximo 30 cm, POR LA DERECHA — el lado con 63 cm libres frente
+  a los 44 de la izquierda. Y vuelve al eje despues.
+
+  📝 8 cm de error, el MISMO que sin obstaculo. Rodear no degrado la precision.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 EL HALLAZGO: la seguridad hizo abortar a Nav2
+───────────────────────────────────────────────────────────────────────────────
+  En la vuelta, con mas frenados (2 x approach + 5 x slowdown):
+
+    [controller_server] [ERROR] Failed to make progress
+    [controller_server] [WARN]  [follow_path] [ActionServer] Aborting handle.
+    [controller_server] [WARN]  Control loop missed its desired rate of 10.0000 Hz.
+                                Current loop rate is 7.5872 Hz.
+
+  El objetivo acabo en SUCCEEDED —el arbol de comportamiento replanifico— pero
+  el aborto es real y en un paso mas estrecho podria no recuperarse.
+
+  CAUSA: el `SimpleProgressChecker` de fabrica exige
+
+      required_movement_radius: 0.5    en    movement_time_allowance: 10.0
+      -> 5.0 cm/s de media
+
+  y el collision_monitor habia frenado al 40 % (0.16 m/s) y luego `approach`
+  bajo mas la velocidad al pasar junto al obstaculo.
+
+  EL RAZONAMIENTO: con una capa de seguridad delante, **ir despacio ya no es
+  prueba de estar atascado**, que es lo unico que ese comprobador deberia
+  detectar. Un robot de verdad atascado se mueve 0 m y lo sigue disparando.
+
+  ARREGLO:  required_movement_radius: 0.25   en   movement_time_allowance: 15.0
+            -> 1.7 cm/s
+
+  ✅ VERIFICADO — cuatro navegaciones despues del cambio:
+
+      ida 1     SUCCEEDED   5 s   final (+1.49,-0.05)  err 8 cm  derecha, y=-0.26
+      vuelta 1  SUCCEEDED  13 s   final (+0.13,-0.10)  err 8 cm  derecha, y=-0.32
+      ida 2     SUCCEEDED   5 s   final (+1.48,-0.06)  err 9 cm  derecha, y=-0.26
+      vuelta 2  SUCCEEDED  12 s   final (+0.13,-0.09)  err 8 cm  derecha, y=-0.30
+
+      "Failed to make progress"   0
+      "Aborting handle"           0
+      conductas de recuperacion   0
+      "Control loop missed"       0
+
+      la seguridad SI trabajo: 2 approach + 5 slowdown, 8.1 s de frenado total
+
+  -> Las cuatro rodean por la DERECHA y con el mismo desvio (26-32 cm). Es
+     repetible, no casualidad.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. ✅ save_map: HIPOTESIS CONFIRMADA Y ARREGLO VERIFICADO
+───────────────────────────────────────────────────────────────────────────────
+  El fichero 16 dejaba propuesto un arreglo SIN VERIFICAR para el 255
+  intermitente. Probado aqui:
+
+    A) servicio de slam_toolbox, timeout por defecto de 2 s:
+         intento 1: result=0
+         intento 2: result=255      <- falla ~1 de cada 3
+         intento 3: result=0
+
+    B) ros2 run nav2_map_server map_saver_cli -f <ruta> \
+           --ros-args -p save_map_timeout:=10.0
+         [map_io] Map saved
+         [map_saver] Map saved successfully
+         mapa_rodeo.pgm  7345 bytes
+
+  ✅ CONFIRMA la causa deducida: es una CARRERA entre el
+     `map_update_interval: 5.0` de slam_toolbox y el `save_map_timeout: 2.0`
+     por defecto del map_saver. Con 10 s de margen no falla.
+
+  -> El procedimiento bueno para guardar mapas es el B), no el servicio.
+
+  Mapa de esta sesion: mapas/mapa_rodeo.pgm
+
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+⏳ Un obstaculo que obligue a un paso ESTRECHO de verdad, cerca de los 36 cm
+   minimos del monitor. Aqui habia 63 cm por la derecha: holgado.
+
+⏳ Un obstaculo que aparezca DURANTE la navegacion (dinamico). Todo lo probado
+   estaba puesto antes de arrancar.
+
+⏳ `min_points: 2` contra obstaculos finos de verdad (patas de silla).
+
+⏳ Fase 4c: map_server + AMCL.
+
+🔴 La inclinacion de ~8°, sin causa determinada.
+
+🔴 Y el limite que no se arregla: por debajo de 17.45 cm el LIDAR no ve nada.

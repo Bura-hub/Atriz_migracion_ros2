@@ -4,6 +4,91 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-07-31 — ✅ Rodea obstáculos, y la seguridad hacía abortar a Nav2
+
+Cierra la última laguna: hasta ahora todo se había probado **contra una pared frontal**, así
+que estaba demostrado que el robot **para**, no que **rodee**. Evidencia:
+`00_auditoria/evidencia_24_04/18_rodear_obstaculo.txt`, manual **cap. 11.13**.
+
+### El obstáculo, caracterizado antes de mover nada
+
+Con `/scan`, y el salto en las distancias es lo que lo **aísla de las paredes** — un umbral
+tonto tipo «menos de 1.6 m» las etiqueta a ellas también:
+
+| ángulo | dist | |
+|---|---|---|
+| −3° | 2.54 m | abierto |
+| **0°…+9°** | **0.75–0.77 m** | ← obstáculo |
+| +12° | 2.07 m | abierto |
+
+A **0.75 m**, ~**16 cm de ancho**. El robot mide 18.5 cm: **bloquea la línea recta**. Holgura a
+su altura: 63 cm por la derecha, 44 por la izquierda.
+
+Los requisitos que se le pidieron al usuario salían todos de un número medido: **más de 25 cm
+de alto** porque el plano del LIDAR está a 17.45 cm; **50 cm libres a un lado** porque el
+`collision_monitor` trata al robot como un disco de 36 cm.
+
+### ✅ Lo rodea, y de forma repetible
+
+Objetivo a 1.50 m, **el mismo que la corrida limpia**, para que el obstáculo fuera la única
+variable:
+
+```
+x=+0.00 y=+0.00 → x=+0.62 y=-0.29 → x=+0.79 y=-0.30 → x=+1.28 y=-0.03
+                                     ↑ justo a la altura del obstáculo
+```
+
+| | Resultado | | Error | Junto al obstáculo |
+|---|---|---|---|---|
+| ida 1 | **SUCCEEDED** | 5 s | 8 cm | derecha, y=−0.26 |
+| vuelta 1 | **SUCCEEDED** | 13 s | 8 cm | derecha, y=−0.32 |
+| ida 2 | **SUCCEEDED** | 5 s | 9 cm | derecha, y=−0.26 |
+| vuelta 2 | **SUCCEEDED** | 12 s | 8 cm | derecha, y=−0.30 |
+
+Siempre por el lado con más hueco y con el mismo desvío. **8–9 cm de error: el mismo que sin
+obstáculo** — rodear no degradó la precisión.
+
+### 🔴 El hallazgo: la capa de seguridad hacía abortar a Nav2
+
+```
+[controller_server] [ERROR] Failed to make progress
+[controller_server] [WARN]  [follow_path] [ActionServer] Aborting handle.
+```
+
+El objetivo acabó en `SUCCEEDED` porque el árbol replanificó, pero el aborto es real y en un
+paso más estrecho podría no recuperarse.
+
+El `SimpleProgressChecker` de fábrica exige **0.5 m en 10 s = 5 cm/s**, y el
+`collision_monitor` había frenado al 40 % (0.16 m/s) y `approach` bajó más la velocidad junto
+al obstáculo.
+
+> **Con una capa de seguridad delante, ir despacio ya no es prueba de estar atascado** — que es
+> lo único que ese comprobador debería detectar. Un robot de verdad atascado se mueve 0 m y lo
+> sigue disparando igual.
+
+Relajado a **0.25 m en 15 s** (1.7 cm/s). Tras el cambio, en cuatro navegaciones:
+`Failed to make progress` **0**, `Aborting handle` **0**, recuperaciones **0**,
+`Control loop missed` **0** — y la seguridad **sí trabajó**: 2 `approach` + 5 `slowdown`,
+8.1 s de frenado.
+
+### ✅ `save_map`: hipótesis confirmada y arreglo verificado
+
+La entrada anterior dejaba el arreglo propuesto **sin verificar**. Probado:
+
+| | Resultado |
+|---|---|
+| servicio de `slam_toolbox`, timeout de 2 s | `0`, **`255`**, `0` — falla ~1 de cada 3 |
+| `map_saver_cli` con `save_map_timeout:=10.0` | **`Map saved successfully`** |
+
+Confirma la causa deducida —una carrera contra el `map_update_interval: 5.0`— y **el
+procedimiento bueno pasa a ser `map_saver_cli`, no el servicio**. En `CLAUDE.md`.
+
+**Ficheros:** `atriz_rvr_bringup/config/nav2_atriz.yaml`, manual cap. 11.11 y 11.13–11.14,
+`18_rodear_obstaculo.txt` (nuevo), `mapas/mapa_rodeo.pgm`, `TRASPASO.md`,
+`INSTALACION.md` (F10 ✅ → F11), `CLAUDE.md`.
+
+---
+
 ## 2026-07-31 — ✅ Navegando a 0.40 m/s, el máximo del robot
 
 `desired_linear_vel` sube de 0.25 a **0.40**. Evidencia:

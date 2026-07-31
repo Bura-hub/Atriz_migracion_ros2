@@ -47,8 +47,13 @@ De paso destapó un agujero: el `behavior_server` de Nav2 publicaba en `/cmd_vel
 objetivos `SUCCEEDED` con **8 cm** de error cada uno — *mejor* que los 9–10 cm de las corridas
 a 0.25. La capa de seguridad solo se activó cuatro veces y ninguna fue una parada.
 
-**Lo siguiente es probar con obstáculos que haya que rodear** — hasta ahora solo se ha probado
-contra una pared frontal, así que está demostrado que el robot **para**, no que **esquive**.
+✅ **Y rodea obstáculos.** Cuatro navegaciones seguidas esquivando una caja de 16 cm puesta en
+medio del camino: **todas `SUCCEEDED`, todas por la derecha, 8–9 cm de error** — el mismo que
+sin obstáculo. Manual, **cap. 11.13**.
+
+**Lo siguiente es un paso estrecho de verdad**, cerca de los 36 cm mínimos que exige el
+monitor: aquí había 63 cm de holgura. Y un obstáculo que aparezca **durante** la navegación,
+porque todo lo probado estaba puesto antes de arrancar.
 
 ---
 
@@ -231,12 +236,40 @@ contra 8.0). Ese último dato es el que quitaba el miedo.
 Es una carrera entre `map_update_interval: 5.0` y el `save_map_timeout: 2.0` del saver. Arreglo
 propuesto en el manual 11.11, **sin verificar**.
 
-### 1. ⏳ Obstáculos que haya que rodear — es lo siguiente
+### ✅ Hecho: rodea obstáculos
 
-Todo lo probado es **contra una pared frontal**. Está demostrado que el robot **para**; no que
-**rodee**. Hace falta poner algo en medio del camino y mandar un objetivo al otro lado.
+Objetivo a 1.50 m —el mismo que la corrida limpia, para que el obstáculo fuera la única
+variable— con una caja de 16 cm a 0.75 m bloqueando la recta:
 
-Y arreglar `save_map` (manual 11.11), que hace falta para la Fase 4c.
+```
+x=+0.00 y=+0.00 → x=+0.62 y=-0.29 → x=+0.79 y=-0.30 → x=+1.28 y=-0.03
+                                     ↑ justo a la altura del obstáculo
+```
+
+| | Resultado | | Error | Junto al obstáculo |
+|---|---|---|---|---|
+| ida 1 | **SUCCEEDED** | 5 s | 8 cm | derecha, y=−0.26 |
+| vuelta 1 | **SUCCEEDED** | 13 s | 8 cm | derecha, y=−0.32 |
+| ida 2 | **SUCCEEDED** | 5 s | 9 cm | derecha, y=−0.26 |
+| vuelta 2 | **SUCCEEDED** | 12 s | 8 cm | derecha, y=−0.30 |
+
+Rodea siempre por el lado con más hueco (63 cm por la derecha contra 44 por la izquierda), con
+el mismo desvío. **Es repetible.**
+
+🔴 **El hallazgo: la capa de seguridad hizo abortar a Nav2.** `Failed to make progress` → el
+`SimpleProgressChecker` exige 0.5 m en 10 s (5 cm/s) y el `collision_monitor` había frenado al
+40 %. **Con una capa de seguridad delante, ir despacio ya no es prueba de estar atascado.**
+Relajado a 0.25 m en 15 s; tras el cambio, **cero abortos en cuatro navegaciones**.
+
+✅ **Y `save_map` queda arreglado y verificado**: el servicio con su timeout de 2 s falla ~1 de
+cada 3 (0, **255**, 0); `map_saver_cli` con `save_map_timeout:=10.0` funciona. Confirma que era
+una carrera contra el `map_update_interval: 5.0`.
+
+### 1. ⏳ Un paso estrecho de verdad — es lo siguiente
+
+El monitor trata al robot como un disco de 36 cm. Aquí pasó con **63 cm** de holgura: no se ha
+probado el caso apretado. Y todo lo probado estaba puesto **antes** de arrancar — falta un
+obstáculo que aparezca **durante** la navegación.
 
 ### 2. 🔴 La inclinación de ~8°, confirmada por TRES vías
 
