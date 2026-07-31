@@ -2150,7 +2150,10 @@ IMU y acelerómetro). Causa sin determinar.
 2.7 cm. Así que no está arruinando el emparejado. Sigue habiendo que resolverla para Nav2
 —por REP-105 `odom → base_footprint` debería ser plana— pero **no es urgente**.
 
-🔴 La **velocidad de `/odom`** sigue siendo basura. No bloquea SLAM, sí bloquea Nav2.
+✅ **La velocidad de `/odom` está arreglada** (2026-07-31). El stream nunca fue el problema:
+es exacto. Lo que fallaba era que el driver copiaba una velocidad del marco del **mundo** a un
+campo que ROS define en el marco del **robot**. Ahora publica `(+0.101, +0.001)` con el robot
+a 84° contra 0.099 m/s reales — 2 % de error. **Capítulo 10.**
 
 ### 9.13 Verificación del capítulo
 
@@ -2188,7 +2191,134 @@ Evidencia cruda: `00_auditoria/evidencia_24_04/11_slam_fase4.txt`,
 
 ---
 
-## Capítulos 6, 10–12
+## Capítulo 10 — Los marcos de referencia de `/odom`
+
+✅ **Verificado el 2026-07-31.** Es el capítulo que más tiempo ahorra a quien toque la
+odometría, porque **el RVR no usa una sola convención de ejes** y ninguno de sus desajustes
+produce un error: todos fallan en silencio.
+
+Evidencia cruda: `00_auditoria/evidencia_24_04/15_velocidad_odom.txt`.
+
+### 10.1 El modelo, en una tabla
+
+Cada fila se midió por separado. No deduzcas ninguna de otra: **este proyecto lo intentó tres
+veces y se equivocó las tres**.
+
+| Dato del RVR | Marco en que viene | Qué hay que hacerle |
+|---|---|---|
+| **Locator** (posición) | propio, **90° girado** respecto al «adelante», y se realinea en cada `reset_locator_x_and_y()` | rotar **−90°**: `(x,y) → (y,−x)` |
+| **Velocity** | el mismo del locator (mundo) | la misma rotación, y **proyectar sobre el rumbo** |
+| **Cuaternión** | FRD, con el yaw a cero **al ENCENDER el RVR** | `(x,−y,−z,w)` y **restar el yaw del arranque** |
+| **Giroscopio** | ya FLU | solo deg/s → rad/s |
+| **Acelerómetro** | ya FLU, y en **`g`** | solo × 9.80665 |
+
+### 10.2 🔴 Las cuatro trampas, y por qué ninguna da error
+
+**1. `reset_yaw()` no hace nada.** El driver lo llama al arrancar y el cuaternión sigue dando
+lo que arrastraba. El yaw solo se pone a cero **al encender el RVR**. Cinco arranques dieron
+cinco offsets distintos:
+
+```
++51.1°   +52.7°   +56.5°   −74.6°   +64.9°
+```
+
+**No había constante posible.** El driver mide el offset en cada arranque y lo resta:
+
+```
+[INFO] origen del yaw fijado en +51.1° (reset_yaw() del RVR no lo pone a cero; se resta aquí)
+```
+
+**2. El eje X del locator está 90° girado** respecto al «adelante» del robot. Avanzar en línea
+recta daba **siempre −90°**, con giros y apagados de por medio. Y el marco es **fijo** —no gira
+con el robot— pero **se realinea en cada `reset_locator_x_and_y()`**, o sea al arrancar el
+driver.
+
+**3. `Velocity` viene en el marco del MUNDO, y es EXACTO.** Medido con el robot recto:
+
+```
+dirección del desplazamiento del locator:  +90.2°
+dirección del vector Velocity:             +90.1°     ← 0.1° de diferencia
+módulo real 0.199 m/s  ·  Velocity 0.200              ← 0 % de error
+```
+
+⚠️ Durante un día este proyecto lo dio por «basura» porque reportaba 0.001 m/s con el robot a
+0.147 real. **La observación era cierta; la conclusión, falsa:** se leía solo la componente X
+con el robot encarado a ~90° de ese eje, donde X vale ~0 aunque el robot cruce la habitación.
+`odom.twist` va en el marco del **robot** (`child_frame_id`), así que hay que **proyectar sobre
+el rumbo**, no copiar.
+
+**4. La posición y la orientación pueden tener MANOS CONTRARIAS**, y eso no se ve mirando
+ninguna de las dos por separado. Se detecta girando el robot y comparando **cómo cambian las
+dos**:
+
+```
+el yaw cambió             +89.4°
+el desplazamiento cambió  −88.8°     ← signo contrario
+```
+
+### 10.3 Cómo verificarlo — tres comprobaciones
+
+Son las que se usaron para validar cada pieza del arreglo, y **detectan una regresión en un
+minuto**:
+
+```bash
+ros2 launch atriz_rvr_bringup robot.launch.py lidar:=false
+```
+
+**A · el yaw arranca en cero** (no hace falta mover el robot):
+
+```bash
+ros2 topic echo /odom --once --field pose.pose.orientation
+# el yaw debe salir ~0.00°. Si sale ±50-75°, el offset no se está restando.
+```
+
+**B · la posición y la orientación son coherentes** — avanza en recto y compara la dirección
+del desplazamiento con el yaw publicado. Deben **coincidir**. Y al girar el robot, deben
+moverse en el **mismo** sentido.
+
+**C · la velocidad va en el marco del robot** — avanzando recto, `odom.twist.linear` debe dar
+`(+v, 0.000)` **mire donde mire el robot**, y negativo al retroceder.
+
+Valores medidos tras el arreglo:
+
+| | Antes | Después |
+|---|---|---|
+| yaw en reposo | −74.6° / +64.9° | **+0.00°** |
+| dirección vs yaw | −89.7° | **+0.03°** |
+| al girar 90° | +89.4° vs −88.8° (opuestos) | **+89.87° vs +90.00°** |
+| `twist.linear` con el robot a 84° | `(-0.000, -0.200)` | **`(+0.101, +0.001)`** vs 0.099 real |
+
+### 10.4 ⚠️ Dos formas de equivocarse midiendo esto
+
+**No uses 180° para una prueba de signo.** Es exactamente el ángulo donde el signo de un giro
+es ambiguo: +180 y −180 son el mismo giro. Este proyecto lo eligió **dos veces** y las dos
+perdió la medida. Para comparar marcos, la prueba buena **no gira nada**: compara la dirección
+de `Velocity` con la del desplazamiento del locator, que ya están en el mismo marco.
+
+**Mide también la referencia.** Una corrida de verificación dio un 15 % de error aparente en la
+velocidad. No era el driver: la ventana de medida eran 0.7 s justo después de un giro. Con 3 s
+de ventana el error baja al 2 %.
+
+### 10.5 🔴 `colcon build` desde el directorio equivocado
+
+No es de marcos, pero costó **dar por fallida una corrección que estaba bien**, así que va
+aquí:
+
+Lanzado desde `~/atriz_ws/src/Atriz_rvr` en vez de la raíz `~/atriz_ws`, colcon crea **ahí
+dentro** un workspace parásito (`build/`, `install/`, `log/`), compila contra él, dice
+**«Finished»**, y el cambio **nunca llega al sistema que estás ejecutando**.
+
+```bash
+cd ~/atriz_ws && colcon build --packages-select atriz_rvr_driver
+# comprobar el EFECTO, con RUTA ABSOLUTA — con ruta relativa acabas mirando el parásito:
+grep -c 'lo_que_cambiaste' \
+  /home/sphero/atriz_ws/install/atriz_rvr_driver/lib/python3.12/site-packages/atriz_rvr_driver/rvr_driver_node.py
+ls -d ~/atriz_ws/src/*/build 2>/dev/null && echo "🔴 workspace parásito: bórralo"
+```
+
+---
+
+## Capítulos 6, 11–12
 
 ⏳ **No escritos todavía.** Se redactan al ejecutar las fases 1–6 del
 [plan](../01_plan/PLAN_MIGRACION_ROS2.md), capítulo a capítulo, tras verificar cada paso.

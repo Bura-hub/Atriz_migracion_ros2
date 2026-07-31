@@ -440,6 +440,39 @@ if [[ -d /opt/ros/jazzy ]]; then
             _nota "/odom no esta publicado: robot.launch.py no esta corriendo."
         fi
 
+        # 🔴 EL YAW DEBE ARRANCAR EN ~0. Es la comprobacion mas barata de que la
+        # correccion de marcos sigue en su sitio (manual cap. 10).
+        #
+        # `reset_yaw()` del RVR NO pone a cero el yaw: el cuaternion arrastra su
+        # origen desde que se ENCENDIO el robot. Cinco arranques dieron cinco
+        # offsets distintos (+51.1, +52.7, +56.5, -74.6, +64.9). El driver mide
+        # el offset al conectar y lo resta. Si esta comprobacion falla, esa
+        # correccion se ha perdido — y con ella la coherencia entre la posicion
+        # y la orientacion de /odom, que no da NINGUN error.
+        #
+        # ⚠️ Solo vale con el robot QUIETO y recien arrancado el driver.
+        if timeout 6 ros2 topic list 2>/dev/null | grep -qx '/odom'; then
+            YAW="$(timeout 10 ros2 topic echo /odom --once --field pose.pose.orientation 2>/dev/null \
+                   | python3 -c 'import sys,math
+d={}
+for l in sys.stdin:
+    if ":" in l:
+        k,v=l.split(":",1)
+        try: d[k.strip()]=float(v)
+        except ValueError: pass
+if all(k in d for k in "xyzw"):
+    print(round(math.degrees(math.atan2(2*(d["w"]*d["z"]+d["x"]*d["y"]),
+                                        1-2*(d["y"]**2+d["z"]**2))),1))' 2>/dev/null)"
+            if [[ -n "$YAW" ]]; then
+                if awk -v y="$YAW" 'BEGIN{exit !(y<5 && y>-5)}'; then
+                    _ok "yaw de /odom en reposo: ${YAW}° (el offset se esta restando)"
+                else
+                    _avi "yaw de /odom en reposo: ${YAW}°, se esperaba ~0" \
+                         "si el robot NO esta quieto es normal; si lo esta, se perdio la correccion de marcos (manual cap. 10)"
+                fi
+            fi
+        fi
+
         # El keepalive publica /battery_state cada 30 s. Que ese topic tenga un
         # mensaje reciente es la prueba MAS BARATA de que el keepalive corre: sin
         # el, el RVR se duerme a los 300.6 s (medido) y el nodo no se entera.

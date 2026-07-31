@@ -54,24 +54,28 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      F4  Arrancar y verificar                 manual, cap. 9.13               ✅
          └── el mapa CRECE al moverse: 2367 -> 3299 celdas (8.25 m²)
 
-     F5  Lo que queda                                                         ⏳ SIGUIENTE
-         1. Caracterizar la deriva de la localización  ← AQUÍ
-         2. La inclinación de ~8° (tres vías, causa sin determinar)
-         3. La velocidad de /odom (basura; bloquea Nav2, no SLAM)
-         4. Nav2, y los 16 servicios del driver sin portar
-         5. Plataforma web                    plan, Fase 5
-         6. Clonar a los 16 robots            FLOTA.md
+     F5  Deriva de SLAM caracterizada         14_deriva_slam_caracterizada.txt ✅
+         └── mediana 1.0 cm (1.6 m) y 2.7 cm (2.4 m). Cabe en una celda del mapa
+     F6  Los tres marcos de /odom              manual, cap. 10                 ✅
+         └── yaw +0.00° · dirección vs yaw +0.03° · twist con 2 % de error
+
+     F7  Lo que queda                                                          ⏳ SIGUIENTE
+         1. Nav2 — ya SIN bloqueantes de odometría   ← AQUÍ
+         2. La inclinación de ~8° (tres vías, causa sin determinar, NO urgente)
+         3. Los 16 servicios y 4 topics del driver sin portar
+         4. Plataforma web                    plan, Fase 5
+         5. Clonar a los 16 robots            FLOTA.md
 ```
 
-> **Las etapas A a F4 están recorridas y verificadas sobre la máquina real.** Los capítulos
-> 1, 3, 4, 5, 7, 8, 8bis y 9 del manual dejaron de ser NO VERIFICADO. La evidencia cruda de cada paso está
+> **Las etapas A a F6 están recorridas y verificadas sobre la máquina real.** Los capítulos
+> 1, 3, 4, 5, 7, 8, 8bis, 9 y 10 del manual dejaron de ser NO VERIFICADO. La evidencia cruda de cada paso está
 > en [`00_auditoria/evidencia_24_04/`](00_auditoria/evidencia_24_04/) — es lo que permite
 > comparar cuando un robot nuevo de la flota no dé lo mismo.
 >
 > **🟢 El go/no-go salió GO**, ROS 2 Jazzy está instalado y el robot funciona entero: driver en
-> `rclpy`, URDF, LIDAR y SLAM. El siguiente paso es **F5.1: caracterizar la deriva de la
-> localización**, porque las dos medidas que hay se contradicen (87.8 cm y 0.9 cm de error al
-> volver al punto de partida) y hasta saberlo no se puede decir si la pose sirve para Nav2.
+> `rclpy`, URDF, LIDAR, SLAM, y la odometría con sus tres marcos corregidos. El siguiente paso
+> es **Nav2**, que ya no tiene bloqueantes de odometría: la deriva está caracterizada (1–2.7 cm)
+> y `/odom` publica pose y velocidad coherentes.
 >
 > ### Un solo comando para saber si el robot está bien
 >
@@ -516,12 +520,10 @@ Resultado esperado: **el mapa crece**. En `rvr-01`, 2367 → 3299 celdas (5.92 �
 2. **La inclinación de ~8°** del robot, confirmada por tres vías independientes (árbol TF,
    `Roll` de la IMU y acelerómetro). Causa sin determinar. Para SLAM 2D funciona; para Nav2 hay
    que resolverla.
-3. **Dos bugs de marcos de referencia** (medidos el 2026-07-31, evidencia
-   `15_velocidad_odom.txt`). No bloquean SLAM, sí Nav2, y se arreglan juntos:
-   - la velocidad de `/odom` sale en el marco del **mundo** metida en un campo que ROS define
-     en el marco del **robot**. 🔴 El sensor está bien: `Velocity` es **exacto**;
-   - `reset_yaw()` no pone a cero el yaw, y la orientación de `/odom` queda **~15° desfasada**
-     respecto a su propia posición.
+3. ✅ **Los tres bugs de marcos de `/odom` están arreglados y verificados** (2026-07-31,
+   manual **cap. 10**). Los sensores del RVR siempre estuvieron bien; fallaba cómo el driver
+   los combinaba. Ahora el yaw arranca en +0.00°, la dirección de avance coincide con él
+   (+0.03°) y `odom.twist.linear` da la velocidad en el marco del robot con un 2 % de error.
 4. **Nav2** (plan, Fase 4b) y los **16 servicios y 4 topics** del driver sin portar.
 5. **Plataforma web** (Fase 5) — al final. **Arreglar primero la parada de emergencia**, que
    está confirmada como no funcional.

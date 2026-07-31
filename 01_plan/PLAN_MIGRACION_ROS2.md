@@ -330,28 +330,26 @@ y la evidencia cruda en `00_auditoria/evidencia_24_04/13_fase4_cerrada.txt`.
 Cada verificación tiene que comprobar el **efecto medible** —el ritmo de un topic, el número de
 celdas del mapa— y no que un proceso exista o un comando devuelva 0.
 
-### 4b. Nav2 — ⏳ pendiente, y hay tres bloqueantes conocidos
+### 4b. Nav2 — ⏳ pendiente, y ya SIN bloqueantes de odometría
 
 - Nav2 con `nav2_regulated_pure_pursuit_controller` (diferencial), costmaps a resolución modesta (5 cm) y ventanas pequeñas — es la carga más pesada del Pi 4.
 - Guardar el mapa del laboratorio (`nav2_map_server`) y distribuirlo a los 16 robots: en un laboratorio fijo, **mapear una vez y localizar con AMCL** es mucho más barato que 16 SLAM simultáneos.
   - 📝 `nav2_map_server` **no está instalado todavía**, y por eso `/slam_toolbox/save_map`
     falla con `result=255`. Para guardar mapas hoy se usa `serialize_map`, que es nativo.
 
-🔴 **Antes de Nav2 hay que resolver tres cosas, y ninguna está resuelta:**
+✅ **Los tres bloqueantes de odometría están resueltos** (2026-07-31, manual cap. 10 y 9.12):
 
-1. **La deriva de la localización no está caracterizada.** Dos corridas dieron 87.8 cm y
-   0.9 cm de error al volver al punto de partida. Repetir varias veces en espacio despejado.
-2. **Dos bugs de marcos de referencia en `/odom`**, medidos el 2026-07-31. 🔴 **El sensor está
-   bien** — `Velocity` es exacto (0 % de error). Lo que falla es el driver:
-   - copia una velocidad del marco del **mundo** a `twist.linear.x`, que ROS define en el marco
-     del **robot**;
-   - `reset_yaw()` no pone a cero el yaw, y la orientación queda **~15° desfasada** de la
-     posición del mismo mensaje.
-   Se arreglan juntos, y son pocas líneas. Evidencia: `15_velocidad_odom.txt`.
-3. **El robot está inclinado ~8°**, confirmado por tres vías independientes (árbol TF, `Roll`
-   de la IMU y acelerómetro). Causa sin determinar. Para SLAM 2D funciona; para Nav2 hay que
-   resolverlo, porque por REP-105 `odom → base_footprint` debería ser plana (x, y, yaw) y el
-   driver mete roll y pitch.
+1. ~~La deriva de la localización~~ → **caracterizada**: mediana de 1.0 / 2.7 cm, y el error
+   cabe en una celda del mapa.
+2. ~~La velocidad de `/odom`~~ → **arreglada**. El stream `Velocity` era **exacto**; fallaba
+   que el driver lo copiaba del marco del mundo a un campo del marco del robot.
+3. ~~El yaw desfasado de la posición~~ → **arreglado**: `reset_yaw()` no hace nada, así que el
+   driver mide el offset en cada arranque y lo resta.
+
+🔴 **Queda la inclinación de ~8°**, confirmada por tres vías independientes (árbol TF, `Roll`
+de la IMU y acelerómetro). Causa sin determinar. **No es urgente**: con ella presente la deriva
+de SLAM es de 2.7 cm, así que no está arruinando el emparejado. Por REP-105
+`odom → base_footprint` debería ser plana (x, y, yaw) y el driver mete roll y pitch.
 
 **Verificación de Nav2:** enviar un `NavigateToPose` desde la CLI y comprobar que llega evitando un obstáculo; medir carga (`top`) durante la navegación para confirmar margen en el Pi 4.
 
