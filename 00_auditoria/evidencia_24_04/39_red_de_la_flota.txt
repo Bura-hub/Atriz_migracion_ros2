@@ -1,0 +1,202 @@
+═══════════════════════════════════════════════════════════════════════════════
+LA RED DE LA FLOTA: del PC de casa al laboratorio sin reconfigurar 16 robots
+Robot: rvr-01 · 2026-08-01 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Salio de tres preguntas del usuario al planificar la Fase 5: si conviene IP fija
+o DHCP, como habla la web con el robot (¿SSH?), y como se pasa de casa al
+laboratorio sin tocar 16 tarjetas.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. LAS DOS REDES — y por que el problema tiene solucion
+───────────────────────────────────────────────────────────────────────────────
+                    CASA                    LABORATORIO
+    SSID            VERCINGE_TORIX          Atriz-server
+    Subred          192.168.1.0/24          10.14.0.0/21   gw 10.14.0.1
+    Este robot      192.168.1.200           10.14.7.7
+
+  📝 Una /21 son 2046 direcciones: es la red de la UNIVERSIDAD, la administra un
+     tercero, y ya hay un bloque asignado para los robots.
+
+  ✅ LOS DOS SSID SON DISTINTOS. Eso es lo que hace posible que un mismo robot
+     funcione en los dos sitios sin tocar nada: netplan admite varios puntos de
+     acceso y se engancha al que encuentre.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. 🔴 POR QUE EL ARGUMENTO DE `FLOTA.md` CONTRA LAS IP ESTATICAS ERA FLOJO
+───────────────────────────────────────────────────────────────────────────────
+  `FLOTA.md` decia: «reservas DHCP por MAC, NO IPs estaticas — un cambio de
+  subred se hace en un sitio en vez de en dieciseis».
+
+  Es cierto pero no es el argumento importante. **El argumento fuerte es este:**
+
+    Una IP estatica equivocada deja el robot SIN DIRECCION en esa LAN, y por
+    tanto **sin SSH para arreglarla**. Te has quedado fuera. Con un robot se
+    resuelve con teclado y pantalla; con dieciseis es una tarde y un viaje.
+
+  Y con imagen dorada hay un segundo problema: los 16 clones nacerian con la
+  MISMA IP. Conflicto al encender el segundo.
+
+  ✅ PERO LAS DOS OBJECIONES DESAPARECEN si la configuracion vive en la PARTICION
+     FAT: se edita metiendo la microSD en cualquier PC, **sin arrancar la Pi**. No
+     te puedes quedar fuera.
+
+  → Asi que las IP estaticas SI convienen aqui, y ademas quitan la dependencia
+    del administrador de red. Lo que habia que evitar era enterrarlas en
+    /etc/netplan.
+
+  📝 El usuario lo cuestiono, y tenia razon: el robot YA habia funcionado con IP
+     estatica en el laboratorio antes de la migracion. La practica establecida
+     alli son direcciones asignadas una a una.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. ✅ EL DISEÑO, VALIDADO SIN TOCAR LA RED DEL ROBOT
+───────────────────────────────────────────────────────────────────────────────
+  `first-boot` genera `/etc/netplan/60-atriz.yaml` desde `/boot/firmware/red.txt`
+  — el mismo mecanismo que ya usaba para el hostname y el ROS_DOMAIN_ID.
+
+  LA PIEZA CLAVE, y estaba sin comprobar: **¿conviven `dhcp4: true` y direcciones
+  estaticas?** Todo el diseño se apoyaba en que si.
+
+  Se valido con `netplan generate --root-dir` sobre un root FALSO, o sea sin
+  riesgo de dejar sin red al robot con el que se esta trabajando. Netplan acepto
+  la configuracion y la tradujo a systemd-networkd asi:
+
+      [Network]
+      DHCP=ipv4
+      Address=10.14.7.7/21        <- laboratorio
+      Address=192.168.1.200/24    <- casa
+      DNS=8.8.8.8
+      DNS=1.1.1.1
+
+  Y `wpa-wlan0.conf` salio con **2 bloques de red**: los dos SSID.
+
+  ✅ EFECTO BUSCADO:
+       en casa        la estatica 10.14.7.7 no sirve, pero el DHCP da 192.168.1.x
+                      (y ademas responde en 192.168.1.200)
+       en el lab      la estatica funciona sin depender de nadie
+     → **cero toques al mudarse.**
+
+  ⚠️ VALIDADO A NIVEL DE CONFIGURACION, NO EN VIVO. Falta `netplan try` sobre el
+     robot. Se hara con `--timeout`, que revierte solo si deja sin conexion.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. 🔴 UNA TRAMPA QUE APARECIO AL DISEÑARLO: LA RUTA POR DEFECTO NO SE DUPLICA
+───────────────────────────────────────────────────────────────────────────────
+  Es tentador poner las dos rutas por defecto, una por red. **No funciona, y
+  falla de forma sucia.**
+
+  Con la direccion `10.14.7.7/21` configurada, el sistema considera `10.14.0.1`
+  **on-link** aunque estes en casa. Asi que la ruta se instala, se da por valida,
+  y **el trafico de salida se va por un gateway que no existe**. No hay error: hay
+  silencio.
+
+  → Por eso `red.txt` tiene `RUTA_POR_DEFECTO`, con estos valores:
+        dhcp     (por defecto) la pone quien reparte DHCP
+        lab      fija por LAB_GATEWAY, si el laboratorio no tiene DHCP
+        casa     fija por CASA_GATEWAY
+        ninguna  solo LAN
+
+  📝 Y con `dhcp` el robot puede quedarse sin salir a internet en una red sin
+     DHCP — pero **sigue siendo alcanzable en la LAN**, que es lo unico que
+     necesita para operar. Internet solo hace falta para `apt`.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. 🔴 mDNS ESTABA APAGADO POR NUESTRA PROPIA HIGIENE
+───────────────────────────────────────────────────────────────────────────────
+  `fase_1_higiene_so.sh` deshabilitaba `avahi-daemon` con el criterio de «servicio
+  inutil en un robot headless». Y `systemd-resolved` tenia mDNS en `no` en todos
+  los enlaces.
+
+  Comprobado el 2026-08-01:
+      systemctl is-enabled avahi-daemon   ->  disabled
+      resolvectl mdns                      ->  Global: no · wlan0: no
+
+  🔴 Y ADEMAS CONTRADECIA AL MANUAL, que en el cap. 7 dice «usa
+     `ping rvr-01.local` si mDNS responde». No respondia porque lo apagamos
+     nosotros.
+
+  ✅ Corregido: `avahi` se queda y la higiene activa mDNS en systemd-resolved.
+
+  POR QUE IMPORTA: con mDNS cada robot responde a `rvr-NN.local` **en cualquier
+  red, sin tocar el router y sin depender del administrador**. Es la red de
+  seguridad para cuando una IP estatica esta mal.
+
+  ⚠️ NO es el mecanismo principal: el multicast sobre WiFi es fragil, y hay puntos
+     de acceso con «aislamiento de clientes» que lo bloquean — y que romperian
+     tambien la comunicacion PC↔robot. **Hay que comprobar esa casilla del AP en
+     el aula.**
+
+
+───────────────────────────────────────────────────────────────────────────────
+6. ✅ ANCHO DE BANDA POR ROBOT — el riesgo nº4 de FLOTA.md, medido
+───────────────────────────────────────────────────────────────────────────────
+  `FLOTA.md` decia: «no sabemos cuanto ancho de banda consume un robot. Es el
+  numero que decide si 16 caben en un punto de acceso». Medido serializando los
+  mensajes reales, 30 s, con el barrido encendido:
+
+      topic          Hz    bytes/msg     kB/s
+      scan        11.43         2220     24.8    <- 59 % del total
+      odom        16.56          724     11.7
+      imu         16.53          324      5.2
+      encoders    16.53           12      0.2
+      color       13.03           24      0.3
+      ──────────────────────────────────────
+      TOTAL                              42.2 kB/s  =  0.33 Mbit/s
+
+      x16 robots  ->  0.7 MB/s  =  5.3 Mbit/s
+
+  ✅ Y EL MULTIPLICADOR DE JSON, MEDIDO EL MISMO DIA tras instalar rosbridge, con
+     un cliente WebSocket propio (`mediciones_banco/probar_rosbridge.py`):
+
+       topic            binario   por rosbridge     factor
+       /odom             724 B        820 B         1.13x
+       /scan            2220 B       5532 B         **2.49x**
+       ───────────────────────────────────────────────────
+       odom+scan      36.5 kB/s    **75.0 kB/s**    **2.05x**
+
+     🔴 ERA UNA ESTIMACION MIA DE 3x A 5x. **El real es ~2x.** Menos malo de lo
+        temido, y es la diferencia entre «hace falta comprar red» y «cabe».
+
+       16 robots simultaneos  ->  **9.4 Mbit/s**
+
+     ✅ Y `/scan` pasa a ser el **83 %** del trafico por rosbridge (era el 59 % en
+        binario, porque es el que mas se infla al pasar a texto). **Sin `/scan`,
+        un robot son 13.2 kB/s y los 16 caben en 1.6 Mbit/s.**
+
+     · Encima van TCP/IP, WebSocket y los reintentos del WiFi.
+     · Encima van TCP/IP, WebSocket y los reintentos del WiFi: **797 en 42 min**
+       con UN robot y -62 dBm (auditoria original).
+
+     Con un x4 razonable, 16 robots simultaneos serian ~20 Mbit/s sobre una sola
+     AP con mala señal. Ahi si aprieta.
+
+  ✅ LAS TRES PALANCAS, por orden de eficacia:
+
+     1. **¿Cuantos robots a la vez?** Es la pregunta que mas cambia el resultado y
+        NO es tecnica: si los estudiantes reservan de dos en dos, el problema no
+        existe; si son 16 a la vez, es el escenario duro.
+     2. **`scan` es el 59 %.** Y la web probablemente no lo necesita crudo: para
+        pintar el robot le basta `/map` + la pose. Sin `scan`, un robot baja a
+        **17.4 kB/s** y los 16 a 2.2 Mbit/s. Es la decision de diseño mas barata
+        que queda.
+     3. **La banda.** Si la AP es de 2.4 GHz, pasar a 5 GHz cambia el problema.
+
+
+───────────────────────────────────────────────────────────────────────────────
+7. ⏳ LO QUE QUEDA POR COMPROBAR
+───────────────────────────────────────────────────────────────────────────────
+  1. `netplan try` en vivo sobre rvr-01 — con timeout, que revierte solo.
+  1-bis. mDNS **por enlace**: `resolvectl mdns` da `Global: yes` pero
+     `wlan0: no`. Avahi si responde (es el que contesta a los demas), pero el
+     robot no resuelve `.local` de otros. Falta persistirlo con un drop-in de
+     systemd-networkd.
+  2. `rvr-01.local` resuelto **DESDE EL PC del usuario**, no desde el robot: hoy
+     el robot se resuelve a si mismo por IPv6 link-local y eso ENGAÑA.
+  3. rosbridge: instalar, conectar un cliente, ver llegar /odom y mover el robot
+     con un cmd_vel_raw.
+  5. En el aula: si el AP tiene aislamiento de clientes.

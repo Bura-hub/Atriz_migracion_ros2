@@ -121,11 +121,39 @@ Esta Pi, con **un** robot y sin rosbridge, ya registra:
 Signal level = -62 dBm      Tx excessive retries = 797  (en 42 min)
 ```
 
-**No sabemos cuánto ancho de banda consume un robot con rosbridge activo.** Es el número
-que decide si 16 robots caben en un punto de acceso o hacen falta varios.
+✅ **MEDIDO el 2026-08-01 — el payload.** Un robot con todo publicando:
 
-> **Medirlo con UN robot en la Fase 5 y extrapolar, antes de comprar hardware de red.**
-> Es la decisión de compra más cara que queda por tomar.
+| topic | Hz | bytes/msg | kB/s |
+|---|---|---|---|
+| `scan` | 11.4 | 2220 | **24.8** ← 59 % |
+| `odom` | 16.6 | 724 | 11.7 |
+| `imu` | 16.5 | 324 | 5.2 |
+| resto | | | 0.5 |
+| **total** | | | **42.2 kB/s = 0.33 Mbit/s** |
+
+**×16 = 5.3 Mbit/s.** Eso cabe en cualquier AP.
+
+✅ **Y el multiplicador de JSON, medido el mismo día** con rosbridge ya instalado:
+
+| | binario | por rosbridge | factor |
+|---|---|---|---|
+| `/odom` | 724 B | 820 B | 1.13× |
+| `/scan` | 2220 B | **5532 B** | **2.49×** |
+| odom+scan | 36.5 kB/s | **75.0 kB/s** | **2.05×** |
+
+🔴 Se había estimado **3–5×**; el real es **~2×**. Es la diferencia entre «hay que comprar red» y
+«cabe»: **16 robots simultáneos = 9.4 Mbit/s**.
+
+✅ **El riesgo nº4 queda cerrado.** Y aparece la palanca: `/scan` es el **83 %** del tráfico por
+rosbridge. **Sin él, los 16 caben en 1.6 Mbit/s.**
+
+**Las tres palancas, por orden:**
+1. **¿Cuántos robots a la vez?** No es una pregunta técnica y es la que más cambia el resultado.
+2. **`scan` es el 59 %.** Si la web no lo necesita crudo —le basta `/map` + la pose— un robot baja
+   a **17.4 kB/s** y los 16 a 2.2 Mbit/s. La decisión de diseño más barata que queda.
+3. **La banda.** 2.4 GHz → 5 GHz cambia el problema.
+
+⏳ Falta el multiplicador JSON. Evidencia 39.
 
 ---
 
@@ -149,8 +177,34 @@ dejarte sin saber dónde está el robot. Es el momento de hacerlo, antes de que 
 [ARQUITECTURA.md](ARQUITECTURA.md), Decisión 1. Resumen: ~160 participantes DDS sobre WiFi
 saturan la red solo con el descubrimiento.
 
-**Red:** reservas DHCP por MAC en el router, **no** IPs estáticas configuradas en 16
-dispositivos. Un cambio de subred se hace en un sitio en vez de en dieciséis.
+### Red: IP estática **desde la partición FAT**, no reservas DHCP
+
+> 🔴 **CORREGIDO el 2026-08-01.** Aquí ponía «reservas DHCP por MAC, **no** IPs estáticas — un
+> cambio de subred se hace en un sitio en vez de en dieciséis». El argumento era flojo y llevaba
+> a la decisión equivocada.
+
+**El argumento fuerte contra las estáticas es otro:** una IP equivocada deja el robot **sin
+dirección en esa LAN y sin SSH para arreglarla**. Te quedas fuera. Y con imagen dorada, los 16
+clones nacerían con la misma IP.
+
+✅ **Las dos objeciones desaparecen si la configuración vive en la partición FAT**
+(`/boot/firmware/red.txt`), que se edita metiendo la microSD en cualquier PC **sin arrancar la
+Pi**. Es el mismo mecanismo que ya usa `robot_id.txt`.
+
+Y así **no dependes del administrador de la red**: puedes entrar al aula con 16 robots y un AP sin
+DHCP, y funcionan. En una red universitaria gestionada por un tercero, eso es la diferencia entre
+trabajar y esperar.
+
+**Cómo queda:** `first-boot` genera un netplan con **los dos puntos de acceso** (casa y
+laboratorio tienen SSID distintos) y **las dos direcciones estáticas más DHCP**. En cada sitio
+funciona la que toca. **Cero toques al mudarse.** Manual, cap. 19.
+
+⚠️ **La ruta por defecto NO se duplica.** Una ruta hacia un gateway que no existe en la red actual
+rompe el tráfico de salida en silencio, porque tener la dirección configurada lo hace «on-link».
+Por eso `red.txt` tiene `RUTA_POR_DEFECTO`, y por defecto la deja al DHCP.
+
+**Y mDNS como red de seguridad:** cada robot responde a `rvr-NN.local` en cualquier red. Si una
+estática está mal, sigues llegando al robot. Evidencia 39.
 
 ---
 

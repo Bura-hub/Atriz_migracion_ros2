@@ -70,6 +70,18 @@ añade encima.
 Con rosbridge, el navegador mantiene **un** WebSocket por robot y recibe los datos
 empujados. FastAPI deja de ser cuello de botella porque deja de estar en medio.
 
+### Cómo localiza la web a cada robot
+
+**Por nombre, no por IP:** `ws://rvr-NN.local:9090`, con la IP como override configurable. Eso es
+lo que hace que **el mismo código funcione en el PC de casa y en el laboratorio** sin tocar nada.
+
+Cada robot tiene además una **IP estática por red**, generada por `first-boot` desde
+`/boot/firmware/red.txt` — así el robot es alcanzable aunque mDNS falle, y sin depender de que
+nadie configure el router. Manual, cap. 19.
+
+⚠️ **Comprobar en el aula si el AP tiene aislamiento de clientes.** Rompería mDNS *y* la
+comunicación PC↔robot si el PC va por WiFi.
+
 ### Contrato de topics por robot
 
 > ⏳ **DECISIÓN PENDIENTE — el namespace.** Este documento decía «namespace `/rvr_NN`», pero el
