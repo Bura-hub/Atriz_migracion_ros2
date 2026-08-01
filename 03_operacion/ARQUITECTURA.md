@@ -1,8 +1,17 @@
 # Arquitectura
 
-> **Estado: DISEÑO, NO IMPLEMENTADO.** Este documento fija las decisiones antes de
-> escribir código, para no descubrirlas a medias. Nada de lo que describe está en marcha
-> todavía; el sistema actual sigue siendo ROS Noetic con control por SSH.
+> ## ✅ Estado: **IMPLEMENTADO Y VERIFICADO** salvo la plataforma web (Fase 5)
+>
+> El robot corre ROS 2 Jazzy, arranca solo con systemd, navega con Nav2 y habla por rosbridge.
+> Verificado el 2026-08-01 desde un navegador: `ws://rvr-01.local:9090`, telemetría entrando y
+> servicios respondiendo. Lo único que falta es **el cliente web**.
+>
+> 🔴 **Esta cabecera decía «DISEÑO, NO IMPLEMENTADO. Nada de lo que describe está en marcha
+> todavía; el sistema actual sigue siendo ROS Noetic con control por SSH» hasta el
+> 2026-08-01.** Era la primera frase del fichero y llevaba semanas siendo falsa. Peor: el
+> documento mezclaba secciones actualizadas con secciones de diseño previo, así que **el lector
+> no podía saber qué párrafo describía la realidad y cuál una intención**. Se ha revisado
+> entero contra el código.
 >
 > Las decisiones marcadas ✅ están respaldadas por mediciones reales; las marcadas 🔵 son
 > razonadas pero **sin verificar**.
@@ -23,7 +32,7 @@ Lo que hay hoy no llega:
 | Control por `subprocess.run(["ssh", ...])` en bucle secuencial | Hasta **64 s** por comando con 16 robots (`timeout=4.0` × 16), con FastAPI bloqueado |
 | Cada lectura de telemetría abre un proceso SSH nuevo | Sin streaming; imposible ver datos en vivo |
 | Contraseña en texto plano en un repositorio público | Comprometida |
-| Sin watchdog | Si cae la red, el robot sigue conduciendo |
+| ~~Sin watchdog~~ | 📝 **Era falso incluso sobre ROS 1**: el watchdog ya existía (`cmd_vel_timeout` 0.3 s). Se auditó un commit anterior al que lo añadió |
 
 ---
 
@@ -32,10 +41,13 @@ Lo que hay hoy no llega:
 **Es la decisión estructural más importante del diseño.**
 
 ```
-Robot 01: ROS_DOMAIN_ID=1, namespace /rvr_01, rosbridge :9090  ─┐
-Robot 02: ROS_DOMAIN_ID=2, namespace /rvr_02, rosbridge :9090  ─┤  16 WebSockets
-   ...                                                          ├─►  Servidor web
-Robot 16: ROS_DOMAIN_ID=16, namespace /rvr_16, rosbridge :9090 ─┘   (FastAPI + Vue)
+Robot 01: ROS_DOMAIN_ID=1,  ws://rvr-01.local:9090  ─┐
+Robot 02: ROS_DOMAIN_ID=2,  ws://rvr-02.local:9090  ─┤  16 WebSockets
+   ...                                               ├─►  Servidor web
+Robot 16: ROS_DOMAIN_ID=16, ws://rvr-16.local:9090  ─┘   (FastAPI + Vue)
+
+   SIN NAMESPACE: los topics son /odom, /scan, /cmd_vel_raw.
+   Al robot lo identifica la CONEXIÓN, no el nombre del topic.
 ```
 
 **Alternativa descartada: un solo dominio DDS con namespaces.** El descubrimiento
@@ -125,16 +137,42 @@ comunicación PC↔robot si el PC va por WiFi.
 | `odom` | `nav_msgs/Odometry` | robot → web | 16.5 Hz · 🔴 **BEST_EFFORT** |
 | `imu` | `sensor_msgs/Imu` | robot → web | 16.5 Hz · 🔴 **BEST_EFFORT** |
 | `scan` | `sensor_msgs/LaserScan` | robot → web | 10 Hz · 🔴 **BEST_EFFORT** · 0 si el barrido está parado |
-| `battery_state` | `sensor_msgs/BatteryState` | robot → web | cada 30 s · `percentage` es **0–1**, no % |
-| `motor_status` | `atriz_rvr_msgs/MotorStatus` | robot → web | 1 Hz · temperatura y fallo de motores |
-| `encoders` | `atriz_rvr_msgs/Encoder` | robot → web | 16.5 Hz · ticks con signo |
-| `color` | `atriz_rvr_msgs/Color` | robot → web | `[0,0,0]` salvo `color_detection:=true` |
+| `battery_state` | `sensor_msgs/BatteryState` | robot → web | **RELIABLE + TRANSIENT_LOCAL** · cada 30 s · `percentage` es **0–1**, no % |
+| `motor_status` | `atriz_rvr_msgs/MotorStatus` | robot → web | **RELIABLE + TRANSIENT_LOCAL** · se **sondea cada 30 s** y se republica a 1 Hz |
+| `encoders` | `atriz_rvr_msgs/Encoder` | robot → web | 16.5 Hz · 🔴 **BEST_EFFORT** · ticks con signo |
+| `color` | `atriz_rvr_msgs/Color` | robot → web | 🔴 **BEST_EFFORT** · `[0,0,0]` salvo `color_detection:=true` |
+| `ambient_light` | `sensor_msgs/Illuminance` | robot → web | 🔴 **BEST_EFFORT** · ⚠️ **NO SE USA**: ve los LEDs del propio robot |
+| `collision_monitor_state` | `nav2_msgs/CollisionMonitorState` | robot → web | dice **si la seguridad está frenando**. Útil para la web |
 | `map` | `nav_msgs/OccupancyGrid` | robot → web | RELIABLE + TRANSIENT_LOCAL |
 | **`cmd_vel_raw`** | `geometry_msgs/Twist` | web → robot | 🔴 **AQUÍ, no en `cmd_vel`** — ver abajo |
 | **`emergency_stop`** | `std_msgs/Empty` | web → robot | ✅ **el oficial**. RELIABLE + **VOLATILE** |
 | **`/start_scan`** | `std_srvs/Empty` | web → robot | 🔴 **OBLIGATORIO al empezar sesión** |
 | `/stop_scan` | `std_srvs/Empty` | web → robot | al terminar la sesión |
 | `/release_emergency_stop` | `std_srvs/Empty` | web → robot | liberar la parada, acto **explícito** |
+
+### Los otros servicios del driver — la web puede llamarlos, y algunos son peligrosos
+
+La tabla de arriba solo lista los tres que la web necesita en su ciclo normal. **El driver
+expone 18**, y **todos son alcanzables por rosbridge**, así que conviene saber qué hay:
+
+| Grupo | Servicios | Riesgo |
+|---|---|---|
+| LEDs | `set_led_rgb`, `set_leds`, `set_all_leds`, `turn_leds_off` | ninguno |
+| Sensores | `get_rgbc_sensor_values`, `enable_color_detection`, … | ninguno |
+| Configuración | `set_drive_parameters`, `reset_locator`, `reset_yaw` | bajo |
+| 🔴 **Movimiento** | `move_timed`, `raw_motors`, `move_to_pose`, `move_to_pos_and_yaw` | **alto** |
+| 🔴 **Infrarrojos** | `set_ir_mode`, `set_ir_evading` | **alto** |
+
+🔴 **Los servicios de movimiento SE SALTAN el `collision_monitor` y el watchdog.** No publican
+en ningún topic: hablan al RVR **por el puerto serie**. Lo único que los para es la parada de
+emergencia. Y `raw_motors` **no tiene corte automático**: sigue hasta que se le manda modo 0.
+
+⚠️ **`set_ir_evading` y `set_ir_mode('following')` hacen conducir al robot SOLO**, por firmware.
+No los uses desde la web sin espacio despejado. Comprueban la parada de emergencia **desde el
+2026-08-01** — antes no, y era un agujero real.
+
+📝 **Y `ros2 service list` no es autoritativo:** omitió 1 de los 18. Para saber si un servicio
+existe, usa un cliente.
 
 🔴 **`cmd_vel_raw`, NO `cmd_vel`.** Este documento decía `cmd_vel`, y eso **salta la capa de
 seguridad**: `/cmd_vel` es la **salida** del `collision_monitor` y tiene un solo publicador. La
@@ -146,7 +184,8 @@ parado**, y sin `/scan` el `collision_monitor` **bloquea el movimiento**. Un rob
 encendido **no obedece `cmd_vel`** y desde la web se verá igual que uno averiado. Manual,
 cap. 17.2.
 
-🔴 **Los cuatro topics de telemetría son BEST_EFFORT.** Un suscriptor con el perfil por defecto
+🔴 **SEIS topics de telemetría son BEST_EFFORT**, no cuatro: `odom`, `imu`, `scan`, `color`,
+`ambient_light` y `encoders` — todos comparten el mismo `qos_tel` del driver. Un suscriptor con el perfil por defecto
 pide RELIABLE, **DDS no empareja y no llega NADA** — sin error y sin aviso. Si la web «no recibe
 odometría» y todo lo demás parece bien, **mira el QoS antes que el código**.
 
@@ -169,28 +208,47 @@ robot, así que no mide la luz de la sala. Manual, cap. 18.4b.
 
 ---
 
-## Decisión 3 🔵 — Seguridad: dos defensas independientes
+## Decisión 3 ✅ — Seguridad: cuatro defensas, todas verificadas
 
-La parada por software **nunca** debe ser la única defensa. Hoy lo es — y probablemente ni
-funciona.
+> 🔴 **Esta sección describía toda la capa de seguridad como inexistente hasta el 2026-08-01**,
+> y recomendaba `TRANSIENT_LOCAL` para la parada — que es **la tercera causa de fallo** ya
+> documentada. Quien programara la web leyéndola habría reintroducido el fallo. Reescrita
+> contra el código.
 
-**a) Unificar el topic de emergencia.** La web publica en `/rvr/emergency_stop`; el driver
-escucha `is_emergency_stop`. **Nombres distintos**, así que el botón de emergencia del
-panel probablemente no hace nada. *(Pendiente de verificar en banco. Es seguridad y merece
-comprobación explícita, no deducción.)*
+La parada por software **nunca** es la única defensa, y aquí no lo es.
 
-Unificar en `/<ns>/emergency_stop` (`std_msgs/Empty`) con QoS **reliable** + **transient
-local**, para que un suscriptor que conecte tarde reciba el último mensaje.
+**a) ✅ Parada de emergencia.** Oficial: **`/emergency_stop`** (`std_msgs/Empty`), QoS
+**RELIABLE + VOLATILE**. Ver la decisión cerrada más arriba. Ha fallado **cuatro** veces en la
+historia del proyecto —nombre, namespace, QoS y no cancelar Nav2— y las cuatro están cerradas y
+verificadas con control.
 
-**b) Watchdog de `cmd_vel` en el driver.** Si no llega `cmd_vel` en **500 ms**, parar
-motores. Hoy no existe: si el WebSocket se cae —y con 797 reintentos de Tx en 42 minutos,
-se caerá— el robot **sigue conduciendo con el último comando**.
+**b) ✅ Watchdog de `cmd_vel`, y ya existía.** `cmd_vel_timeout` = **0.3 s** (no los 500 ms que
+decía este documento), comprobado a 20 Hz. Medido con `medir_watchdog_ros2.py`, que mide
+**desplazamiento** y no velocidad: **para en 527 ms / 7.9 cm**.
 
-El watchdog es la defensa que de verdad importa, porque **no depende de que la red funcione
-para actuar**. Es justo al contrario: actúa *porque* la red falló.
+Es la defensa que de verdad importa, porque **no depende de que la red funcione para actuar**:
+actúa *porque* la red falló.
 
-**c) Estado de conexión visible en la UI.** Si el usuario no sabe que perdió el enlace,
-seguirá dando órdenes al vacío.
+**c) ✅ `collision_monitor`**, que las otras dos no cubren. Cadena:
+`web → cmd_vel_raw → collision_monitor → cmd_vel → driver`. Para a **9.9 cm** a 0.25 m/s y
+**10.6 cm** a 0.40. Y **sin `/scan` bloquea el movimiento**, así que un robot recién arrancado
+no conduce hasta que la web llame a `/start_scan`.
+
+**d) ✅ `on_exit=Shutdown()`** en el driver y en el `collision_monitor`. Si uno muere, se cae el
+launch entero y systemd lo reinicia — **25 s** y el robot vuelve completo. Sin esto, el PID
+principal es el `ros2 launch`, que sobrevive: un robot inservible con el servicio en verde.
+
+⚠️ **El LIDAR no lo lleva, y no es contradicción:** sin `/scan` el `collision_monitor` bloquea
+el movimiento y el robot queda **seguro**. Si muriera el monitor, quedaría conduciendo **sin
+filtro**. Son situaciones opuestas.
+
+**e) Estado de conexión visible en la UI.** ⏳ **Pendiente, es de la Fase 5.** Si el usuario no
+sabe que perdió el enlace, seguirá dando órdenes al vacío.
+
+🔴 **Lo que estas defensas NO cubren:** los servicios de movimiento del driver
+(`move_timed`, `raw_motors`, `move_to_pose`, `move_to_pos_and_yaw`, `set_ir_evading`) hablan al
+RVR **por el puerto serie**, así que ni el watchdog ni el `collision_monitor` los ven. Solo los
+para la parada de emergencia — y `set_ir_evading` **no la comprobaba hasta el 2026-08-01**.
 
 ---
 
@@ -215,12 +273,16 @@ Multiplicar eso por 16 máquinas es el modo de fallo a evitar.
 ```
 Ubuntu Server 24.04 LTS arm64 (headless, multi-user.target)
 └── ROS 2 Jazzy (ros-base, NO desktop)
-    ├── atriz_rvr_driver      (rclpy) → odom, imu, battery, color, encoders ; ← cmd_vel
+    ├── atriz_rvr_driver      (rclpy) → odom, imu, battery_state, color, encoders,
+    │                                    ambient_light, motor_status ; ← cmd_vel
+    ├── collision_monitor     cmd_vel_raw (web) → cmd_vel (driver) ← LA SEGURIDAD VA AQUÍ
     ├── atriz_rvr_description (URDF/xacro) + robot_state_publisher
     ├── ydlidar_ros2_driver   → scan
     ├── slam_toolbox          (async) → map
     ├── nav2                  → navegación autónoma
-    └── rosbridge_server      :9090 ← único punto de contacto con la web
+    └── rosbridge_websocket   :9090 ← único punto de contacto con la web
+                              ⚠️ dentro de robot.launch.py, NO en unidad systemd propia:
+                                 así hereda el ROS_DOMAIN_ID
 ```
 
 ### Árbol TF objetivo
@@ -229,13 +291,22 @@ Ubuntu Server 24.04 LTS arm64 (headless, multi-user.target)
 map → odom → base_footprint → base_link → { laser, imu_link, wheel_* }
 ```
 
-El driver publica **solo** `odom → base_link`. `robot_state_publisher` publica el resto
-desde el URDF.
+✅ **Y es el árbol REAL desde el 2026-07-30**, no un objetivo.
 
-**Hoy el árbol está partido en dos:** el driver publica `odom → rvr_base_link`
-(`Atriz_rvr_node.py:99`) y el LIDAR cuelga de `base_link` vía un
-`static_transform_publisher`. Sin puente entre ambos, cualquier SLAM o navegación es
-imposible. Y **no existe ningún URDF** en el repositorio.
+El driver publica **`odom → base_footprint`** (parámetro `base_frame`, por defecto
+`base_footprint`). `robot_state_publisher` publica el resto desde
+`atriz_rvr_description/urdf/rvr.urdf.xacro`.
+
+🔴 **Este párrafo decía `odom → base_link`, y esa es exactamente la configuración que partió el
+árbol en la Fase 3**: el driver publicaba `odom → base_link` y el URDF
+`base_footprint → base_link`, o sea **un frame con dos padres**. El árbol se cortó en dos y
+`slam_toolbox` repetía `Failed to compute odom pose`.
+
+⚠️ **Y la lección de método:** la verificación de entonces era `tf2_echo odom laser` y **pasaba**,
+resolviendo por el camino equivocado. **Comprueba el transform que pide el consumidor**, aquí
+`tf2_echo odom base_footprint`.
+
+📝 También decía que **no existe ningún URDF**. Existe desde el 2026-07-30.
 
 ---
 
@@ -249,15 +320,23 @@ Lo que está cuantificado, para no diseñar sobre suposiciones:
 | Techo del RVR | **60 ms mínimo**, cuantizado a 20 ms | barrido de intervalos |
 | UART | 125 paquetes/s de 8 sensores en 115200 baud (~11.5 KB/s) | `sdk_full.py` |
 | LIDAR X2 | 10 Hz, canal único, sin intensidad, ~8 m útiles | hoja de datos |
-| CPU del driver | ~29 % de un núcleo a 16.5 Hz | prueba de estabilidad |
+| CPU del driver | **15.9 %** de un núcleo · **33.6 %** desde que lleva keepalive | 24.04, `/proc` |
 | RAM del driver | 53 MB, plana | prueba de estabilidad |
-| Temperatura | 57 °C con el driver activo | prueba de estabilidad |
+| Temperatura | **62–64 °C** con el stack completo, `throttled=0x0` | 24.04 |
+| **Ancho de banda por rosbridge** | **80.7 kB/s** navegando · 13.6 en reposo · ×16 = **10.3 Mbit/s** | evidencia 39 |
+| Stack completo (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, 477 MB | 2026-07-31 |
 
-**Sin medir todavía:**
+⚠️ **Las cifras de CPU y temperatura anteriores (29 %, 57 °C) eran del sistema VIEJO** — 20.04
+con el nodo de ROS Noetic — y estaban presentadas como referencia actual. Mezclar las dos líneas
+base es un error que este proyecto prohíbe explícitamente.
 
-- **Ancho de banda por robot con rosbridge activo.** Es el **riesgo principal de los 16**:
-  con 16 clientes de telemetría continua en un solo punto de acceso, la red es el cuello de
-  botella más probable del laboratorio entero. Hay que medirlo con un robot y extrapolar
-  **antes** de comprar hardware de red.
-- Si Nav2 cabe en el Pi 4 junto al resto del stack.
-- Latencia de `cmd_vel` de extremo a extremo (navegador → motores).
+**Lo que era «sin medir» y ya está medido:**
+
+- ✅ **Ancho de banda con rosbridge.** Era el riesgo nº4 del proyecto. **80.7 kB/s por robot
+  navegando → 10.3 Mbit/s los 16.** Medido dos veces, con dos clientes distintos en dos
+  máquinas distintas. Y `/scan` es el **83 %**: sin él los 16 caben en 1.7 Mbit/s.
+- ✅ **Nav2 cabe en el Pi 4**: el stack completo son ~89 % de **un** núcleo de cuatro.
+
+**Sigue sin medir:**
+
+- **Latencia de `cmd_vel` de extremo a extremo** (navegador → motores). Hace falta la web.
