@@ -322,8 +322,12 @@ que `Restart=always` no cubre este caso. Medido el 2026-08-01: un `SyntaxError` 
   parece sano**, igual que el RVR dormido con el nodo vivo o el topic registrado y mudo.
 → ✅ Arreglado con **`on_exit=Shutdown()`** en el nodo del driver (`robot.launch.py`). Verificado
   matando solo ese nodo: `NRestarts` 12→13 y el robot entero de vuelta en **25 s**.
-→ ⏳ **Sin decidir:** si el `collision_monitor` debe llevarlo también. Hoy no lo lleva, y un robot
-  sin capa de seguridad que parece sano es peligroso.
+→ ✅ **El `collision_monitor` también lo lleva** (decisión del usuario, 2026-08-01), y por una
+  razón más fuerte: un robot **sin capa de seguridad que parece sano** es peligroso. Verificado:
+  `NRestarts` 14→15, todo de vuelta en 25 s.
+→ ⚠️ **El LIDAR NO lo lleva, y no es contradicción:** sin `/scan` el propio `collision_monitor`
+  bloquea el movimiento, así que el robot queda **seguro**. Si muere el monitor, queda conduciendo
+  **sin filtro**. Son situaciones opuestas.
 
 **🔴 `TRANSIENT_LOCAL` EN EL PUBLICADOR NO GARANTIZA QUE UN SUSCRIPTOR TARDÍO RECIBA EL ÚLTIMO
 VALOR.** El driver lo daba por hecho para `/motor_status` y `/battery_state`. Medido: un

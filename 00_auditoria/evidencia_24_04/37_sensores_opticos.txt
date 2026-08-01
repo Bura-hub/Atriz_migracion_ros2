@@ -202,7 +202,12 @@ los sensores, y los dos afectan a la operacion del laboratorio remoto.
   ✅ VERIFICADO matando SOLO el nodo del driver:
         NRestarts 12 -> 13, y el robot entero de vuelta en **25 s**.
 
-  → Y queda una pregunta abierta que NO se ha medido: que pasa si muere el
-    `collision_monitor`. Hoy el launch sobrevive, y un robot sin capa de
-    seguridad que parece sano es peligroso. Pendiente decidir si tambien lleva
-    `on_exit=Shutdown()`.
+  ✅ RESUELTO EL MISMO DIA: el `collision_monitor` **tambien lleva
+     `on_exit=Shutdown()`**, por decision del usuario. La razon es mas fuerte que
+     en el driver: un robot SIN CAPA DE SEGURIDAD QUE PARECE SANO es peligroso.
+     Verificado matando solo ese nodo: NRestarts 14 -> 15, todo de vuelta en 25 s.
+
+  ⚠️ ASIMETRIA CON EL LIDAR, y no es una contradiccion: si se cae el LIDAR el
+     launch NO se cae. Sin `/scan` el propio `collision_monitor` bloquea el
+     movimiento, asi que el robot queda SEGURO. Si se cae el MONITOR, en cambio,
+     el robot queda conduciendo sin filtro. Son situaciones opuestas.
