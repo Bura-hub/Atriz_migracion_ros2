@@ -126,14 +126,62 @@ reconexión del UART.
 | Herramienta | Qué mide | Mueve el robot |
 |---|---|---|
 | `medir_ritmo_ros2.py` | ritmo y jitter de `/odom`, `/imu` y `/scan`. **Sustituye a `medir.py`**, que es de ROS 1 y ya no arranca | no |
+| `probar_rosbridge.py` | cliente WebSocket **escrito a mano** contra rosbridge: ¿llega la web, y **cuántos bytes/s** cuesta? | no |
+| `probar_mdns.py` | ¿responde un robot a `rvr-NN.local`? Consulta mDNS cruda · `--flota 16` | no |
 | `medir_parada_nav2.py` | si el robot **arranca solo** al liberar la parada de emergencia con Nav2 navegando | ⚠️ ~2 m |
 | `medir_sensor_color.py` | si el sensor de color sirve sin encender su luz (no sirve: 4 contra 741) | no |
 | `medir_collision_monitor.py` | dónde para de verdad la capa de seguridad | ⚠️ sí |
 | `comparar_deriva_roll.py` | deriva de SLAM con y sin el roll de la IMU | ⚠️ sí |
 | `referenciar_posicion.py` | devuelve el robot a su punto de partida entre corridas | ⚠️ sí |
+| `probar_leds_ros2.py` | los 12 grupos de LED por ROS 2: ¿sigue habiendo comunicación? | no, ⚠️ enciende LEDs |
+| `probar_sensor_optico.py` | color y luz ambiente por sus **tres** rutas a la vez · `--guiado` | no |
+| `probar_rosbridge.py` | qué recibe la web, y **cuántos bytes cuesta** por rosbridge | no |
+| `probar_mdns.py` | si un robot responde a `rvr-NN.local` · `--flota 16` | no |
 
 🔴 **`medir_ritmo_ros2.py` documenta tres formas distintas de medir mal un ritmo**, las tres
 descubiertas el mismo día y las tres dando números bajos sobre un robot sano: `ros2 topic hz`
 (QoS incompatible), `rclpy.spin_once` en bucle (pierde mensajes) y `mensajes/duración` (mete el
 descubrimiento de DDS en el denominador). Merece leerse la cabecera antes de escribir cualquier
 medida de frecuencia en este proyecto.
+
+
+---
+
+## Las dos herramientas de red, y por qué no usan librerías
+
+`probar_rosbridge.py` habla **WebSocket escrito a mano** (handshake HTTP + tramas RFC 6455) y
+`probar_mdns.py` habla **DNS crudo sobre UDP multicast**. Las dos podrían ser cuatro líneas con
+`websockets` y `zeroconf`.
+
+🔴 **No las usan a propósito: habría que instalar esas librerías en los 16 robots para poder
+diagnosticar.** Un diagnóstico que exige desplegar software no sirve el día que hay una avería,
+que es justo el día que lo necesitas. Cuestan ~100 líneas cada una y funcionan sobre un robot
+recién flasheado, sin red y sin `apt`.
+
+📝 **Y la de rosbridge midió el número que decidía el hardware de red del laboratorio**: el
+multiplicador del JSON, que se había estimado en 3–5× y resultó ser **~2×**. Evidencia 39.
+
+## La prueba que NO está aquí, y es la que más vale
+
+[`03_operacion/probar_conexion_web.html`](../../../03_operacion/probar_conexion_web.html) se
+abre **en el PC**, no en el robot. Es la única que comprueba lo que de verdad hará la
+plataforma: que un **navegador** resuelva `rvr-NN.local`, abra el WebSocket, reciba topics y
+llame a un servicio. Un cliente Python en el propio robot no prueba nada de eso.
+
+
+---
+
+## Por qué dos de estas herramientas no usan librerías
+
+`probar_rosbridge.py` implementa el handshake WebSocket y el enmascarado RFC 6455 a mano.
+`probar_mdns.py` construye los paquetes DNS sobre UDP multicast a mano. Las dos podrían ser
+cuatro líneas con `websockets` y `zeroconf`.
+
+🔴 **Pero habría que instalar esas dependencias en los 16 robots para poder diagnosticar.** Un
+diagnóstico que exige desplegar software no sirve el día que hay una avería — que es
+exactamente el día que lo necesitas. Cien líneas de protocolo crudo se pagan solas.
+
+📝 Y hay un tercer probador que **no** vive aquí, porque no se ejecuta en el robot:
+[`03_operacion/probar_conexion_web.html`](../../../03_operacion/probar_conexion_web.html) se
+abre con doble clic **en el PC** y hace la prueba que ninguna herramienta del robot puede
+hacer: que un **navegador** abra el WebSocket.

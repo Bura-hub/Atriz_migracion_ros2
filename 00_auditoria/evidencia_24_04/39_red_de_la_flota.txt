@@ -394,3 +394,147 @@ Al ejecutar `first-boot.sh --solo-red` por primera vez de verdad, el script dijo
    DHCP). El unico efecto fue que el netplan no se genero. Es el
    comportamiento que se buscaba al diseñar el script: ante la duda, no tocar la
    red.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+✅✅ LA SUPOSICION CENTRAL DEL DISEÑO, VERIFICADA — 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+El plan decia, literalmente: «A VERIFICAR antes de darlo por bueno: que
+`dhcp4: true` conviva con `addresses:` estaticas. Es la pieza sobre la que se
+apoya todo el diseño y NO SE HA PROBADO EN ESTE ROBOT.»
+
+Ya esta probado. Tras `first-boot.sh --solo-red` + `netplan try`:
+
+  $ ip -4 -br addr show wlan0
+  wlan0  UP  10.14.7.7/21  192.168.1.200/24  192.168.1.58/24  metric 600
+              ^laboratorio  ^casa            ^DHCP
+
+  $ ip route
+  default via 192.168.1.1 dev wlan0 proto dhcp src 192.168.1.58 metric 600
+  10.14.0.0/21   dev wlan0 proto kernel scope link src 10.14.7.7
+  192.168.1.0/24 dev wlan0 proto kernel scope link src 192.168.1.200
+
+✅ TRES direcciones IPv4 a la vez en la misma interfaz.
+✅ Y la ruta por defecto la pone el DHCP (`proto dhcp`), que es exactamente lo
+   que pide `RUTA_POR_DEFECTO=dhcp`. La estatica del laboratorio esta puesta y
+   NO rompe la salida a internet en casa, que era el riesgo concreto.
+
+🔴 CONSECUENCIA: **el robot se muda del laboratorio a casa y al reves sin tocar
+   un solo comando.** Es el objetivo entero del capitulo 19 y ya no es una
+   hipotesis.
+
+═══════════════════════════════════════════════════════════════════════════════
+🔴 `chmod` NO FUNCIONA EN LA PARTICION FAT — la PSK del WiFi queda al aire
+═══════════════════════════════════════════════════════════════════════════════
+Encontrado por el verificador en su PRIMERA ejecucion con las comprobaciones
+nuevas, o sea que la seccion 12 se justifico sola el dia que se escribio.
+
+  $ sudo chmod 600 /boot/firmware/red.txt      # aceptado, sin error
+  $ ls -l /boot/firmware/red.txt
+  -rwxr-xr-x 1 root root 253 Aug  1 15:14      # SIGUE EN 755
+
+  $ findmnt -no OPTIONS /boot/firmware
+  rw,relatime,fmask=0022,dmask=0022,...        # el motivo
+
+  $ head -2 /boot/firmware/red.txt             # SIN sudo
+  LAB_SSID=Atriz-server
+  LAB_PASS=...                                 # 🔴 legible por cualquiera
+
+FAT no almacena permisos de Unix: los fija `fmask` en el MONTAJE, para toda la
+particion. `defaults` da 755.
+
+🔴 LO PEOR NO ES EL PERMISO, ES QUE `chmod` NO FALLA. Se acepta en silencio y no
+   hace nada, asi que el problema queda abierto CON ASPECTO DE RESUELTO. Este
+   proyecto recomendo ese chmod en el manual y en la plantilla; los dos
+   corregidos.
+
+📝 Es la misma clase de error que ya mordio con `usercfg.txt` en 24.04: un
+   fichero que existe y no hace nada. **Comprueba el EFECTO, no el comando.**
+
+── CUANTO IMPORTA, sin exagerarlo ────────────────────────────────────────────
+El robot tiene un solo usuario (`sphero`), asi que quien lee el fichero ya tiene
+sesion. Pero la misma PSK esta en /etc/netplan/*.yaml con 600 — la FAT es el
+eslabon debil— y la imagen dorada replica esto POR 16.
+
+── COMO CERRARLO (lo ejecuta la persona: toca el arranque) ───────────────────
+  sudo cp /etc/fstab /etc/fstab.bak
+  sudo sed -i 's|\(/boot/firmware\s\+vfat\s\+\)defaults|\1defaults,fmask=0177,dmask=0077|' /etc/fstab
+  sudo mount -o remount /boot/firmware
+  ls -l /boot/firmware/red.txt        # -rw------- root root
+
+⚠️ Seguro para el arranque —el firmware del Pi lee la FAT antes de Linux e ignora
+   los permisos— pero VERIFICAR CON UN REINICIO antes de meterlo en la imagen
+   dorada.
+
+⏳ DECISION PENDIENTE DEL USUARIO: cerrarlo con fmask, o asumirlo y no poner en
+   la FAT nada mas sensible que la PSK del laboratorio.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+✅✅ LA SUPOSICION QUE SOSTENIA TODO EL DISEÑO: VERIFICADA — 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+El diseño de la flota se apoyaba en que una IP ESTATICA y el DHCP pudieran
+convivir en la misma interfaz. Estaba marcado «A VERIFICAR» desde el principio:
+si no convivian, habia que rehacerlo entero. Conviven.
+
+  $ ip -4 -br addr show wlan0
+  wlan0  UP  10.14.7.7/21  192.168.1.200/24  192.168.1.58/24  metric 600
+              ^laboratorio  ^casa             ^DHCP
+
+  $ ip route
+  default via 192.168.1.1 dev wlan0 proto dhcp src 192.168.1.58 metric 600
+  10.14.0.0/21   dev wlan0 proto kernel scope link src 10.14.7.7
+  192.168.1.0/24 dev wlan0 proto kernel scope link src 192.168.1.200
+
+✅ TRES direcciones IPv4 a la vez, y **la ruta por defecto la pone el DHCP**, que
+   es exactamente lo que pedia `RUTA_POR_DEFECTO=dhcp`. La direccion del
+   laboratorio esta puesta y no estorba: en casa es un alias inofensivo.
+
+📐 CONSECUENCIA: **este robot se lleva al laboratorio sin tocar un solo comando.**
+   Alli la 10.14.7.7 pasara a ser la util y la de casa quedara como alias.
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 Y UN FALLO DE SEGURIDAD, que encontro el verificador en su PRIMERA ejecucion
+   con la seccion 12 recien escrita
+───────────────────────────────────────────────────────────────────────────────
+  -rwxr-xr-x 1 root root 253 Aug  1 15:14 /boot/firmware/red.txt
+  /dev/mmcblk0p1 vfat rw,relatime,fmask=0022,dmask=0022,...
+
+🔴 `chmod 600` SOBRE LA FAT NO HACE NADA, Y DEVUELVE 0. FAT no guarda permisos de
+   Unix: los fija el MONTAJE (`fmask`). Con `defaults` todo queda en 755.
+
+   Resultado: **cualquier usuario del robot lee la PSK del WiFi sin sudo**, y la
+   imagen dorada lo replicaria por 16.
+
+     $ head -2 /boot/firmware/red.txt     # sin sudo
+     LAB_SSID=Atriz-server
+     LAB_PASS=...
+
+   🔴 La instruccion `sudo chmod 600 /boot/firmware/red.txt` la di YO en esta
+      misma sesion, dentro de los pasos detallados. No solo era inutil: daba
+      falsa confianza, que es peor que no haber intentado nada.
+
+   ARREGLO (sudo del usuario + reinicio), en /etc/fstab:
+     LABEL=system-boot /boot/firmware vfat defaults,fmask=0177,dmask=0077 0 1
+   El firmware de la Pi lee la FAT en crudo antes de arrancar Linux: no le afecta.
+
+📝 LA FORMA GENERAL, que en este proyecto ya va por la QUINTA vez: **un comando
+   que devuelve 0 no prueba que hiciera algo.** Igual que `set_all_leds`
+   aceptando una mascara mal formada, `undercarriage_white` devolviendo
+   success=true sin encender nada, `colcon build` diciendo «finished» sin
+   compilar, y `netplan generate` que ni llego a ejecutarse. **Comprueba el
+   EFECTO, no el codigo de salida.**
+
+───────────────────────────────────────────────────────────────────────────────
+EL VERIFICADOR, AMPLIADO
+───────────────────────────────────────────────────────────────────────────────
+Seccion 12 nueva: avahi y mDNS (global y por enlace), coherencia entre
+robot_id.txt y el hostname real, red.txt y sus permisos, el netplan generado,
+los permisos de /etc/netplan/*.yaml, **las direcciones REALES de wlan0**,
+rosbridge en las dos familias de IP, y una regresion que busca rutas fijas de
+/tmp en todos los scripts.
+
+  102 comprobaciones correctas · 12 avisos · 0 fallos   (sin --hardware)
+
+📝 Nacio encontrando un fallo de seguridad de verdad en su primera ejecucion.
+   Es lo que se le pedia: comprobar el EFECTO, no la intencion.

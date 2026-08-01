@@ -152,6 +152,26 @@ del robot, y la diferencia se explica entera: el X2 **gira libre** (11.86 Hz con
 
 📐 **Cifra de diseño: 81 kB/s por robot navegando · 10.3 Mbit/s los 16.**
 
+---
+
+### ✅ Estática y DHCP conviven — verificado el 2026-08-01
+
+Era **la suposición sobre la que se apoyaba todo el diseño de red**, y estaba sin probar:
+
+```
+$ ip -4 -br addr show wlan0
+wlan0  UP  10.14.7.7/21  192.168.1.200/24  192.168.1.58/24
+            ^laboratorio  ^casa             ^DHCP
+
+$ ip route | head -1
+default via 192.168.1.1 dev wlan0 proto dhcp     ← la ruta la pone el DHCP
+```
+
+Tres direcciones IPv4 a la vez, y la estática del laboratorio **no rompe la salida a internet
+en casa** — que era el riesgo concreto de `RUTA_POR_DEFECTO`.
+
+🔴 **Un robot se muda del laboratorio a casa, y al revés, sin tocar un solo comando.**
+
 ✅ **El riesgo nº4 queda cerrado.** Y aparece la palanca: `/scan` es el **83 %** del tráfico por
 rosbridge. **Sin él, los 16 caben en 1.6 Mbit/s.**
 
@@ -164,6 +184,32 @@ rosbridge. **Sin él, los 16 caben en 1.6 Mbit/s.**
 ⏳ Falta el multiplicador JSON. Evidencia 39.
 
 ---
+
+## ✅ El diseño de red, verificado (2026-08-01)
+
+`wlan0` con **tres direcciones IPv4 a la vez**, y la ruta por defecto puesta por el DHCP:
+
+```
+wlan0  UP  10.14.7.7/21  192.168.1.200/24  192.168.1.58/24
+            ^laboratorio  ^casa             ^DHCP
+default via 192.168.1.1 dev wlan0 proto dhcp
+```
+
+Era la suposición marcada **«A VERIFICAR»** que sostenía todo lo demás: si estática y DHCP no
+convivían, el diseño había que rehacerlo. Conviven. **Este robot se lleva al laboratorio sin
+tocar un solo comando.**
+
+Cómo se aplica, y por qué en dos pasos:
+
+```bash
+sudo bash scripts/first-boot.sh --solo-red   # genera y valida. NO aplica.
+sudo netplan try --timeout 90                # aplica, y revierte solo si te deja sin SSH
+```
+
+🔴 **Y un fallo de seguridad que encontró el verificador:** `chmod 600` sobre `/boot/firmware`
+**no hace nada** — es FAT, no guarda permisos de Unix, y devuelve 0 igualmente. La PSK del WiFi
+queda legible por cualquier usuario, en los 16 robots. Se cierra en `/etc/fstab` con
+`fmask=0177,dmask=0077`. Manual, cap. 19.3b.
 
 ## Asignación por robot
 

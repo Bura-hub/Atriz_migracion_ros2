@@ -6,6 +6,24 @@
 #    Lo que se versiona es esta plantilla, sin valores. El de verdad vive en
 #    `/boot/firmware/red.txt`, en la partición FAT.
 #
+# 🔴🔴 Y AHÍ NO SE PUEDE PROTEGER CON `chmod`. FAT no almacena permisos de Unix:
+#    los fija la opción `fmask` del montaje, para toda la partición. Con el
+#    `defaults` que trae Ubuntu queda en **755**, o sea que **la PSK la lee
+#    cualquier usuario del robot sin `sudo`**. Un `chmod 600` se acepta sin
+#    error y NO cambia nada — que es peor que fallar, porque parece resuelto.
+#    Si eso importa en tu despliegue, monta la partición con `fmask=0177`:
+#    manual, cap. 19.3b.
+#
+# 🔴🔴 Y OJO: `chmod 600` SOBRE ÉL NO HACE NADA. La FAT no guarda permisos de
+#    Unix — los fija el montaje (`fmask`), y con `defaults` salen **755**, o sea
+#    que **cualquier usuario del robot puede leer la PSK sin `sudo`**. El `chmod`
+#    devuelve 0 y parece que funcionó: es una falsa sensación de seguridad.
+#
+#    Para cerrarlo de verdad, en `/etc/fstab`:
+#        LABEL=system-boot /boot/firmware vfat defaults,fmask=0177,dmask=0077 0 1
+#    (los ficheros pasan a 600 y los directorios a 700; el firmware de la Pi lee
+#    la FAT en crudo antes de arrancar Linux, así que no le afecta)
+#
 # ═══════════════════════════════════════════════════════════════════════════════
 # POR QUÉ ESTÁ EN LA PARTICIÓN FAT Y NO EN /etc/netplan
 # ═══════════════════════════════════════════════════════════════════════════════

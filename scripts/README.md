@@ -12,7 +12,7 @@ Si vienes a montar un robot nuevo, son estos. El resto son las piezas que ellos 
 |---|---|---|
 | **`preparar_tarjeta.sh --id NN`** | en el **PC**, tarjeta recién grabada | Deja `cmdline.txt`, `config.txt` y `robot_id.txt` correctos antes del primer arranque |
 | **`provision.sh`** | en el robot | De un 24.04 limpio a robot terminado. Idempotente: sirve también para actualizar |
-| **`verificar_robot.sh --hardware`** | en el robot | 36+ aserciones. **Decide si el robot está listo.** Código ≠ 0 si algo falla |
+| **`verificar_robot.sh --hardware`** | en el robot | **102+ aserciones**. **Decide si el robot está listo.** Código ≠ 0 si algo falla |
 
 El procedimiento completo de alta de un robot está en
 [`03_operacion/FLOTA.md`](../03_operacion/FLOTA.md).
@@ -32,7 +32,9 @@ El procedimiento completo de alta de un robot está en
 | `fase_1_higiene_so.sh` | 1 · C1 | sí | ✅ **ejecutado y verificado** en 24.04 (2026-07-30) |
 | `fase_1_validar_sdk_py312.py` | 1 · D2 | no | ✅ **ejecutado 2026-07-30 → 🟢 GO** (16.67 Hz en Python 3.12) |
 | `compilar.sh` | cualquiera | no | ✅ **probado** (2026-08-01), incluso a propósito desde el directorio equivocado. Existe porque el error de `colcon` se cometió **seis veces en una sesión** |
-| `fase_7_systemd.sh` | 7 | sí | ✅ **ejecutado y verificado** (2026-07-31): instalado, habilitado y **probado con un reinicio real** — el robot volvió solo. `provision.sh` **todavía no lo llama** |
+| `fase_7_systemd.sh` | 7 | sí | ✅ **ejecutado y verificado** (2026-07-31): instalado, habilitado y **probado con un reinicio real** — el robot volvió solo. ✅ `provision.sh` **lo llama** desde el 2026-08-01 (paso 8/9) |
+| `first-boot.sh` | primer arranque | sí | ✅ **`--solo-red` ejecutado y verificado** (2026-08-01): generó `60-atriz.yaml` y tras `netplan try` la interfaz quedó con **3 direcciones IPv4 a la vez**. 📝 El modo completo (identidad) **no se ha ejercitado en un clon real** |
+| `red.txt.ejemplo` | — | — | plantilla del perfil de red. 🔴 El fichero real vive en `/boot/firmware/red.txt`, **no en git**: lleva la PSK del WiFi |
 | `atriz-robot.sh` + `atriz-robot.service` | 7 | sí (instalarlos) | ✅ **funcionando bajo systemd**, comprobado por efecto. 📝 Sin ejercitar: la espera de puertos (siempre `tras 0s`) y `Restart=always` |
 | `atriz-escaneo.sh` | 7 | no | ✅ **verificado instalado**: `on`, `off` y `estado` (3 de 3 en cada estado). Tuvo **tres fallos propios** antes de funcionar |
 | `fase_6_preparar_imagen_dorada.sh` | 6 · F6 | sí | ⏳ **pendiente**, y 📝 **NO VERIFICADO** |
@@ -46,7 +48,7 @@ El procedimiento completo de alta de un robot está en
 >   TF partido en dos, resolviendo por el camino equivocado.
 >
 > Si añades comprobaciones, mantén esa regla.
-| `first-boot.sh` + `first-boot.service` | 6 · F6 | sí (en el robot clonado) | ⏳ **pendiente**, y 📝 **NO VERIFICADO** |
+| `first-boot.sh` + `first-boot.service` | 6 · F6 | sí (en el robot clonado) | ⏳ el arranque completo sigue **NO VERIFICADO** (exigiría clonar). ✅ Pero **`--solo-red` sí está ejecutado y verificado** el 2026-08-01: generó el netplan y `netplan try` dejó `wlan0` con **tres direcciones a la vez** |
 
 > Los scripts de la Fase 6 (imagen dorada y personalización por robot) se escribieron antes de
 > tener un robot terminado. **No se han ejecutado nunca.** No los uses hasta que este robot
@@ -265,3 +267,25 @@ servicio systemd puede no verlo.
 
 Si algún día sale **NO-GO**, el script imprime las cuatro alternativas ordenadas por coste. Es
 una decisión de arquitectura, no algo a improvisar.
+
+
+---
+
+## `first-boot.sh --solo-red` — cambiar la red sin reiniciar
+
+```bash
+sudo bash first-boot.sh --solo-red     # genera y VALIDA /etc/netplan/60-atriz.yaml
+sudo netplan try --timeout 90          # aplica, y revierte solo si te deja sin SSH
+```
+
+📝 Existe porque cambiar una IP no debería costar un reinicio: con 16 robots, «edita `red.txt`
+y reinicia» convierte *«corrige la IP del robot 9»* en una tarde. No toca hostname, ni
+`machine-id`, ni las claves SSH de host, ni la marca de first-boot.
+
+🔴 **Y no aplica a propósito.** Separar «escribir» de «aplicar» es lo que impide que una IP mal
+puesta deje fuera a un robot que está en otro edificio. `netplan try` pide ENTER y **revierte
+solo a los 90 s** si pierdes la conexión.
+
+🔴 **`chmod 600 /boot/firmware/red.txt` NO SIRVE.** Es FAT: no guarda permisos de Unix y el
+`chmod` devuelve 0 sin hacer nada. La PSK del WiFi queda legible por cualquier usuario. Se
+cierra en `/etc/fstab` con `fmask=0177,dmask=0077`. Manual, cap. 19.3b.

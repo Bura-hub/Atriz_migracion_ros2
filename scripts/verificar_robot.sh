@@ -998,6 +998,151 @@ else
          "sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --id NN · manual cap. 17"
 fi
 
+
+# ── 12. Red de la flota: mDNS, netplan y rosbridge ───────────────────────────
+# Nada de esto existía hasta el 2026-08-01, y es lo que permite que la web
+# encuentre a 16 robots sin saberse ninguna IP. Manual, cap. 19.
+sec "12. Red de la flota — cómo la web encuentra a este robot"
+
+# --- mDNS -------------------------------------------------------------------
+# 🔴 `fase_1_higiene_so.sh` DESHABILITABA avahi como parte de la higiene, mientras
+#    el manual decía «usa ping rvr-NN.local». Se corrigió; esto vigila que no
+#    vuelva a pasar.
+if systemctl is-active --quiet avahi-daemon 2>/dev/null; then
+    _ok "avahi-daemon activo (responde a rvr-NN.local)"
+else
+    _mal "avahi-daemon NO está activo: nadie encontrará a este robot por nombre" \
+         "sudo systemctl enable --now avahi-daemon"
+fi
+# El efecto, no la intención: se ancla a principio de línea y a la sintaxis
+# exacta, porque un grep suelto encuentra también el COMENTARIO que habla del
+# ajuste — error ya cometido dos veces en este verificador.
+if grep -qE '^[[:space:]]*MulticastDNS[[:space:]]*=[[:space:]]*yes' \
+        /etc/systemd/resolved.conf /etc/systemd/resolved.conf.d/*.conf 2>/dev/null; then
+    _ok "MulticastDNS=yes en systemd-resolved"
+else
+    _avi "systemd-resolved sin MulticastDNS=yes" \
+         "este robot no resolverá el .local de OTROS robots"
+fi
+# ⚠️ Global: yes con wlan0: no es el estado real medido el 2026-08-01. Avahi
+#    responde igual, así que es aviso y no fallo.
+if command -v resolvectl >/dev/null 2>&1; then
+    if resolvectl mdns 2>/dev/null | grep -qiE 'wlan0.*yes|yes.*wlan0'; then
+        _ok "mDNS habilitado también en el enlace wlan0"
+    else
+        _avi "mDNS por enlace: wlan0 no lo tiene (Global sí)" \
+             "pendiente: drop-in de systemd-networkd. Manual, cap. 19.5"
+    fi
+fi
+
+# --- La identidad y el perfil de red, en la partición FAT --------------------
+# 🔴 Viven en la FAT a propósito: una IP estática mal puesta deja al robot sin
+#    dirección en esa LAN, y la FAT se corrige metiendo la microSD en un PC.
+if [[ -f /boot/firmware/robot_id.txt ]]; then
+    RID="$(grep -oP '^\s*ROBOT_ID\s*=\s*\K[0-9]+' /boot/firmware/robot_id.txt 2>/dev/null | head -1 || true)"
+    if [[ -n "$RID" ]]; then
+        _ok "robot_id.txt → ROBOT_ID=$RID"
+        # Que la identidad declarada y la real coincidan. Si no, este robot
+        # responde a un nombre y cree ser otro.
+        ESP="rvr-$(printf '%02d' "$((10#$RID))")"
+        [[ "$(hostname)" == "$ESP" ]] && _ok "hostname coincide con robot_id ($ESP)" \
+            || _mal "hostname '$(hostname)' no coincide con robot_id ($ESP)" \
+                    "sudo bash first-boot.sh   (regenera identidad)"
+    else
+        _mal "robot_id.txt existe pero no tiene ROBOT_ID=NN" \
+             "echo ROBOT_ID=01 | sudo tee /boot/firmware/robot_id.txt"
+    fi
+else
+    _avi "no hay /boot/firmware/robot_id.txt" \
+         "sin él, first-boot no puede personalizar un clon de la imagen dorada"
+fi
+
+if [[ -f /boot/firmware/red.txt ]]; then
+    _ok "existe /boot/firmware/red.txt (perfil de red)"
+    # 🔴 red.txt LLEVA LA PSK DEL WIFI Y ESTÁ EN UNA FAT, QUE NO GUARDA
+    #    PERMISOS DE UNIX. `chmod 600` sobre él **no hace nada** y devuelve 0,
+    #    que es lo peor: parece que funcionó. Los permisos los fija el MONTAJE
+    #    (`fmask`), y con `defaults` salen 755 = legible por cualquier usuario.
+    #    Se comprueba el montaje, que es lo único que puede cambiarlo.
+    PERM="$(stat -c '%a' /boot/firmware/red.txt 2>/dev/null || echo '?')"
+    if [[ "$PERM" == "600" ]]; then
+        _ok "red.txt con permisos 600"
+    else
+        _avi "red.txt en $PERM: la PSK del WiFi es legible por cualquier usuario" \
+             "chmod NO sirve (es FAT). Añade fmask=0177,dmask=0077 en /etc/fstab"
+    fi
+else
+    _avi "no hay /boot/firmware/red.txt: la red se queda en DHCP" \
+         "cp scripts/red.txt.ejemplo, rellénalo, y first-boot.sh --solo-red"
+fi
+
+# --- El netplan generado ----------------------------------------------------
+if [[ -f /etc/netplan/60-atriz.yaml ]]; then
+    _ok "existe /etc/netplan/60-atriz.yaml"
+    # 🔴 El corazón del diseño de la flota: estática Y DHCP a la vez. Si esto no
+    #    está, el robot no se puede mudar de red sin reconfigurarlo.
+    if sudo -n grep -q 'dhcp4: true' /etc/netplan/60-atriz.yaml 2>/dev/null \
+       || grep -q 'dhcp4: true' /etc/netplan/60-atriz.yaml 2>/dev/null; then
+        _ok "netplan: dhcp4 activo junto a las direcciones estáticas"
+    else
+        _avi "no se pudo leer 60-atriz.yaml (necesita root) o no tiene dhcp4" ""
+    fi
+else
+    _avi "no hay /etc/netplan/60-atriz.yaml" \
+         "sudo bash scripts/first-boot.sh --solo-red   (y luego netplan try)"
+fi
+# Todo netplan lleva la PSK en claro. En 20.04 venían 644.
+MAL_PERM=0
+for F in /etc/netplan/*.yaml; do
+    [[ -e "$F" ]] || continue
+    [[ "$(stat -c '%a' "$F")" == "600" ]] || MAL_PERM=$((MAL_PERM+1))
+done
+[[ $MAL_PERM -eq 0 ]] && _ok "todos los /etc/netplan/*.yaml con permisos 600" \
+    || _mal "$MAL_PERM fichero(s) de netplan sin 600 (contienen la PSK)" \
+            "sudo chmod 600 /etc/netplan/*.yaml"
+
+# --- Las direcciones que realmente tiene la interfaz -------------------------
+# El efecto, no la configuración: lo que cuenta es lo que `ip` dice AHORA.
+N_IP="$(ip -4 -o addr show wlan0 2>/dev/null | wc -l || echo 0)"
+if [[ "$N_IP" -ge 2 ]]; then
+    _ok "wlan0 con $N_IP direcciones IPv4 (estática y DHCP conviven ✅)"
+elif [[ "$N_IP" -eq 1 ]]; then
+    _avi "wlan0 con 1 sola dirección IPv4: $(ip -4 -br addr show wlan0 | awk '{print $3}')" \
+         "normal si aún no se aplicó el netplan de la flota"
+else
+    _mal "wlan0 sin dirección IPv4" "nadie puede llegar a este robot"
+fi
+
+# --- rosbridge: por donde habla la web --------------------------------------
+if compgen -G "/opt/ros/jazzy/lib/rosbridge_server/rosbridge_websocket" >/dev/null 2>&1; then
+    _ok "rosbridge_websocket instalado"
+else
+    _mal "FALTA rosbridge_websocket: la web no puede hablar con el robot" \
+         "sudo apt install -y ros-jazzy-rosbridge-suite"
+fi
+# Escuchando de verdad, y en las DOS familias: mDNS puede resolver a IPv6
+# link-local (pasó el 2026-08-01 desde Windows).
+if ss -tln 2>/dev/null | grep -q ':9090'; then
+    _ok "rosbridge escuchando en el puerto 9090"
+    ss -tln 2>/dev/null | grep -q '\[::\]:9090' \
+        && _ok "rosbridge también en IPv6 (mDNS puede resolver a link-local)" \
+        || _avi "rosbridge solo en IPv4" "si mDNS resuelve a IPv6, la web no conectará"
+else
+    _avi "nada escuchando en el 9090" \
+         "¿corre atriz-robot? el rosbridge va dentro de robot.launch.py"
+fi
+
+# --- Regresión: rutas fijas en /tmp -----------------------------------------
+# 🔴 `fs.protected_regular=2` impide a ROOT escribir en un fichero de /tmp que no
+#    le pertenece. Si la redirección falla, bash NO ejecuta el comando y el
+#    script acaba leyendo contenido RANCIO como si fuera el error de ahora.
+#    Costó un diagnóstico entero el 2026-08-01. Manual, cap. 19.8.
+FIJAS="$(grep -lE '>[[:space:]]*/tmp/[a-zA-Z]|=/tmp/[a-zA-Z]' "$(dirname "${BASH_SOURCE[0]}")"/*.sh 2>/dev/null \
+        | grep -v verificar_robot || true)"
+[[ -z "$FIJAS" ]] && _ok "ningún script escribe en una ruta fija de /tmp" \
+    || _avi "escriben en rutas fijas de /tmp: $(echo "$FIJAS" | xargs -n1 basename | tr '\n' ' ')" \
+            "usa mktemp: con fs.protected_regular=2 root no puede sobrescribirlas"
+
 # ─────────────────────────────────────────────────────────────────────────────
 printf '\n%s' "$AZUL"
 echo "======================================================================"

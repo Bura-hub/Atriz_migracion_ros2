@@ -4,6 +4,95 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-01 (tarde) — La red de la flota, verificada de extremo a extremo
+
+Cerró **la última incógnita grande antes de la Fase 5**: cómo hablan la web y 16 robots, y cómo
+se pasa del PC de casa al laboratorio sin reconfigurar dieciséis tarjetas.
+
+### ✅ La suposición que sostenía el diseño: verificada
+
+Todo dependía de que una IP **estática** y el **DHCP** convivieran en la misma interfaz. Si no,
+había que rehacerlo. Conviven:
+
+```
+wlan0  UP  10.14.7.7/21  192.168.1.200/24  192.168.1.58/24
+            ^laboratorio  ^casa             ^DHCP
+default via 192.168.1.1 dev wlan0 proto dhcp     ← la ruta la pone el DHCP, como se diseñó
+```
+
+**Este robot se lleva al laboratorio sin tocar un solo comando.**
+
+### ✅ La web habla con el robot, probado desde un navegador de verdad
+
+`ws://rvr-01.local:9090` desde el PC del usuario, con
+[`03_operacion/probar_conexion_web.html`](03_operacion/probar_conexion_web.html) — sin
+librerías y sin CDN, para que funcione sin internet. Funcionaron **las dos direcciones**:
+telemetría llegando y `set_led_rgb` **encendiendo los faros de verdad**, confirmado con la
+vista. Importaba: en este proyecto `success=true` ya devolvió `true` sobre un LED que no
+alumbra.
+
+```
+navegador → WebSocket → rosbridge → servicio ROS 2 → driver → SDK → serie → RVR → LED
+```
+
+Y resolvió **por nombre**, sin escribir ninguna IP: eso es lo que permite que el mismo código
+web funcione en las dos redes.
+
+### ✅ Riesgo nº4 de `FLOTA.md`: cerrado, y con la estimación corregida
+
+| Estado | por robot | ×16 |
+|---|---|---|
+| navegando | **80.7 kB/s** | **10.3 Mbit/s** |
+| en reposo | **13.6 kB/s** | **1.7 Mbit/s** |
+
+Se había estimado que el JSON de rosbridge multiplicaría por **3–5×**. El real es **~2×**, y esa
+diferencia separa «hay que comprar red» de «cabe». Medido **dos veces con dos clientes
+distintos en dos máquinas distintas**, que coincidieron al 3 % en reposo — en un proyecto donde
+ya han mentido cuatro instrumentos, eso convierte la cifra en un hecho replicado.
+
+🔴 **La palanca: `/scan` es el 83 % del tráfico.** La diferencia entre 1.7 y 10.3 Mbit/s es
+`/scan` y nada más.
+
+### 🔴 Tres fallos encontrados, dos de ellos míos
+
+1. **`chmod 600` sobre `/boot/firmware` no hace nada, y devuelve 0.** Es FAT: no guarda
+   permisos de Unix, los fija el montaje. **La PSK del WiFi queda legible por cualquier usuario
+   de los 16 robots.** Y la instrucción `sudo chmod 600 red.txt` la di yo, en los pasos
+   detallados: no solo era inútil, daba falsa confianza. Se cierra en `/etc/fstab` con
+   `fmask=0177,dmask=0077` — **pendiente del usuario**.
+2. **Un fichero rancio en `/tmp` inventó un fallo de netplan que nunca ocurrió.**
+   `fs.protected_regular=2` impide a root escribir en un `/tmp/…` ajeno; si la redirección
+   falla, **bash no ejecuta el comando**, y el `else` imprimió el contenido de seis horas antes
+   como si fuera el error del momento. Arreglado con `mktemp` en `first-boot.sh` y en
+   `provision.sh`, que tenía el mismo patrón.
+3. **El índice del manual llevaba desviado del contenido.** Decía que los capítulos 9, 10, 11 y
+   12 estaban «no escritos» cuando llevaban semanas escritos y verificados, y numeraba hasta 12
+   mientras el manual llegaba al 18. Además había un «Capítulo 6» huérfano **entre el 16 y el
+   17**. Es la deriva documentación↔realidad que la auditoría original señaló como el problema
+   de fondo, reproducida dentro del documento que venía a arreglarla.
+
+### Cambios
+
+| Fichero | Qué |
+|---|---|
+| `scripts/first-boot.sh` | **`--solo-red`**: regenera el netplan sin reiniciar ni tocar la identidad · `mktemp` |
+| `scripts/provision.sh` | `mktemp` para el `.deb` de ROS |
+| `scripts/verificar_robot.sh` | **sección 12**: mDNS, netplan, `red.txt`, direcciones reales de `wlan0`, rosbridge en las dos familias, y una regresión que busca rutas fijas de `/tmp`. **102 correctas, 0 fallos** |
+| `scripts/red.txt.ejemplo` | avisa de que `chmod` no sirve sobre la FAT |
+| `03_operacion/probar_conexion_web.html` | **nuevo** — la prueba desde el navegador |
+| `mediciones_banco/probar_mdns.py` | **nuevo** — mDNS crudo, sin dependencias · `--flota 16` |
+| `mediciones_banco/probar_rosbridge.py` | **nuevo** — cliente WebSocket propio que mide bytes/s |
+| `02_manual/…` | **capítulo 19** (red de la flota) · índice reescrito · capítulo 6 recolocado |
+| `03_operacion/FLOTA.md`, `ARQUITECTURA.md`, `CLAUDE.md` | alineados |
+
+### Pendiente
+
+- 🔴 `/etc/fstab` para cerrar la PSK legible (sudo del usuario)
+- mDNS **por enlace**: `wlan0: no` mientras `Global: yes`
+- Aislamiento de clientes del AP del aula — sin comprobar
+- ⏳ **Namespace `/rvr_NN` o sin namespace**, que hay que fijar **antes** de la Fase 5
+
+
 ## 2026-08-01 — `ARQUITECTURA.md` contra el robot real: una errata era un fallo de seguridad
 
 Al responder a *«¿cómo esperamos cambiar la comunicación para que ya no sea por SSH?»* salió que

@@ -12,22 +12,36 @@
 > **Sustituto de `MANUAL SPHERO.docx`.** Se escribe de forma incremental: cada capítulo
 > aparece aquí **solo después de haberse ejecutado y verificado** en la máquina real.
 >
+> 🔴 **Este índice estuvo desviado del contenido hasta el 2026-08-01.** Decía que los
+> capítulos 9, 10, 11 y 12 estaban «no escritos» cuando llevaban semanas escritos y
+> verificados, y numeraba hasta 12 mientras el manual llegaba al 18. Es justo la deriva
+> documentación↔realidad que la auditoría original señaló como el problema de fondo del
+> proyecto, reproducida **dentro del documento que venía a arreglarla**.
+> → **Si añades un capítulo, actualiza esta tabla en el mismo commit.**
+>
 > | Cap. | Contenido | Estado |
 > |---|---|---|
 > | 0 | Convenciones y hardware | ✅ verificado |
-> | 1 | Enlace UART Pi ↔ RVR | ✅ **verificado en 20.04 (2026-07-29) y en 24.04 (2026-07-30)** |
-> | 2 | Ritmo de telemetría | ✅ **medido 2026-07-29** |
-> | 3 | Flasheo de Ubuntu Server 24.04 | ✅ **verificado 2026-07-30** |
-> | 4 | Higiene del SO (headless, governor, journal) | ✅ **verificado 2026-07-30** |
-> | 5 | ROS 2 Jazzy y workspace colcon | ✅ **verificado 2026-07-30** (5.4 en espera del port) |
-> | 6 | Driver del RVR en `rclpy` | ⏳ **no escrito — EN CURSO** |
-> | 7 | URDF y árbol TF | ✅ **verificado 2026-07-30** · `odom → laser` resuelve. Medidas del chasis 📝 sin medir |
-> | 8 | YDLIDAR X2 | ✅ **verificado 2026-07-30** — hardware Y driver ROS 2, `/scan` a 10.1 Hz |
-> | 8bis | LEDs y sensores del RVR | ✅ **verificado 2026-07-30** — 11 grupos de LED a la vista, 10/11 sensores |
-> | 9 | SLAM y Nav2 | ⏳ no escrito |
-> | 10 | rosbridge y plataforma web | ⏳ no escrito |
-> | 11 | Arranque automático con systemd | ⏳ no escrito |
-> | 12 | Clonado a los 16 robots | ⏳ no escrito |
+> | 1 | Enlace UART Pi ↔ RVR | ✅ verificado en 20.04 (2026-07-29) y 24.04 (2026-07-30) |
+> | 2 | Ritmo de telemetría | ✅ medido 2026-07-29 · **16.53 Hz** |
+> | 3 | Flasheo de Ubuntu Server 24.04 | ✅ verificado 2026-07-30 |
+> | 4 | Higiene del SO | ✅ verificado 2026-07-30 |
+> | 5 | ROS 2 Jazzy y workspace colcon | ✅ verificado 2026-07-30 |
+> | 6 | El driver del RVR en `rclpy` | 📝 **sin capítulo propio, y a propósito** — ver abajo |
+> | 7 | URDF y árbol TF | ✅ verificado · medidas del chasis **medidas con cinta** el 2026-07-31 |
+> | 8 | YDLIDAR X2 | ✅ verificado · `/scan` 10.1–11.9 Hz · **8.4a: el X2 gira siempre** |
+> | 8bis | LEDs y sensores del RVR | ✅ verificado 2026-07-30 |
+> | 9 | SLAM con `slam_toolbox` (Fase 4) | ✅ **verificado** · deriva caracterizada, 9.12b: replicar antes de atribuir |
+> | 10 | Los marcos de referencia de `/odom` | ✅ **verificado** · los tres bugs de marcos, arreglados |
+> | 11 | Nav2 (Fase 4b) | ✅ **verificado** · error final 9–10 cm |
+> | 12 | El `collision_monitor` | ✅ **verificado** · parada en 9.9 cm |
+> | 13 | La inclinación del RVR: es el acelerómetro | ✅ **verificado** · y dos conclusiones retiradas |
+> | 14 | `map_server` + AMCL (Fase 4c) | ✅ **verificado** · 0.1 cm siguiendo la pose |
+> | 15 | La parada de emergencia: tres fallos silenciosos | ✅ **verificado con control** (15.4) |
+> | 16 | Los servicios del driver y el sensor de color | ✅ **verificado** |
+> | 17 | Arranque automático con systemd | ✅ **verificado con un reinicio real** |
+> | 18 | Telemetría que faltaba: motores, encoders, luz | ✅ **verificado** · 18.4: los dos sensores ópticos |
+> | 19 | **Red de la flota y cómo la web encuentra a los robots** | ✅ **verificado de extremo a extremo 2026-08-01** |
 >
 > Los capítulos 1 y 2 se validaron sobre **Ubuntu 20.04 + ROS Noetic**. La configuración de
 > arranque **no** es idéntica en 24.04: `usercfg.txt` y `syscfg.txt` **no existen** y todo va
@@ -1419,6 +1433,35 @@ lo introduce el middleware.
 > línea de comando del propio shell que lo ejecuta, y **mata tu terminal** — pasó dos veces con
 > el driver de ROS 1. Y ojo con los falsos positivos: un `pgrep -f 'listener'` en este robot
 > encuentra **`sshd`**, cuya línea de comando contiene literalmente `[listener]`.
+
+---
+
+## Capítulo 6 — El driver del RVR en `rclpy`
+
+📝 **Este capítulo no tiene cuerpo propio, y es una decisión, no un olvido.**
+
+Hasta el 2026-08-01 decía *«no escrito todavía, se redacta al ejecutar las fases 1–6»*, y
+además estaba **físicamente colocado entre el 16 y el 17**. Las dos cosas eran falsas: las
+fases 1–6 estaban ejecutadas y el driver llevaba semanas funcionando.
+
+El driver **sí está documentado**, pero repartido por tema, que es como está organizado este
+manual. Un capítulo 6 que lo repitiera sería una segunda copia que se desviaría de la primera
+— exactamente el problema que este proyecto arrastra. Dónde está cada cosa:
+
+| Del driver quieres saber… | Capítulo |
+|---|---|
+| Cómo publica `/odom`, y los tres bugs de marcos de referencia | **10** |
+| Los servicios (LEDs, movimiento, sensores) y el sensor de color | **16** |
+| La parada de emergencia y sus tres fallos silenciosos | **15** |
+| `/motor_status`, `/encoders`, `/ambient_light` | **18** |
+| El keepalive y el detector de silencio (el RVR se duerme a los 5 min) | **2** y `CLAUDE.md` |
+| Convenciones de ejes de cada sensor (FRD contra FLU) | **10.3** |
+| Que arranque solo bajo systemd | **17** |
+
+🔴 **Y la trampa que vale por todo el capítulo:** construir `SpheroRvrAsync` desde dentro de
+una corrutina falla con `RuntimeError: This event loop is already running`, y el nodo arranca
+**con todos los topics registrados y cero datos**. Constrúyelo con el loop parado, antes de
+arrancar el hilo. Ha mordido dos veces.
 
 ---
 
@@ -3681,13 +3724,6 @@ nodo. → **Para saber si un servicio existe, usa un cliente.** La lista puede m
 
 ---
 
-## Capítulo 6
-
-⏳ **No escrito todavía.** Se redacta al ejecutar las fases 1–6 del
-[plan](../01_plan/PLAN_MIGRACION_ROS2.md), capítulo a capítulo, tras verificar cada paso.
-
----
-
 ## Capítulo 17 — Arranque automático con systemd
 
 > ✅ **ARRANCADO Y VERIFICADO bajo systemd el 2026-07-31**, y de arrancarlo salieron **cinco**
@@ -4089,3 +4125,300 @@ Hasta entonces, para reconstruir el sistema **Noetic** el procedimiento válido 
 [manual original anotado](MANUAL_SPHERO_transcripcion.md), aplicándole las correcciones
 marcadas en sus bloques `⚠️ AUDITORÍA` — en particular los nombres de paquete de los
 comandos de ejecución, que ya no existen.
+
+---
+
+## Capítulo 19 — Red de la flota: cómo la web encuentra a 16 robots
+
+> ✅ **VERIFICADO DE EXTREMO A EXTREMO el 2026-08-01.** Un navegador del PC del usuario abrió
+> `ws://rvr-01.local:9090`, recibió telemetría y **encendió los faros del robot** — confirmado
+> con la vista, no solo por el `success=true`. Evidencia 39.
+
+### 19.1 El problema real, que no es técnico
+
+Los 16 robots viven en el laboratorio (`Atriz-server`, red `10.14.0.0/21` que administra un
+tercero), pero la plataforma web se desarrolla en un PC de casa (`VERCINGE_TORIX`,
+`192.168.1.0/24`). Y un robot montado no se reconfigura: **se lleva**.
+
+Si la web guardara direcciones IP, mudar el robot de una red a otra obligaría a editar la web,
+el robot, o los dos. Multiplicado por 16, y con un administrador de red ajeno de por medio, eso
+es una tarde perdida cada vez.
+
+**El objetivo del diseño es que mudarse cueste cero comandos.**
+
+### 19.2 Tres piezas, y cada una cubre el fallo de otra
+
+| Pieza | Qué resuelve | Qué pasa si falla |
+|---|---|---|
+| **IP estática** por robot, en las dos redes | dirección conocida y estable en el laboratorio | queda el DHCP |
+| **DHCP simultáneo** | funciona en una red que nadie configuró | queda la estática |
+| **mDNS** (`rvr-NN.local`) | encontrar al robot **sin saber ninguna IP** | quedan las dos anteriores |
+
+🔴 **Las tres a la vez, no una.** La combinación es lo que hace que el sistema aguante que se
+caiga el DHCP, que el administrador cambie la subred, o que alguien teclee mal una IP.
+
+⚠️ **Lo que sí verifica esta lista: que `dhcp4: true` y `addresses:` estáticas CONVIVEN en la
+misma interfaz.** Es la suposición sobre la que se apoya todo lo demás.
+
+### 19.3 El perfil de red vive en la partición FAT
+
+`/boot/firmware/red.txt`, junto a `robot_id.txt`. Plantilla sin secretos en
+[`scripts/red.txt.ejemplo`](../scripts/red.txt.ejemplo).
+
+```
+LAB_SSID=Atriz-server
+LAB_PASS=…
+LAB_IP=10.14.7.7          # o LAB_BASE + LAB_OCTETO, y el robot NN deriva la suya
+LAB_PREFIJO=21
+LAB_GATEWAY=10.14.0.1
+
+CASA_SSID=VERCINGE_TORIX
+CASA_PASS=…
+CASA_IP=192.168.1.200
+CASA_PREFIJO=24
+CASA_GATEWAY=192.168.1.1
+
+DHCP=si
+RUTA_POR_DEFECTO=dhcp
+DNS=8.8.8.8,1.1.1.1
+```
+
+🔴 **POR QUÉ EN LA FAT Y NO EN `/etc/netplan`.** Una IP estática equivocada deja al robot **sin
+dirección en esa LAN**, y entonces no puedes entrar por SSH a arreglarla. La FAT se lee desde
+Windows, macOS o Linux **metiendo la microSD en un PC, sin arrancar la Pi**. Siempre hay una
+salida. Es el mismo mecanismo que `robot_id.txt`, que ya funcionaba así.
+
+🔴 **Y NO VA A GIT:** lleva la PSK del WiFi (regla 5 del proyecto). Se versiona la plantilla.
+
+### 19.3b `chmod` no funciona en la partición FAT, y eso deja la PSK al aire
+
+```
+$ sudo chmod 600 /boot/firmware/red.txt
+$ ls -l /boot/firmware/red.txt
+-rwxr-xr-x 1 root root 253 Aug  1 15:14 /boot/firmware/red.txt      ← sigue en 755
+
+$ findmnt -no OPTIONS /boot/firmware
+rw,relatime,fmask=0022,dmask=0022,…                                 ← el motivo
+
+$ head -2 /boot/firmware/red.txt          # SIN sudo
+LAB_SSID=Atriz-server
+LAB_PASS=…                                                          🔴 legible por todos
+```
+
+🔴 **FAT no almacena permisos de Unix.** Los fija la opción **`fmask` del montaje**, y vale
+para **toda la partición**. El `defaults` que trae Ubuntu da `fmask=0022` → **755**.
+
+🔴 **Y `chmod` se acepta sin error.** No falla, no avisa, y no hace nada. Eso es peor que
+fallar: deja el problema abierto **con aspecto de resuelto**. Este manual llegó a recomendar
+ese `chmod`; se corrigió el 2026-08-01 al comprobar el efecto en vez del comando.
+
+**Cuánto importa:** el robot tiene un solo usuario (`sphero`), así que quien puede leer el
+fichero ya tiene sesión en la máquina. Pero **la misma PSK también está en `/etc/netplan/*.yaml`
+con `600`**, o sea que la FAT es el eslabón débil, y la imagen dorada replica esto **por 16**.
+
+**Si quieres cerrarlo** — es un cambio del arranque, así que lo ejecuta la persona:
+
+```bash
+sudo cp /etc/fstab /etc/fstab.bak
+sudo sed -i 's|\(/boot/firmware\s\+vfat\s\+\)defaults|\1defaults,fmask=0177,dmask=0077|' /etc/fstab
+sudo mount -o remount /boot/firmware
+ls -l /boot/firmware/red.txt          # debe salir -rw------- root root
+```
+
+⚠️ Es seguro para el arranque: el firmware del Pi lee la FAT **antes de Linux** e ignora los
+permisos de Unix. Pero **verifícalo con un reinicio** antes de meterlo en la imagen dorada.
+
+📝 **Alternativa si no quieres tocar `fstab`:** asumirlo y no poner ahí nada más sensible que
+la PSK del WiFi del laboratorio. Es una decisión de despliegue, no técnica.
+
+#### 19.3b · `chmod 600` sobre la FAT no hace nada, y eso es peor que no intentarlo
+
+```
+-rwxr-xr-x 1 root root 253 Aug  1 15:14 /boot/firmware/red.txt
+/dev/mmcblk0p1 vfat rw,relatime,fmask=0022,dmask=0022,…
+```
+
+**FAT no almacena permisos de Unix.** Los fija el *montaje* (`fmask`), y con `defaults` salen
+**755**. El `chmod 600` **devuelve 0 y no cambia nada** — la peor combinación posible, porque
+parece que funcionó.
+
+🔴 **Consecuencia real:** cualquier usuario del robot lee la PSK del WiFi **sin `sudo`**. Y la
+imagen dorada replica eso por 16.
+
+```bash
+head -2 /boot/firmware/red.txt     # sin sudo, y sale LAB_PASS=…
+```
+
+**Para cerrarlo**, en `/etc/fstab`:
+
+```
+LABEL=system-boot  /boot/firmware  vfat  defaults,fmask=0177,dmask=0077  0  1
+```
+
+Ficheros a 600 y directorios a 700. El firmware de la Pi lee la FAT **en crudo, antes de
+arrancar Linux**, así que no le afecta.
+
+📝 **La versión general de la trampa:** un comando que devuelve 0 no prueba que hiciera algo.
+Es la misma forma de fallo que `set_all_leds` aceptando una máscara mal formada, que
+`undercarriage_white` devolviendo `success=true` sin encender nada, y que `colcon build`
+diciendo «finished» sin compilar. **Comprueba el efecto, no el código de salida.**
+
+⚠️ **`RUTA_POR_DEFECTO` es el campo que más fácil rompe internet.** Las dos direcciones
+estáticas están puestas siempre, en las dos redes — eso es inofensivo. Pero **una ruta por
+defecto hacia un gateway que no existe en la red actual sí rompe el tráfico de salida**, porque
+el sistema la da por válida igualmente. Por eso se elige UNA, y por defecto la pone el DHCP.
+
+### 19.4 Generar y aplicar: dos pasos, y separarlos es la seguridad
+
+```bash
+# 1. Genera /etc/netplan/60-atriz.yaml y lo VALIDA. No aplica nada.
+sudo bash ~/atriz_migracion/scripts/first-boot.sh --solo-red
+
+# 2. Míralo (sin sacar las contraseñas por pantalla)
+sudo grep -v password /etc/netplan/60-atriz.yaml
+
+# 3. Aplica CON REVERSIÓN AUTOMÁTICA
+sudo netplan try --timeout 90
+```
+
+📝 **`--solo-red` existe porque cambiar una IP no debería costar un reinicio.** Regenera el
+netplan y para: no toca hostname, ni `machine-id`, ni las claves SSH de host, ni la marca de
+first-boot. Con 16 robots, «edita `red.txt` y reinicia» convierte *«corrige la IP del robot 9»*
+en una tarde.
+
+🔴 **Y no aplica a propósito.** `netplan try` pide ENTER para confirmar y **revierte solo a los
+90 s** si te quedas sin conexión. Separar «escribir» de «aplicar» es lo que impide que una IP
+mal puesta te deje fuera de un robot que está en otro edificio.
+
+### 19.5 mDNS: encontrar al robot sin saber su IP
+
+`fase_1_higiene_so.sh` **deshabilitaba `avahi-daemon`** como parte de la higiene, mientras el
+capítulo 7 decía «usa `ping rvr-01.local`». Se corrigió el 2026-08-01: ahora lo habilita y pone
+`MulticastDNS=yes` en `systemd-resolved`.
+
+✅ **Verificado desde el PC del usuario:**
+
+```
+PS C:\Users\burav> ping rvr-01.local
+Reply from fe80::da3a:ddff:fed6:c1ee%10: time=3ms      (4 de 4, 0 % de pérdida)
+```
+
+⚠️ **Respondió con una IPv6 link-local, no con la IPv4, y eso disparó dos sospechas que
+resultaron FALSAS.** Comprobarlas costó dos comandos; la alternativa era descubrirlo en la
+Fase 5 con la web ya escrita:
+
+- *«rosbridge escucha en `0.0.0.0`, o sea solo IPv4»* → **falso**: `ss` muestra `0.0.0.0:9090`
+  **y** `[::]:9090`.
+- *«avahi publica solo la AAAA»* → **falso**: publica `A=192.168.1.58` **y** la AAAA. Windows
+  simplemente **prefiere IPv6** (RFC 6724).
+
+📝 **La lección de método:** el `ping` pasó y parecía un éxito completo. **Una prueba que pasa
+tampoco dice lo que crees hasta que miras qué pasó exactamente.**
+
+Herramienta: `mediciones_banco/probar_mdns.py`, que consulta los dos registros por separado y
+tiene `--flota 16` para saber qué robots están vivos. No usa `zeroconf` ni `avahi-utils` a
+propósito: **un diagnóstico que exige instalar software no sirve el día que hay una avería.**
+
+⚠️ **Pendiente:** `resolvectl mdns` da `Global: yes` pero `wlan0: no`. Avahi responde —que es
+lo que importa para que te encuentren— pero el robot no resuelve el `.local` de otros.
+
+⚠️ **Y comprueba el aislamiento de clientes del punto de acceso del aula.** Rompería mDNS *y*
+la comunicación PC↔robot. Es una casilla del AP, y no está comprobada.
+
+### 19.6 La web habla por rosbridge, y cuánto cuesta
+
+`robot.launch.py` levanta `rosbridge_websocket` en el **puerto 9090** (argumento `rosbridge`,
+por defecto `true`). Va en el launch y **no en una unidad systemd propia** para que herede el
+`ROS_DOMAIN_ID`, que es justo lo que systemd no sabe dar por sí solo.
+
+**Ancho de banda medido dos veces, con dos clientes distintos en dos máquinas distintas:**
+
+| | binario | rosbridge (JSON) | factor |
+|---|---|---|---|
+| `/odom` | 724 B | 818–820 B | 1.13× |
+| `/scan` | 2220 B | **5532–5661 B** | **2.5×** |
+
+| Estado del robot | por robot | ×16 |
+|---|---|---|
+| navegando (con `/scan`) | **80.7 kB/s** | **10.3 Mbit/s** |
+| en reposo (sin `/scan`) | **13.6 kB/s** | **1.7 Mbit/s** |
+
+🔴 **Se había estimado que el JSON multiplicaría por 3–5. El real es ~2×**, y esa diferencia es
+la que separa «hay que comprar red» de «cabe».
+
+🔴 **`/scan` es el 83 % del tráfico.** La diferencia entre 1.7 y 10.3 Mbit/s **es `/scan` y nada
+más**. Si la web no lo necesita crudo —o le basta 1 de cada 5 barridos— el problema de red
+desaparece. Es la palanca más grande que tiene este sistema.
+
+📝 **Y el caudal NO es una constante del robot.** Las dos medidas difieren un 7.6 %, explicado
+entero: el X2 **gira libre** (11.45 → 11.86 Hz) y el JSON de un float ocupa **según sus
+dígitos** (`0.5` son 3 caracteres, `1.8371830940246582` son 18). Un robot en una habitación
+con paredes irregulares genera más bytes que uno mirando al vacío. **Para dimensionar la red se
+usa el número alto.**
+
+### 19.7 La prueba de que todo esto funciona
+
+[`03_operacion/probar_conexion_web.html`](../03_operacion/probar_conexion_web.html) — se abre
+con doble clic **en el PC**, no en el robot. Sin librerías y sin CDN: WebSocket del navegador
+contra el protocolo JSON de rosbridge, escrito a mano, para que funcione **sin internet**, que
+el laboratorio puede no tener.
+
+Prueba **las dos direcciones**, que son caminos distintos:
+
+```
+15:08:35  ✅ WebSocket abierto
+          /odom  16.53 Hz  817 B    /scan  11.86 Hz  5661 B    /battery_state 100 %
+15:09:13  respuesta de /set_led_rgb: success=true  headlight_left = (0,255,0)
+```
+
+✅ **Y los faros se encendieron de verdad**, confirmado con la vista. Importa: en este proyecto
+`success=true` ya devolvió `true` sobre un LED que **no alumbra** (`undercarriage_white`). El
+camino completo queda probado hasta el hardware:
+
+```
+navegador → WebSocket → rosbridge → servicio ROS 2 → driver → SDK → serie → RVR → LED
+```
+
+⚠️ Ábrela como fichero local (`file://`). Servida por HTTPS, el navegador bloquea `ws://` por
+contenido mixto.
+
+🔴 **No mueve el robot, a propósito.** `cmd_vel_raw` se salta el `collision_monitor` si se usa
+mal, y una página de diagnóstico no es el sitio para descubrirlo.
+
+### 19.8 Una trampa que costó un diagnóstico entero
+
+Al ejecutar `first-boot.sh --solo-red` por primera vez, informó de que netplan había rechazado
+la configuración con un error de **systemd sobre autenticación interactiva**. Nada de eso era
+cierto: **netplan ni siquiera llegó a ejecutarse**.
+
+```
+-rw-rw-r-- 1 sphero sphero 203 Aug  1 14:43 /tmp/netplan.err
+fs.protected_regular = 2
+```
+
+🔴 **Ubuntu 24.04 impide a ROOT escribir en un fichero de `/tmp` que no le pertenece**
+(`fs.protected_regular=2`). La redirección `2>/tmp/netplan.err` fue denegada — y **si la
+redirección falla, bash no ejecuta el comando**. El `if` dio error, el `else` imprimió el
+contenido de las 14:43 (una prueba sin `sudo` de horas antes) como si fuera el fallo actual, y
+borró un netplan que estaba perfectamente bien.
+
+→ **Usa `mktemp`, nunca una ruta fija en `/tmp`.** Arreglado en `first-boot.sh` y en
+`provision.sh`, que tenía el mismo patrón con el `.deb` de ROS y habría mordido igual
+instalando los 16 robots.
+
+→ **Y la regla general:** un error que menciona permisos o autenticación en un script que ya
+corre como root **casi nunca es lo que dice**. Mira si lo que falló fue la *redirección*, y
+**comprueba la fecha del fichero que estás leyendo**.
+
+📝 El daño no fue el fallo, fue la **atribución**: el mensaje apuntaba a systemd y a polkit, y
+se estuvo a punto de diagnosticar un problema de D-Bus inexistente en un sistema sano.
+
+### 19.9 Lo que sigue sin verificar
+
+| Pendiente | Por qué importa |
+|---|---|
+| `netplan try` en vivo | es la suposición que sostiene el diseño: ¿conviven estática y DHCP? |
+| mDNS **por enlace** (`wlan0: no`) | el robot no resuelve el `.local` de otros robots |
+| Aislamiento de clientes del AP del aula | rompería mDNS y la comunicación PC↔robot |
+| El bloque de IP del laboratorio | el usuario lo tiene asignado, pendiente de tenerlo a mano |
+| ⏳ **Namespace `/rvr_NN` o sin namespace** | hay que fijarlo **antes** de la Fase 5 |

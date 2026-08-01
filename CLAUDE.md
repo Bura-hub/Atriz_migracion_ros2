@@ -288,6 +288,29 @@ recibiría nada aunque acertara el tipo.
   descubre, y el QoS se elige. Un comprobador que acierta un tercio de las veces es peor que no
   tenerlo.
 
+**🔴 `chmod` NO HACE NADA EN `/boot/firmware`, Y NO DA ERROR.** Es **vfat**, y FAT no
+almacena permisos de Unix: los fija `fmask` en el **montaje**, para toda la partición. Con el
+`defaults` de Ubuntu queda todo en **755**, así que `red.txt` —que lleva **la PSK del WiFi**—
+lo lee cualquier usuario sin `sudo`. Medido el 2026-08-01: `sudo chmod 600` aceptado, `ls`
+seguía diciendo `-rwxr-xr-x`.
+→ Lo grave no es el permiso, es que **`chmod` se acepta en silencio**: el problema queda
+  abierto **con aspecto de resuelto**. Misma clase de error que `usercfg.txt` en 24.04 — un
+  fichero que existe y no hace nada.
+→ Para cerrarlo: montar con `fmask=0177,dmask=0077` en `/etc/fstab`. Manual, cap. 19.3b.
+  ⏳ **Decisión pendiente del usuario.**
+
+**🔴 `chmod` SOBRE `/boot/firmware` NO HACE NADA, Y DEVUELVE 0.** Es una partición **FAT**, y
+FAT no guarda permisos de Unix: los fija el *montaje* (`fmask=0022` con `defaults`), así que
+todo queda en **755** hagas lo que hagas. → **La PSK del WiFi de `red.txt` es legible por
+cualquier usuario del robot, sin `sudo`**, y la imagen dorada lo replicaría por 16. Se cierra
+en `/etc/fstab`: `defaults,fmask=0177,dmask=0077`. El firmware de la Pi lee la FAT en crudo
+antes de arrancar Linux, así que no le afecta. Manual, cap. 19.3b.
+→ 📝 **Y la forma general, que ya va por la quinta vez en este proyecto: un comando que
+  devuelve 0 no prueba que hiciera algo.** Como `set_all_leds` con una máscara mal formada,
+  `undercarriage_white` con su `success=true`, `colcon build` diciendo «finished» sin compilar,
+  y `netplan generate` que ni llegó a ejecutarse. **Comprueba el efecto, no el código de
+  salida.**
+
 **🔴 NUNCA ESCRIBAS EN UNA RUTA FIJA DE `/tmp` DESDE UN SCRIPT CON `sudo`.**
 Ubuntu 24.04 trae `fs.protected_regular=2`, que impide a **root** escribir en un fichero de
 un directorio pegajoso (`/tmp`) que **no le pertenece**. Y el modo de fallo es venenoso:
@@ -788,6 +811,8 @@ fase_1_higiene_so.sh          # headless, governor, journal, WiFi (sudo)
 fase_0_3_respaldo.sh          # prepara la SD antes de reflashear
 fase_1_validar_sdk_py312.py   # GO/NO-GO de la migración
 fase_7_systemd.sh --id NN     # arranque automático (sudo) · --simular · --quitar
+first-boot.sh --solo-red      # regenera /etc/netplan/60-atriz.yaml desde red.txt (sudo)
+#                               NO aplica: eso es `netplan try`, que revierte solo
 diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
 ```
 
@@ -893,9 +918,11 @@ lo que produce deriva entre documentación y realidad.
 | La plataforma web **al final** | decisión del usuario |
 | `ros-jazzy-ros-base`, **NO** `desktop` | Server headless; RViz2 va en un portátil |
 | **`ros-jazzy-navigation2`, NO `ros-jazzy-nav2-bringup`** | `bringup` depende de `nav2-minimal-tb3-sim`, `tb4-sim` y `ros-gz-sim`: **312 paquetes** de simulador y dos TurtleBots en un robot real, incluido `pocketsphinx-en-us`. Los launch los escribimos nosotros, como con `slam_toolbox` |
+| ✅ **Estática + DHCP conviven en `wlan0`** — verificado con 3 direcciones a la vez | Era la suposición «A VERIFICAR» que sostenía el diseño de la flota. El robot se muda de casa al laboratorio **sin tocar un comando**. Evidencia 39, manual cap. 19 |
 | **Imagen dorada** para los 16, no aprovisionar por red | ~300 MB y 15-20 min por robot, sobre la única AP. `FLOTA.md` |
 | La imagen dorada se **construye ejecutando `provision.sh`**, no a mano | Una imagen irreproducible es una caja negra. `FLOTA.md` |
 | **`provision.sh` instala `navigation2`** desde el 2026-07-31 | Antes no lo instalaba: un robot aprovisionado con el script no podía navegar, ni tenía capa de seguridad, ni localización |
+| ✅ **Estática y DHCP CONVIVEN en `wlan0`** (verificado 2026-08-01) | 3 direcciones IPv4 a la vez (`10.14.7.7`, `192.168.1.200`, DHCP) y la ruta por defecto la pone el DHCP. Era **la suposición que sostenía todo el diseño de red**. Un robot se muda de red **sin tocar un comando**. Manual, cap. 19 |
 | ✅ **El camino web ↔ robot está verificado de extremo a extremo** | Navegador del PC → `ws://rvr-01.local:9090` → topics **y** servicios. `03_operacion/probar_conexion_web.html`, sin librerías ni CDN. La web **no necesita SSH para nada operativo**. Evidencia 39 |
 | ✅ **La web localiza a los robots por `rvr-NN.local` (mDNS)**, con la IP como override | Es lo que hace que el mismo código funcione en casa y en el laboratorio sin tocar nada. Verificado el 2026-08-01 desde el PC del usuario: avahi publica **A=192.168.1.58 y AAAA link-local**, y rosbridge escucha en **las dos familias**. Evidencia 39 |
 | 🔴 **NO se reflashea rvr-01 para probar `provision.sh` entero** | Es el único robot montado. Decisión del usuario el 2026-07-31: se **asume** que funciona hasta tener una tarjeta de repuesto. **Es una suposición, no un hecho** — ver abajo |
@@ -974,7 +1001,9 @@ Su regla es **comprobar el efecto, no la intención**. Si añades comprobaciones
 | `preparar_tarjeta.sh --id NN` | en el **PC** | Tarjeta recién grabada: `cmdline.txt`, `config.txt`, `robot_id.txt` |
 | `provision.sh` | en el robot | De un 24.04 limpio a robot terminado. Idempotente: sirve para actualizar |
 | `verificar_robot.sh` | en el robot | Decide si el robot está listo |
-| `fase_7_systemd.sh --id NN` | en el robot | Arranque automático. ✅ Probado con un reinicio real. `provision.sh` **todavía no lo llama** |
+| `fase_7_systemd.sh --id NN` | en el robot | Arranque automático. ✅ Probado con un reinicio real. ✅ `provision.sh` **lo llama** desde el 2026-08-01 (paso 8/9) |
+| `first-boot.sh --solo-red` | en el robot | Regenera el netplan desde `red.txt` **sin reiniciar**. Después: `sudo netplan try --timeout 90` |
+| `first-boot.sh --solo-red` | en el robot | Regenera el netplan desde `red.txt` **sin reiniciar**. No aplica: eso es `netplan try` |
 | `atriz-escaneo on\|off\|estado` | en el robot | Enciende/apaga el barrido del lidar. **Sin barrido el robot no conduce** |
 
 **La imagen dorada es el atajo; `provision.sh` es la verdad.** Si divergen, gana el script y se

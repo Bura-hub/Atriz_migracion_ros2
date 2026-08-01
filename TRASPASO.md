@@ -4,11 +4,18 @@
 > Raspberry Pi ya se reflasheó. Está escrito para que no haga falta reconstruir el
 > contexto desde cero.
 >
-> Última actualización: **2026-07-31**.
+> Última actualización: **2026-08-01**.
 
 ---
 
 ## En una frase
+
+✅ **Y la RED DE LA FLOTA está resuelta y verificada de extremo a extremo (2026-08-01).** Un
+navegador del PC abre `ws://rvr-01.local:9090`, recibe telemetría y **enciende los faros** —
+resolviendo **por nombre**, sin ninguna IP. `wlan0` lleva **tres direcciones a la vez**
+(laboratorio + casa + DHCP), así que el robot se muda sin tocar un comando. Ancho de banda
+medido dos veces con dos clientes distintos: **80.7 kB/s navegando → 10.3 Mbit/s los 16**, y
+`/scan` es el **83 %**. Manual, **cap. 19**.
 
 **🟢 La migración funciona: el robot corre sobre ROS 2 Jazzy y SLAM ya mapea.** Ubuntu Server
 24.04.4 + Jazzy instalados, driver portado a `rclpy` (`/odom` a 16.67 Hz), URDF y árbol TF
