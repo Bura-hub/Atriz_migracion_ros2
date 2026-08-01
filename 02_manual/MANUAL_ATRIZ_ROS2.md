@@ -3941,7 +3941,17 @@ que parecería un encoder sano.
 ✅ **Y no le cuesta ritmo a `/odom`:** 16.58 · `/imu` 16.57 · `/encoders` 16.57 ·
 `/ambient_light` 13.06 Hz.
 
-### 18.4 🔴 `/ambient_light` da 0.0 sin `color_detection`
+### 18.4 ⚠️ `/ambient_light` y `color_detection` — **EN REVISIÓN, no usar**
+
+> 🔴 **La tabla de abajo está bajo sospecha.** El mismo día, con `color_detection=false` y el
+> robot **levantado de verdad**, se midió media **0.90** y máximo **2.50**: el sensor sí responde
+> a la luz ambiente sin encender nada.
+>
+> Las lecturas de «0.0 incluso levantado» se tomaron **cuando el robot no estaba levantado** —
+> lo confirmó el usuario después. Es el mismo error de método que este proyecto ya ha pagado:
+> **dar por hecha una condición experimental que nadie comprobó**.
+>
+> Se está re-caracterizando con un ciclo de encendido del RVR y superficies conocidas.
 
 | condición | luz |
 |---|---|

@@ -369,11 +369,13 @@ posterior. `fase_1_higiene_so.sh` lo deshabilita.
 plano. En 20.04 estaba así; en la imagen de **Server 24.04 ya viene `600`**. Compruébalo, no
 lo asumas en ninguna de las dos direcciones. `fase_1_higiene_so.sh` lo corrige si hace falta.
 
-**🔴 Y `/ambient_light` VA EN EL MISMO PAQUETE: da 0.0 sin `color_detection`.** Comparten
-óptica. Medido el 2026-08-01: **0.0 constante** con el parámetro en `false`, incluso con el robot
-**levantado** (247 muestras) y por las dos vías —stream y `get_ambient_light_sensor_value()`—; con
-`color_detection:=true` pasa a **2.497**. El topic existía, el ritmo era correcto, y el dato era
-un cero.
+**⚠️ `/ambient_light` y `color_detection`: EN REVISIÓN.** Se documentó que da **0.0 sin
+`color_detection`**, y **puede ser falso**: con el parámetro en `false` y el robot **levantado de
+verdad** da media 0.90 y máximo 2.50. Las lecturas de «0.0 incluso levantado» se tomaron **con el
+robot sin levantar** — lo confirmó el usuario después.
+→ **El error de método, que es lo que hay que llevarse:** se dio por hecha una condición
+  experimental que nadie comprobó. Si tu medida depende de que alguien haga algo físico,
+  **pregunta si lo hizo** antes de concluir.
 
 **🔴 `undercarriage_white` NO ENCIENDE EL LED DE LOS BAJOS, y devuelve `success=True`.** Lo
 enciende **`enable_color_detection`**. Medido con el sensor de luz como testigo.

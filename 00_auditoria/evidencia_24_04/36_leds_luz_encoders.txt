@@ -61,6 +61,20 @@ Los 12 grupos devolvieron `success=True`. **Y dos de ellos no se encendieron.**
 ───────────────────────────────────────────────────────────────────────────────
 3. 🔴 LA LUZ AMBIENTE DA 0.0 SI EL SENSOR DE COLOR ESTA APAGADO
 ───────────────────────────────────────────────────────────────────────────────
+⚠️⚠️ EN REVISION (2026-08-01, mismo dia): la afirmacion «/ambient_light da 0.0
+sin color_detection» **NO ES COMPLETA y puede ser falsa**. Con
+`color_detection=False` y el robot LEVANTADO se midio despues media 0.90 y
+**max 2.50**, o sea que el sensor SI responde a la luz ambiente sin encender
+nada.
+
+Las medidas de 0.0 «incluso levantado» se tomaron cuando el robot **NO estaba
+levantado de verdad** — el usuario lo confirmo despues. Es el mismo error de
+metodo que este proyecto ya ha pagado: dar por hecha una condicion experimental
+que nadie comprobo.
+
+Se esta re-caracterizando con un ciclo de encendido del RVR y superficies
+conocidas. NO USAR ESTA SECCION HASTA QUE SE CIERRE.
+
   `/ambient_light` publicaba a 13 Hz un **0.0 constante**. Se comprobo:
 
       en el suelo, color_detection=false     0.0   (n=40)
