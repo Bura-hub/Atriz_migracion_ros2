@@ -838,6 +838,7 @@ fase_1_higiene_so.sh          # headless, governor, journal, WiFi (sudo)
 fase_0_3_respaldo.sh          # prepara la SD antes de reflashear
 fase_1_validar_sdk_py312.py   # GO/NO-GO de la migración
 fase_7_systemd.sh --id NN     # arranque automático (sudo) · --simular · --quitar
+auditar_documentacion.py      # ¿dice la documentación lo que de verdad pasa? · sin ROS ni sudo
 first-boot.sh --solo-red      # regenera /etc/netplan/60-atriz.yaml desde red.txt (sudo)
 #                               NO aplica: eso es `netplan try`, que revierte solo
 diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
@@ -991,7 +992,7 @@ lo que produce deriva entre documentación y realidad.
 bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
 ```
 
-**94 aserciones** con `--hardware` ✅ medido 2026-08-01, 0 fallos, código de salida ≠ 0 si algo falla, y cada
+**105 aserciones** con `--hardware` ✅ medido 2026-08-01 (102 sin él), 0 fallos, código de salida ≠ 0 si algo falla, y cada
 fallo viene con el comando que lo arregla. Existe porque el 2026-07-30 se verificó este robot a
 mano con ~25 comandos y aparecieron **cinco fallos silenciosos**. No repitas eso: pásalo al
 empezar y al cerrar.
@@ -1019,6 +1020,33 @@ al principio de línea y a la sintaxis exacta**: `^[[:space:]]*export[[:space:]]
 
 **Un verificador con falsos positivos se acaba ignorando, y eso es peor que no tenerlo.**
 Evidencia 32.
+
+### Y la documentación tiene su propio verificador desde el 2026-08-01
+
+```bash
+python3 ~/atriz_migracion/scripts/auditar_documentacion.py
+```
+
+Existe porque **ese mismo día aparecieron CUATRO casos de deriva documental**, y ninguno era
+descuido: eran documentos de **estado** que se quedaron atrás mientras las evidencias estaban al
+día. El índice del manual daba por «no escritos» cuatro capítulos verificados; el plan decía
+«Nav2 ⏳ pendiente» con Nav2 navegando desde hacía un día; y **el manual 15.3 afirmaba que la
+parada de emergencia no cancela Nav2 y que estaba «sin comprobar»** — las dos cosas falsas desde
+el 31 de julio. **Una función de seguridad descrita como rota cuando funciona.**
+
+Comprueba: enlaces a ficheros inexistentes, capítulos citados que no existen, secciones fuera de
+orden dentro de un capítulo, frases que ya son falsas, y el índice del manual contra sus
+capítulos reales.
+
+⚠️ **Lo que NO puede hacer: saber si una afirmación es VERDAD.** Para eso está la regla:
+**al cerrar algo, actualiza el plan y `TRASPASO.md` en el MISMO commit que la evidencia — y busca
+TODAS las menciones, no la primera.** Corregir la cabecera del capítulo 4 del plan y dejar la
+subsección 4b diciendo lo contrario ya pasó, el mismo día.
+
+🔴 Y el auditor nació con **tres falsos positivos propios**: comparaba secciones entre capítulos
+(el manual está ordenado por tema a propósito), cortaba el índice antes de la tabla, y contaba
+como deriva una frase falsa **citada para dejar constancia de que lo era**. Arreglados antes de
+darlo por bueno — la misma regla que el verificador del robot.
 
 Su regla es **comprobar el efecto, no la intención**. Si añades comprobaciones, mantenla.
 

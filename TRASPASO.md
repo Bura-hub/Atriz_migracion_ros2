@@ -452,17 +452,31 @@ sin --hardware   76 correctas · 1 aviso · 0 fallos
 con --hardware   84 correctas · 1 aviso · 0 fallos
 ```
 
-### ⏳ Dos decisiones que hay que tomar ANTES de la Fase 5
+### ✅ Dos decisiones CERRADAS el 2026-08-01 (eran los últimos bloqueos de la Fase 5)
 
-Las dos las destapó alinear `ARQUITECTURA.md` con el robot real (2026-08-01), y las dos afectan
-al cliente web, así que cambiarlas después obliga a tocar los 16 robots **y** el cliente:
+Las dos las destapó alinear `ARQUITECTURA.md` con el robot real, y las dos afectan al cliente
+web: cambiarlas después obligaría a tocar los 16 robots **y** el cliente a la vez.
 
-1. **¿Namespace `/rvr_NN` o sin namespace?** El diseño decía `/rvr_NN`; el driver corre hoy **sin
-   namespace**, así que los topics son `/odom`. Con un `ROS_DOMAIN_ID` por robot el namespace no
-   añade aislamiento —solo alarga los nombres— pero la web necesita saber a cuál suscribirse.
-2. **¿Cuál es el nombre canónico de la parada de emergencia?** El driver escucha los tres
-   (`emergency_stop`, `is_emergency_stop`, `/rvr/emergency_stop`) a propósito, pero conviene fijar
-   el oficial.
+**1. ✅ SIN NAMESPACE.** Los topics son `/odom`, no `/rvr_01/odom`.
+
+- El **`ROS_DOMAIN_ID` por robot** ya da aislamiento DDS **total** — los robots no se ven entre sí
+  ni queriendo. El namespace resolvería un problema que no existe.
+- La web habla por **un WebSocket por robot** (`ws://rvr-07.local:9090`). Poner `/rvr_07/odom`
+  dentro de un canal que solo alcanza al robot 7 es escribir el número dos veces.
+- 🔴 **Y la parada de emergencia ya falló una vez POR UN NAMESPACE**: al portar de ROS 1 se coló
+  un `/rvr/` y falló en silencio con `200 OK`. Van cuatro fallos de la parada; no se le regala el
+  quinto multiplicado por 16.
+
+⚠️ Un namespace **no renombra los `frame_id` de TF**, así que ni siquiera resuelve el caso para el
+que suele invocarse. El argumento `namespace` de los launch se deja como camino de escape — y al
+cerrar esto se descubrió que **ese camino estaba roto**: dos `frame_id` a fuego en el driver, ya
+convertidos en el parámetro `body_frame`.
+
+**2. ✅ EL OFICIAL ES `/emergency_stop`**, con QoS **RELIABLE + VOLATILE** (`TRANSIENT_LOCAL` fue
+la tercera causa de fallo, y rosbridge no lo es).
+
+El driver **sigue escuchando los tres** y eso no se toca: con un botón de emergencia el modo de
+fallo que importa es «el mensaje no llega». Escuchar de más no cuesta nada.
 
 ### 📌 El tercer repositorio: `Atriz_web_server`
 
@@ -519,9 +533,8 @@ con un solo publicador.
 📝 Sin ejercitar: la espera de puertos del envoltorio (siempre `tras 0s`) y `Restart=always`.
 Son redes de seguridad sin estrenar. Evidencia 33.
 
-⏳ Y **`provision.sh` no lo instala todavía**: se añade **cuando se cierre el robot de
-referencia** (decisión tuya, 2026-07-31). 🔴 Es un **requisito para la imagen dorada** — si se
-construye antes, los 16 robots saldrán sin arranque automático. Manual, cap. 17.
+✅ **`provision.sh` YA lo instala** (paso 8/9), desde el 2026-08-01. Era un requisito para la
+imagen dorada: construirla antes habría dado 16 robots sin arranque automático. Manual, cap. 17.
 
 🔴 **Y tiene que arrancar con el lidar PARADO.** Medido el 2026-07-31: el X2 gira siempre, a
 2.7 Hz en reposo y 11.8 Hz escaneando. Hoy se queda en 2.7 porque no hay nada corriendo; en

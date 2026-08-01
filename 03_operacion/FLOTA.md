@@ -181,7 +181,8 @@ rosbridge. **Sin él, los 16 caben en 1.6 Mbit/s.**
    a **17.4 kB/s** y los 16 a 2.2 Mbit/s. La decisión de diseño más barata que queda.
 3. **La banda.** 2.4 GHz → 5 GHz cambia el problema.
 
-⏳ Falta el multiplicador JSON. Evidencia 39.
+✅ **El multiplicador JSON, medido** el 2026-08-01: **~2×**, no el 3–5× estimado. Un robot
+navegando son **80.7 kB/s** → **10.3 Mbit/s** los 16. Evidencia 39.
 
 ---
 

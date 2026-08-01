@@ -29,7 +29,7 @@
 > | 5 | ROS 2 Jazzy y workspace colcon | ✅ verificado 2026-07-30 |
 > | 6 | El driver del RVR en `rclpy` | 📝 **sin capítulo propio, y a propósito** — ver abajo |
 > | 7 | URDF y árbol TF | ✅ verificado · medidas del chasis **medidas con cinta** el 2026-07-31 |
-> | 8 | YDLIDAR X2 | ✅ verificado · `/scan` 10.1–11.9 Hz · **8.4a: el X2 gira siempre** |
+> | 8 | YDLIDAR X2 | ✅ verificado · `/scan` 10.1–11.9 Hz · **8.4a: gira siempre** · **8.4b: inundaba el journal, arreglado** |
 > | 8bis | LEDs y sensores del RVR | ✅ verificado 2026-07-30 |
 > | 9 | SLAM con `slam_toolbox` (Fase 4) | ✅ **verificado** · deriva caracterizada, 9.12b: replicar antes de atribuir |
 > | 10 | Los marcos de referencia de `/odom` | ✅ **verificado** · los tres bugs de marcos, arreglados |
@@ -554,6 +554,78 @@ Pi hasta que se apaga**, siempre. Eso es desgaste de rodamiento continuo en 16 u
 argumento más fuerte para un interruptor físico.
 
 Evidencia cruda: `00_auditoria/evidencia_24_04/30_lidar_giro_dtr.txt`.
+
+### 8.4b 🔴 El nodo del YDLIDAR inundaba el journal con el barrido apagado
+
+> ✅ **ARREGLADO el 2026-08-01** con un parche de nueve líneas. Evidencia 40.
+
+Consecuencia no prevista de la decisión de 8.4a. Con `atriz-escaneo off` —que es el **estado
+normal en reposo** de los 16 robots— el nodo emitía:
+
+```
+[ydlidar_ros2_driver_node-3] [ERROR] ... : Failed to get scan
+```
+
+**502 errores en 20 s = 25 por segundo.** El **99 %** del journal del servicio (47 291 de 47 551
+líneas), **2.17 millones de mensajes al día por robot**, 34 millones entre los 16.
+
+🔴 **Lo grave no es el ruido:**
+
+1. **Ahoga cualquier error de verdad.** Los peores fallos de este proyecto están documentados como
+   silenciosos, y el journal es donde se buscan.
+2. **Desgasta la microSD.** Las tarjetas mueren por escrituras, y es el único almacenamiento que
+   tiene el robot.
+3. Sondea el puerto serie 20 veces por segundo para nada.
+
+⚠️ **Y no lo ve nadie:** el servicio está `active`, el verificador pasa, y el robot funciona.
+
+#### La causa, y por qué la primera solución era peor que el problema
+
+La primera propuesta fue **no levantar el nodo del LIDAR** hasta que hiciera falta. El usuario
+desconfió — *«¿voy a perder esa automatización al encender el robot?»*— y al ir a argumentarlo
+hubo que leer el fuente. La causa real estaba ahí:
+
+```cpp
+while (ret && rclcpp::ok()) {
+  if (laser.doProcessSimple(scan)) { ...publica... }
+  else { RCLCPP_ERROR(node->get_logger(), "Failed to get scan"); }   // 20 Hz
+}
+```
+
+`/stop_scan` y `/start_scan` son servicios **del propio nodo** y llaman a `turnOff()`/`turnOn()`,
+pero **nadie guarda ese estado**. No era una consecuencia de apagar el barrido: **al driver le
+falta una variable.**
+
+📝 **La lección de método:** las tres soluciones que se habían planteado atacaban el síntoma, y la
+recomendada cambiaba el arranque del robot para nada. **Antes de rediseñar el arranque de un
+sistema, mira por qué falla el componente.** La desconfianza del usuario fue lo que forzó a mirar.
+
+#### El arreglo, y cómo sobrevive a un reflasheo
+
+Una bandera `std::atomic<bool> escaneando` que los dos servicios actualizan, y una salida temprana
+en el bucle. Con el barrido parado no se toca el hardware ni se escribe en el log, pero **se sigue
+atendiendo a ROS** — los servicios tienen que responder para poder volver a encenderlo.
+
+| | antes | después |
+|---|---|---|
+| barrido apagado | 502 errores / 20 s | **0** |
+| `atriz-escaneo on` | — | `/scan` a **12.00 Hz**, 250 puntos |
+| `atriz-escaneo off` | — | 0 mensajes, **0 ruido** |
+
+✅ **El nodo sigue levantándose con el robot**, igual que antes.
+
+🔴 **Y va como parche versionado, no como edición a mano.** `provision.sh` clona el ydlidar de
+GitHub y **le borra el `.git`**: un cambio manual se perdería al reflashear y este robot
+divergiría de uno recién aprovisionado — y la regla del proyecto dice que **gana el script**. El
+parche vive en `Atriz_rvr/atriz_rvr_bringup/patches/`, `provision.sh` lo aplica tras clonar (y es
+idempotente), y el verificador comprueba **el fuente y el efecto**.
+
+📝 Si el upstream lo arregla algún día, el parche fallará al aplicarse y `provision.sh` lo dirá.
+Es lo que queremos: enterarnos, no seguir en silencio.
+
+---
+
+---
 
 ### 8.5 ✅ Driver ROS 2 — **instalado y verificado 2026-07-30**
 
@@ -2410,39 +2482,6 @@ es exacto. Lo que fallaba era que el driver copiaba una velocidad del marco del 
 campo que ROS define en el marco del **robot**. Ahora publica `(+0.101, +0.001)` con el robot
 a 84° contra 0.099 m/s reales — 2 % de error. **Capítulo 10.**
 
-### 9.13 Verificación del capítulo
-
-```bash
-ros2 lifecycle get /slam_toolbox                 # active [3]
-ros2 run tf2_ros tf2_echo odom base_footprint    # ← LA prueba: es lo que pide SLAM
-ros2 run tf2_ros tf2_echo map base_footprint     # lo que añade SLAM
-ros2 topic hz /map                               # 0.200 Hz (map_update_interval 5 s)
-ros2 topic hz /odom                              # 16.7 Hz  ← si es 0, ver 9.8
-ros2 topic info /scan --verbose | grep -i reliab  # BEST_EFFORT en publicador y suscriptor
-ros2 topic echo /battery_state --once            # llega cada 30 s: es el keepalive (9.8b)
-python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_slam_ros2.py
-# 12 min sin tocar nada, para probar que el enlace aguanta:
-python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_keepalive_ros2.py
-```
-
-⚠️ **Y el espacio importa.** `medir_slam_ros2.py` necesita, con el robot en el centro:
-
-```
-              ↑ 1 m por delante (hacia donde mira)
-      ┌───────────────────────┐
- 40cm │      ┌─────┐          │ 40cm     el robot NO se desplaza
- ←────┤      │ RVR │ →        ├────→     lateralmente: a los lados
-      │      └──┬──┘          │          solo hace falta el hueco
-      └───────────────────────┘          del giro (radio 14 cm)
-              ↓ 1 m por detrás
-```
-
-Nada a menos de 60 cm: **el robot no esquiva obstáculos**, solo tiene watchdog. Y el LIDAR
-va a **15.5 cm** ✅ medido de altura barriendo en horizontal, así que pasa por encima de zócalos
-y cajas bajas — «parece despejado» a ras de suelo no basta.
-
-Evidencia cruda: `00_auditoria/evidencia_24_04/11_slam_fase4.txt`,
-`13_fase4_cerrada.txt` y `mapas/`.
 
 ### 9.12c ✅ Referenciar la posición: los fallos desaparecen
 
@@ -2532,6 +2571,42 @@ diferencia +0.90 cm
 > objetivo de Nav2 de 10 cm, y costaría 5 horas de robot. La decisión **no deja el roll
 > publicado**: `publicar_inclinacion` pasa a `false` por defecto, porque la inclinación es falsa
 > con independencia de que su efecto sea medible (cap. 13.5).
+
+---
+
+### 9.13 Verificación del capítulo
+
+```bash
+ros2 lifecycle get /slam_toolbox                 # active [3]
+ros2 run tf2_ros tf2_echo odom base_footprint    # ← LA prueba: es lo que pide SLAM
+ros2 run tf2_ros tf2_echo map base_footprint     # lo que añade SLAM
+ros2 topic hz /map                               # 0.200 Hz (map_update_interval 5 s)
+ros2 topic hz /odom                              # 16.7 Hz  ← si es 0, ver 9.8
+ros2 topic info /scan --verbose | grep -i reliab  # BEST_EFFORT en publicador y suscriptor
+ros2 topic echo /battery_state --once            # llega cada 30 s: es el keepalive (9.8b)
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_slam_ros2.py
+# 12 min sin tocar nada, para probar que el enlace aguanta:
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_keepalive_ros2.py
+```
+
+⚠️ **Y el espacio importa.** `medir_slam_ros2.py` necesita, con el robot en el centro:
+
+```
+              ↑ 1 m por delante (hacia donde mira)
+      ┌───────────────────────┐
+ 40cm │      ┌─────┐          │ 40cm     el robot NO se desplaza
+ ←────┤      │ RVR │ →        ├────→     lateralmente: a los lados
+      │      └──┬──┘          │          solo hace falta el hueco
+      └───────────────────────┘          del giro (radio 14 cm)
+              ↓ 1 m por detrás
+```
+
+Nada a menos de 60 cm: **el robot no esquiva obstáculos**, solo tiene watchdog. Y el LIDAR
+va a **15.5 cm** ✅ medido de altura barriendo en horizontal, así que pasa por encima de zócalos
+y cajas bajas — «parece despejado» a ras de suelo no basta.
+
+Evidencia cruda: `00_auditoria/evidencia_24_04/11_slam_fase4.txt`,
+`13_fase4_cerrada.txt` y `mapas/`.
 
 ---
 
@@ -3192,6 +3267,23 @@ instrucciones a los estudiantes.**
 LIDAR 4.6` + `base → centro del disco 3.9` = **15.5 cm**. Cierra contra la otra medida: los
 16.5 cm hasta el extremo superior son `7.0 + 4.6 + 5.0` (alto del LIDAR).
 
+### 12.9 Verificar tras arrancar
+
+```bash
+ros2 lifecycle get /collision_monitor   # active [3] ← si no, NO FILTRA NADA
+ros2 topic info /cmd_vel --verbose      # Publisher count: 1, y es collision_monitor
+```
+
+⏳ **Lo que queda:** medir lo del [`MEDIDAS_ROBOT.md`](../03_operacion/MEDIDAS_ROBOT.md) y
+**repetir las paradas contra pared** —los huecos de 12.4 están recalculados, no vueltos a
+medir—; el barrido de `radius` contra un mismo paso; y ajustar `min_points: 2` contra
+obstáculos finos.
+
+✅ `desired_linear_vel` ya está en **0.40** (cap. 11.10), y navegando a esa velocidad la
+seguridad solo se activó cuatro veces, ninguna como parada.
+
+---
+
 ### 12.10 🔴 No cruza un paso de 40 cm — y las cotas del robot estaban mal
 
 **El resultado:** con `radius: 0.18` el robot **entró en la boca de un paso de 40 cm y se
@@ -3262,22 +3354,6 @@ Los escaneos que funcionaron **acumulaban 6–8 s** y tomaban la mediana por sec
 → Para geometría fina, **acumula barridos**. Y es un aviso sobre `min_points: 2`: con objetos
 así de finos está justo en el límite.
 
-### 12.9 Verificar tras arrancar
-
-```bash
-ros2 lifecycle get /collision_monitor   # active [3] ← si no, NO FILTRA NADA
-ros2 topic info /cmd_vel --verbose      # Publisher count: 1, y es collision_monitor
-```
-
-⏳ **Lo que queda:** medir lo del [`MEDIDAS_ROBOT.md`](../03_operacion/MEDIDAS_ROBOT.md) y
-**repetir las paradas contra pared** —los huecos de 12.4 están recalculados, no vueltos a
-medir—; el barrido de `radius` contra un mismo paso; y ajustar `min_points: 2` contra
-obstáculos finos.
-
-✅ `desired_linear_vel` ya está en **0.40** (cap. 11.10), y navegando a esa velocidad la
-seguridad solo se activó cuatro veces, ninguna como parada.
-
----
 
 ## Capítulo 13 — La inclinación del RVR: es el acelerómetro, no el robot
 
@@ -3554,13 +3630,27 @@ eso. La Fase 5 unifica a uno — **no antes** de que el nuevo esté probado de e
 código daba el nombre pero no el namespace resuelto, y no decía nada del QoS. `ros2 topic list`
 daba el namespace pero no el QoS. Hizo falta **publicar y mirar el log del driver**.
 
-### 15.3 ⏳ Lo que sigue sin estar
+### 15.3 Lo que faltaba, y ya no falta
 
-🔴 **La parada no corta lo que venga de Nav2.** Hoy pone el flag del driver, que ignora
-`cmd_vel` — pero Nav2 seguiría mandando objetivos y su controlador seguiría publicando. Habría
-que **cancelar la acción** además de parar los motores. **Sin comprobar.**
+> 🔴 **Esta sección afirmó hasta el 2026-08-01 que «la parada no corta lo que venga de Nav2» y
+> que estaba «sin comprobar». Las dos cosas eran falsas**, y llevaban serlo desde el 31 de julio.
+> Es la peor clase de deriva documental que puede tener este proyecto: **una función de seguridad
+> descrita como rota cuando funciona**. Quien lo leyera creería que el robot no se para.
 
-⏳ Unificar a un solo topic cuando la Fase 5 reescriba la web.
+✅ **La parada SÍ corta lo que venga de Nav2, y está verificado con control** (15.4): el nodo
+`cancelar_nav2` manda un `CANCEL_ALL` al `NavigateToPose`. Con él, el objetivo queda `CANCELED` y
+el robot recorre **0.0 cm** al liberar la parada; sin él, el objetivo sigue **ACTIVO** y el robot
+**arrancó solo 34.7 cm**.
+
+📝 Va en `nav2.launch.py` y **no** en el driver, a propósito: el driver tiene que funcionar aunque
+Nav2 no esté.
+
+✅ **Y el nombre del topic ya está decidido** (2026-08-01): el oficial para la web es
+**`/emergency_stop`**, con QoS **RELIABLE + VOLATILE**.
+
+⚠️ **Los tres nombres se quedan, y eso no es indecisión.** Con un botón de emergencia el modo de
+fallo que importa es **«el mensaje no llega»**. Escuchar de más no cuesta nada; escuchar de menos
+ya ha fallado **cuatro veces**. `ARQUITECTURA.md`.
 
 ### 15.4 🔴 La cuarta causa: liberar la parada devolvía el robot a navegar
 
@@ -4421,4 +4511,4 @@ se estuvo a punto de diagnosticar un problema de D-Bus inexistente en un sistema
 | mDNS **por enlace** (`wlan0: no`) | el robot no resuelve el `.local` de otros robots |
 | Aislamiento de clientes del AP del aula | rompería mDNS y la comunicación PC↔robot |
 | El bloque de IP del laboratorio | el usuario lo tiene asignado, pendiente de tenerlo a mano |
-| ⏳ **Namespace `/rvr_NN` o sin namespace** | hay que fijarlo **antes** de la Fase 5 |
+| ✅ ~~Namespace~~ | **CERRADO 2026-08-01: sin namespace.** Cap. 19.9 y `ARQUITECTURA.md` |

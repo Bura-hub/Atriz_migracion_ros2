@@ -48,7 +48,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
   ETAPA F — El robot completo sobre ROS 2                         ✅ 2026-07-31
      F1  Clonar y compilar el workspace       Atriz_rvr rama `ros2`           ✅
          └── driver rclpy + msgs + URDF + bringup. Ya escrito: solo se compila
-     F2  Driver del LIDAR desde fuentes       manual, cap. 8.5a-b             ✅
+     F2  Driver del LIDAR desde fuentes       manual, cap. 8.5             ✅
          └── no hay paquete apt: YDLidar-SDK + ydlidar_ros2_driver (humble)
      F3  Instalar slam_toolbox                manual, cap. 9                  ✅
      F4  Arrancar y verificar                 manual, cap. 9.13               ✅
@@ -184,7 +184,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 > bash scripts/verificar_robot.sh --hardware
 > ```
 >
-> **91 comprobaciones** con `--hardware` (89 sin él), y sale con código ≠ 0 si algo falla. Pásalo al final
+> **105 comprobaciones** con `--hardware` (102 sin él), y sale con código ≠ 0 si algo falla. Pásalo al final
 > de cada etapa en lugar de recordar qué había que mirar. En `rvr-01`, el 2026-07-31: **84
 > correctas, 0 fallos**.
 >
@@ -538,7 +538,7 @@ colcon build --symlink-install
 ### F2 ✅ · Driver del LIDAR — se compila desde fuentes
 
 **No hay paquete apt**: `ros-jazzy-ydlidar-ros2-driver` y sus variantes **no existen**
-(comprobado, `apt-cache search ydlidar` da 0 resultados). Manual, cap. 8.5a.
+(comprobado, `apt-cache search ydlidar` da 0 resultados). Manual, cap. 8.5.
 
 ```bash
 # 1. El SDK (instala en /usr/local)

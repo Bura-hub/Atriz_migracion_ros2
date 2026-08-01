@@ -336,7 +336,14 @@ y la evidencia cruda en `00_auditoria/evidencia_24_04/13_fase4_cerrada.txt`.
 Cada verificación tiene que comprobar el **efecto medible** —el ritmo de un topic, el número de
 celdas del mapa— y no que un proceso exista o un comando devuelva 0.
 
-### 4b. Nav2 — ⏳ pendiente, y ya SIN bloqueantes de odometría
+### 4b. Nav2 — ✅ COMPLETADO Y VERIFICADO (2026-07-31)
+
+> 📝 Esto decía «⏳ pendiente» hasta el 2026-08-01, **un día después de corregir la cabecera del
+> capítulo por lo mismo**. Corregir un título no arregla el cuerpo: al cerrar algo hay que buscar
+> **todas** sus menciones, no la primera.
+
+✅ **Medido:** error final **9–10 cm** (= la tolerancia configurada), meseta de **0.407 m/s** a
+0.40 comandado, y **4 de 4 SUCCEEDED** rodeando un obstáculo con desvíos de 26–32 cm.
 
 - Nav2 con `nav2_regulated_pure_pursuit_controller` (diferencial), costmaps a resolución modesta (5 cm) y ventanas pequeñas — es la carga más pesada del Pi 4.
 
