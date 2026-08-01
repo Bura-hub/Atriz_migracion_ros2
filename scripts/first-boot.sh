@@ -89,6 +89,109 @@ EOF
 chmod 644 /etc/profile.d/atriz-robot.sh
 echo "  ✓ /etc/profile.d/atriz-robot.sh  (ROS_DOMAIN_ID=$ID_NUM)"
 
+# ── 5-bis. Red: genera /etc/netplan/60-atriz.yaml desde red.txt ──────────────
+#
+# 🔴 POR QUÉ AQUÍ Y NO EN /etc/netplan A MANO
+#    Una IP estática equivocada deja el robot SIN dirección en esa LAN, y sin SSH
+#    para arreglarlo. `red.txt` vive en la partición FAT, que se edita desde
+#    cualquier PC metiendo la microSD — sin arrancar la Pi. Es la misma idea que
+#    `robot_id.txt`, que ya funciona así.
+#
+# 🔴 LAS DOS DIRECCIONES ESTÁTICAS SE PONEN SIEMPRE, en las dos redes. Es lo que
+#    permite mudarse de casa al laboratorio sin tocar nada: en cada sitio funciona
+#    la que corresponde y la otra queda como un alias inofensivo.
+#
+#    ⚠️ Pero la RUTA POR DEFECTO no puede duplicarse: una ruta hacia un gateway
+#       que no existe en la red actual **rompe el tráfico de salida**, porque el
+#       sistema la da por válida igualmente (la dirección la hace «on-link»). Por
+#       eso `RUTA_POR_DEFECTO` elige UNA, y por defecto la deja en manos del DHCP.
+RED_FILE=/boot/firmware/red.txt
+
+if [[ ! -f "$RED_FILE" ]]; then
+    echo "  ! no existe $RED_FILE: la red se queda como esté (normalmente DHCP)"
+    echo "    Para configurarla: copia scripts/red.txt.ejemplo a $RED_FILE,"
+    echo "    rellénalo, borra /var/lib/atriz-first-boot.done y reinicia."
+else
+    # Lectura tolerante: ignora comentarios y espacios. No se usa `source` a
+    # propósito — este fichero lo edita una persona desde Windows y un carácter
+    # raro no debe poder ejecutar nada.
+    leer_red() {
+        sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$RED_FILE" \
+            | head -1 | tr -d '\r' | sed 's/[[:space:]]*$//'
+    }
+    LAB_SSID=$(leer_red LAB_SSID);       LAB_PASS=$(leer_red LAB_PASS)
+    LAB_IP=$(leer_red LAB_IP);           LAB_BASE=$(leer_red LAB_BASE)
+    LAB_OCTETO=$(leer_red LAB_OCTETO);   LAB_PREFIJO=$(leer_red LAB_PREFIJO)
+    LAB_GATEWAY=$(leer_red LAB_GATEWAY)
+    CASA_SSID=$(leer_red CASA_SSID);     CASA_PASS=$(leer_red CASA_PASS)
+    CASA_IP=$(leer_red CASA_IP);         CASA_PREFIJO=$(leer_red CASA_PREFIJO)
+    CASA_GATEWAY=$(leer_red CASA_GATEWAY)
+    DHCP=$(leer_red DHCP);               RUTA=$(leer_red RUTA_POR_DEFECTO)
+    DNS=$(leer_red DNS)
+
+    # La IP del laboratorio: explícita si la hay, derivada si no.
+    if [[ -z "$LAB_IP" && -n "$LAB_BASE" && -n "$LAB_OCTETO" ]]; then
+        LAB_IP="$LAB_BASE.$(( LAB_OCTETO + ID_NUM ))"
+        echo "  · LAB_IP derivada del número de robot: $LAB_IP"
+    fi
+
+    if [[ -z "$LAB_SSID" || -z "$LAB_IP" ]]; then
+        echo "  ! $RED_FILE incompleto (falta LAB_SSID o la IP): red sin tocar"
+    else
+        YAML=/etc/netplan/60-atriz.yaml
+        {
+            echo "# Generado por atriz-first-boot el $(date -u '+%Y-%m-%dT%H:%M:%SZ')."
+            echo "# NO EDITAR A MANO: se regenera desde /boot/firmware/red.txt."
+            echo "network:"
+            echo "  version: 2"
+            echo "  renderer: networkd"
+            echo "  wifis:"
+            echo "    wlan0:"
+            echo "      optional: true"
+            [[ "${DHCP,,}" == "si" || "${DHCP,,}" == "sí" ]] \
+                && echo "      dhcp4: true" || echo "      dhcp4: false"
+            echo "      dhcp4-overrides:"
+            echo "        use-routes: true"
+            echo "      access-points:"
+            printf '        "%s":\n          password: "%s"\n' "$LAB_SSID" "$LAB_PASS"
+            [[ -n "$CASA_SSID" ]] && \
+                printf '        "%s":\n          password: "%s"\n' "$CASA_SSID" "$CASA_PASS"
+            echo "      addresses:"
+            echo "        - $LAB_IP/${LAB_PREFIJO:-24}"
+            [[ -n "$CASA_IP" ]] && echo "        - $CASA_IP/${CASA_PREFIJO:-24}"
+            # 🔴 `routes:`, NUNCA `gateway4:` — obsoleto en netplan y en 24.04 ya
+            #    avisa. La configuración vieja del laboratorio lo usaba.
+            case "${RUTA,,}" in
+                lab)  [[ -n "$LAB_GATEWAY" ]] && {
+                          echo "      routes:"
+                          echo "        - to: default"
+                          echo "          via: $LAB_GATEWAY"; } ;;
+                casa) [[ -n "$CASA_GATEWAY" ]] && {
+                          echo "      routes:"
+                          echo "        - to: default"
+                          echo "          via: $CASA_GATEWAY"; } ;;
+            esac
+            if [[ -n "$DNS" ]]; then
+                echo "      nameservers:"
+                echo "        addresses: [${DNS}]"
+            fi
+        } > "$YAML"
+        # 🔴 600: lleva la PSK del WiFi en claro. El propio netplan avisa si no.
+        chmod 600 "$YAML"
+
+        if netplan generate 2>/tmp/netplan.err; then
+            echo "  ✓ $YAML generado (LAB $LAB_IP${CASA_IP:+ · CASA $CASA_IP})"
+            echo "    ruta por defecto: ${RUTA:-dhcp}"
+        else
+            echo "  ! netplan RECHAZÓ la configuración generada:"
+            sed 's/^/      /' /tmp/netplan.err
+            echo "    se retira para no dejar el robot sin red"
+            rm -f "$YAML"
+            netplan generate 2>/dev/null || true
+        fi
+    fi
+fi
+
 # ── 6. Deshabilitarse ────────────────────────────────────────────────────────
 mkdir -p /var/lib
 date -u '+%Y-%m-%dT%H:%M:%SZ' > /var/lib/atriz-first-boot.done

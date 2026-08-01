@@ -358,15 +358,20 @@ else
     #    `amcl` (la localizacion de la Fase 4c, cap. 14), y `map_saver_cli`, que
     #    es la unica forma fiable de guardar mapas (cap. 11.11).
     espera_lock || true
+    # 🔴 Y `rosbridge-suite`: es POR DONDE HABLA LA WEB (ARQUITECTURA.md, D2).
+    #    Sin él los robots no son utilizables desde la plataforma, y añadirlo
+    #    después significa ~300 MB por robot sobre la única AP del laboratorio —
+    #    justo lo que la imagen dorada existe para evitar.
     correr apt-get install -y -qq ros-jazzy-xacro ros-jazzy-slam-toolbox \
-        ros-jazzy-navigation2 \
-        && ok "ros-jazzy-xacro + slam-toolbox + navigation2 instalados" \
+        ros-jazzy-navigation2 ros-jazzy-rosbridge-suite \
+        && ok "xacro + slam-toolbox + navigation2 + rosbridge instalados" \
         || { mal "fallo instalando xacro/slam_toolbox/navigation2"
              FALLOS+=("xacro/slam_toolbox/navigation2"); }
 
     # Comprobar el EFECTO, no que apt dijera que si: sin estos cuatro binarios el
     # robot arranca y falla al primer objetivo.
-    for BIN in collision_monitor map_server amcl controller_server; do
+    for BIN in collision_monitor map_server amcl controller_server \
+               rosbridge_websocket; do
         if [[ -x "/opt/ros/jazzy/lib/nav2_${BIN%%_*}"*"/$BIN" ]] \
            || compgen -G "/opt/ros/jazzy/lib/*/$BIN" >/dev/null; then
             ok "nav2: $BIN presente"

@@ -1,0 +1,81 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# red.txt — perfil de red del robot.  PLANTILLA: copiar a /boot/firmware/red.txt
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# 🔴 ESTE FICHERO LLEVA LA CONTRASEÑA DEL WIFI, ASÍ QUE **NO VA A GIT**.
+#    Lo que se versiona es esta plantilla, sin valores. El de verdad vive en
+#    `/boot/firmware/red.txt`, en la partición FAT.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+# POR QUÉ ESTÁ EN LA PARTICIÓN FAT Y NO EN /etc/netplan
+# ═══════════════════════════════════════════════════════════════════════════════
+# Porque una IP estática equivocada **te deja fuera del robot**: no tiene
+# dirección en esa LAN y no puedes entrar por SSH a arreglarla. Con 16 robots eso
+# es una tarde perdida y un viaje al edificio.
+#
+# La FAT se ve desde Windows, macOS o Linux con solo meter la microSD en un PC,
+# **sin arrancar la Pi**. Así que siempre se puede corregir.
+#
+# 📝 Es el mismo mecanismo que `robot_id.txt`, que ya funciona así.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+# CÓMO SE USA
+# ═══════════════════════════════════════════════════════════════════════════════
+# `atriz-first-boot` lo lee junto a `robot_id.txt` y genera
+# `/etc/netplan/60-atriz.yaml`. Para volver a aplicarlo tras editarlo:
+#
+#     sudo rm /var/lib/atriz-first-boot.done && sudo reboot
+#
+# Si este fichero FALTA o está mal, first-boot **no adivina**: deja la red como
+# esté (normalmente DHCP de cloud-init), lo registra en
+# /var/log/atriz-first-boot.log y se reintenta al siguiente arranque.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ── La red del laboratorio ────────────────────────────────────────────────────
+LAB_SSID=Atriz-server
+LAB_PASS=PON_AQUI_LA_CONTRASEÑA
+
+# La IP de ESTE robot. Dos formas, y gana la explícita:
+#   · LAB_IP=10.14.7.7        <- explícita. Úsala si el administrador de red
+#                                asigna las direcciones una a una (es el caso).
+#   · LAB_BASE + LAB_OCTETO   <- derivada: el robot NN toma BASE.(OCTETO+NN)
+LAB_IP=
+LAB_BASE=10.14.7
+LAB_OCTETO=100
+
+LAB_PREFIJO=21
+LAB_GATEWAY=10.14.0.1
+
+
+# ── La red de casa o de desarrollo (opcional) ─────────────────────────────────
+# Déjalo vacío si el robot solo va a vivir en el laboratorio.
+CASA_SSID=
+CASA_PASS=
+CASA_IP=
+CASA_PREFIJO=24
+CASA_GATEWAY=
+
+
+# ── Comportamiento ────────────────────────────────────────────────────────────
+# DHCP: además de las estáticas. Recomendado `si`: es lo que hace que el robot
+# funcione en una red que no conocías sin tocar nada.
+DHCP=si
+
+# 🔴 RUTA POR DEFECTO. Ojo, que aquí es fácil dejarse sin internet:
+#
+#   Las dos direcciones estáticas están SIEMPRE puestas, en las dos redes. Pero
+#   una ruta por defecto hacia un gateway que no existe en la red actual **rompe
+#   el tráfico de salida**, porque el sistema la considera válida igualmente.
+#
+#   Valores:
+#     dhcp     (recomendado)  la ruta la pone quien reparte DHCP. Si no hay DHCP,
+#                             el robot NO sale a internet pero SÍ es alcanzable en
+#                             la LAN, que es lo único que necesita para operar.
+#     lab      ruta fija por LAB_GATEWAY. Úsalo si el laboratorio no tiene DHCP y
+#                             el robot necesita salir (por ejemplo, para `apt`).
+#     casa     ruta fija por CASA_GATEWAY.
+#     ninguna  sin ruta por defecto. Solo LAN.
+RUTA_POR_DEFECTO=dhcp
+
+DNS=8.8.8.8,1.1.1.1

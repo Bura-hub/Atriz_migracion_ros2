@@ -200,10 +200,47 @@ say "7/9 · Purgar servicios sin función en un robot"
 for u in snapd.socket snapd.seeded.service snapd.apparmor.service \
          snapd.autoimport.service snapd.recovery-chooser-trigger.service snapd \
          lxd-agent bluetooth ModemManager cups cups-browsed \
-         whoopsie kerneloops switcheroo-control avahi-daemon \
+         whoopsie kerneloops switcheroo-control \
          multipathd open-iscsi iscsid lvm2-monitor unattended-upgrades; do
     systemctl disable --now "$u" 2>/dev/null && ok "$u deshabilitado" || true
 done
+
+# ── 🔴 avahi-daemon SE QUEDA, y antes se deshabilitaba ────────────────────────
+#
+#   Estuvo en la lista de arriba hasta el 2026-08-01, con el criterio de «servicio
+#   inútil en un robot headless». Y era un error: **avahi es lo que hace que el
+#   robot responda a `rvr-NN.local`**.
+#
+#   Sin él hay que saber la IP de cada uno de los 16 robots. Con él, se encuentran
+#   por nombre en CUALQUIER red, sin tocar el router y sin depender del
+#   administrador de red. En un laboratorio cuya red gestiona otra persona, eso es
+#   la diferencia entre trabajar y esperar.
+#
+#   📝 Y ademas había una contradicción: el manual (cap. 7) decía «usa
+#      `ping rvr-01.local` si mDNS responde» mientras este script lo apagaba.
+#
+#   ⚠️ mDNS es la RED DE SEGURIDAD, no el mecanismo principal: el multicast sobre
+#      WiFi es frágil y hay puntos de acceso con «aislamiento de clientes» que lo
+#      bloquean. La vía principal es la IP estática de `/boot/firmware/red.txt`.
+if systemctl enable --now avahi-daemon >/dev/null 2>&1; then
+    ok "avahi-daemon ACTIVO: el robot responde a \$(hostname).local"
+else
+    NO_APLICADO+=("avahi-daemon no se pudo activar: los robots no serán")
+    NO_APLICADO+=("    localizables por nombre. sudo apt install -y avahi-daemon")
+fi
+
+# systemd-resolved también tiene que resolver .local, o el robot no encuentra a
+# los demás aunque él sí sea encontrable.
+if [[ -f /etc/systemd/resolved.conf ]]; then
+    if grep -qE '^[[:space:]]*MulticastDNS[[:space:]]*=' /etc/systemd/resolved.conf; then
+        sed -i 's/^[[:space:]]*MulticastDNS[[:space:]]*=.*/MulticastDNS=yes/' \
+            /etc/systemd/resolved.conf
+    else
+        printf 'MulticastDNS=yes\n' >> /etc/systemd/resolved.conf
+    fi
+    systemctl restart systemd-resolved 2>/dev/null || true
+    ok "mDNS activado en systemd-resolved"
+fi
 
 # Comprobar el efecto REAL, no que 'is-enabled' diga disabled.
 if systemctl is-active snapd.service >/dev/null 2>&1; then
