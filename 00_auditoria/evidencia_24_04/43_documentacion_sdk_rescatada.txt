@@ -16,9 +16,17 @@ a) `get_current_detected_color_reading` NO ESTA «MUDO». La evidencia 41 lo
      «Note: this does not return anything. Instead, a **color_detection_notify
       async will be sent after measurement** with the answer.»
 
-   🔴 Es asincrono POR DISEÑO. Mi sonda esperaba un valor de retorno y concluyo
-      que estaba roto. **El instrumento estaba mal, no el robot.** Van cinco
-      veces en este proyecto que la medida miente antes que el sistema.
+   🔴 Es asincrono POR DISEÑO. Mi sonda esperaba un valor de retorno.
+
+   ⚠️ ACTUALIZACION (misma sesion, tras reprobarlo): al hacerlo por la via
+      asincrona TAMPOCO llego notificacion. Pero esa segunda prueba **seguia
+      coja**: falto `enable_color_detection_notify`, que es quien fija el
+      intervalo y el umbral minimo de confianza. **Queda INCONCLUSO**, ni
+      confirmado ni desmentido. Ver los resultados al final de este fichero.
+
+   📝 Y da igual para el proyecto: el color **si funciona por STREAMING**
+      (`/color` a 16 Hz, caracterizado en la evidencia 37). Lo que falla es la
+      consulta puntual, que el driver no usa.
 
 b) `get_temperature(id0=0, id1=1)` CONSULTO SENSORES QUE NO EXISTEN. El enum del
    propio SDK dice:
