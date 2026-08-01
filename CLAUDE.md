@@ -235,6 +235,12 @@ sospecha de una excepción dentro de un manejador. El síntoma «el topic existe
 idéntico al de un RVR dormido, pero **el RVR dormido sí dispara el detector de silencio**: esa
 es la diferencia que los separa.
 
+**🔴 NO USES `percentage` PARA DECIDIR SI HAY QUE CARGAR: usa `voltage`.** Medido el
+2026-08-01: el porcentaje decía **100 %** con la batería a **8.29 V**, a 1.29 V del umbral de
+«baja» del propio firmware (7.0 V; crítica 6.5 V, histéresis 0.2). El porcentaje es una
+estimación gruesa. Desde esa fecha `/battery_state` publica `voltage` (antes era `NaN`) y el
+driver registra los umbrales en el log al arrancar.
+
 **📝 `/battery_state.percentage` es una fracción 0–1, no un porcentaje.** Es lo que manda
 `sensor_msgs/BatteryState` y el driver lo respeta: `0.34` son **34 %**. Leerlo como 0–100 hace
 que un robot al 34 % parezca estar al 0 % — provocó una falsa alarma de batería agotada.
@@ -953,7 +959,7 @@ de verdad. Dos consecuencias que cambian el día a día:
 | `/motor_status` | cada **30 s** (mismo latido) · temperatura de motores **27.9 / 27.7 °C** en reposo | 2026-08-01 |
 | `/encoders` | **16.57 Hz** · ticks con signo (7792 ticks/m) | 2026-08-01 |
 | `/ambient_light` | **13.06 Hz** · ~1.8 con los LEDs apagados, **23.55 con todos encendidos** (13.3×) | 2026-08-01 |
-| **Batería, del firmware** | **8.31 V** al 100 % · umbrales `low` **7.0 V**, `critical` **6.5 V**, histéresis 0.2 | 2026-08-01, evidencia 41 |
+| **Batería** | ✅ **`/battery_state` publica `voltage`** desde el 2026-08-01: **8.28 V** al «100 %» · umbrales del firmware **7.0 / 6.5 V**, histéresis 0.2 | 2026-08-01, evidencia 43 |
 | **Nombre Bluetooth del RVR** | `RV-1E6D` — identifica **la bola**, no la Pi. Para el inventario | 2026-08-01 |
 | `/color` (con `color_detection:=true`) | `clear` **181** (negro) → **2288** (blanco), 12.6× · rojo R/G **2.74** · azul B/G **0.86** | 2026-08-01 |
 | Enlace con keepalive | **12 min, 0 huecos** en `/odom`, 16.54 Hz | 2026-07-31 |

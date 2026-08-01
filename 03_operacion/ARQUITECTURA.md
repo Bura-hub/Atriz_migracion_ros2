@@ -137,7 +137,7 @@ comunicación PC↔robot si el PC va por WiFi.
 | `odom` | `nav_msgs/Odometry` | robot → web | 16.5 Hz · 🔴 **BEST_EFFORT** |
 | `imu` | `sensor_msgs/Imu` | robot → web | 16.5 Hz · 🔴 **BEST_EFFORT** |
 | `scan` | `sensor_msgs/LaserScan` | robot → web | 10 Hz · 🔴 **BEST_EFFORT** · 0 si el barrido está parado |
-| `battery_state` | `sensor_msgs/BatteryState` | robot → web | **RELIABLE + TRANSIENT_LOCAL** · cada 30 s · `percentage` es **0–1**, no % |
+| `battery_state` | `sensor_msgs/BatteryState` | robot → web | **RELIABLE + TRANSIENT_LOCAL** · cada 30 s · `percentage` es **0–1**, no % · 🔴 **usa `voltage`, no `percentage`** — ver abajo |
 | `motor_status` | `atriz_rvr_msgs/MotorStatus` | robot → web | **RELIABLE + TRANSIENT_LOCAL** · se **sondea cada 30 s** y se republica a 1 Hz |
 | `encoders` | `atriz_rvr_msgs/Encoder` | robot → web | 16.5 Hz · 🔴 **BEST_EFFORT** · ticks con signo |
 | `color` | `atriz_rvr_msgs/Color` | robot → web | 🔴 **BEST_EFFORT** · `[0,0,0]` salvo `color_detection:=true` |
@@ -178,6 +178,19 @@ existe, usa un cliente.
 seguridad**: `/cmd_vel` es la **salida** del `collision_monitor` y tiene un solo publicador. La
 cadena es `web → cmd_vel_raw → collision_monitor → cmd_vel → driver`. Publicar en `/cmd_vel`
 funciona —el robot obedece— y por eso es peligroso. Manual, cap. 12.
+
+🔴 **Para la batería, la web debe mirar `voltage`, no `percentage`.** Medido: el porcentaje
+decía **100 %** con la batería a **8.29 V**, a 1.29 V del umbral de «baja». Es una estimación
+gruesa. Los umbrales son del propio firmware y el driver los registra en el log al arrancar:
+
+| | |
+|---|---|
+| batería **baja** | `voltage` < **7.0 V** |
+| batería **crítica** | `voltage` < **6.5 V** — el RVR se apagará |
+| histéresis | **0.2 V**, la aplica el firmware (no rebota solo) |
+
+⚠️ `power_supply_health` **no puede expresar «baja»**, y no se fuerza: una batería con poca
+carga está **sana**, no averiada. Solo «crítica» se mapea a `DEAD`.
 
 🔴 **`/start_scan` es obligatorio.** Los robots arrancan solos pero con el **barrido del lidar
 parado**, y sin `/scan` el `collision_monitor` **bloquea el movimiento**. Un robot recién

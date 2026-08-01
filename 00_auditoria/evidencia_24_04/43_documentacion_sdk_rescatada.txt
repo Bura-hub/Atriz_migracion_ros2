@@ -232,3 +232,42 @@ RESULTADOS DE LA SEGUNDA TANDA (fase A) — 2026-08-01
       `power_supply_health` de `sensor_msgs/BatteryState` estan sin usar).
       ⚠️ La histeresis la aplica el FIRMWARE: no hay que replicarla, solo leer el
       estado.
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ IMPLEMENTADO: /battery_state publica voltaje y estado — 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+Antes de implementarlo se VALIDO EL INSTRUMENTO, a peticion del usuario: si el
+robot no pudiera moverse, «no giro» no probaria nada sobre el firmware.
+
+  giro comandado 4 s a 1.0 rad/s por cmd_vel_raw  ->  **174.6° medidos en /odom**
+
+  ✅ El robot gira perfectamente. La conclusion sobre el magnetometro (evidencia
+     42) se sostiene: el firmware sencillamente no ordeno nada.
+  📝 Es la misma regla que ya salio con DTR: **antes de creerte un instrumento,
+     pon el sistema en un estado que conozcas y comprueba que el instrumento lo
+     ve.** Aqui el «instrumento» era el propio robot.
+
+── LO IMPLEMENTADO ───────────────────────────────────────────────────────────
+  · `voltage` pasa de NaN a la lectura real          verificado: 8.2803 V
+  · estado del firmware -> `power_supply_health`     verificado: 1 = GOOD
+  · umbrales leidos del firmware al arrancar, al log:
+        [rvr_driver]: umbrales de bateria (firmware): baja 7.00 V ·
+                      critica 6.50 V · histeresis 0.20 V
+
+── DOS DECISIONES DE DISEÑO, EXPLICITAS ──────────────────────────────────────
+1. **Las dos lecturas van en la MISMA pasada del keepalive**, que ya llamaba al
+   RVR cada 30 s. No cuestan un viaje extra al puerto serie ni despiertan nada.
+
+2. 🔴 **«Bateria baja» NO se marca como averiada.** `power_supply_health` no
+   tiene un valor para «poca carga», y forzar DEAD engañaria a cualquier
+   consumidor: una bateria descargada esta SANA. Solo «critica» —cuando el RVR
+   va a apagarse— se mapea a DEAD.
+   → **La señal autoritativa para la web es `voltage`** contra los umbrales.
+   → Y el aviso al usuario se da en el LOG, al CAMBIAR de estado y no en cada
+     lectura: un WARN cada 30 s durante media hora es ruido que se acaba
+     ignorando. La histeresis (0.2 V) la aplica el firmware, asi que no rebota.
+
+── POR QUE ESTO IMPORTA CON 16 ROBOTS ────────────────────────────────────────
+El porcentaje decia **100 %** con la bateria a **8.29 V**, a 1.29 V del umbral de
+«baja». Con un robot da igual; con dieciseis, «cual se esta quedando sin carga»
+es una pregunta diaria, y el porcentaje no la responde.
