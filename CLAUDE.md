@@ -674,8 +674,21 @@ Medido el 2026-08-01: **502 errores en 20 s**, **el 99 % del journal del servici
 → **La lección:** la decisión «arrancar con el lidar parado» se validó mirando **el motor**,
   no **el nodo ROS que lo lee**. **Al cambiar el estado por defecto de un componente,
   comprueba qué hacen todos los que dependían de él.**
-→ ⏳ **Sin arreglar**, tres opciones en la evidencia 40. La buena es no arrancar el nodo hasta
-  que haga falta; las otras dos esconden el problema.
+→ ✅ **ARREGLADO el 2026-08-01, y no como se había planteado.** La primera propuesta era **no
+  levantar el nodo** hasta que hiciera falta; el usuario desconfió, y con razón. Al mirar el
+  fuente apareció la causa real: `/stop_scan` y `/start_scan` son servicios **del propio nodo**
+  y llaman a `turnOff()`/`turnOn()`, pero **nadie guarda ese estado**, así que el bucle sigue
+  sondeando el puerto serie a 20 Hz y fallando siempre.
+→ **Arreglo: nueve líneas** — una bandera `std::atomic<bool> escaneando` y una salida temprana
+  en el bucle. **No cambia nada del arranque:** el nodo sigue levantándose con el robot y
+  `atriz-escaneo on/off` funciona igual. ✅ Verificado: **0 errores en 20 s** (eran 502),
+  `on` → `/scan` a **12.00 Hz / 250 puntos**, `off` → 0 mensajes y 0 ruido.
+→ 🔴 **El parche vive en `Atriz_rvr/atriz_rvr_bringup/patches/` y lo aplica `provision.sh`**,
+  no se edita a mano: el script clona el ydlidar de GitHub y le borra el `.git`, así que un
+  cambio manual se perdería al reflashear y los robots divergirían.
+→ 📝 **La lección de método:** la primera solución era peor que el problema y venía de no haber
+  leído el fuente. **Antes de rediseñar el arranque de un sistema, mira por qué falla el
+  componente.**
 
 **🔴 EL X2 GIRA SIEMPRE, Y AL PONER systemd PASARÁ A GIRAR SIEMPRE **RÁPIDO**.** DTR no
 enciende el motor: elige su velocidad. Medido el 2026-07-31, diez tramos alternados y

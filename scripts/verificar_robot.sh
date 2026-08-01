@@ -1132,6 +1132,25 @@ else
          "¿corre atriz-robot? el rosbridge va dentro de robot.launch.py"
 fi
 
+# --- El parche del YDLIDAR --------------------------------------------------
+# 🔴 Sin él, el nodo emite 25 errores/s con el barrido apagado (el estado normal
+#    en reposo): el 99 % del journal y 2.17 millones de mensajes al día por
+#    robot. Se comprueba el FUENTE, porque el binario no lo dice.
+# 📝 $WS apunta a .../src/Atriz_rvr; el ydlidar es HERMANO, no hijo.
+YSRC="$(dirname "$WS")/ydlidar_ros2_driver/src/ydlidar_ros2_driver_node.cpp"
+if [[ -f "$YSRC" ]]; then
+    grep -q "PARCHE ATRIZ" "$YSRC" \
+        && _ok "ydlidar parcheado (no inunda el journal con el barrido apagado)" \
+        || _mal "ydlidar SIN parchear: emitirá 25 errores/s con el barrido apagado" \
+                "bash scripts/provision.sh   (aplica el parche y recompila)"
+fi
+# Y el efecto de verdad: que el journal no se esté llenando AHORA.
+RUIDO="$(journalctl -u atriz-robot --since '-2 min' --no-pager 2>/dev/null \
+         | grep -c 'Failed to get scan' || true)"
+[[ "${RUIDO:-0}" -lt 20 ]] && _ok "journal limpio ($RUIDO 'Failed to get scan' en 2 min)" \
+    || _mal "el journal se está inundando: $RUIDO errores en 2 min" \
+            "¿se recompiló el ydlidar tras parchearlo?"
+
 # --- Regresión: rutas fijas en /tmp -----------------------------------------
 # 🔴 `fs.protected_regular=2` impide a ROOT escribir en un fichero de /tmp que no
 #    le pertenece. Si la redirección falla, bash NO ejecuta el comando y el

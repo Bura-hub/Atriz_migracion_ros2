@@ -4,6 +4,67 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-01 (noche) — El LIDAR inundaba el journal, y la primera solución era peor
+
+`atriz-escaneo off` es el **estado normal en reposo** de los 16 robots. Con él, el nodo del
+YDLIDAR emitía `Failed to get scan` **25 veces por segundo**: 47 291 de 47 551 líneas del
+journal del servicio (**el 99 %**), 2.17 millones de mensajes al día por robot. Ahoga cualquier
+error de verdad —y los peores fallos de este proyecto están documentados como silenciosos— y
+son escrituras 24/7 sobre una **microSD**, que es lo que las mata.
+
+### 🔴 Lo interesante no es el bug, es cómo se estuvo a punto de arreglar mal
+
+La propuesta era **no levantar el nodo del LIDAR** hasta que hiciera falta. El usuario
+desconfió —*«¿voy a perder esa automatización al encender el robot?»*— y pidió que se le
+convenciera siendo imparcial. Al ir a argumentarlo hubo que leer el fuente, y la causa real
+estaba ahí:
+
+```cpp
+while (ret && rclcpp::ok()) {
+  if (laser.doProcessSimple(scan)) { ...publica... }
+  else { RCLCPP_ERROR(node->get_logger(), "Failed to get scan"); }   // 20 Hz
+}
+```
+
+`/stop_scan` y `/start_scan` son servicios **del propio nodo** y llaman a `turnOff()`/`turnOn()`,
+pero **nadie guarda ese estado**. No era una consecuencia de apagar el barrido: **al driver le
+falta una variable.**
+
+Las tres opciones que se habían planteado atacaban el síntoma, y la recomendada además cambiaba
+el arranque del robot para nada. **La desconfianza del usuario fue lo que forzó a mirar.**
+
+### El arreglo: nueve líneas, y no cambia nada del arranque
+
+Una bandera `std::atomic<bool> escaneando` que los dos servicios actualizan, y una salida
+temprana en el bucle. ✅ Verificado en rvr-01:
+
+| | antes | después |
+|---|---|---|
+| barrido apagado | 502 errores / 20 s | **0** |
+| `atriz-escaneo on` | — | `/scan` a **12.00 Hz**, 250 puntos |
+| `atriz-escaneo off` | — | 0 mensajes, **0 ruido** |
+
+El nodo **sigue levantándose con el robot**, como antes.
+
+### Y la otra mitad: que sobreviva a un reflasheo
+
+`provision.sh` clona el ydlidar de GitHub y **le borra el `.git`**. Un cambio a mano se perdería
+y este robot divergiría de uno recién aprovisionado — y la regla dice que **gana el script**.
+Por eso el parche se versiona en `Atriz_rvr/atriz_rvr_bringup/patches/`, `provision.sh` lo
+aplica tras clonar (idempotente), `patch` se añade a los paquetes de apt, y el verificador
+comprueba **el fuente y el efecto**.
+
+📝 Si el upstream lo arregla algún día, el parche fallará al aplicarse y `provision.sh` lo dirá.
+
+### 📄 Y un tercer caso de deriva documental
+
+El **plan** decía «Nav2 ⏳ pendiente» con Nav2 navegando desde el 31 de julio (9–10 cm de error,
+4 de 4 rodeando obstáculos, AMCL a 0.1 cm). Van dos en un día, con el índice del manual. Los
+documentos de **estado** se quedan atrás mientras las evidencias están al día. Regla escrita en
+el propio plan: al cerrar algo, se actualiza **en el mismo commit** que la evidencia.
+
+---
+
 ## 2026-08-01 (tarde) — La red de la flota, verificada de extremo a extremo
 
 Cerró **la última incógnita grande antes de la Fase 5**: cómo hablan la web y 16 robots, y cómo

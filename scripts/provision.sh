@@ -179,7 +179,7 @@ say "2/9 · Paquetes del sistema"
 #                  importa, aunque solo se USE para consultar el firmware por web.
 # python3-serial   pyserial, el enlace serie.
 # python3-pip      necesario solo para pyserial-asyncio, que no está en apt.
-PAQUETES=(iw python3-serial python3-aiohttp python3-pip git)
+PAQUETES=(iw python3-serial python3-aiohttp python3-pip git patch)   # `patch`: aplica el parche del ydlidar
 FALTANTES=()
 for p in "${PAQUETES[@]}"; do
     dpkg -l "$p" 2>/dev/null | grep -q '^ii' && salta "$p ya instalado" || FALTANTES+=("$p")
@@ -409,6 +409,32 @@ else
         ok "ydlidar_ros2_driver clonado (rama humble, sin .git)"
     else
         mal "fallo al clonar ydlidar_ros2_driver"; FALLOS+=("ydlidar_ros2_driver")
+    fi
+
+    # 🔴 PARCHE OBLIGATORIO AL DRIVER DEL YDLIDAR.
+    # Sin él, con el barrido apagado —que es el ESTADO NORMAL en reposo de los
+    # 16 robots— el nodo emite `Failed to get scan` **25 veces por segundo**:
+    # medido en rvr-01 el 2026-08-01, el 99 % del journal del servicio y 2.17
+    # millones de mensajes al día por robot. Ahoga los errores de verdad y
+    # desgasta la microSD, que es el único almacenamiento del robot.
+    #
+    # Va aquí y no a mano porque arriba se borra el `.git`: un cambio manual se
+    # perdería al reflashear y este script no lo reproduciría. La regla del
+    # proyecto es que ante una divergencia **gana el script**.
+    PARCHE="$WS/Atriz_rvr/atriz_rvr_bringup/patches/ydlidar-no-inundar-journal.patch"
+    YSRC="$WS/ydlidar_ros2_driver/src/ydlidar_ros2_driver_node.cpp"
+    if [[ ! -f "$YSRC" ]]; then
+        avi "no está el fuente del ydlidar: no se puede parchear"
+    elif grep -q "PARCHE ATRIZ" "$YSRC" 2>/dev/null; then
+        salta "el parche del ydlidar ya está aplicado"
+    elif [[ ! -f "$PARCHE" ]]; then
+        avi "falta $PARCHE — este robot inundará el journal"
+    elif correr sudo -u "$USUARIO" patch -s -p1 -d "$WS/ydlidar_ros2_driver" -i "$PARCHE"; then
+        ok "parche del ydlidar aplicado (no inunda el journal con el barrido apagado)"
+    else
+        # Si el upstream lo arregla algún día, el parche fallará aquí. Es lo que
+        # queremos: enterarnos, no seguir en silencio.
+        mal "el parche del ydlidar NO se aplicó"; FALLOS+=("parche ydlidar")
     fi
 
     # Regla udev por ID_PATH: el CP2102 del X2 reporta ID_SERIAL_SHORT=0001, que

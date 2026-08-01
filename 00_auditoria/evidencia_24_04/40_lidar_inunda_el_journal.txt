@@ -73,6 +73,54 @@ OPCIONES, Y NINGUNA ES OBVIA — DECISION DEL USUARIO
    encaja con la decision ya tomada de arrancar sin barrido. Las otras dos
    esconden el problema.
 
-⏳ NO IMPLEMENTADO. Requiere tocar `robot.launch.py` y volver a verificar la capa
-   de seguridad, y eso es un cambio de comportamiento del arranque: se consulta
-   antes de hacerlo.
+───────────────────────────────────────────────────────────────────────────────
+✅ ARREGLADO — y NINGUNA de las tres opciones de arriba era la buena
+───────────────────────────────────────────────────────────────────────────────
+El usuario desconfio de la opcion A («¿voy a perder la automatizacion al
+encender el robot?») y pidio que se le convenciera siendo imparcial. Al ir a
+argumentarlo hubo que leer el fuente, y ahi estaba la causa real:
+
+  `/stop_scan` y `/start_scan` son servicios DEL PROPIO NODO del YDLIDAR y
+  llaman a `laser.turnOff()` / `turnOn()`. Pero NO GUARDAN ESE ESTADO. El bucle
+  principal sigue llamando a `doProcessSimple()` 20 veces por segundo, falla
+  siempre, y emite un RCLCPP_ERROR cada vez.
+
+  while (ret && rclcpp::ok()) {
+    if (laser.doProcessSimple(scan)) { ...publica... }
+    else { RCLCPP_ERROR(node->get_logger(), "Failed to get scan"); }
+  }
+
+🔴 O SEA QUE NO ERA UNA CONSECUENCIA DE APAGAR EL BARRIDO. Al driver le falta
+   una variable. Las tres opciones planteadas —no arrancar el nodo, bajar el
+   nivel de log, limitar journald— atacaban el sintoma, y la que yo recomendaba
+   ademas cambiaba el arranque del robot para nada.
+
+EL ARREGLO, NUEVE LINEAS:
+  · `std::atomic<bool> escaneando{true}` que los dos servicios actualizan
+  · salida temprana en el bucle: con el barrido parado no se toca el hardware
+    y no se escribe en el log, pero se sigue atendiendo a ROS (los servicios
+    tienen que responder para poder volver a encenderlo)
+
+✅ VERIFICADO EN rvr-01, las tres cosas:
+    barrido apagado   ->  0 errores en 20 s          (eran 502)
+    atriz-escaneo on  ->  /scan a 12.00 Hz, 250 pts  (sigue funcionando)
+    atriz-escaneo off ->  0 mensajes y 0 errores     (para de verdad)
+
+✅ Y NO CAMBIA NADA DEL ARRANQUE: el nodo sigue levantandose con el robot.
+
+🔴 REPRODUCIBILIDAD, que era la otra mitad del problema. `provision.sh` clona el
+   ydlidar de GitHub y le BORRA EL .git, asi que un cambio a mano se perderia al
+   reflashear y este robot divergiria de uno recien aprovisionado. Por eso:
+     · el parche se versiona en Atriz_rvr/atriz_rvr_bringup/patches/
+     · `provision.sh` lo aplica tras clonar (y es idempotente: si ya esta, salta)
+     · `patch` se añade a los paquetes de apt
+     · el verificador comprueba el FUENTE y ademas el EFECTO (que el journal no
+       se este llenando ahora mismo)
+
+📝 Si algun dia el upstream lo arregla, el parche fallara al aplicarse y
+   `provision.sh` lo dira. Es lo que queremos: enterarnos, no seguir en silencio.
+
+📝 LA LECCION DE METODO: la primera solucion era peor que el problema, y venia
+   de no haber leido el fuente. **Antes de rediseñar el arranque de un sistema,
+   mira por que falla el componente.** La desconfianza del usuario fue lo que
+   forzo a mirar.
