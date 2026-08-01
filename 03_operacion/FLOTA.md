@@ -144,6 +144,14 @@ Signal level = -62 dBm      Tx excessive retries = 797  (en 42 min)
 🔴 Se había estimado **3–5×**; el real es **~2×**. Es la diferencia entre «hay que comprar red» y
 «cabe»: **16 robots simultáneos = 9.4 Mbit/s**.
 
+✅ **Replicado desde el navegador del PC** (cliente distinto, máquina distinta), con el
+barrido encendido: **80.7 kB/s → 16 robots = 10.3 Mbit/s**. Un 7.6 % por encima de los 75.0
+del robot, y la diferencia se explica entera: el X2 **gira libre** (11.86 Hz contra 11.45,
++3.6 %) y el JSON de un float ocupa según sus dígitos (5661 B contra 5532, +2.3 %). El caudal
+**varía con el giro del lidar y con lo que ve**, así que para dimensionar la red se usa el alto.
+
+📐 **Cifra de diseño: 81 kB/s por robot navegando · 10.3 Mbit/s los 16.**
+
 ✅ **El riesgo nº4 queda cerrado.** Y aparece la palanca: `/scan` es el **83 %** del tráfico por
 rosbridge. **Sin él, los 16 caben en 1.6 Mbit/s.**
 

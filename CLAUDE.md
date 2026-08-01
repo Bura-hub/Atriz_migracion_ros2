@@ -811,6 +811,7 @@ de verdad. Dos consecuencias que cambian el día a día:
 | **Parada del `collision_monitor`** | **9.9 cm** a 0.25 m/s · **10.6-10.7 cm** a 0.40 (n=2) | 2026-07-31 |
 | Nav2 a 0.40 m/s | meseta **0.407 m/s** en 0.9 s · error de objetivo **8 cm** | 2026-07-31 |
 | Rodeando un obstáculo | desvío **26–32 cm**, error **8–9 cm**, 4 de 4 SUCCEEDED | 2026-07-31 |
+| **Ancho de banda por rosbridge** (JSON) | **80.7 kB/s** navegando (`/scan` es el **83 %**) · **13.6 kB/s** en reposo · ×16 = **10.3 / 1.7 Mbit/s** | 2026-08-01, medido en el robot Y en el navegador |
 | **Tamaño del robot** | **18.2 cm** frente-atrás × **21.7 cm** lado-lado, con orugas | 2026-07-31 |
 | **Plano de barrido del LIDAR** | **15.5 cm** del suelo ✅ MEDIDO (antes 17.45, derivado) | 2026-07-31 |
 | Alto del RVR (suelo → tapa) | **7.0 cm** — la ficha decía 11.4 | 2026-07-31 |
@@ -874,6 +875,7 @@ lo que produce deriva entre documentación y realidad.
 | **Imagen dorada** para los 16, no aprovisionar por red | ~300 MB y 15-20 min por robot, sobre la única AP. `FLOTA.md` |
 | La imagen dorada se **construye ejecutando `provision.sh`**, no a mano | Una imagen irreproducible es una caja negra. `FLOTA.md` |
 | **`provision.sh` instala `navigation2`** desde el 2026-07-31 | Antes no lo instalaba: un robot aprovisionado con el script no podía navegar, ni tenía capa de seguridad, ni localización |
+| ✅ **El camino web ↔ robot está verificado de extremo a extremo** | Navegador del PC → `ws://rvr-01.local:9090` → topics **y** servicios. `03_operacion/probar_conexion_web.html`, sin librerías ni CDN. La web **no necesita SSH para nada operativo**. Evidencia 39 |
 | ✅ **La web localiza a los robots por `rvr-NN.local` (mDNS)**, con la IP como override | Es lo que hace que el mismo código funcione en casa y en el laboratorio sin tocar nada. Verificado el 2026-08-01 desde el PC del usuario: avahi publica **A=192.168.1.58 y AAAA link-local**, y rosbridge escucha en **las dos familias**. Evidencia 39 |
 | 🔴 **NO se reflashea rvr-01 para probar `provision.sh` entero** | Es el único robot montado. Decisión del usuario el 2026-07-31: se **asume** que funciona hasta tener una tarjeta de repuesto. **Es una suposición, no un hecho** — ver abajo |
 | **🟢 GO: el SDK funciona en Python 3.12** (16.67 Hz) | manual, cap. 5.1 · verificado 2026-07-30 |

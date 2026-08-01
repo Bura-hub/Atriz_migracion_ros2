@@ -310,3 +310,38 @@ los 16 X2 girarian a 11.8 Hz 24/7 en vez de a 2.7. Sin `/scan` el
    documenta que eso prueba que **el RVR acepto el comando**, no que el LED
    alumbre: `undercarriage_white` devuelve `success=true` y no enciende nada.
    PENDIENTE de confirmacion visual del usuario.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ CIFRA DEFINITIVA DE ANCHO DE BANDA — replicada desde el navegador, 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+Con el barrido ENCENDIDO (`atriz-escaneo on`), medido desde el PC:
+
+  topic            msg/s   bytes/msg   kB/s
+  /odom            16.53      817      13.5
+  /scan            11.86     5661      67.1     <- el 83 % del total
+  /battery_state    0.07      418       0.0
+  ─────────────────────────────────────────
+  TOTAL                               80.7 kB/s  ->  x16 = 10.3 Mbit/s
+
+── POR QUE 80.7 Y NO LOS 75.0 QUE DIO EL ROBOT ───────────────────────────────
+Un 7.6 % de diferencia. Se explica ENTERA, y no es que un medidor falle:
+
+                    robot     navegador    causa
+  /scan Hz          11.45       11.86      el X2 GIRA LIBRE: su motor no se
+                                           sincroniza con nada (ya documentado:
+                                           el parametro `frequency` no hace nada)
+  /scan bytes/msg    5532        5661      el JSON de un float ocupa segun sus
+                                           DIGITOS: 0.5 son 3 caracteres y
+                                           1.8371830940246582 son 18
+
+🔴 LA CONSECUENCIA DE DISEÑO: el caudal NO es una constante del robot. Varia con
+   la velocidad de giro del lidar y **con lo que el lidar ve** — una habitacion
+   con paredes a distancias irregulares genera mas bytes que uno mirando al
+   vacio. Para dimensionar la red se usa el numero ALTO.
+
+  📐 CIFRA DE DISEÑO: 81 kB/s por robot navegando · 10.3 Mbit/s los 16.
+     Y en reposo (sin /scan): 13.6 kB/s · 1.7 Mbit/s los 16.
+
+✅ RIESGO Nº4 DE FLOTA.md: CERRADO. Medido dos veces, con dos clientes
+   distintos, en dos maquinas distintas, en los dos estados del robot.
