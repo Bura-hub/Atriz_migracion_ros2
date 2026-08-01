@@ -939,7 +939,8 @@ lo que produce deriva entre documentación y realidad.
 | **Un `ROS_DOMAIN_ID` por robot** — aislamiento DDS total | `ARQUITECTURA.md`, D1 |
 | La web habla por **rosbridge**, no por SSH | `ARQUITECTURA.md`, D2. ⚠️ Y desde el 2026-08-01 **el SSH ya no hace falta ni para el ciclo de vida**: `atriz-robot.service` levanta el robot solo |
 | 🔴 **La web publica en `cmd_vel_raw`, NO en `cmd_vel`** | `/cmd_vel` es la SALIDA del `collision_monitor`. Publicar ahí funciona y **salta la seguridad**. `ARQUITECTURA.md` decía `cmd_vel` y se corrigió el 2026-08-01 |
-| ⏳ **SIN DECIDIR: namespace `/rvr_NN` o sin namespace** | el diseño decía `/rvr_NN`, el driver corre sin él. Hay que fijarlo **antes** de la Fase 5: cambiarlo después toca los 16 robots y el cliente |
+| ✅ **SIN NAMESPACE** (cerrado 2026-08-01) | Los topics son `/odom`, no `/rvr_01/odom`. El `ROS_DOMAIN_ID` por robot ya da aislamiento total, y la web habla por **un WebSocket por robot**, así que el namespace no añade nada. 🔴 Y la parada de emergencia **ya falló una vez por un namespace**: no se le regala el quinto fallo. El argumento `namespace` de los launch se deja como camino de escape. `ARQUITECTURA.md` |
+| ✅ **El nombre oficial de la parada es `/emergency_stop`** (cerrado 2026-08-01) | Es donde publica la web, con **RELIABLE + VOLATILE**. El driver sigue escuchando los tres nombres a propósito: con un botón de emergencia el modo de fallo que importa es «el mensaje no llega» |
 | Los robots se despliegan desde **tags**, no ramas | `ARQUITECTURA.md`, D4 |
 | **Sin cámara** en los robots | confirmado por el usuario |
 | La plataforma web **al final** | decisión del usuario |

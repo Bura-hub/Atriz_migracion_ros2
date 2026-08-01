@@ -4,6 +4,47 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-01 (cierre) — Namespace y parada de emergencia: las dos decisiones, cerradas
+
+Eran los dos únicos bloqueos **de decisión** antes de la Fase 5. Cambiar cualquiera de las dos
+después obligaría a tocar los 16 robots y el cliente a la vez.
+
+### ✅ SIN NAMESPACE
+
+Los topics son `/odom`, no `/rvr_01/odom`. Tres razones, en orden de peso:
+
+1. **El aislamiento ya está resuelto:** un `ROS_DOMAIN_ID` por robot es aislamiento DDS total.
+   Los robots no se ven entre sí ni queriendo.
+2. **La web tampoco lo necesita:** habla por **un WebSocket por robot** (`ws://rvr-07.local:9090`).
+   Poner `/rvr_07/odom` dentro de un canal que solo llega al robot 7 es escribir el número dos
+   veces.
+3. 🔴 **La parada de emergencia ya falló una vez POR UN NAMESPACE** — al portar de ROS 1 se coló
+   un `/rvr/` y falló en silencio con `200 OK`. Van cuatro fallos de la parada; no se le regala
+   el quinto, multiplicado por 16.
+
+⚠️ Y un namespace **no renombra los `frame_id` de TF**, así que ni siquiera resolvería el caso
+para el que suele invocarse. Protección parcial con aspecto de completa.
+
+### ✅ El nombre oficial de la parada es `/emergency_stop`
+
+Con **RELIABLE + VOLATILE** — `TRANSIENT_LOCAL` en el suscriptor fue la tercera causa de fallo, y
+rosbridge no es TRANSIENT_LOCAL. El driver sigue escuchando los tres nombres **a propósito**: con
+un botón de emergencia el modo de fallo que importa es «el mensaje no llega».
+
+### 🔴 Y al cerrarlo apareció que el camino de escape estaba roto
+
+Los launch aceptan un argumento `namespace` que se deja abierto por si algún día hacen falta
+varios robots en un mismo RViz. Pero el driver tenía **dos `frame_id` escritos a fuego**
+(`/ambient_light` y `/motor_status`) mientras `odom`, `base` e `imu` ya eran parámetros. Con el
+namespace activo se habrían quedado sin prefijo **partiendo el árbol TF** — el mismo fallo que
+costó la Fase 3.
+
+Ahora es el parámetro `body_frame` (`base_link` por defecto), distinto de `base_frame`
+(`base_footprint`) porque los sensores están en el cuerpo, no en la proyección en el suelo.
+✅ Verificado tras recompilar y reiniciar: los dos siguen publicando con `base_link`.
+
+---
+
 ## 2026-08-01 (noche) — El LIDAR inundaba el journal, y la primera solución era peor
 
 `atriz-escaneo off` es el **estado normal en reposo** de los 16 robots. Con él, el nodo del

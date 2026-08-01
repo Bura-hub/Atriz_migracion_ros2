@@ -84,16 +84,41 @@ comunicación PC↔robot si el PC va por WiFi.
 
 ### Contrato de topics por robot
 
-> ⏳ **DECISIÓN PENDIENTE — el namespace.** Este documento decía «namespace `/rvr_NN`», pero el
-> driver corre hoy **sin namespace** (`default_value=''` en `robot.launch.py`), así que los topics
-> reales son `/odom`, no `/rvr_01/odom`.
+> ## ✅ DECISIÓN CERRADA (2026-08-01): **SIN NAMESPACE**
 >
-> El propio driver argumenta que, con **un `ROS_DOMAIN_ID` por robot** (Decisión 1), un namespace
-> **no añade aislamiento**: solo alarga cada nombre de topic y cada comando de diagnóstico. El
-> launch lo soporta si se quiere.
+> Los topics son `/odom`, `/scan`, `/cmd_vel_raw` — **no** `/rvr_01/odom`. Tres razones, en orden
+> de peso:
 >
-> 🔴 **Hay que fijarlo antes de la Fase 5**: la web necesita saber a qué nombre suscribirse, y
-> cambiarlo después obliga a tocar los 16 robots y el cliente. **Sin decidir.**
+> **1. El aislamiento ya está resuelto por otra vía.** Cada robot corre en su propio
+> `ROS_DOMAIN_ID` (Decisión 1). Eso es aislamiento DDS **total**: los robots no se ven entre sí ni
+> queriendo. Un namespace resolvería un problema que ya no existe.
+>
+> **2. La web tampoco lo necesita.** Habla por rosbridge, **un WebSocket por robot**:
+> `ws://rvr-07.local:9090`. Esa conexión ya solo alcanza al robot 7. Poner `/rvr_07/odom` dentro
+> de un canal que únicamente llega al robot 7 es escribir el número dos veces.
+>
+> **3. 🔴 Y la razón de peso: la parada de emergencia ya falló una vez POR UN NAMESPACE.** Al
+> portar de ROS 1 se corrigió el nombre del topic y se coló un `/rvr/`; falló en silencio, con
+> `200 OK`. Añadir namespaces reintroduce esa clase de fallo **en 16 robots a la vez**, y es un
+> fallo de seguridad, no de comodidad. Van cuatro fallos de la parada, y este documento no va a
+> regalar el quinto.
+>
+> ⚠️ **Y un namespace no hace lo que suele creerse: NO renombra los `frame_id` de TF.** Si algún
+> día se metiera a los 16 robots en un mismo dominio, seguirían colisionando dieciséis
+> `odom → base_footprint`. Da protección **parcial**, que es peor que ninguna porque parece
+> completa.
+>
+> ### El camino de escape queda abierto, y ahora funciona
+>
+> `robot.launch.py`, `slam`, `nav2` y `localizacion` **ya aceptan un argumento `namespace`** con
+> `''` por defecto. Se deja: si algún día se quiere ver varios robots en un mismo RViz, es cambiar
+> una bandera.
+>
+> 🔴 **Pero ese camino estaba roto hasta hoy.** El driver tenía `odom_frame`, `base_frame` e
+> `imu_frame` como parámetros y **dos `frame_id` escritos a fuego** (`/ambient_light` y
+> `/motor_status`). Con el namespace activo se habrían quedado sin prefijo, partiendo el árbol TF
+> — el mismo fallo que costó la Fase 3. Ahora es el parámetro **`body_frame`** (`base_link` por
+> defecto). ✅ Verificado tras el cambio: los dos topics siguen publicando con `base_link`.
 
 | Topic / servicio | Tipo | Dirección | Nota |
 |---|---|---|---|
@@ -106,7 +131,7 @@ comunicación PC↔robot si el PC va por WiFi.
 | `color` | `atriz_rvr_msgs/Color` | robot → web | `[0,0,0]` salvo `color_detection:=true` |
 | `map` | `nav_msgs/OccupancyGrid` | robot → web | RELIABLE + TRANSIENT_LOCAL |
 | **`cmd_vel_raw`** | `geometry_msgs/Twist` | web → robot | 🔴 **AQUÍ, no en `cmd_vel`** — ver abajo |
-| `emergency_stop` | `std_msgs/Empty` | web → robot | el driver escucha **tres** nombres ⏳ |
+| **`emergency_stop`** | `std_msgs/Empty` | web → robot | ✅ **el oficial**. RELIABLE + **VOLATILE** |
 | **`/start_scan`** | `std_srvs/Empty` | web → robot | 🔴 **OBLIGATORIO al empezar sesión** |
 | `/stop_scan` | `std_srvs/Empty` | web → robot | al terminar la sesión |
 | `/release_emergency_stop` | `std_srvs/Empty` | web → robot | liberar la parada, acto **explícito** |
@@ -125,9 +150,19 @@ cap. 17.2.
 pide RELIABLE, **DDS no empareja y no llega NADA** — sin error y sin aviso. Si la web «no recibe
 odometría» y todo lo demás parece bien, **mira el QoS antes que el código**.
 
-⏳ **DECISIÓN PENDIENTE — el nombre canónico de la parada.** El driver escucha `emergency_stop`,
-`is_emergency_stop` y `/rvr/emergency_stop` (los tres, a propósito: con un botón de emergencia el
-modo de fallo es «no llega el mensaje»). Conviene fijar **cuál es el oficial** para la web.
+## ✅ DECISIÓN CERRADA (2026-08-01): el nombre oficial de la parada es **`/emergency_stop`**
+
+Es a donde **debe publicar la web**. Sin namespace, es además el nombre resuelto real.
+
+⚠️ **El driver sigue escuchando los tres** (`emergency_stop`, `is_emergency_stop` y
+`/rvr/emergency_stop`) y eso **no se toca**. No es indecisión: con un botón de emergencia el modo
+de fallo que importa es **«el mensaje no llega»**, y escuchar de más no cuesta nada mientras que
+escuchar de menos ya ha fallado **cuatro veces** — por nombre, por namespace, por QoS, y por no
+cancelar el objetivo de Nav2 al soltarla.
+
+🔴 **Lo que sí es obligatorio para la web:** publicar `std_msgs/Empty` con QoS **RELIABLE +
+VOLATILE**. `TRANSIENT_LOCAL` en el suscriptor fue la tercera causa de fallo: exige que el
+publicador también lo sea, y **rosbridge no lo es**. Manual, cap. 15.1.
 
 📝 `ambient_light` existe y **no se usa**: el piso blanco del LIDAR le refleja los LEDs del propio
 robot, así que no mide la luz de la sala. Manual, cap. 18.4b.
