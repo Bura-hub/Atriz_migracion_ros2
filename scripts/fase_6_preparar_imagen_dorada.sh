@@ -71,6 +71,25 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
+say "1-bis/6 · Borrar la IDENTIDAD ROS y la marca de first-boot"
+
+# 🔴 SIN ESTO, LA PERSONALIZACIÓN NO SE EJECUTA EN LOS CLONES.
+#
+#   `atriz-first-boot.service` lleva `ConditionPathExists=!/var/lib/atriz-first-boot.done`
+#   — o sea que NO corre si esa marca existe. Si el robot de referencia llega a
+#   ejecutar first-boot alguna vez, la marca se queda en la imagen y **los 16
+#   clones se saltan la personalización entera**: mismo hostname, mismo
+#   ROS_DOMAIN_ID, los 16 viéndose en DDS. Y sin dar ningún error.
+rm -f /var/lib/atriz-first-boot.done && ok "marca de first-boot borrada"
+
+# Y el fichero de identidad, por lo mismo: si sobrevive, el clon arranca con el
+# ROS_DOMAIN_ID del robot de referencia hasta que first-boot lo pise. Si
+# first-boot fallara —robot_id.txt mal escrito— el clon se quedaría ahí para
+# siempre, en silencio. Que lo cree first-boot y nadie más.
+rm -f /etc/profile.d/atriz-robot.sh && ok "/etc/profile.d/atriz-robot.sh borrado"
+avis "el clon NO tendrá ROS_DOMAIN_ID hasta que first-boot lea robot_id.txt"
+avis "y el envoltorio del servicio SE NIEGA A ARRANCAR sin él — es lo correcto"
+
 say "2/6 · Borrar el machine-id (systemd lo regenera al arrancar)"
 # Un machine-id duplicado hace que el DHCP pueda asignar la misma IP a dos robots
 : > /etc/machine-id
@@ -111,6 +130,22 @@ else
     ok "sin claves privadas ni tokens en el home"
 fi
 avis "netplan (con la PSK del WiFi) SÍ se clona: es lo deseable si todos usan la misma red"
+
+# ── Lo que la imagen NO tendrá, y conviene saberlo ANTES del dd ───────────────
+if ! dpkg -l ros-jazzy-rosbridge-suite 2>/dev/null | grep -q '^ii'; then
+    avis "🔴 rosbridge NO está instalado: los clones no podrán hablar con la web"
+    avis "   (es la Fase 5; si clonas antes, habrá que instalarlo en los 16)"
+fi
+if [[ ! -d "$REAL_HOME/atriz_migracion" ]]; then
+    avis "🔴 no está ~/atriz_migracion: los clones no tendrán verificar_robot.sh"
+fi
+# 🔴 La divergencia que rompe la regla del proyecto («provision.sh es la verdad»)
+if [[ -f /etc/systemd/system/atriz-robot.service ]] \
+   && ! grep -q 'fase_7_systemd' "$SCRIPTS_DIR/provision.sh" 2>/dev/null; then
+    avis "🔴 ESTA IMAGEN TENDRÁ ARRANQUE AUTOMÁTICO Y provision.sh NO LO INSTALA."
+    avis "   Un robot reprovisionado desde cero saldrá DISTINTO del clonado, y la"
+    avis "   regla del proyecto dice que gana provision.sh. Añádelo antes del dd."
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 say "6/6 · Estado final"

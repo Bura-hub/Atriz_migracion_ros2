@@ -1,0 +1,155 @@
+═══════════════════════════════════════════════════════════════════════════════
+¿ESTA LISTA LA IMAGEN DORADA PARA PASARLA A OTRO SPHERO?
+Robot: rvr-01 · 2026-08-01 · auditoria contra el estado REAL del sistema
+═══════════════════════════════════════════════════════════════════════════════
+Peticion del usuario: «revisa que tan completa esta la imagen dorada para pasarse
+a otro sphero, teniendo en cuenta lo que se tiene hasta ahora».
+
+VEREDICTO: **funcionalmente casi completa, pero NO se debe clonar todavia.**
+Hay tres bloqueantes, y dos de ellos no son tecnicos sino de coherencia.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. ✅ LO QUE SI VIAJARIA EN LA IMAGEN
+───────────────────────────────────────────────────────────────────────────────
+  Un `dd` copia el disco entero, asi que va TODO lo que hay:
+
+    · ROS 2 Jazzy — 270 paquetes, con navigation2, slam_toolbox y xacro
+    · YDLidar-SDK compilado en /usr/local + el driver ROS del X2
+    · ~/atriz_ws compilado y funcionando (102 MB)
+    · ~/atriz_migracion con los scripts y el manual (31 MB)
+    · las DOS reglas udev: 99-rvr.rules y 99-ydlidar.rules
+    · el UART arreglado (config.txt con disable-bt, bajo [all])
+    · la higiene del SO: governor `performance`, multi-user.target,
+      cloud-init inerte, `iw` con power_save off, netplan en 600
+    · ✅ **EL ARRANQUE AUTOMATICO COMPLETO**: atriz-robot.service, el envoltorio
+      y atriz-escaneo
+
+  🔴 ESTO ULTIMO CORRIGE ALGO QUE ESTE PROYECTO DOCUMENTO MAL.
+     Se escribio —yo lo escribi— que «si se construye la imagen antes de añadir
+     systemd a provision.sh, los 16 robots saldran SIN arranque automatico».
+     **Es falso.** La imagen es una copia bit a bit: `/usr/local/bin` y
+     `/etc/systemd/system` viajan con ella. Los clones SI arrancarian solos.
+     El problema real es otro, y esta en el punto 2(c).
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. 🔴 LOS TRES BLOQUEANTES
+───────────────────────────────────────────────────────────────────────────────
+
+  (a) 🔴 EL TOKEN DE GITHUB VIAJA EN LA IMAGEN
+      `~/.git-credentials` **existe** en este robot y contiene el PAT personal.
+      `fase_6` lo detecta y AVISA, pero **no lo borra** — decision deliberada,
+      porque puede ser un token compartido a proposito.
+
+      ⚠️ Repartir un PAT personal en 16 tarjetas microSD que viven en un
+         laboratorio es una decision de seguridad, no un detalle. Y se suma a que
+         la imagen ya lleva la PSK del WiFi en netplan.
+
+      → DECISION PENDIENTE DEL USUARIO. Si no es un token de despliegue creado a
+        proposito para esto, borrarlo antes del `dd`:
+            rm -f ~/.git-credentials
+
+  (b) 🔴 rosbridge NO ESTA INSTALADO
+      `dpkg -l ros-jazzy-rosbridge-suite` -> no instalado.
+
+      La web habla con los robots **por rosbridge** (ARQUITECTURA.md, D2). Si se
+      clona ahora, hay que instalarlo en los 16 despues — que es exactamente lo
+      que la imagen dorada existe para evitar (~300 MB por robot sobre la unica
+      AP del laboratorio).
+
+      → Es la Fase 5 y todavia no toca. Pero **si se clona antes de la Fase 5, se
+        clona dos veces.**
+
+  (c) 🔴 LA IMAGEN Y `provision.sh` DIVERGEN — y la regla dice que gana el script
+      La imagen tendria arranque automatico. `provision.sh` **no lo instala**
+      (decision del usuario: se añade al cerrar el robot de referencia).
+
+      Consecuencia: un robot **reprovisionado desde cero** sale DISTINTO de uno
+      **clonado**. Y la regla del proyecto es explicita:
+
+          «La imagen dorada es el atajo; provision.sh es la verdad.
+           Si divergen, gana el script y se reconstruye la imagen.»
+
+      → O se añade `fase_7_systemd.sh` a `provision.sh` antes del `dd`, o la
+        imagen nace ya incumpliendo su propia regla.
+
+      📝 Y hay una segunda divergencia, mas silenciosa: **`provision.sh` NO clona
+         `~/atriz_migracion`**. Un robot provisionado desde cero se queda SIN
+         `verificar_robot.sh`, sin `fase_7_systemd.sh` y sin `compilar.sh`. La
+         imagen si los lleva.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 DOS HUECOS LATENTES DE `fase_6`, ARREGLADOS HOY
+───────────────────────────────────────────────────────────────────────────────
+  Los dos son del tipo «hoy no muerde, y el dia que muerda no dara ningun error».
+
+  (a) NO BORRABA `/var/lib/atriz-first-boot.done`
+      `atriz-first-boot.service` lleva
+      `ConditionPathExists=!/var/lib/atriz-first-boot.done`. Si el robot de
+      referencia llega a ejecutar first-boot **una sola vez**, esa marca se queda
+      en la imagen y **los 16 clones se saltan la personalizacion entera**:
+      mismo hostname, mismo machine-id regenerado pero mismo ROS_DOMAIN_ID, y los
+      16 viendose en DDS. En silencio.
+
+      📝 Hoy la marca NO existe (first-boot nunca ha corrido), asi que la imagen
+         de hoy estaria bien. Pero es una bomba de relojeria de una sola linea.
+
+  (b) NO BORRABA `/etc/profile.d/atriz-robot.sh`
+      El clon arrancaria con el `ROS_DOMAIN_ID=1` del robot de referencia hasta
+      que first-boot lo pise. Si first-boot fallara —un `robot_id.txt` mal
+      escrito— el clon se quedaria en el dominio 1 **para siempre**.
+
+      ✅ Ahora `fase_6` borra los dos, asi que la identidad solo puede venir de
+         first-boot. Y si falta, el envoltorio del servicio **se niega a
+         arrancar**, que es el comportamiento correcto.
+
+  ✅ Y `fase_6` avisa ahora, antes del `dd`, de los tres bloqueantes del punto 2.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. ⚠️ LA SUPOSICION QUE SIGUE EN PIE
+───────────────────────────────────────────────────────────────────────────────
+  `provision.sh` **nunca se ha ejecutado de principio a fin** sobre un 24.04
+  limpio (evidencia 29). Y la regla «la imagen es el atajo, el script es la
+  verdad» **supone que el script funciona**.
+
+  → Mientras eso no se levante, la imagen dorada no tiene con que contrastarse.
+    Si el clon 7 sale mal, no habra forma de saber si el fallo es de la imagen o
+    del script.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. 📝 LO QUE SE CLONARIA Y NO HACE FALTA
+───────────────────────────────────────────────────────────────────────────────
+  No bloquea nada —la tarjeta va al 24 % de 29 GB— pero conviene saberlo:
+
+    ~/respaldo_pre_migracion   4.4 MB   estado del sistema Noetic
+    ~/nav_logs                  60 KB   logs de pruebas de navegacion
+    ~/chat_atriz_*.md           12 KB   volcado de chat
+    ~/src_externos              31 MB   FUENTES del YDLidar-SDK — **si hacen
+                                        falta** para recompilarlo
+    mapas .pgm/.posegraph              del banco de pruebas, no del laboratorio
+
+  📌 Y los mapas son un caso a decidir: hoy son del banco de pruebas y no sirven.
+     Cuando se mapee el laboratorio real, el mapa **si** deberia ir en la imagen —
+     es lo que permite que los 16 compartan marco (manual, cap. 14.1).
+
+
+───────────────────────────────────────────────────────────────────────────────
+6. RESUMEN: QUE HAY QUE HACER ANTES DEL `dd`
+───────────────────────────────────────────────────────────────────────────────
+  BLOQUEANTES
+    1. Decidir que se hace con `~/.git-credentials`            👤 usuario
+    2. Añadir `fase_7_systemd.sh` a `provision.sh`             (o aceptar la
+                                                                divergencia)
+    3. Instalar rosbridge, o asumir clonar dos veces           (Fase 5)
+
+  MUY RECOMENDABLE
+    4. Levantar la suposicion de `provision.sh` con una microSD de repuesto
+    5. Que `provision.sh` clone tambien `~/atriz_migracion`
+
+  YA HECHO HOY
+    ✅ `fase_6` borra la marca de first-boot y el profile.d de identidad
+    ✅ `fase_6` avisa de los tres bloqueantes antes de que sea tarde

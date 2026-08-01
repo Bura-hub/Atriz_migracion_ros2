@@ -12,10 +12,18 @@
 > El riesgo no es que falle: es que falle **en el robot 7 de 16**, con seis ya desplegados.
 > Detalle en `00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.
 >
-> 🔴 **Y falta una segunda cosa antes de construirla:** `provision.sh` **no instala el arranque
-> automático**. Se añade cuando se cierre el robot de referencia (decisión del usuario,
-> 2026-07-31). Si se construye la imagen antes, los 16 robots saldrán sin `atriz-robot.service`
-> y habrá que entrar en cada uno — justo lo que esta guía existe para evitar. Manual, cap. 17.
+> 🔴 **Y hay TRES bloqueantes más, auditados el 2026-08-01** (evidencia 38):
+> 1. **`~/.git-credentials` con el PAT viaja en la imagen.** `fase_6` avisa pero no lo borra.
+>    Repartir un token personal en 16 microSD es una decisión, no un detalle. 👤
+> 2. **rosbridge no está instalado**, y la web habla por ahí. Clonar antes de la Fase 5 significa
+>    clonar dos veces.
+> 3. **La imagen y `provision.sh` divergen**: la imagen SÍ lleva el arranque automático —un `dd`
+>    copia `/usr/local/bin` y `/etc/systemd`— pero `provision.sh` no lo instala. Un robot
+>    reprovisionado saldría **distinto** del clonado, y la regla dice que gana el script.
+>
+> ⚠️ **CORRECCIÓN:** esta guía llegó a decir que «si se construye la imagen antes, los 16 saldrán
+> sin arranque automático». **Es falso** — sí lo tendrían. El problema es la divergencia, no la
+> ausencia.
 
 
 

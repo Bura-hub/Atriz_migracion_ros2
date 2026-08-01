@@ -4,6 +4,54 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-01 — La imagen dorada, auditada contra el estado real
+
+Petición del usuario: *«revisa qué tan completa está la imagen dorada para pasarse a otro
+sphero»*. **Veredicto: funcionalmente casi completa, pero no se debe clonar todavía.**
+
+### 🔴 Y lo primero es una corrección: la imagen SÍ llevaría el arranque automático
+
+Este proyecto documentó —lo escribí yo— que «si se construye la imagen antes de añadir systemd a
+`provision.sh`, los 16 robots saldrán **sin** arranque automático». **Es falso.** Un `dd` copia el
+disco entero: `/usr/local/bin` y `/etc/systemd/system` viajan con él.
+
+El problema real es otro y es peor de razonar: **la imagen y `provision.sh` divergirían**, y la
+regla del proyecto dice que **gana el script**. Un robot reprovisionado desde cero saldría
+distinto de uno clonado.
+
+📝 Y hay una segunda divergencia más silenciosa: **`provision.sh` no clona `~/atriz_migracion`**,
+así que un robot provisionado se queda sin `verificar_robot.sh` ni `fase_7_systemd.sh`.
+
+### 🔴 Los tres bloqueantes
+
+1. **`~/.git-credentials` con el PAT viaja en la imagen.** `fase_6` avisa pero no lo borra —
+   deliberado, puede ser un token compartido. Repartir uno personal en 16 microSD es una decisión
+   👤, y se suma a que la imagen ya lleva la PSK del WiFi.
+2. **rosbridge no está instalado**, y la web habla por ahí. Clonar antes de la Fase 5 = clonar dos
+   veces, ~300 MB por robot sobre la única AP.
+3. **La divergencia con `provision.sh`.**
+
+### 🔴 Y dos bombas de relojería en `fase_6`, arregladas hoy
+
+**No borraba `/var/lib/atriz-first-boot.done`.** El servicio de personalización lleva
+`ConditionPathExists=!` sobre esa marca: si el robot de referencia ejecuta first-boot **una sola
+vez**, la marca viaja en la imagen y **los 16 clones se saltan la personalización entera** —
+mismo hostname, mismo `ROS_DOMAIN_ID`, los 16 viéndose en DDS. Y **sin dar ningún error**.
+
+📝 Hoy la marca no existe, así que la imagen de hoy estaría bien. Es una bomba de una sola línea.
+
+**No borraba `/etc/profile.d/atriz-robot.sh`.** El clon arrancaría con el `ROS_DOMAIN_ID=1` del
+robot de referencia hasta que first-boot lo pisara; si first-boot fallara, se quedaría ahí para
+siempre. → Ahora se borran los dos: la identidad **solo** puede venir de first-boot, y si falta,
+el envoltorio del servicio **se niega a arrancar**.
+
+✅ Y `fase_6` avisa ahora de los tres bloqueantes **antes** del `dd`, cuando aún se pueden
+arreglar.
+
+Evidencia 38.
+
+---
+
 ## 2026-08-01 — El piso blanco del LIDAR, y dos huecos encontrados de rebote
 
 ### ✅ Por qué el sensor de luz ve los LEDs del robot — la explicación es física
