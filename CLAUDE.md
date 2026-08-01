@@ -877,6 +877,8 @@ probar_leds_ros2.py          # ⚠️ ENCIENDE LEDS (no mueve): los 12 grupos, �
 probar_rosbridge.py          # cliente WebSocket propio: ¿llega la web? y CUÁNTOS BYTES cuesta
 probar_mdns.py               # ¿responde un robot a su nombre .local? · --flota 16
 probar_magnetometro.py       # ¿hay rumbo absoluto? · --calibrar ⚠️ GIRA EL ROBOT 360°
+probar_sdk_tanda2.py         # temperaturas con los IDs buenos, color async, batería
+#                              --calibrar ⚠️ GIRA EL ROBOT 360° tres veces
 probar_sdk_no_usados.py      # los métodos del SDK que el driver NO usa: ¿cuáles responden?
 #                              ⚠️ necesita el driver parado (sudo systemctl stop atriz-robot)
 ```
