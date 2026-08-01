@@ -248,3 +248,65 @@ sobre un nombre resuelto por el navegador, que es otro camino.
   protocolo JSON de rosbridge, escrito a mano, para que funcione sin internet.
   Prueba las DOS direcciones — se suscribe a topics (leer) y llama a
   `set_led_rgb` (escribir) — y mide en vivo los kB/s y el x16.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ LA WEB HABLA CON EL ROBOT POR SU NOMBRE — VERIFICADO 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+Desde el NAVEGADOR del PC del usuario, con `03_operacion/probar_conexion_web.html`
+y sin ninguna libreria. Es la prueba que la Fase 5 daba por supuesta.
+
+  15:08:35  abriendo ws://rvr-01.local:9090 ...
+  15:08:35  WebSocket abierto
+  15:09:13  respuesta de /set_led_rgb: success=true  headlight_left  = (0,255,0)
+  15:09:13  respuesta de /set_led_rgb: success=true  headlight_right = (0,255,0)
+
+  topic            msg/s   bytes/msg   kB/s   ultimo valor
+  /odom            16.57      818      13.6   x=0.023 y=0.001
+  /battery_state    0.05      418       0.0   100 %
+  /scan             0.00        0       0.0   -- (barrido APAGADO, ver abajo)
+  ─────────────────────────────────────────────────────────
+  TOTAL                                13.6 kB/s -> x16 = 1.7 Mbit/s
+
+✅ LAS DOS DIRECCIONES FUNCIONAN, que son caminos distintos:
+   · LEER    — suscripcion a topics, datos llegando
+   · ESCRIBIR— `call_service` a /set_led_rgb, aceptado por el RVR
+   Con esto la web NO necesita SSH para nada operativo.
+
+✅ Y RESOLVIO POR NOMBRE, sin que el usuario escribiera ninguna IP. Es lo que
+   hace que el mismo codigo funcione en casa y en el laboratorio.
+
+── LA COMPROBACION CRUZADA, que es lo que mas valor tiene aqui ────────────────
+Estas cifras las midio un cliente DISTINTO (navegador) en una maquina DISTINTA
+(el PC), contra las que midio `probar_rosbridge.py` en el propio robot:
+
+                         robot        PC/navegador     diferencia
+  /odom  bytes/msg        820             818            0.2 %
+  /odom  Hz             16.53           16.57            0.2 %
+  sin /scan, total    13.2 kB/s       13.6 kB/s          3 %
+  sin /scan, x16       1.6 Mbit/s      1.7 Mbit/s
+
+📝 En este proyecto han mentido CUATRO instrumentos (`ros2 topic hz`,
+   `spin_once` en bucle, `mensajes/duracion`, y mezclar ejecutores). Dos
+   medidores independientes que coinciden al 3 % es la clase de evidencia que
+   faltaba. **La cifra de 13.2 kB/s deja de ser una medida y pasa a ser un
+   hecho replicado.**
+
+── ⚠️ `/scan` A 0.00 NO ES UN FALLO ──────────────────────────────────────────
+El barrido del lidar arranca APAGADO a proposito (`atriz-escaneo off`): si no,
+los 16 X2 girarian a 11.8 Hz 24/7 en vez de a 2.7. Sin `/scan` el
+`collision_monitor` bloquea el movimiento, asi que el robot queda seguro.
+
+🔴 PERO ESO SIGNIFICA QUE 13.6 kB/s ES EL COSTE EN REPOSO, no el de un robot
+   navegando. El de verdad son los 75.0 kB/s con `/scan`, ya medidos.
+
+✅ Y confirma la palanca por el otro lado: la diferencia entre 1.7 Mbit/s y
+   9.4 Mbit/s para los 16 robots **es `/scan` y nada mas**. Si la web no lo
+   necesita crudo —o le basta 1 de cada 5 barridos— el problema de red
+   desaparece.
+
+── LO QUE `success=true` NO DICE ─────────────────────────────────────────────
+⚠️ El servicio respondio `success=true` para los dos faros. Este proyecto ya
+   documenta que eso prueba que **el RVR acepto el comando**, no que el LED
+   alumbre: `undercarriage_white` devuelve `success=true` y no enciende nada.
+   PENDIENTE de confirmacion visual del usuario.
