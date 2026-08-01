@@ -91,7 +91,7 @@ echo "  usuario: $USUARIO ($HOME_USUARIO)"
 [[ $SIN_ROS -eq 1 ]] && avi "--sin-ros: se salta la instalación de ROS 2"
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "0/8 · Comprobar que el punto de partida es el esperado"
+say "0/9 · Comprobar que el punto de partida es el esperado"
 
 # Aprovisionar sobre un SO que no es el previsto produce fallos incomprensibles
 # tres pasos más adelante. Se comprueba antes de tocar nada.
@@ -112,7 +112,7 @@ if ! ping -c1 -W3 archive.ubuntu.com >/dev/null 2>&1 && ! ping -c1 -W3 ports.ubu
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "1/8 · Terminar las actualizaciones pendientes"
+say "1/9 · Terminar las actualizaciones pendientes"
 
 # La imagen trae unattended-upgrades ACTIVO y, en cuanto hay red, instala por su
 # cuenta — incluido un kernel nuevo. Si no se cierra esto ANTES de tocar el
@@ -167,11 +167,11 @@ correr apt-get full-upgrade -y -qq && ok "full-upgrade" || { mal "full-upgrade f
 
 if [[ -f /var/run/reboot-required ]]; then
     avi "hay un reinicio pendiente: $(tr '\n' ' ' < /var/run/reboot-required.pkgs 2>/dev/null)"
-    avi "no es un problema — el paso 8/8 te dirá cuándo reiniciar"
+    avi "no es un problema — el paso 9/9 te dirá cuándo reiniciar"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "2/8 · Paquetes del sistema"
+say "2/9 · Paquetes del sistema"
 
 # iw               apagar el power-save del WiFi. NO viene en Server 24.04.
 # python3-aiohttp  sphero_sdk/__init__.py lo importa SIN CONDICIONES (a través de
@@ -204,7 +204,7 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "3/8 · UART del RVR  (delega en fase_0_1_fix_uart.sh)"
+say "3/9 · UART del RVR  (delega en fase_0_1_fix_uart.sh)"
 
 if [[ $SIMULAR -eq 1 ]]; then
     printf '  %s[simular]%s bash %s\n' "$GRIS" "$FIN" "$SCRIPTS/fase_0_1_fix_uart.sh"
@@ -215,7 +215,7 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "4/8 · Higiene del SO  (delega en fase_1_higiene_so.sh)"
+say "4/9 · Higiene del SO  (delega en fase_1_higiene_so.sh)"
 
 if [[ $SIMULAR -eq 1 ]]; then
     printf '  %s[simular]%s bash %s\n' "$GRIS" "$FIN" "$SCRIPTS/fase_1_higiene_so.sh"
@@ -229,7 +229,7 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "5/8 · Código del robot en ~/atriz_ws"
+say "5/9 · Código del robot en ~/atriz_ws"
 
 WS="$HOME_USUARIO/atriz_ws/src"
 if [[ -d "$WS/Atriz_rvr/.git" ]]; then
@@ -251,7 +251,7 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "6/8 · ROS 2 Jazzy"
+say "6/9 · ROS 2 Jazzy"
 
 if [[ $SIN_ROS -eq 1 ]]; then
     salta "saltado por --sin-ros"
@@ -334,7 +334,7 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "7/8 · El robot completo: xacro, LIDAR, SLAM, Nav2 y compilar"
+say "7/9 · El robot completo: xacro, LIDAR, SLAM, Nav2 y compilar"
 
 # Esta es la Etapa F de INSTALACION.md. Sin ella el robot tiene ROS 2 y el codigo
 # clonado, pero no arranca: falta xacro para el URDF, el driver del LIDAR (que NO
@@ -429,7 +429,52 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "8/8 · Resumen"
+say "8/9 · Arranque automático  (delega en fase_7_systemd.sh)"
+
+# 🔴 POR QUÉ ESTO ESTÁ AQUÍ, Y POR QUÉ NO ESTABA ANTES
+#
+#   Hasta el 2026-08-01 este paso NO existía, a propósito: mientras se probaba el
+#   robot de referencia a mano, un servicio levantado peleaba por /dev/rvr con
+#   cada prueba.
+#
+#   Se añade ahora porque esa razón ya no aplica y quedaba una DIVERGENCIA que
+#   rompe la regla del proyecto: la imagen dorada SÍ lleva el arranque automático
+#   —un `dd` copia /usr/local/bin y /etc/systemd— y este script no lo instalaba.
+#   Un robot reprovisionado salía DISTINTO de uno clonado, y la regla dice que
+#   «la imagen es el atajo, provision.sh es la verdad». Evidencia 38.
+#
+# 📝 `fase_7_systemd.sh` HABILITA el servicio pero NO lo arranca: entra en el
+#    próximo reinicio. Así este script no deja un robot moviéndose por sorpresa.
+#
+# ⚠️ El robot arrancará con el barrido del LIDAR APAGADO y por tanto NO CONDUCIRÁ
+#    hasta un `atriz-escaneo on`. No está roto: sin /scan el collision_monitor
+#    bloquea el movimiento. Manual, cap. 17.2.
+
+# La identidad: si ya existe /etc/profile.d/atriz-robot.sh, fase_7 la respeta.
+# Si no, se le pasa el número desde robot_id.txt — que es de donde sale en un
+# clon. Si tampoco está, fase_7 se niega y lo dice, que es lo correcto: un robot
+# sin ROS_DOMAIN_ID propio acaba en el dominio 0 con los otros 15.
+ARG_ID=()
+if [[ ! -f /etc/profile.d/atriz-robot.sh && -f /boot/firmware/robot_id.txt ]]; then
+    ID_TXT="$(tr -dc '0-9' < /boot/firmware/robot_id.txt | head -c2)"
+    [[ -n "$ID_TXT" ]] && ARG_ID=(--id "$((10#$ID_TXT))")
+fi
+
+if [[ $SIMULAR -eq 1 ]]; then
+    printf '  %s[simular]%s bash %s %s\n' "$GRIS" "$FIN" \
+           "$SCRIPTS/fase_7_systemd.sh" "${ARG_ID[*]}"
+elif bash "$SCRIPTS/fase_7_systemd.sh" "${ARG_ID[@]}"; then
+    ok "fase_7_systemd.sh completado: el robot arrancará solo"
+else
+    # No es fatal para el resto del aprovisionamiento: el robot funciona, solo
+    # que hay que levantarlo a mano. Pero SÍ se cuenta como fallo, porque un
+    # laboratorio remoto sin arranque automático no sirve.
+    mal "fase_7_systemd.sh falló (¿falta /boot/firmware/robot_id.txt?)"
+    FALLOS+=("arranque automático")
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+say "9/9 · Resumen"
 
 if [[ $SIMULAR -eq 1 ]]; then
     avi "simulación terminada: no se ha modificado nada"
@@ -454,20 +499,16 @@ cat <<EOF
   El verificador es el que decide si este robot está listo, y sale con código
   != 0 si algo falla. No des el robot por bueno sin él.
 
-  ⏳ ESTE SCRIPT NO INSTALA EL ARRANQUE AUTOMÁTICO, Y ES A PROPÓSITO
+  ✅ EL ROBOT ARRANCA SOLO (paso 8/9, desde el 2026-08-01)
 
-  Un robot aprovisionado con provision.sh NO se levanta solo al encender: hay
-  que ejecutar aparte
+  El servicio queda HABILITADO pero no arrancado: entra en el próximo reinicio.
 
-      sudo bash $SCRIPTS/fase_7_systemd.sh --id NN
+  ⚠️ Y arrancará con el barrido del LIDAR APAGADO, así que NO CONDUCIRÁ hasta:
 
-  Decisión del usuario, 2026-07-31: se añade aquí CUANDO SE CIERRE EL ROBOT DE
-  REFERENCIA, no antes. Mientras se prueba a mano en rvr-01, un servicio
-  levantado pelearía por /dev/rvr con cada prueba.
+      atriz-escaneo on
 
-  🔴 Y ES UN REQUISITO PARA LA IMAGEN DORADA: si se construye la imagen sin
-     haber añadido esto, los 16 robots saldrán sin arranque automático y habrá
-     que entrar en cada uno — justo lo que la imagen existe para evitar.
+     No está roto: sin /scan el collision_monitor bloquea el movimiento, que es
+     lo que hace seguro arrancar así. Manual, cap. 17.2.
 
   ¿Y PARA LOS OTROS 15 ROBOTS?
 

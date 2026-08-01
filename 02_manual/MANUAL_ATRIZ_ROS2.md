@@ -3845,7 +3845,8 @@ Para quitarlo: `sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --quitar`.
 - **n=1.** Un solo reinicio. Sin corte de corriente, ni arranque con el RVR apagado o el lidar
   desenchufado.
 
-- **`provision.sh` no lo instala todavía.** Si no se añade, la imagen dorada saldrá **sin
+- ✅ **`provision.sh` YA lo instala** (paso 8/9, desde el 2026-08-01). Toma el número de robot de `/boot/firmware/robot_id.txt`, y **habilita sin arrancar**: entra en el próximo reinicio.
+- ~~`provision.sh` no lo instala todavía.~~ Si no se añade, la imagen dorada saldrá **sin
   arranque automático** y habrá que hacerlo robot a robot — justo lo que la imagen evita.
   Está sin hacer a propósito: mientras se desarrolla en el robot de referencia, un servicio
   levantado pelearía por `/dev/rvr` con las pruebas a mano.

@@ -17,9 +17,8 @@
 >    Repartir un token personal en 16 microSD es una decisión, no un detalle. 👤
 > 2. **rosbridge no está instalado**, y la web habla por ahí. Clonar antes de la Fase 5 significa
 >    clonar dos veces.
-> 3. **La imagen y `provision.sh` divergen**: la imagen SÍ lleva el arranque automático —un `dd`
->    copia `/usr/local/bin` y `/etc/systemd`— pero `provision.sh` no lo instala. Un robot
->    reprovisionado saldría **distinto** del clonado, y la regla dice que gana el script.
+> 3. ~~La imagen y `provision.sh` divergen~~ ✅ **RESUELTO 2026-08-01**: `provision.sh` instala el
+>    arranque automático en su paso **8/9**. Ya no divergen.
 >
 > ⚠️ **CORRECCIÓN:** esta guía llegó a decir que «si se construye la imagen antes, los 16 saldrán
 > sin arranque automático». **Es falso** — sí lo tendrían. El problema es la divergencia, no la

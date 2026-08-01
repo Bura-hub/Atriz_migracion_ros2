@@ -61,7 +61,23 @@ Hay tres bloqueantes, y dos de ellos no son tecnicos sino de coherencia.
       → Es la Fase 5 y todavia no toca. Pero **si se clona antes de la Fase 5, se
         clona dos veces.**
 
-  (c) 🔴 LA IMAGEN Y `provision.sh` DIVERGEN — y la regla dice que gana el script
+  (c) ✅ RESUELTO EL MISMO DIA — `provision.sh` YA INSTALA EL ARRANQUE AUTOMATICO
+      Paso **8/9**, delegando en `fase_7_systemd.sh` igual que ya delegaba en los
+      de UART e higiene. Toma el numero de robot de `/boot/firmware/robot_id.txt`
+      si `/etc/profile.d/atriz-robot.sh` todavia no existe, que es el caso de un
+      clon recien grabado.
+
+      📝 HABILITA pero NO ARRANCA el servicio: entra en el proximo reinicio. Asi
+         el aprovisionamiento no deja un robot moviendose por sorpresa.
+
+      ⚠️ Queda la SEGUNDA divergencia, mas silenciosa: **`provision.sh` no clona
+         `~/atriz_migracion`**. Un robot provisionado desde cero se queda sin
+         `verificar_robot.sh`, `fase_7_systemd.sh` ni `compilar.sh`. La imagen si
+         los lleva. (En la practica no muerde: para EJECUTAR provision.sh ya
+         tienes que haber traido el repo. Pero la asimetria existe.)
+
+      ── texto original, conservado ─────────────────────────────────────────
+      LA IMAGEN Y `provision.sh` DIVERGEN — y la regla dice que gana el script
       La imagen tendria arranque automatico. `provision.sh` **no lo instala**
       (decision del usuario: se añade al cerrar el robot de referencia).
 
@@ -142,8 +158,7 @@ Hay tres bloqueantes, y dos de ellos no son tecnicos sino de coherencia.
 ───────────────────────────────────────────────────────────────────────────────
   BLOQUEANTES
     1. Decidir que se hace con `~/.git-credentials`            👤 usuario
-    2. Añadir `fase_7_systemd.sh` a `provision.sh`             (o aceptar la
-                                                                divergencia)
+    2. ~~Añadir `fase_7_systemd.sh` a `provision.sh`~~          ✅ HECHO 2026-08-01
     3. Instalar rosbridge, o asumir clonar dos veces           (Fase 5)
 
   MUY RECOMENDABLE
@@ -151,5 +166,6 @@ Hay tres bloqueantes, y dos de ellos no son tecnicos sino de coherencia.
     5. Que `provision.sh` clone tambien `~/atriz_migracion`
 
   YA HECHO HOY
+    ✅ `provision.sh` instala el arranque automatico (paso 8/9)
     ✅ `fase_6` borra la marca de first-boot y el profile.d de identidad
-    ✅ `fase_6` avisa de los tres bloqueantes antes de que sea tarde
+    ✅ `fase_6` avisa de los bloqueantes que quedan, antes de que sea tarde
