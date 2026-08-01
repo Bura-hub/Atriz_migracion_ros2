@@ -52,8 +52,14 @@ esten mal llamados: no estan.
    Es un BUG DEL SDK VENDORIZADO, no del firmware: le falta el desempaquetador.
    Sin valor para el proyecto; se anota para no volver a probarlo.
 
-🔴 get_current_detected_color_reading -> SIN RESPUESTA (se acepta y no contesta)
-   El mismo patron que `core_time`: existe en el SDK y el firmware no lo emite.
+⚠️ get_current_detected_color_reading -> «SIN RESPUESTA» — 🔴 CONCLUSION MIA
+   EQUIVOCADA, corregida el mismo dia con la documentacion oficial (evidencia 43):
+
+     «Note: this does not return anything. Instead, a **color_detection_notify
+      async will be sent after measurement** with the answer.»
+
+   Es ASINCRONO POR DISEÑO. Mi sonda esperaba un valor de retorno. **El
+   instrumento estaba mal, no el robot.**
 
 ───────────────────────────────────────────────────────────────────────────────
 ✅ LO MEJOR DE LA TANDA: EL ESTADO DE BATERIA DEL FIRMWARE
@@ -112,8 +118,13 @@ esten mal llamados: no estan.
      notificaciones (que en este firmware no llegan).
 
   get_temperature(id0=0, id1=1) -> temp0 27.76 °C · temp1 28.61 °C
-     Responde, y coincide con lo que ya da el sondeo de proteccion termica
-     (27.9 / 27.7). No aporta nada nuevo, pero confirma que hay una via directa.
+     🔴 MEDIDA INVALIDA, ver evidencia 43. Los IDs 0 y 1 **no existen**: el enum
+     del SDK dice left_motor=4, right_motor=5, nordic_die=8. Se pidieron sensores
+     inexistentes, el firmware contesto igual, y el resultado se dio por bueno
+     **porque parecia razonable** — coincidia por casualidad con la temperatura
+     de motores ya conocida.
+     → PENDIENTE repetir con 4, 5 y 8. Y la leccion: **un valor plausible no es
+       un valor validado.**
 
   get_stop_controller_state -> {'stopped': True}
      Confirmacion de que el robot esta parado, del propio firmware. Util para

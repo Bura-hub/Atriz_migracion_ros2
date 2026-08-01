@@ -1,0 +1,150 @@
+═══════════════════════════════════════════════════════════════════════════════
+LA DOCUMENTACION OFICIAL DEL SDK, RESCATADA — 2026-08-01
+Fuente: sdk.sphero.com/docs/sdk_documentation/ via archive.org (2021-06-11)
+El sitio original YA NO EXISTE. La encontro el usuario.
+═══════════════════════════════════════════════════════════════════════════════
+Seis secciones: connection, drive, io, power, sensor, system_info. Es la
+descripcion del PROTOCOLO del robot, no del SDK de Python — por eso documenta
+comandos que la libreria no expone.
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 1. DOS ERRORES MIOS DE LA EVIDENCIA 41, CORREGIDOS
+───────────────────────────────────────────────────────────────────────────────
+a) `get_current_detected_color_reading` NO ESTA «MUDO». La evidencia 41 lo
+   clasifico como «el firmware no lo contesta». La documentacion oficial dice:
+
+     «Note: this does not return anything. Instead, a **color_detection_notify
+      async will be sent after measurement** with the answer.»
+
+   🔴 Es asincrono POR DISEÑO. Mi sonda esperaba un valor de retorno y concluyo
+      que estaba roto. **El instrumento estaba mal, no el robot.** Van cinco
+      veces en este proyecto que la medida miente antes que el sistema.
+
+b) `get_temperature(id0=0, id1=1)` CONSULTO SENSORES QUE NO EXISTEN. El enum del
+   propio SDK dice:
+
+     TemperatureSensorsEnum:
+        left_motor_temperature  = 4
+        right_motor_temperature = 5
+        nordic_die_temperature  = 8
+
+   Se pidieron los IDs **0 y 1**, que no estan en la lista. El firmware devolvio
+   27.76 / 28.61 °C igualmente, y esos numeros **se dieron por buenos porque
+   parecian razonables**. Coincidian por casualidad con la temperatura de motores
+   ya conocida (27.9 / 27.7).
+   → PENDIENTE: repetir con 4, 5 y 8. Y la leccion: **un valor plausible no es un
+     valor validado**. Se acepto porque encajaba con lo esperado.
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 2. EL HALLAZGO QUE PODRIA REABRIR LA DETECCION DE ATASCO
+───────────────────────────────────────────────────────────────────────────────
+  «**Get Motor Temperature** — Get the motor temperature (**calculated from motor
+   current**) for a given motor index.
+   Returns: WindingCoilTemperature (float, °C), CaseTemperature (float, °C)»
+
+🔴 LA TEMPERATURA SE CALCULA A PARTIR DE LA CORRIENTE. Y la corriente es lo que
+   no podemos leer (`get_current_sense_amplifier_current` -> bad_cid, evidencia
+   41), que es lo que cerro la deteccion de atasco.
+
+   → Si la temperatura del BOBINADO responde, es un PROXY de la corriente.
+   ⚠️ PERO ES UN PROXY LENTO: la masa termica del motor tarda decenas de segundos
+      en reflejar un bloqueo. No sirve para «para el robot AHORA», sirve para
+      «este robot lleva un rato empujando contra algo». Para un laboratorio
+      remoto —donde la pregunta es «¿hay que ir a rescatarlo?»— **puede bastar**.
+
+   🔴 Y `get_motor_temperature` **NO EXISTE EN NUESTRO SDK DE PYTHON**, aunque
+      esta en el protocolo. Habria que añadirlo: `did` = sensor, y falta
+      averiguar su `cid` (no esta en `CommandsEnum`).
+
+   📝 ALTERNATIVA SIN CODIGO NUEVO, y probablemente mejor: el driver YA publica
+      la temperatura de los dos motores en `/motor_status` cada 30 s, via
+      `get_motor_thermal_protection_status`. **El dato ya esta ahi.** Lo que
+      falta no es leerlo, es INTERPRETARLO: temperatura subiendo mientras se
+      comanda movimiento y los encoders no avanzan = atasco probable.
+      → Es un detector construible HOY, sin tocar el SDK. Sin implementar.
+
+───────────────────────────────────────────────────────────────────────────────
+✅ 3. BATERIA: COMO IMPLEMENTAR BIEN LA ALERTA DE FLOTA
+───────────────────────────────────────────────────────────────────────────────
+  «Get Battery Voltage In Volts — Note that this command **does not get a new
+   voltage reading**; it returns the most recently read value, which is
+   **updated once per second** on most robots. To force the battery system to
+   read a new value, use the **Force Battery Refresh** command.»
+
+  «Get Battery Voltage State Thresholds — The hysteresis value is added to the
+   thresholds for rising voltages: the voltage must be **less than** the low
+   threshold to change the state to 'low battery', but it must be **greater than
+   (low threshold + hysteresis)** to go back to 'ok'.»
+
+  Estados: 0 = unknown · 1 = ok · 2 = low · 3 = critical
+
+✅ Medido en rvr-01: 8.31 V · estado 1 (ok) · low 7.0 · critical 6.5 · hist. 0.2
+🔴 `force_battery_refresh` TAMPOCO ESTA en nuestro SDK de Python.
+📝 No hace falta: el valor se refresca solo cada segundo, y el keepalive del
+   driver sondea cada 30 s. De sobra.
+
+───────────────────────────────────────────────────────────────────────────────
+✅ 4. INFRARROJOS: LA MECANICA COMPLETA, PARA CUANDO EXISTA rvr-02
+───────────────────────────────────────────────────────────────────────────────
+  «Get Bot To Bot Infrared Readings — An 8-bit value is returned for each
+   infrared sensor, assigned by mask:
+      0x000000FF front left · 0x0000FF00 front right
+      0x00FF0000 back right · 0xFF000000 back left
+   If the register reads a value between 0-15, a message of that ID has been
+   received. **If the data returned is 255, the register is empty.** For RVR, the
+   message is only kept for **1 second** before it's reset back to 255.»
+
+✅ ESO EXPLICA NUESTRA MEDIDA: obtuvimos 4294967295 = 0xFFFFFFFF = los cuatro
+   sensores a 255 = los cuatro vacios. Correcto sin un segundo robot.
+
+🔴 Y ES MEJOR NOTICIA DE LO QUE PARECIA: son **CUATRO sensores con direccion**
+   (delante-izq, delante-der, detras-der, detras-izq), no uno. Con dos robots se
+   puede saber POR DONDE viene el otro. Y se CONSULTA, no depende de
+   notificaciones — que en este firmware no llegan.
+⚠️ El mensaje dura **1 segundo**: hay que sondear al menos a 1 Hz o se pierde.
+
+  «Send Infrared Message — InfraredCode 0-7 · FrontStrength / LeftStrength /
+   RightStrength / RearStrength, rango 0-64 (0 = no enviar, 64 = alcance maximo)»
+
+───────────────────────────────────────────────────────────────────────────────
+📝 5. OTROS DATOS UTILES
+───────────────────────────────────────────────────────────────────────────────
+· `Set Locator Flags` — bit 0 «Auto calibrate»: «When set, the robot will
+  maintain the same X-Y axis from initial startup. When cleared, the robot will
+  reset the X-Y axis orientation when a driving yaw reset command is sent.»
+  → Toca DIRECTAMENTE el problema documentado del marco del locator (cap. 10).
+    `set_locator_flags` esta en el SDK y **no se usa**. Sin explorar.
+
+· `Color Detection Notify` — «The color classification ID **0xFF is a special
+  value indicating that the color could not be identified** (e.g., because the
+  reading was too dark).» Y `Confidence` va de **0 a 255**, no 0-1.
+  Y `enable_color_detection_notify` acepta **intervalo y umbral minimo de
+  confianza**.
+  → Encaja con lo corregido en la evidencia 41: hay paleta, y la confianza 0
+    significa «no se parece a ninguno de los cinco».
+
+· `Drive With Heading` — «Heading 0-359: **0 adelante, 90 a la derecha, 180
+  atras, 270 a la izquierda**». Es la convencion de rumbo del propio RVR.
+  Banderas sin usar: **Boost**, **Fast Turn**, **Enable Drift**.
+
+· `Reset Yaw` — «Sets current yaw angle to zero.»
+  🔴 CONTRADICE LO MEDIDO EN ESTE PROYECTO: se comprobo que `reset_yaw()` **no
+     hace nada** y que el yaw solo se pone a cero al ENCENDER el robot. La
+     documentacion dice que deberia funcionar. **No se retira ninguna de las dos
+     cosas**: la medida es la medida, pero queda anotado que el fabricante
+     afirma lo contrario y merece una replica.
+
+· `Gyro Max Notify` — «Occurs when the robot spins faster than the sensor can
+  see in any axis», con bitmask de los 6 sentidos. Detecta saturacion del
+  giroscopio. Sin usar; interesante si alguna vez el yaw se vuelve loco.
+
+· NO EXISTE `get_motor_stall_state` en el protocolo. ✅ Nuestra conclusion era
+  correcta: el atasco es SOLO por notificacion, por diseño del fabricante.
+
+───────────────────────────────────────────────────────────────────────────────
+6. PENDIENTE DE PROBAR (una sola tanda, con el driver parado)
+───────────────────────────────────────────────────────────────────────────────
+  1. `get_temperature` con los IDs BUENOS: 4 (motor izq), 5 (motor der), 8 (die)
+  2. `get_current_detected_color_reading` + su notificacion, que es como funciona
+  3. `set_locator_flags` — leer y entender el efecto sobre el marco del locator
+  4. `magnetometer_calibrate_to_north` ⚠️ GIRA EL ROBOT 360° (evidencia 42)

@@ -288,6 +288,21 @@ recibiría nada aunque acertara el tipo.
   descubre, y el QoS se elige. Un comprobador que acierta un tercio de las veces es peor que no
   tenerlo.
 
+**📚 LA DOCUMENTACIÓN OFICIAL DEL PROTOCOLO ESTÁ EN EL REPO**, en
+[`00_auditoria/referencia_sdk/`](00_auditoria/referencia_sdk/) — con el análisis en la
+evidencia 43. El sitio
+`sdk.sphero.com` **ya no existe**; hay copia de 2021 en archive.org. Documenta el **protocolo
+del robot**, no el SDK de Python, así que describe comandos que la librería **no expone** —
+`get_motor_temperature` y `force_battery_refresh` están en el protocolo y **faltan en nuestro
+SDK**. Si algo no cuadra entre el SDK y el robot, mira ahí antes de teorizar.
+
+**🔴 UN VALOR PLAUSIBLE NO ES UN VALOR VALIDADO.** El 2026-08-01 se llamó a
+`get_temperature(id0=0, id1=1)` y salió 27.76/28.61 °C, que se dio por bueno porque **encajaba**
+con la temperatura de motores ya conocida. Los IDs válidos son **4** (motor izq), **5** (motor
+der) y **8** (die del Nordic): se consultaron sensores **que no existen** y el firmware contestó
+igualmente. → Cuando un resultado confirma lo que esperabas, **es cuando más hay que comprobar
+de dónde sale**.
+
 **🔴 EL FIRMWARE DEL RVR YA ESTÁ EN LA ÚLTIMA VERSIÓN, y actualizar quitaría API, no la
 añadiría.** La última publicada por Sphero (Fall 2022) es **9.1.462 / 9.2.482**, que es
 **exactamente la que tiene este robot**. Y en el foro oficial se ve que con el firmware
@@ -530,6 +545,14 @@ desde una corrutina que ya corre en ese loop da
 registrados y **cero datos**. Constrúyelo con el loop **parado**, antes de arrancar el hilo.
 Es el único `get_event_loop()` de la ruta usada, el que la auditoría señaló como el riesgo del
 port. Ha mordido **dos veces**: al escribir el driver y al escribir una herramienta de banco.
+
+**⏳ LA DETECCIÓN DE ATASCO PODRÍA REABRIRSE, por un camino que ya tenemos.** La doc oficial
+dice que la temperatura del motor está **«calculated from motor current»** — o sea que es un
+**proxy de la corriente**, que es lo que no se puede leer. Y el driver **ya publica** las dos
+temperaturas en `/motor_status` cada 30 s. → Lo que falta no es leer nada nuevo, es
+**interpretarlo**: temperatura subiendo + movimiento comandado + encoders quietos = atasco
+probable. ⚠️ Es un proxy **lento** (decenas de segundos por la masa térmica): no sirve para
+parar el robot, sí para decidir si hay que ir a rescatarlo. Sin implementar. Evidencia 43.
 
 **🔴 LAS NOTIFICACIONES DE MOTOR NO LLEGAN, PERO LAS CONSULTAS SÍ.** `enable_motor_stall_notify`,
 `enable_motor_fault_notify` y la térmica se registran sin error y **no emiten ni un mensaje**:
