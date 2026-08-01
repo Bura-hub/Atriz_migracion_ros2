@@ -69,11 +69,24 @@ atriz_migracion/
 Es la decisión estructural más importante del plan. **No** poner los 16 robots en el mismo dominio DDS con namespaces: el descubrimiento multicast de DDS entre ~160 participantes sobre WiFi genera una tormenta de tráfico que satura la red (y esta Pi ya registra **797 reintentos Tx en 42 min** con un solo robot).
 
 ```
-Robot 01: ROS_DOMAIN_ID=1, namespace /rvr_01, rosbridge :9090  ─┐
-Robot 02: ROS_DOMAIN_ID=2, namespace /rvr_02, rosbridge :9090  ─┤  16 WebSockets
-   ...                                                          ├─► Servidor web
-Robot 16: ROS_DOMAIN_ID=16, namespace /rvr_16, rosbridge :9090 ─┘   (FastAPI + Vue)
+Robot 01: ROS_DOMAIN_ID=1,  ws://rvr-01.local:9090  ─┐
+Robot 02: ROS_DOMAIN_ID=2,  ws://rvr-02.local:9090  ─┤  16 WebSockets
+   ...                                               ├─► Servidor web
+Robot 16: ROS_DOMAIN_ID=16, ws://rvr-16.local:9090  ─┘   (FastAPI + Vue)
+
+   SIN NAMESPACE: los topics son /odom, /scan, /cmd_vel_raw.
+   El robot lo identifica la CONEXIÓN, no el nombre del topic.
 ```
+
+> ✅ **SIN NAMESPACE — decisión cerrada el 2026-08-01.** Este diagrama decía
+> `namespace /rvr_01`. Con un `ROS_DOMAIN_ID` por robot el aislamiento ya es total, y la web
+> abre **un WebSocket por robot**: poner `/rvr_07/odom` dentro de un canal que solo alcanza al
+> robot 7 es escribir el número dos veces. 🔴 Y pesa más otra cosa: **la parada de emergencia ya
+> falló una vez por un namespace** — se coló un `/rvr/` al portar de ROS 1 y falló en silencio
+> con `200 OK`. `ARQUITECTURA.md` y manual cap. 19.
+>
+> ⚠️ **Y resuelven la localización por `rvr-NN.local` (mDNS)**, no por IP: es lo que hace que el
+> mismo código funcione en casa y en el laboratorio. Verificado desde el PC del usuario.
 
 Cada robot es una isla DDS completa. La coordinación (experimentos tipo `box_pushing`) ocurre en la capa de aplicación del servidor, que es además mucho más depurable. **Escape hatch documentado:** si más adelante hace falta comunicación robot-a-robot real en DDS, se añade `zenoh-bridge-ros2dds` o un FastDDS Discovery Server, sin rehacer nada de lo anterior.
 
@@ -82,7 +95,10 @@ Cada robot es una isla DDS completa. La coordinación (experimentos tipo `box_pu
 ```
 Ubuntu Server 24.04 LTS arm64 (headless, multi-user.target)
 └── ROS 2 Jazzy (ros-base, NO desktop)
-    ├── atriz_rvr_driver      (rclpy) → /odom, /imu, /battery, /color, /encoders ; ← /cmd_vel
+    ├── atriz_rvr_driver      (rclpy) → /odom /imu /battery_state /color /encoders
+    │                                    /ambient_light /motor_status ; ← /cmd_vel
+    ├── collision_monitor     /cmd_vel_raw (web) → /cmd_vel (driver)  ← LA SEGURIDAD VA AQUÍ
+    ├── rosbridge_websocket   :9090, dentro del launch para heredar ROS_DOMAIN_ID
     ├── atriz_rvr_description (URDF/xacro) + robot_state_publisher
     ├── ydlidar_ros2_driver   → /scan
     ├── slam_toolbox          (async) → /map
@@ -243,7 +259,10 @@ Nodo con `MultiThreadedExecutor` y callback groups separados para comandos y tel
 - `light_handler` usa `rospy.Time()` (cero) como timestamp → usar el reloj del nodo.
 - `wait_until_motion_complete()` no tiene timeout → puede colgar el hilo de servicio indefinidamente. Añadir timeout y devolver fallo.
 - ⚠️ **Watchdog de `cmd_vel` — CORREGIDO EL 2026-07-30: YA EXISTE.** Este plan decía «hoy no existe nada así». Es **falso** sobre `migracion-ros2`: `handle_ros()` (`Atriz_rvr_node.py:1127-1128`) para los motores si pasan más de `cmd_vel_timeout = 0.3 s` sin comando, y se comprueba cada ~0.17 s. Se añadió en `d8f182d` y se refinó en `659364c`, ambos **posteriores al commit auditado** — la misma causa que los otros hallazgos retirados.
-  **Lo que queda por hacer:** conservarlo en el port (no perderlo por el camino), parametrizar el timeout con `declare_parameter` en vez de dejarlo fijo, y **verificarlo en banco**: soltar el publicador de `cmd_vel` y comprobar con un cronómetro que el robot para. Nunca se ha probado.
+  ✅ **HECHO Y VERIFICADO.** Se conservó en el port, el timeout es un parámetro
+  (`cmd_vel_timeout`, 0.3 s por defecto, `rvr_driver_node.py:228`) y se comprobó en banco con
+  `medir_watchdog_ros2.py` — que mide **desplazamiento**, no velocidad, porque un robot que
+  «va lento» y uno que «ha parado» se distinguen por dónde acaban: **para en 527 ms / 7.9 cm**.
 - ✅ **Frecuencia de sensores — RESUELTO Y MEDIDO** (Fase 0.1, commit `24c7749`).
   `interval` de 250 → **60 ms**, con las **8** corrientes de sensores activas:
 
@@ -265,10 +284,19 @@ Nodo con `MultiThreadedExecutor` y callback groups separados para comandos y tel
 
 **Verificación:**
 ```bash
-ros2 topic hz /rvr_01/odom          # objetivo 16.5 Hz (techo del firmware con interval=60)
-ros2 topic echo /rvr_01/imu --once  # angular_velocity en rad/s
-ros2 topic pub /rvr_01/cmd_vel geometry_msgs/Twist "{linear: {x: 0.2}}"   # se mueve
-# soltar el publisher → debe pararse en <500 ms (watchdog)
+# 🔴 NO uses `ros2 topic hz /odom`: da 0 Hz SIEMPRE con el robot perfecto. `/odom` es
+#    BEST_EFFORT y `ros2 topic hz` se suscribe RELIABLE sin opción de cambiarlo en Jazzy;
+#    DDS no empareja y no llega nada. La misma trampa de QoS que costó la parada de
+#    emergencia. Mide con un suscriptor propio:
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_ritmo_ros2.py
+#    → /odom ≈ 16.5 Hz (techo del firmware con interval=60), /scan ≈ 10-12 Hz
+
+# 🔴 Y publica en `cmd_vel_raw`, NO en `cmd_vel`: `/cmd_vel` es la SALIDA del
+#    collision_monitor. Publicar ahí funciona —el robot obedece— y SALTA LA SEGURIDAD.
+ros2 topic pub /cmd_vel_raw geometry_msgs/msg/Twist "{linear: {x: 0.2}}"
+# soltar el publisher → debe pararse. Watchdog: `cmd_vel_timeout` = 0.3 s (no 500 ms),
+# peor caso medido ~0.35 s. ⚠️ Y el barrido del lidar tiene que estar ENCENDIDO
+# (`atriz-escaneo on`) o el collision_monitor bloquea el movimiento y parecerá averiado.
 ```
 
 ---
@@ -297,7 +325,11 @@ Usar `params/X2.yaml` del propio driver como base. Los parámetros actuales del 
 
 Añadir regla udev `/dev/ydlidar` por serial del adaptador USB — **imprescindible con 16 robots**, donde `/dev/ttyUSB0` no es determinista.
 
-**Verificación:** `ros2 run tf2_tools view_frames` produce **un solo árbol conectado**; `ros2 topic hz /rvr_01/scan` ≈ 10 Hz; visualizar `/scan` + TF en RViz2 desde un portátil (no en la Pi).
+**Verificación:** `ros2 run tf2_tools view_frames` produce **un solo árbol conectado** — y
+compruébalo con `ros2 run tf2_ros tf2_echo odom base_footprint`, que es **el transform que pide
+el consumidor**: un `tf2_echo` cualquiera prueba que hay *un* camino, no que el árbol esté bien
+(costó la Fase 3). `/scan` a **10.1–11.9 Hz** (el motor del X2 va libre, no clava una
+frecuencia), medido con un suscriptor BEST_EFFORT, no con `ros2 topic hz`; visualizar `/scan` + TF en RViz2 desde un portátil (no en la Pi).
 
 ---
 
@@ -393,7 +425,21 @@ de SLAM es de 2.7 cm, así que no está arruinando el emparejado. Por REP-105
 
 La web publica en `/rvr/emergency_stop` (`swarm_lab_api/app/api/robots.py`); el driver escucha `is_emergency_stop` (`Atriz_rvr_node.py:1599`). **Nombres distintos — el botón de emergencia probablemente no hace nada.**
 
-**Verificar en banco antes que nada.** Unificar en `/<ns>/emergency_stop` (`std_msgs/Empty`), publicador con QoS *reliable* + *transient local*, y complementarlo con el watchdog de la Fase 2.4 (la parada por software nunca debe ser la única defensa).
+✅ **RESUELTO Y VERIFICADO** (2026-07-31 / 2026-08-01). El driver escucha **los tres** nombres
+a propósito —con un botón de emergencia el modo de fallo que importa es «el mensaje no llega»— y
+el oficial para la web es **`/emergency_stop`** (`std_msgs/Empty`).
+
+🔴 **QoS: RELIABLE + VOLATILE.** Este párrafo decía *transient local*, y eso **fue la tercera
+causa de fallo** de la parada: `TRANSIENT_LOCAL` en el suscriptor exige que el publicador
+también lo sea, **y rosbridge no lo es** → `incompatible QoS, no messages will be received`, en
+silencio. En un suscriptor se usa VOLATILE, que empareja con todo.
+
+✅ **Y cancela Nav2**, que era el cuarto fallo: el nodo `cancelar_nav2` manda `CANCEL_ALL`.
+Verificado con control — objetivo `CANCELED` y **0.0 cm** al liberar la parada; sin él, objetivo
+**ACTIVO** y el robot **arrancó solo 34.7 cm**.
+
+✅ **Y el watchdog de `cmd_vel` YA EXISTÍA**, incluso en ROS 1: `cmd_vel_timeout` = **0.3 s**.
+Este plan decía que no existía y estaba equivocado.
 
 ### 5.3 Sustituir SSH por rosbridge en la ruta crítica
 
@@ -403,13 +449,23 @@ Hoy cada lectura de telemetría es un `subprocess.Popen(["ssh", ...])` nuevo, y 
 
 | Capa | Responsabilidad |
 |---|---|
-| **roslibjs (navegador)** | Suscripción directa a `/odom`, `/scan`, `/battery`, `/map`; publicación de `/cmd_vel`. Tiempo real, sin pasar por FastAPI |
+| **roslibjs (navegador)** | Suscripción a `/odom`, `/scan`, `/battery_state`, `/map`, `/motor_status`; publicación en **`/cmd_vel_raw`**. Tiempo real, sin pasar por FastAPI |
 | **FastAPI** | Autenticación JWT, reserva de robots por usuario, registro y resultados de experimentos, catálogo de robots, logging |
-| **SSH** | Solo ciclo de vida (arrancar/parar el stack ROS), fuera de la ruta de petición, y con clave |
+| **SSH** | ✅ **Solo mantenimiento.** Ya no hace falta ni para el ciclo de vida: `atriz-robot.service` levanta el robot solo desde el 2026-07-31, verificado con un reinicio real |
 
 Cambios concretos:
-- `ros-jazzy-rosbridge-suite` en cada Pi, servicio systemd, puerto 9090.
-- Modelo `Robot` en BD: `host`, `rosbridge_port`, `domain_id`, `namespace`, `status`.
+- ✅ `ros-jazzy-rosbridge-suite` **ya instalado** y en `provision.sh`. ⚠️ **NO** lleva unidad
+  systemd propia: va dentro de `robot.launch.py` para heredar el `ROS_DOMAIN_ID`, que es
+  justo lo que systemd no sabe dar por sí solo. Puerto 9090, verificado desde un navegador.
+- 🔴 **Los topics de telemetría son BEST_EFFORT** (`odom`, `imu`, `scan`, `color`,
+  `ambient_light`, `encoders`). Un suscriptor con el perfil por defecto pide RELIABLE, **DDS no
+  empareja y no llega NADA** — sin error y sin aviso. Es el primer sitio donde mirar si «la web
+  no recibe odometría».
+- 🔴 **La web DEBE llamar a `/start_scan` al empezar cada sesión.** Los robots arrancan con el
+  barrido del lidar parado, y sin `/scan` el `collision_monitor` bloquea el movimiento: un robot
+  recién encendido no obedece y desde la web se ve igual que uno averiado.
+- Modelo `Robot` en BD: `host` (= `rvr-NN.local`, con IP como override), `rosbridge_port`,
+  `domain_id`, `status`. 🔴 **Sin columna `namespace`** — decisión cerrada, ver arriba.
 - Composable Vue `useRosConnection(robot)` con `roslib.js`; reconexión automática y **estado de conexión visible** — si el WebSocket cae, el usuario debe verlo y el robot debe pararse.
 - `RobotDashboard.vue` / `BatterySensorData.vue`: sustituir polling por suscripciones.
 - Retirar `VideoStream.vue` como stream del robot (no hay cámara); dejar la opción de cámaras fijas de sala si más adelante se añaden.
@@ -442,8 +498,8 @@ Entregables, todos dentro del repo `atriz_migracion` creado en la **Fase 00** y 
 | `02_manual/MANUAL_ATRIZ_ROS2.md` | **Sustituto del `MANUAL SPHERO.docx`.** Instalación completa desde SD en blanco hasta robot navegando: flasheo, `cmdline.txt`, `config.txt` con `disable-bt`, udev, ROS 2 Jazzy, workspace, LIDAR, rosbridge, systemd. Cada comando exacto y su verificación | Fases 1–5, incremental |
 | `03_operacion/RUNBOOK.md` | Operación diaria: arrancar/parar el stack, dónde miran los logs, qué hacer si el RVR no responde, si el LIDAR no aparece, si el WebSocket cae, si la batería se agota | Fases 2–5 |
 | `03_operacion/RECUPERACION.md` | Cómo restaurar `atriz_noetic_fallback.img`, dónde está guardada, cómo verificarla, y qué se pierde al revertir | Fase 0.3 |
-| `03_operacion/ARQUITECTURA.md` | El diagrama de la decisión DDS (un dominio por robot), el contrato de topics/servicios por namespace, y por qué la web habla por rosbridge y no por SSH | Fase 5 |
-| `03_operacion/FLOTA.md` | Clonado de la imagen dorada, fichero `robot_id`, tabla de los 16 robots (MAC, IP reservada, domain_id, namespace), procedimiento de alta de un robot nuevo | Fase 6 |
+| `03_operacion/ARQUITECTURA.md` | El diagrama de la decisión DDS (un dominio por robot), el contrato de topics/servicios **sin namespace**, con su QoS, y por qué la web habla por rosbridge y no por SSH | Fase 5 |
+| `03_operacion/FLOTA.md` | Clonado de la imagen dorada, `robot_id.txt` y `red.txt` en la partición FAT, tabla de los 16 robots (**IP estática desde la FAT**, no reserva DHCP; `domain_id`), procedimiento de alta de un robot nuevo | Fase 6 |
 
 **Reglas para que la documentación no se pudra** — la deuda documental encontrada en esta auditoría (ver sección siguiente) nació de no seguirlas:
 - Ningún documento describe algo que no se haya ejecutado y verificado. Si un paso no se ha probado, se marca explícitamente como **NO VERIFICADO**.
@@ -485,9 +541,13 @@ La documentación del repo describe un sistema que no existe, lo que hace perder
 
 Sobre un robot, con el sistema arrancado por systemd tras un reinicio limpio y **sin ninguna intervención manual**:
 
-1. `ros2 topic list` muestra el conjunto completo bajo `/rvr_01/`.
-2. `ros2 run tf2_tools view_frames` → un único árbol `map → odom → base_footprint → base_link → laser`.
-3. `ros2 topic hz /rvr_01/odom` ≈ 16.5 Hz (medido en Noetic; techo del firmware); `/rvr_01/scan` ≈ 10 Hz.
+1. `bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware` pasa **sin fallos**
+   (105 aserciones). Sustituye a la comprobación por `ros2 topic list`, que **conserva topics de
+   nodos muertos** y llegó a dar por vivo un robot apagado.
+2. `ros2 run tf2_ros tf2_echo odom base_footprint` resuelve — **el transform que pide el
+   consumidor**, no uno cualquiera.
+3. `medir_ritmo_ros2.py` da `/odom` ≈ 16.5 Hz y `/scan` 10.1–11.9 Hz. 🔴 **No con
+   `ros2 topic hz`**, que sobre estos topics da 0 Hz siempre (QoS).
 4. Desde el navegador: teleoperación fluida, telemetría en vivo, mapa construyéndose.
 5. Enviar destino de navegación desde la web → el robot llega evitando un obstáculo.
 6. **Prueba de fallo:** cortar el WiFi de la Pi → la UI marca desconexión y el robot se detiene en <500 ms.
