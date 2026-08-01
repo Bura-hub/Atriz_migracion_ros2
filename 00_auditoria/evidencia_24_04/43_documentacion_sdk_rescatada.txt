@@ -40,7 +40,7 @@ b) `get_temperature(id0=0, id1=1)` CONSULTO SENSORES QUE NO EXISTEN. El enum del
    27.76 / 28.61 °C igualmente, y esos numeros **se dieron por buenos porque
    parecian razonables**. Coincidian por casualidad con la temperatura de motores
    ya conocida (27.9 / 27.7).
-   → PENDIENTE: repetir con 4, 5 y 8. Y la leccion: **un valor plausible no es un
+   → ✅ HECHO, ver el final de este fichero: los IDs 4 y 5 son los motores. Y la leccion: **un valor plausible no es un
      valor validado**. Se acepto porque encajaba con lo esperado.
 
 ───────────────────────────────────────────────────────────────────────────────
@@ -271,3 +271,58 @@ robot no pudiera moverse, «no giro» no probaria nada sobre el firmware.
 El porcentaje decia **100 %** con la bateria a **8.29 V**, a 1.29 V del umbral de
 «baja». Con un robot da igual; con dieciseis, «cual se esta quedando sin carga»
 es una pregunta diaria, y el porcentaje no la responde.
+
+═══════════════════════════════════════════════════════════════════════════════
+LO QUE QUEDA DEL SDK, ORDENADO — al 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+Pregunta del usuario: «¿lo unico pendiente es el IR, porque hace falta otro
+robot?». **No.** El IR es lo unico que NECESITA un segundo robot, pero quedan
+cuatro cosas probables hoy — y una de ellas importa mas que el IR.
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 NECESITA UN SEGUNDO ROBOT
+───────────────────────────────────────────────────────────────────────────────
+· Todo el bloque IR robot-a-robot: `send_infrared_message`, broadcasting,
+  following, evading, y `get_bot_to_bot_infrared_readings` con datos de verdad.
+  Hoy responde 0xFFFFFFFF = los cuatro sensores vacios, que es lo correcto.
+  ⚠️ Y el arreglo de seguridad del 2026-08-01 —que `set_ir_evading` respete la
+     parada de emergencia— esta verificado por CODIGO (responde success=False)
+     pero **nunca con un robot emisor delante**. Eso solo se cierra con rvr-02.
+
+───────────────────────────────────────────────────────────────────────────────
+✅ PROBABLE HOY, POR ORDEN DE LO QUE APORTA
+───────────────────────────────────────────────────────────────────────────────
+1. 🔴 **`get_motor_temperature` — el mejor candidato que queda.**
+   Esta en el PROTOCOLO y **falta en nuestro SDK de Python**. Devuelve
+   `WindingCoilTemperature` y `CaseTemperature` **por separado**, y la doc dice
+   que se calcula «from motor current».
+   → La temperatura del BOBINADO reacciona antes que la de la carcasa, asi que
+     seria un proxy de atasco mas rapido que el que tenemos.
+   → Es la unica via que queda para la deteccion de atasco, que hoy esta
+     cerrada. Habria que añadir el comando al SDK: falta averiguar su `cid`.
+
+2. **`enable_color_detection_notify(intervalo, umbral_confianza)`.**
+   Podria cerrar DOS cosas de golpe: el `get_current_detected_color_reading` que
+   quedo INCONCLUSO, y —quiza— la confianza de `/color`, que es siempre 0. Nunca
+   se ha llamado a esta funcion, y es la que fija el umbral minimo.
+
+3. **`set_locator_flags`** (bit 0, «auto calibrate»). Toca DIRECTAMENTE el modelo
+   de marcos documentado en el cap. 10: «When set, the robot will maintain the
+   same X-Y axis from initial startup. When cleared, the robot will reset the
+   X-Y axis orientation when a driving yaw reset command is sent.»
+   Esta en el SDK y no se usa.
+
+4. **Replicar `reset_yaw`.** La documentacion oficial dice «Sets current yaw
+   angle to zero»; este proyecto MIDIO que no hace nada. Una de las dos esta mal
+   y no se ha vuelto a comprobar. ⚠️ Valor practico bajo: el driver ya lo rodea
+   restando el yaw del arranque.
+
+───────────────────────────────────────────────────────────────────────────────
+📝 SIN INTERES PARA ESTE PROYECTO
+───────────────────────────────────────────────────────────────────────────────
+· `force_battery_refresh` — falta en el SDK, y no hace falta: el voltaje se
+  refresca solo cada segundo y el keepalive sondea cada 30 s.
+· Banderas de conduccion `Boost`, `Fast Turn`, `Enable Drift` — no se necesitan:
+  Nav2 conduce por `cmd_vel` y las velocidades ya estan caracterizadas.
+· Modos de conduccion alternativos (`drive_tank`, `drive_with_heading`…) — se usa
+  `drive_rc_si_units` porque frena en 1.1 cm contra 11.3, medido.

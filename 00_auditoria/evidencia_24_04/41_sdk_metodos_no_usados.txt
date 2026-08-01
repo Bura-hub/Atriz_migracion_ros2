@@ -123,7 +123,8 @@ esten mal llamados: no estan.
      inexistentes, el firmware contesto igual, y el resultado se dio por bueno
      **porque parecia razonable** — coincidia por casualidad con la temperatura
      de motores ya conocida.
-     → PENDIENTE repetir con 4, 5 y 8. Y la leccion: **un valor plausible no es
+     → ✅ HECHO: con 4 y 5 salen 27.50/28.26 °C, que coinciden en 0.08 °C con
+       get_motor_thermal_protection_status. Los IDs 4 y 5 SON los motores. Y la leccion: **un valor plausible no es
        un valor validado.**
 
   get_stop_controller_state -> {'stopped': True}
