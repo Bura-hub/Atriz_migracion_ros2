@@ -46,14 +46,49 @@ magnético**. Es la referencia absoluta que le falta a la flota.
 """
 import argparse
 import asyncio
+import subprocess
 import statistics
 import sys
 
 from sphero_sdk import SpheroRvrAsync, SerialAsyncDal
 
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-rvr = SpheroRvrAsync(dal=SerialAsyncDal(loop))   # con el loop PARADO
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔴 EL PUERTO SERIE NO SE ABRE AL IMPORTAR — corregido el 2026-08-01
+#    Antes, `loop` y `rvr` se creaban a nivel de módulo, así que
+#    `python3 esta_herramienta.py --help` **abría /dev/rvr y hablaba con el
+#    robot** antes de imprimir la ayuda. Un `--flag` mal escrito, igual.
+#    Ahora se construyen en `_conectar()`, DESPUÉS de `parse_args()`.
+#
+#    ⚠️ Se sigue construyendo con el LOOP PARADO: el constructor de
+#       `SpheroRvrAsync` hace `run_until_complete()`, y hacerlo desde una
+#       corrutina falla con «This event loop is already running».
+# ═══════════════════════════════════════════════════════════════════════════
+loop = None
+rvr = None
+
+
+def _driver_corriendo() -> bool:
+    """🔴 pyserial NO pone TIOCEXCL: el `open()` tiene ÉXITO con el driver vivo,
+    y los dos se reparten los bytes del mismo TTY en silencio."""
+    try:
+        s = subprocess.run(['ps', '-eo', 'comm'], capture_output=True,
+                           text=True, timeout=5)
+        return 'rvr_driver_node' in s.stdout.split()
+    except Exception:                                       # noqa: BLE001
+        return True
+
+
+def _conectar() -> bool:
+    global loop, rvr
+    if _driver_corriendo():
+        print('🔴 El driver está corriendo y tiene ocupado /dev/rvr.')
+        print('   Párala primero:  sudo systemctl stop atriz-robot')
+        print('   Y al terminar:   sudo systemctl start atriz-robot')
+        return False
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    rvr = SpheroRvrAsync(dal=SerialAsyncDal(loop))
+    return True
 
 colores = []
 calibraciones = []
@@ -146,7 +181,11 @@ async def fase_b(vueltas: int, espera: float):
 
     for i in range(1, vueltas + 1):
         antes = len(calibraciones)
-        print(f'\n  Calibración {i}/{vueltas} — girando…')
+        print(f'\n  Calibración {i}/{vueltas}')
+        print('     🔴 EL ROBOT VA A GIRAR 360°. Despeja un círculo de ~40 cm.')
+        for _s in (5, 4, 3, 2, 1):
+            print(f'        empieza en {_s}…', flush=True)
+            await asyncio.sleep(1)
         try:
             await rvr.magnetometer_calibrate_to_north(timeout=10)
         except Exception as e:                              # noqa: BLE001
@@ -166,7 +205,14 @@ async def fase_b(vueltas: int, espera: float):
             return
         if i < vueltas:
             print('     ⚠️ GIRA EL ROBOT A MANO unos 90° y pulsa Enter…')
-            await loop.run_in_executor(None, input)
+            try:
+                await loop.run_in_executor(None, input)
+            except EOFError:
+                # Sin terminal interactivo (pipe, nohup) `input()` lanza EOFError
+                # y salía de main SIN drive_stop() ni close(), justo después de
+                # girar el robot. Auditoría 2026-08-01.
+                print('     (sin terminal interactivo: se continúa)')
+                await asyncio.sleep(2)
 
     vals = [c.get('yaw_north_direction') for c in calibraciones
             if c.get('yaw_north_direction') is not None]
@@ -208,9 +254,23 @@ if __name__ == '__main__':
     ap.add_argument('--vueltas', type=int, default=3)
     ap.add_argument('--espera', type=float, default=45.0)
     a = ap.parse_args()
+    if not _conectar():
+        sys.exit(1)
     try:
         sys.exit(loop.run_until_complete(main(a.calibrar, a.vueltas, a.espera)))
     except KeyboardInterrupt:
-        loop.run_until_complete(rvr.drive_stop())
-        loop.run_until_complete(rvr.close())
+        # 🔴 `enable_color_detection(False)` TAMBIÉN AQUÍ. El LED blanco de los
+        #    bajos no se apaga con `turn_leds_off()`: solo con esta llamada. Si
+        #    se interrumpe durante la fase A se quedaba encendido gastando
+        #    batería — y el propio CLAUDE.md avisa de que cada `(True)` necesita
+        #    su `(False)` «también en el camino de error». Auditoría 2026-08-01.
+        print('\n  Ctrl-C — dejando el robot limpio…')
+        for corr, etq in ((rvr.enable_color_detection(is_enabled=False), 'LED de color'),
+                          (rvr.drive_stop(), 'motores'),
+                          (rvr.close(), 'conexión')):
+            try:
+                loop.run_until_complete(corr)
+                print(f'     ✅ {etq}')
+            except Exception as e:                          # noqa: BLE001
+                print(f'     ⚠️ {etq}: {e}')
         sys.exit(1)

@@ -5,8 +5,12 @@
     python3 probar_sdk_no_usados.py
     sudo systemctl start atriz-robot         # devolver el robot a su estado
 
-⚠️ DESPIERTA EL ROBOT y consulta al RVR. **No lo mueve y no enciende LEDs.**
-   Todas las llamadas son de lectura.
+⚠️ DESPIERTA EL ROBOT y consulta al RVR. **No lo mueve.**
+
+🔴 Pero **despertarlo SÍ enciende sus LEDs** —lo dice el propio CLAUDE.md— y
+   gasta batería. La cabecera afirmaba «no enciende LEDs», y era falso: hay un
+   `wake()` en la línea de arranque. Corregido en auditoría el 2026-08-01.
+   Salvo ese `wake()`, todas las llamadas son de lectura.
 
 ═══════════════════════════════════════════════════════════════════════════════
 POR QUÉ EXISTE
@@ -45,6 +49,7 @@ LOS TRES QUE PODRÍAN CAMBIAR ALGO
 """
 import argparse
 import asyncio
+import subprocess
 import sys
 import time
 
@@ -53,12 +58,43 @@ from sphero_sdk.common.enums.power_enums import (AmplifierIdsEnum,
                                                  BatteryVoltageReadingTypesEnum,
                                                  BatteryVoltageStatesEnum)
 
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-# 🔴 Construir SpheroRvrAsync desde DENTRO de una corrutina falla con
-#    «This event loop is already running»: su constructor hace
-#    run_until_complete(). Se construye con el loop PARADO. Ha mordido dos veces.
-rvr = SpheroRvrAsync(dal=SerialAsyncDal(loop))
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔴 EL PUERTO SERIE NO SE ABRE AL IMPORTAR — corregido el 2026-08-01
+#    Antes, `loop` y `rvr` se creaban a nivel de módulo, así que
+#    `python3 esta_herramienta.py --help` **abría /dev/rvr y hablaba con el
+#    robot** antes de imprimir la ayuda. Un `--flag` mal escrito, igual.
+#    Ahora se construyen en `_conectar()`, DESPUÉS de `parse_args()`.
+#
+#    ⚠️ Se sigue construyendo con el LOOP PARADO: el constructor de
+#       `SpheroRvrAsync` hace `run_until_complete()`, y hacerlo desde una
+#       corrutina falla con «This event loop is already running».
+# ═══════════════════════════════════════════════════════════════════════════
+loop = None
+rvr = None
+
+
+def _driver_corriendo() -> bool:
+    """🔴 pyserial NO pone TIOCEXCL: el `open()` tiene ÉXITO con el driver vivo,
+    y los dos se reparten los bytes del mismo TTY en silencio."""
+    try:
+        s = subprocess.run(['ps', '-eo', 'comm'], capture_output=True,
+                           text=True, timeout=5)
+        return 'rvr_driver_node' in s.stdout.split()
+    except Exception:                                       # noqa: BLE001
+        return True
+
+
+def _conectar() -> bool:
+    global loop, rvr
+    if _driver_corriendo():
+        print('🔴 El driver está corriendo y tiene ocupado /dev/rvr.')
+        print('   Párala primero:  sudo systemctl stop atriz-robot')
+        print('   Y al terminar:   sudo systemctl start atriz-robot')
+        return False
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    rvr = SpheroRvrAsync(dal=SerialAsyncDal(loop))
+    return True
 
 #: (etiqueta, corrutina, para qué serviría). El orden es de utilidad esperada.
 def pruebas():
@@ -183,6 +219,8 @@ if __name__ == '__main__':
     ap.add_argument('--repite', type=int, default=2,
                     help='lecturas por método (2 para ver si el valor varía)')
     a = ap.parse_args()
+    if not _conectar():
+        sys.exit(1)
     try:
         sys.exit(loop.run_until_complete(main(a.repite)))
     except KeyboardInterrupt:

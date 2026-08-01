@@ -82,14 +82,49 @@ Del foro oficial (`community.sphero.com/t/…/2682`, vía archive.org), respuest
 """
 import argparse
 import asyncio
+import subprocess
 import sys
 
 from sphero_sdk import SpheroRvrAsync, SerialAsyncDal
 
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-# 🔴 Con el loop PARADO: su constructor hace run_until_complete().
-rvr = SpheroRvrAsync(dal=SerialAsyncDal(loop))
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔴 EL PUERTO SERIE NO SE ABRE AL IMPORTAR — corregido el 2026-08-01
+#    Antes, `loop` y `rvr` se creaban a nivel de módulo, así que `--help` abría
+#    /dev/rvr y hablaba con el robot. Y peor: **no se comprobaba que el driver
+#    estuviera parado**. Eso ocurrió de verdad durante la propia auditoría: esta
+#    herramienta le robó el puerto al driver y lo dejó reintentando «el RVR
+#    lleva 4.0 s sin enviar telemetría» doce veces seguidas.
+#
+#    ⚠️ Se sigue construyendo con el LOOP PARADO: el constructor de
+#       `SpheroRvrAsync` hace `run_until_complete()`, y hacerlo desde una
+#       corrutina falla con «This event loop is already running».
+# ═══════════════════════════════════════════════════════════════════════════
+loop = None
+rvr = None
+
+
+def _driver_corriendo() -> bool:
+    """🔴 pyserial NO pone TIOCEXCL: el `open()` tiene ÉXITO con el driver vivo,
+    y los dos se reparten los bytes del mismo TTY en silencio."""
+    try:
+        s = subprocess.run(['ps', '-eo', 'comm'], capture_output=True,
+                           text=True, timeout=5)
+        return 'rvr_driver_node' in s.stdout.split()
+    except Exception:                                       # noqa: BLE001
+        return True
+
+
+def _conectar() -> bool:
+    global loop, rvr
+    if _driver_corriendo():
+        print('🔴 El driver está corriendo y tiene ocupado /dev/rvr.')
+        print('   Párala primero:  sudo systemctl stop atriz-robot')
+        print('   Y al terminar:   sudo systemctl start atriz-robot')
+        return False
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    rvr = SpheroRvrAsync(dal=SerialAsyncDal(loop))
+    return True
 
 resultado = {}
 
@@ -143,6 +178,12 @@ async def main(calibrar: bool, espera: float) -> int:
     except Exception as e:                                  # noqa: BLE001
         print(f'     🔴 no se pudo registrar la notificación: {e}')
 
+    # 🔴 La cabecera prometía «este script pide espacio antes» y NO lo pedía:
+    #    mandaba el giro en la misma línea. Encontrado en auditoría 2026-08-01.
+        print('     🔴 EL ROBOT VA A GIRAR 360°. Despeja un círculo de ~40 cm.')
+        for _s in (5, 4, 3, 2, 1):
+            print(f'        empieza en {_s}…', flush=True)
+            await asyncio.sleep(1)
     try:
         await rvr.magnetometer_calibrate_to_north(timeout=8)
         print('     · comando aceptado, esperando el resultado…')
@@ -193,12 +234,18 @@ if __name__ == '__main__':
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--calibrar', action='store_true',
                     help='⚠️ ejecuta la calibración: PUEDE GIRAR EL ROBOT')
+    # 🔴 `--seguro` NO se leía en ninguna parte: con `--seguro --calibrar` el
+    #    robot giraba igual. Una bandera de seguridad inerte es peor que no
+    #    tenerla. Ahora GANA sobre `--calibrar`.
     ap.add_argument('--seguro', action='store_true',
-                    help='solo consultas (es el comportamiento por defecto)')
+                    help='fuerza solo consultas AUNQUE se pase --calibrar')
     ap.add_argument('--espera', type=float, default=45.0)
     a = ap.parse_args()
+    if not _conectar():
+        sys.exit(1)
     try:
-        sys.exit(loop.run_until_complete(main(a.calibrar, a.espera)))
+        sys.exit(loop.run_until_complete(
+            main(a.calibrar and not a.seguro, a.espera)))
     except KeyboardInterrupt:
         loop.run_until_complete(rvr.drive_stop())
         loop.run_until_complete(rvr.close())

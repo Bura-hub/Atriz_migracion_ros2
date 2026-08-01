@@ -30,7 +30,10 @@ La salida no fue leer nada nuevo, sino usar lo que ya se publicaba: **se le orde
 moverse y los encoders no avanzan**. Los falsos positivos ya están verificados
 (en reposo y moviéndose libre no salta). Falta el positivo verdadero, que es esto.
 """
+import argparse
+import subprocess
 import time
+
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor
@@ -39,7 +42,30 @@ from atriz_rvr_msgs.msg import MotorStatus
 from atriz_rvr_msgs.srv import MoveTimed
 
 
+def _driver_corriendo() -> bool:
+    """🔴 Sin esto, dos procesos se pelean por `/dev/rvr` en silencio."""
+    try:
+        s = subprocess.run(['ps', '-eo', 'comm'], capture_output=True, text=True, timeout=5)
+        return 'rvr_driver_node' in s.stdout.split()
+    except Exception:                                       # noqa: BLE001
+        return True          # ante la duda, se asume que sí
+
+
 def main() -> int:
+    # 🔴 `argparse` LO PRIMERO. Sin él, `python3 probar_atasco.py --help` —lo que
+    #    teclea cualquiera para leer los avisos— **movía el robot**. Encontrado
+    #    en auditoría el 2026-08-01.
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('--vel', type=float, default=0.08, help='m/s comandados')
+    ap.add_argument('--seg', type=float, default=6.0, help='duración del empuje')
+    ap.parse_args()
+
+    if not _driver_corriendo():
+        print('🔴 el driver no está corriendo. Esta prueba lo necesita:')
+        print('   sudo systemctl start atriz-robot')
+        return 1
+
     rclpy.init()
     n = Node('probar_atasco')
     ms = []
@@ -69,11 +95,19 @@ def main() -> int:
 
     t0 = time.monotonic()
     visto = None
+    # 🔴 ACUMULADOR, no «último estado visto». El firmware emite «atasco
+    #    resuelto» en cuanto termina el empuje, así que `visto` volvía a
+    #    (False, False) y la herramienta imprimía «NO detectó atasco»
+    #    **habiéndolo detectado**. Es justo el falso negativo que esta prueba
+    #    existe para descartar. Encontrado en auditoría el 2026-08-01.
+    hubo = [False, False]
     while time.monotonic() - t0 < 9.0:
         ex.spin_once(timeout_sec=0.05)
         if ms:
             m = ms[-1]
             estado = (m.atascado_izquierdo, m.atascado_derecho)
+            hubo[0] = hubo[0] or estado[0]
+            hubo[1] = hubo[1] or estado[1]
             if estado != visto:
                 visto = estado
                 print(f'     t={time.monotonic()-t0:4.1f}s  izq={m.atascado_izquierdo}'
@@ -83,9 +117,9 @@ def main() -> int:
             break
 
     print('\n' + '═' * 74)
-    if visto and (visto[0] or visto[1]):
-        cual = ('izquierda' if visto[0] and not visto[1] else
-                'derecha' if visto[1] and not visto[0] else 'LAS DOS')
+    if hubo[0] or hubo[1]:
+        cual = ('izquierda' if hubo[0] and not hubo[1] else
+                'derecha' if hubo[1] and not hubo[0] else 'LAS DOS')
         print(f'  ✅ ATASCO DETECTADO — oruga: {cual}')
         print('     El hueco que se dio por imposible queda CERRADO.')
     else:
@@ -99,6 +133,7 @@ def main() -> int:
         print('     📝 Y si NO intentó moverse siquiera, mira el log:')
         print('        journalctl -u atriz-robot -n 40 | grep -i collision')
     print('═' * 74)
+    n.destroy_node()
     rclpy.shutdown()
     return 0
 

@@ -170,6 +170,21 @@ function conectar() {
   };
 }
 
+// 🔴 APAGAR LOS FAROS ANTES DE IRSE. Hasta el 2026-08-01 esta página los dejaba
+//    ENCENDIDOS: `onclose` deshabilitaba el botón «Apagar» y el botón
+//    «Conectar» cerraba el WebSocket, así que quedaban verdes y sin forma de
+//    apagarlos desde aquí. Gasta batería y deja el robot sucio, que es justo lo
+//    que este proyecto pide no hacer. Encontrado en auditoría.
+function apagarYCerrar() {
+  if (ws && ws.readyState === 1) {
+    try { led(0, 0, 0); } catch (e) { /* da igual: nos vamos */ }
+    // Un respiro para que el frame salga antes de cerrar el socket.
+    setTimeout(() => { try { ws.close(); } catch (e) {} }, 150);
+  } else if (ws) {
+    ws.close();
+  }
+}
+
 // `led_id` es el ÍNDICE en la tabla LEDS del driver: 0 y 1 son los faros.
 const led = (r, g, b) => {
   for (const id of [0, 1]) {
@@ -179,7 +194,9 @@ const led = (r, g, b) => {
   log(`  set_led_rgb(${r},${g},${b}) enviado a los faros`);
 };
 
-$('btn').onclick = () => (ws && ws.readyState === 1) ? ws.close() : conectar();
+$('btn').onclick = () => (ws && ws.readyState === 1) ? apagarYCerrar() : conectar();
+// Y si cierras la pestaña o recargas, igual.
+window.addEventListener('beforeunload', apagarYCerrar);
 $('led').onclick = () => led(0, 255, 0);
 $('apagar').onclick = () => led(0, 0, 0);
 setInterval(pintar, 500);

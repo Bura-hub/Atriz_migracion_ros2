@@ -5,7 +5,12 @@
     python3 probar_notif_fallo_termica.py --ciclos 6
 
 ⚠️ EL ROBOT EMPUJA CONTRA TU BLOQUEO Y LOS MOTORES SE CALIENTAN A PROPÓSITO.
-   Ctrl-C lo para en cualquier momento.
+
+🔴 **Ctrl-C publica la PARADA DE EMERGENCIA**, que es lo único que corta un
+   `move_timed` en marcha. Hasta el 2026-08-01 esta cabecera decía «Ctrl-C lo
+   para en cualquier momento» y **era falso**: el movimiento lo ejecuta el
+   servidor en su propio bucle, así que el robot seguía empujando hasta 10 s más
+   con el usuario sujetándolo. Encontrado en auditoría.
 
 ═══════════════════════════════════════════════════════════════════════════════
 POR QUÉ HAY QUE REPETIRLAS
@@ -33,8 +38,14 @@ CÓMO SE PROVOCAN
   algo, y no se va a intentar. Lo que se comprueba es si **aparece sola** bajo
   carga extrema, que es cuando tendría sentido.
 
-🔴 SEGURIDAD: se aborta si la temperatura pasa de 65 °C. La protección térmica
-   del propio RVR limita la potencia antes, que es lo que se está midiendo.
+🔴 SEGURIDAD: se aborta a los **55 °C**, no a 65.
+
+   ⚠️ Y el margen es a propósito: la temperatura de `/motor_status` **se sondea
+      cada 30 s**, así que el valor que lee esta prueba puede tener medio minuto
+      de retraso. A los ~6.5 °C/min medidos, eso son **~3 °C de sobrepaso** antes
+      de que el corte se entere. Con el tope en 65 el corte real llegaba cerca de
+      70. La herramienta ahora **mira `antiguedad_termico_s`** y avisa si el dato
+      está viejo.
 """
 import argparse
 import time
@@ -45,7 +56,11 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy
 from atriz_rvr_msgs.msg import MotorStatus
 from atriz_rvr_msgs.srv import MoveTimed
 
-TOPE_C = 65.0
+#: 🔴 55 y no 65: el dato llega con hasta 30 s de retraso (sondeo del driver) y
+#: los motores suben ~6.5 °C/min, así que el sobrepaso real ronda los 3 °C.
+TOPE_C = 55.0
+#: Si el dato de temperatura es más viejo que esto, no sirve para cortar.
+EDAD_MAX_S = 45.0
 ESTADOS = {0: 'ok', 1: 'WARN', 2: 'CRITICAL'}
 
 
@@ -115,8 +130,14 @@ def main() -> int:
             print('\n  ✅ NOTIFICACIÓN DE FALLO recibida.')
             break
         pico = max(m.temperatura_izquierdo, m.temperatura_derecho)
+        edad = m.antiguedad_termico_s
+        if edad < 0 or edad > EDAD_MAX_S:
+            print(f'\n  ⚠️ ABORTADO: el dato de temperatura tiene {edad:.0f} s '
+                  f'(máx {EDAD_MAX_S:.0f}). Sin dato fresco no hay corte fiable.')
+            break
         if pico > TOPE_C:
-            print(f'\n  ⚠️ ABORTADO: {pico:.1f} °C supera el tope de seguridad.')
+            print(f'\n  ⚠️ ABORTADO: {pico:.1f} °C supera el tope de {TOPE_C:.0f} °C '
+                  f'(dato de hace {edad:.0f} s).')
             break
 
     print('\n' + '═' * 74)
@@ -139,4 +160,37 @@ if __name__ == '__main__':
     try:
         raise SystemExit(main())
     except KeyboardInterrupt:
-        print('\n  abortado por el usuario')
+        # 🔴 El `move_timed` corre en el SERVIDOR y no se entera de este Ctrl-C.
+        #    Lo único que lo corta es la parada de emergencia.
+        print('\n  🔴 Ctrl-C — publicando PARADA DE EMERGENCIA para cortar el empuje…')
+        try:
+            import rclpy as _r
+            from rclpy.node import Node as _N
+            from rclpy.qos import (QoSProfile as _Q, ReliabilityPolicy as _R,
+                                   DurabilityPolicy as _D)
+            from std_msgs.msg import Empty as _E
+            from std_srvs.srv import Empty as _ES
+            if not _r.ok():
+                _r.init()
+            n2 = _N('abortar_atasco')
+            q = _Q(depth=10, reliability=_R.RELIABLE, durability=_D.VOLATILE)
+            pub = n2.create_publisher(_E, 'emergency_stop', q)
+            for _ in range(5):
+                pub.publish(_E())
+                _r.spin_once(n2, timeout_sec=0.1)
+            print('     ✅ parada publicada. Liberándola…')
+            cli = n2.create_client(_ES, 'release_emergency_stop')
+            if cli.wait_for_service(timeout_sec=5.0):
+                f = cli.call_async(_ES.Request())
+                _r.spin_until_future_complete(n2, f, timeout_sec=5.0)
+                print('     ✅ liberada. El robot vuelve a obedecer.')
+            else:
+                print('     ⚠️ no respondió /release_emergency_stop.')
+                print('        Libérala tú: ros2 service call /release_emergency_stop '
+                      'std_srvs/srv/Empty')
+            n2.destroy_node()
+            _r.shutdown()
+        except Exception as e:                              # noqa: BLE001
+            print(f'     🔴 no se pudo publicar la parada: {e}')
+            print('        HAZLO A MANO: ros2 topic pub --once /emergency_stop '
+                  'std_msgs/msg/Empty "{}"')
