@@ -301,7 +301,13 @@ Añadir regla udev `/dev/ydlidar` por serial del adaptador USB — **imprescindi
 
 ---
 
-## Fase 4 — SLAM ✅ COMPLETADA (2026-07-31) · Nav2 ⏳ pendiente
+## Fase 4 — SLAM ✅ COMPLETADA · Nav2 ✅ COMPLETADO · AMCL ✅ COMPLETADO (2026-07-31)
+
+> 🔴 **Esta cabecera decía «Nav2 ⏳ pendiente» hasta el 2026-08-01**, cuando Nav2 llevaba desde
+> el 31 de julio navegando con **9–10 cm** de error final, rodeando obstáculos **4 de 4**, y con
+> AMCL siguiendo la pose a **0.1 cm**. Es el mismo fallo que el índice del manual: **los
+> documentos de ESTADO se quedan atrás mientras las evidencias están al día.**
+> → Al cerrar algo, actualiza el plan y `TRASPASO.md` **en el mismo commit** que la evidencia.
 
 ### 4a. SLAM — ✅ hecho y verificado
 
