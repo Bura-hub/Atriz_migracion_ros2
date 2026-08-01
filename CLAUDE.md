@@ -603,9 +603,21 @@ innecesario**, y retirado—. Evidencia 44.
 ✅ **Bonus, y lo vio el usuario mirando el robot:** durante el atasco **el RVR enciende LEDs
 amarillos y rojos** por su cuenta. El driver no los toca. Es diagnóstico sin abrir un terminal.
 
-⚠️ **Lo que sigue sin verificar:** `enable_motor_fault_notify` y la notificación térmica se
-probaron **igual de mal** (con `raw_motors`), así que su resultado también es dudoso. El sondeo
-cada 30 s ya las cubre, así que no urge — pero no se dan por buenas.
+⚠️ **`enable_motor_fault_notify` y la térmica: repetidas por el camino bueno y quedan NO
+VERIFICADAS.** 10 ciclos de bloqueo real subieron los motores de 28.7 a **40.0 °C** y no saltó
+ninguna. Pero **eso no prueba nada**: la protección térmica no actúa a 40 °C, y el tope de
+seguridad de la prueba estaba en 65 — **el ensayo nunca pudo dispararla**. Llegar a 70-80 °C
+exigiría ~5 min más de bloqueo continuo. 📝 **No se persigue**: el sondeo cada 30 s ya da la
+temperatura **y** el estado térmico, así que saber si además llega la *notificación* aporta muy
+poco, y el coste es estrés real sobre la única unidad montada. El fallo eléctrico no se puede
+provocar sin romper algo.
+
+✅ **Y de esa prueba salieron dos datos que sí valen:**
+- **Un motor bloqueado se calienta a ~6.5 °C/min.** La temperatura sirve de **corroboración** de
+  atasco: si `/motor_status` marca atasco *y* la temperatura sube, no hay duda.
+- 🔴 **La temperatura publicada puede tener 30 s de retraso** — solo cambia cuando corre el
+  sondeo. **La web no debe leer una temperatura plana como «estable»**: puede ser el mismo dato
+  repetido. Para eso está `antiguedad_termico_s`.
 
 ---
 
@@ -937,6 +949,7 @@ probar_rosbridge.py          # cliente WebSocket propio: ¿llega la web? y CUÁN
 probar_mdns.py               # ¿responde un robot a su nombre .local? · --flota 16
 probar_magnetometro.py       # ¿hay rumbo absoluto? · --calibrar ⚠️ GIRA EL ROBOT 360°
 probar_atasco.py             # ⚠️ MUEVE EL ROBOT y TÚ LO BLOQUEAS: ¿detecta un atasco?
+probar_notif_fallo_termica.py # ⚠️ CALIENTA LOS MOTORES a propósito · quedó NO VERIFICADA
 probar_sdk_tanda2.py         # temperaturas con los IDs buenos, color async, batería
 #                              --calibrar ⚠️ GIRA EL ROBOT 360° tres veces
 probar_sdk_no_usados.py      # los métodos del SDK que el driver NO usa: ¿cuáles responden?
@@ -992,7 +1005,7 @@ de verdad. Dos consecuencias que cambian el día a día:
 | `/map` | **0.200 Hz** exactos (= `map_update_interval` 5 s) | 2026-07-30 |
 | **Timeout de inactividad del RVR** | **300.6 s = 5.01 min** (dos medidas idénticas) | 2026-07-31 |
 | `/battery_state` | cada **30.0 s** exactos — es el latido del keepalive | 2026-07-31 |
-| `/motor_status` | cada **30 s** (mismo latido) · temperatura de motores **27.5 / 28.3 °C** en reposo · ✅ **el atasco SÍ se detecta**, por notificación del firmware, y dice **qué oruga** | 2026-08-01 |
+| `/motor_status` | cada **30 s** · temperatura en reposo **27.5 / 28.3 °C** · ✅ **el atasco SÍ se detecta** y dice **qué oruga** · bloqueado sube a **~6.5 °C/min** | 2026-08-01 |
 | `/encoders` | **16.57 Hz** · ticks con signo (7792 ticks/m) | 2026-08-01 |
 | `/ambient_light` | **13.06 Hz** · ~1.8 con los LEDs apagados, **23.55 con todos encendidos** (13.3×) | 2026-08-01 |
 | **Batería** | ✅ **`/battery_state` publica `voltage`** desde el 2026-08-01: **8.28 V** al «100 %» · umbrales del firmware **7.0 / 6.5 V**, histéresis 0.2 | 2026-08-01, evidencia 43 |

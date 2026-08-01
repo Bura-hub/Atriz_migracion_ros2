@@ -89,3 +89,56 @@ LO QUE QUEDA CIERTO DE LA EVIDENCIA 35
 
 ✅ Y sigue siendo cierto que el SDK **no tiene** `get_motor_stall_state`: la via
    es la notificacion, no la consulta. Solo que la notificacion SI funciona.
+
+═══════════════════════════════════════════════════════════════════════════════
+REPETICION DE FALLO Y TERMICA POR EL CAMINO BUENO — 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+Se repitieron con `move_timed` -> `drive_rc_si_units`, robot bloqueado a mano,
+10 ciclos de 10 s a 0.20 m/s comandados.
+
+  ciclo   izq °C  der °C   termico  fallo
+      1     28.8    28.9     ok/ok  False
+      3     31.0    31.3     ok/ok  False
+      6     33.3    33.8     ok/ok  False
+      8     36.4    36.6     ok/ok  False
+     10     39.6    40.0     ok/ok  False
+
+  subida: **+10.8 °C en ~100 s de bloqueo**  ->  ~6.5 °C/min
+
+⚠️ RESULTADO: INCONCLUSO, y el fallo es del diseño de la prueba.
+
+🔴 SE LLEGO A 40 °C. La proteccion termica de un motor no salta ahi ni de lejos.
+   Y el tope de seguridad del script estaba en **65 °C**, asi que **este ensayo
+   NUNCA PUDO disparar el aviso**: estaba mal calibrado de origen.
+
+   → Para alcanzar un umbral plausible (70-80 °C) harian falta ~5 minutos MAS de
+     bloqueo continuo a ese ritmo.
+
+📝 NO SE VA A PERSEGUIR, y el argumento es de coste-beneficio, no de pereza:
+   · el sondeo cada 30 s **ya da la temperatura Y el estado termico**, asi que
+     saber si ademas llega la NOTIFICACION aporta muy poco;
+   · el coste es estres real sobre los motores de la **unica unidad montada**;
+   · y exige que una persona sujete el robot cinco minutos.
+   → Se anota como **NO VERIFICADO** y se deja. Lo que importa —el dato— llega.
+
+🔴 EL FALLO ELECTRICO NO SE PUEDE PROVOCAR sin romper algo. Solo se comprobo que
+   no aparece solo bajo carga extrema, que era lo unico razonable. Tambien queda
+   **NO VERIFICADO**.
+
+───────────────────────────────────────────────────────────────────────────────
+✅ LO QUE SI SE MIDIO, Y VALE POR SI SOLO
+───────────────────────────────────────────────────────────────────────────────
+1. **Un motor bloqueado se calienta a ~6.5 °C/min.** Es la primera vez que este
+   proyecto tiene ese numero. Confirma que la temperatura ES un proxy utilizable
+   de atasco, aunque lento: en un minuto de bloqueo sube ~6 °C, que es
+   inconfundible frente al ruido en reposo.
+   ⚠️ Ya no hace falta como detector —la notificacion del firmware es inmediata y
+      dice que oruga— pero sirve de **corroboracion**: si `/motor_status` marca
+      atasco Y la temperatura sube, no hay duda.
+
+2. 🔴 **LA TEMPERATURA QUE PUBLICA `/motor_status` PUEDE TENER 30 s DE RETRASO.**
+   Se ve en las mesetas de la tabla: 31.0, 31.0, 31.0 y luego un salto. El valor
+   solo cambia cuando corre el sondeo, que va cada 30 s con el keepalive.
+   → **La web no debe interpretar una temperatura plana como «estable»**: puede
+     ser simplemente el mismo dato repetido. Para eso esta
+     `antiguedad_termico_s`, que ya se publica.
