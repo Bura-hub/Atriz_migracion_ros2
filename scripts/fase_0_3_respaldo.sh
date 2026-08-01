@@ -29,8 +29,31 @@ mkdir -p "$DEST"
 say "1/5 · ¿Queda trabajo sin subir a GitHub?"
 
 PROBLEMAS=0
-for repo in "$HOME/atriz_git/src/Atriz_rvr" "$HOME/atriz_migracion"; do
-    [[ -d "$repo/.git" ]] || continue
+# 🔴 EL `|| continue` SILENCIOSO FUE UN FALLO REAL, encontrado el 2026-08-01.
+#    Este bucle miraba `~/atriz_git/src/Atriz_rvr`, que es la ruta del sistema
+#    VIEJO (20.04). En 24.04 el repo del robot vive en `~/atriz_ws/src/Atriz_rvr`,
+#    así que la ruta no existía, el `continue` la saltaba **sin decir nada**, y el
+#    script terminaba con «✓ Todo el trabajo está en GitHub» **habiendo mirado un
+#    solo repositorio de los dos**.
+#
+#    Es el peor fallo posible en ESTE script: existe para que no se pierda trabajo
+#    al reflashear, y daba el visto bueno sin comprobar el repositorio del código
+#    del robot. Este proyecto YA perdió tiempo una vez por un stash.
+#
+# → Ahora se buscan las dos ubicaciones posibles, y **la ausencia se avisa**.
+REPOS=()
+for cand in "$HOME/atriz_ws/src/Atriz_rvr" "$HOME/atriz_git/src/Atriz_rvr" \
+            "$HOME/atriz_migracion"; do
+    [[ -d "$cand/.git" ]] && REPOS+=("$cand")
+done
+if [[ ${#REPOS[@]} -lt 2 ]]; then
+    printf '  %s! solo se encontró %d repositorio(s) git: %s%s\n' \
+           "${AMAR:-}" "${#REPOS[@]}" "${REPOS[*]:-ninguno}" "${FIN:-}"
+    printf '    Se esperaban DOS (el código del robot y la documentación).\n'
+    printf '    🔴 NO REFLASHEES hasta saber por qué falta uno.\n'
+    PROBLEMAS=$((PROBLEMAS+1))
+fi
+for repo in "${REPOS[@]}"; do
     nombre=$(basename "$repo")
     sucio=$(git -C "$repo" status --porcelain | grep -v '^??' || true)
     rama=$(git -C "$repo" rev-parse --abbrev-ref HEAD)
