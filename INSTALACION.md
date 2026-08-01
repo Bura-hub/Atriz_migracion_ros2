@@ -144,7 +144,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 
      F30 Lo que queda                                                          ⏳ SIGUIENTE
          1. La plataforma web                 plan, Fase 5                ← AQUÍ
-         2. Añadir systemd a provision.sh     al cerrar el robot de referencia
+         2. ✅ systemd en provision.sh        HECHO 2026-08-01 (paso 8/9)
          3. Recibir IR (`infrared_messages`)  el último hueco del SDK
          4. Confirmar los 0 fallos de SLAM con otra tanda (p=0.113)
          5. Un obstáculo que aparezca DURANTE la navegación

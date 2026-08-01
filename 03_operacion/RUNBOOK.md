@@ -359,7 +359,12 @@ No todos los adaptadores la exponen. **El adaptador es el primer sospechoso, no 
 que da igual cuál uses:
 
 ```bash
-ros2 topic pub --once /rvr/emergency_stop std_msgs/msg/Empty "{}"   # el que usa la web
+# ✅ EL OFICIAL desde el 2026-08-01, y es donde debe publicar la web:
+ros2 topic pub --once /emergency_stop std_msgs/msg/Empty "{}" \
+  --qos-reliability reliable --qos-durability volatile
+# 📝 El driver escucha además /is_emergency_stop y /rvr/emergency_stop (la web
+#    heredada usaba este último). Los tres a propósito: con un botón de
+#    emergencia el modo de fallo que importa es que el mensaje NO llegue.
 ros2 topic pub --once /emergency_stop     std_msgs/msg/Empty "{}"
 ```
 

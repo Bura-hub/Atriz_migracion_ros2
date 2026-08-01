@@ -21,7 +21,7 @@ reconstruir el sistema si algo sale mal.
 | | |
 |---|---|
 | **Fase actual** | **Etapas A–E1 y Fases 2, 3, 4 y 4c completadas, más Nav2 y el arranque automático** (2026-07-31). El robot **navega** con Nav2 (error 8–10 cm), se **localiza** con AMCL sobre un mapa guardado, tiene capa de seguridad (`collision_monitor`), 18 servicios en el driver y **se levanta solo al encender** |
-| **Siguiente paso** | **La plataforma web (Fase 5)**, que es lo único grande que queda. Antes, dos cosas pequeñas: añadir systemd a `provision.sh` y confirmar el resultado de deriva de SLAM con otra tanda (p=0.113) |
+| **Siguiente paso** | **Migrar el robot 2 con `provision.sh`** — levanta la única suposición peligrosa que queda (el script nunca se ha ejecutado entero), da el segundo robot para probar el IR, y valida la imagen dorada antes de replicarla catorce veces. Después, **la plataforma web (Fase 5)**, que es lo único grande que falta |
 | **Sistema hoy** | Raspberry Pi 4B 8 GB · **Ubuntu Server 24.04.4 LTS** · Python 3.12.3 · `rvr-01` · arranque en **22.1 s** (5.5 kernel + 16.6 userspace) · Sphero RVR por `/dev/rvr` (PL011) · YDLIDAR X2 en `/dev/ydlidar` · **ROS 2 Jazzy** (`ros-base` + `navigation2`) · driver, URDF, LIDAR, SLAM, Nav2, AMCL y `atriz-robot.service` funcionando |
 | ⚠️ **Al arrancar NO conduce** | A propósito: el barrido del lidar arranca **apagado** y sin `/scan` el `collision_monitor` bloquea el movimiento. Se despierta con `atriz-escaneo on`. Ver [RUNBOOK](03_operacion/RUNBOOK.md) |
 | **Sistema objetivo** | Ubuntu Server 24.04 LTS · ROS 2 Jazzy (soporte hasta mayo 2029) · rosbridge · SLAM + Nav2 · 16 robots |

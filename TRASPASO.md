@@ -127,7 +127,7 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 | ~~La parada de emergencia de la web no hace nada~~ | seguridad | ✅ **resuelta 2026-07-31**. Había **tres** causas, no una: nombre, **namespace** (`/rvr/`) y **QoS** (`TRANSIENT_LOCAL` en el suscriptor no empareja con nadie). Verificada por los tres nombres, 0 avisos de QoS. Manual, cap. 15 |
 | **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — **acción del usuario**. Y no basta con rotarla: hay que quitarla del **historial** de git, no solo del último commit |
 | ~~Sin arranque automático~~ | operación | ✅ **resuelto 2026-07-31**: `atriz-robot.service`, probado con un reinicio real. Falta que `provision.sh` lo instale |
-| **La integración con el SDK NO está completa** | funcionalidad | 🔴 abierto. 18 servicios portados, pero **el driver usa 27 de los 94 métodos del SDK**. **Tres** huecos sin equivalente (`ambient_light`, recibir IR, topic `encoders`) — `reset_odom` se dio por ausente y **ya existía** como `set_pos_and_yaw` (0,0,0). ✅ **2026-08-01**: `/motor_status` (temperatura y fallo, **sondeados**), **`/encoders`** a 16.57 Hz y **`/ambient_light`**. ✅ **Y los dos sensores ópticos caracterizados** (evidencia 37) — 🔴 con **`/ambient_light` descartado**: el piso blanco del LIDAR le refleja los LEDs del propio robot, así que no mide la sala. Decisión del usuario: no se usa. ⚠️ De rebote salieron dos huecos de operación, ver evidencia 37 §6: funcionan los dos, son sensores **distintos**, y `/color` acierta los cinco colores. La `confianza` es 0 porque falta cargar una **paleta**. Queda **recibir IR** y, si hiciera falta nombrar colores, portar `load_color_palette` y falta lo más valioso: **notificaciones de motor atascado y de fallo de motor**. Evidencia 34 |
+| **La integración con el SDK NO está completa** | funcionalidad | 🔴 abierto. 18 servicios portados, pero **el driver usa 37 de los 99 métodos públicos del SDK** (contados el 2026-08-01; antes se decía «27 de 94», mal**. **Tres** huecos sin equivalente (`ambient_light`, recibir IR, topic `encoders`) — `reset_odom` se dio por ausente y **ya existía** como `set_pos_and_yaw` (0,0,0). ✅ **2026-08-01**: `/motor_status` (temperatura y fallo, **sondeados**), **`/encoders`** a 16.57 Hz y **`/ambient_light`**. ✅ **Y los dos sensores ópticos caracterizados** (evidencia 37) — 🔴 con **`/ambient_light` descartado**: el piso blanco del LIDAR le refleja los LEDs del propio robot, así que no mide la sala. Decisión del usuario: no se usa. ⚠️ De rebote salieron dos huecos de operación, ver evidencia 37 §6: funcionan los dos, son sensores **distintos**, y `/color` acierta los cinco colores. La `confianza` es 0 porque falta cargar una **paleta**. Queda **recibir IR** y, si hiciera falta nombrar colores, portar `load_color_palette` y falta lo más valioso: **notificaciones de motor atascado y de fallo de motor**. Evidencia 34 |
 | ~~No hay watchdog de `cmd_vel`~~ | seguridad | ✅ **resuelto**: para en 527 ms / 7.9 cm |
 | ~~No hay URDF → árbol TF partido~~ | bloqueante | ✅ **resuelto**: `atriz_rvr_description` |
 | ~~Driver ROS del LIDAR no instalado~~ | bloqueante | ✅ **resuelto**: `/scan` a 10.1 Hz |
@@ -234,8 +234,8 @@ activar Nav2 y el primer objetivo.**
 
 | Prueba | Resultado |
 |---|---|
-| parada contra pared a 0.25 m/s | **8.0 cm** de hueco |
-| parada contra pared a 0.40 m/s | **9.0 cm** — más margen, no menos |
+| parada contra pared a 0.25 m/s | **9.9 cm** de hueco |
+| parada contra pared a 0.40 m/s | **10.6 / 10.7 cm** — más margen, no menos |
 | escape pegado a la pared (1.1 cm) | retrocedió **196 cm** ✅ |
 | LIDAR muerto, comandando 0.10 m/s | **0.0 cm** ✅ bloqueado |
 | Nav2 con la seguridad en medio | **SUCCEEDED**, 9 cm de error |
@@ -266,7 +266,7 @@ Lo que había que comprobar no era que llegara, sino que **de verdad fuera a 0.4
 contra los 9–10 de antes.
 
 Se subió con las tres condiciones medidas: dos navegaciones limpias a 0.25, el
-`collision_monitor` verificado, y **a 0.40 la seguridad deja más hueco que a 0.25** (9.0 cm
+`collision_monitor` verificado, y **a 0.40 la seguridad deja más hueco que a 0.25** (10.6 cm
 contra 8.0). Ese último dato es el que quitaba el miedo.
 
 🔴 **Y salió un fallo nuevo: `save_map` da 255 de forma intermitente.** No es el de la Fase 4
@@ -551,7 +551,8 @@ Todo lo de hoy —`collision_monitor`, localización con AMCL, URDF corregido,
 en el script de aprovisionamiento y en el verificador**, o la imagen dorada no lo tendrá. Es la
 regla del propio proyecto: *la imagen dorada es el atajo, `provision.sh` es la verdad*.
 
-⏳ Después: las unidades **systemd** de arranque automático (necesitan `sudo`), y quedan sin
+✅ **Ya hecho:** las unidades **systemd** de arranque automático están instaladas, probadas con
+un reinicio real, y `provision.sh` las instala (paso 8/9). Quedan sin
 portar `ConfigureStreaming` y `StartStreaming` —a propósito: pueden romper la telemetría del
 propio driver.
 
@@ -714,7 +715,9 @@ y por tanto reescribible.
 3. **El arreglo estructural.** Hoy el event loop de asyncio solo avanza en ráfagas dentro de un
    `while not rospy.is_shutdown()`. Pasa a vivir en su propio hilo, y los comandos entran con
    `asyncio.run_coroutine_threadsafe` en lugar de crear un loop por cada `cmd_vel`.
-4. 🔴 **Watchdog de `cmd_vel` — seguridad, y hoy no existe.** Si cae la red, el robot sigue
+4. ✅ ~~Watchdog de `cmd_vel` — hoy no existe~~ — **existía ya en ROS 1** y sigue en el port:
+   `cmd_vel_timeout` = **0.3 s**, medido en **527 ms / 7.9 cm**. Este párrafo cita el plan de la
+   Fase 2, que estaba equivocado. Texto original: si cae la red, el robot sigue
    ejecutando el último comando indefinidamente. Debe parar los motores si no llega `cmd_vel`
    en 500 ms.
 5. 🔴 **`imu.angular_velocity` a rad/s.** Hoy va en deg/s y viola REP-103, lo que degrada la
