@@ -104,14 +104,18 @@ número, no con aspiraciones.
 
 ### 3. Consumo por robot, medido
 
-| Recurso | Un robot, solo el driver |
-|---|---|
-| CPU | **29.5 %** de un núcleo (Pi 4) |
-| RAM | 53 MB, plana durante 12 min |
-| Temperatura | 55–58 °C |
+| Recurso | Solo el driver | **Stack completo** (driver+LIDAR+SLAM+Nav2) |
+|---|---|---|
+| CPU | **33.6 %** de un núcleo | **~89 %** de **un** núcleo de cuatro |
+| RAM | 53 MB, plana | ~477 MB |
+| Temperatura | — | **58.9–64 °C**, `throttled=0x0` |
 
-Queda **holgura** para el driver del LIDAR, SLAM, Nav2 y rosbridge, pero **hay que medirlo
-otra vez cuando estén** — 29.5 % es solo el punto de partida.
+✅ **Ya está medido con todo puesto**, que era lo que faltaba. **Nav2 cabe**: el stack entero
+consume menos de un núcleo de los cuatro del Pi 4.
+
+⚠️ **La cifra anterior, «29.5 % de CPU y 55–58 °C», era del sistema VIEJO** — Ubuntu 20.04 con
+el nodo de ROS Noetic — y estaba presentada como referencia actual. Mezclar las dos líneas base
+es un error que este proyecto prohíbe explícitamente.
 
 ### 4. 🔴 El riesgo de red sigue sin medir, y es el principal
 
@@ -179,6 +183,9 @@ rosbridge. **Sin él, los 16 caben en 1.6 Mbit/s.**
 1. **¿Cuántos robots a la vez?** No es una pregunta técnica y es la que más cambia el resultado.
 2. **`scan` es el 59 %.** Si la web no lo necesita crudo —le basta `/map` + la pose— un robot baja
    a **17.4 kB/s** y los 16 a 2.2 Mbit/s. La decisión de diseño más barata que queda.
+   ⚠️ **Esas dos cifras son BINARIAS (DDS).** Por rosbridge, que es como habla la web, el
+   mismo robot sin `/scan` son **13.6 kB/s** y los 16 **1.7 Mbit/s**. No mezclar las dos
+   codificaciones: el JSON multiplica por ~2, y por 2.5 en `/scan`.
 3. **La banda.** 2.4 GHz → 5 GHz cambia el problema.
 
 ✅ **El multiplicador JSON, medido** el 2026-08-01: **~2×**, no el 3–5× estimado. Un robot
@@ -214,19 +221,26 @@ queda legible por cualquier usuario, en los 16 robots. Se cierra en `/etc/fstab`
 
 ## Asignación por robot
 
-| Robot | Hostname | `ROS_DOMAIN_ID` | Namespace | IP (reserva DHCP) | MAC |
+> ✅ **Sin columna `Namespace`** — decisión cerrada el 2026-08-01: los topics son `/odom`, no
+> `/rvr_01/odom`. Y la IP **ya no es una reserva DHCP**: es estática, generada desde
+> `/boot/firmware/red.txt`. Manual, cap. 19.
+
+| Robot | Hostname | `ROS_DOMAIN_ID` | IP laboratorio (estática) | IP casa | MAC |
 |---|---|---|---|---|---|
-| 01 | `rvr-01` | 1 | `/rvr_01` | `192.168.1.58` ⚠️ **sin reserva DHCP todavía** | `d8:3a:dd:d6:c1:ee` (wlan0) · `d8:3a:dd:d6:c1:ea` (eth0) |
-| 02 | `rvr-02` | 2 | `/rvr_02` | | |
-| … | … | … | … | | |
-| 16 | `rvr-16` | 16 | `/rvr_16` | | |
+| 01 | `rvr-01` | 1 | `10.14.7.7/21` | `192.168.1.200/24` | `d8:3a:dd:d6:c1:ee` (wlan0) · `d8:3a:dd:d6:c1:ea` (eth0) |
+| 02 | `rvr-02` | 2 | | | |
+| … | … | … | | | |
+| 16 | `rvr-16` | 16 | | | |
 
 **Rellenar esta tabla a medida que se despliega cada robot.** Es el inventario, y sin él no
 se puede diagnosticar nada a distancia.
 
-👤 **Pendiente en `rvr-01`:** crear su **reserva DHCP** en el router para la MAC
-`d8:3a:dd:d6:c1:ee`. Hoy tiene `192.168.1.58` por DHCP dinámico, así que puede cambiar y
-dejarte sin saber dónde está el robot. Es el momento de hacerlo, antes de que haya 16.
+✅ **Resuelto de otra forma, y mejor** (2026-08-01). No hace falta reserva DHCP: `rvr-01` tiene
+**tres direcciones a la vez** —`10.14.7.7` del laboratorio, `192.168.1.200` de casa y la del
+DHCP— y **responde a `rvr-01.local` por mDNS**, verificado desde el PC del usuario.
+
+Así el robot se muda del laboratorio a casa **sin tocar un comando**, y no depende de que nadie
+configure el router. La IP se edita metiendo la microSD en cualquier PC.
 
 **Por qué un dominio DDS por robot** y no namespaces en un dominio común: ver
 [ARQUITECTURA.md](ARQUITECTURA.md), Decisión 1. Resumen: ~160 participantes DDS sobre WiFi
@@ -277,7 +291,7 @@ más trampas de las que caben en una lista de pasos.
 |---|---|---|
 | **`provision.sh`** | en el robot | De un 24.04 recién instalado a robot terminado. Idempotente. **Es la fuente de verdad**: la imagen dorada se construye ejecutándolo |
 | **`preparar_tarjeta.sh`** | en el **PC** (Linux/WSL) | Sobre una tarjeta recién grabada: `cmdline.txt`, `config.txt` con `[all]`, `robot_id.txt`. Elimina el editar ficheros a mano |
-| **`verificar_robot.sh`** | en el robot | 36+ aserciones. Sale con código ≠ 0 si algo falla. **Es quien decide si un robot está listo** |
+| **`verificar_robot.sh`** | en el robot | **105 aserciones** con `--hardware` (102 sin él). Sale con código ≠ 0 si algo falla. **Es quien decide si un robot está listo** |
 | **`fase_6_preparar_imagen_dorada.sh`** | en el robot de referencia | Le quita la identidad para poder clonarlo |
 
 ### Por qué imagen dorada y no aprovisionar 15 robots por red
@@ -363,7 +377,7 @@ y no se comparte por servicios en la nube.
 |---|---|---|
 | 1. Grabar la imagen en la microSD | ~8 min | no |
 | 2. `sudo bash preparar_tarjeta.sh --id NN` (en el PC) | ~15 s | **sí** |
-| 3. Anotar la MAC y crear la reserva DHCP en el router | ~1 min | **sí** |
+| 3. Escribir `red.txt` en la partición FAT (IP del robot) | ~1 min | **sí** |
 | 4. Arrancar — `atriz-first-boot` hace el resto | ~2 min | no |
 | 5. `bash verificar_robot.sh --hardware` | ~1 min | **sí** |
 | 6. Rellenar la fila de la tabla de asignación | ~15 s | **sí** |
@@ -380,7 +394,7 @@ silencio**: un `[all]` olvidado no da ningún error, el robot simplemente no hab
 Si en lugar de la imagen dorada partes de una **instalación limpia** de Ubuntu Server, el
 paso 4 pasa a ser `sudo bash provision.sh` y sube a ~25 minutos, casi todos desatendidos.
 
-📝 **`provision.sh` deja el robot COMPLETO desde el 2026-07-31**: sus 8 pasos incluyen ya la
+📝 **`provision.sh` deja el robot COMPLETO**: sus **9 pasos** (0/9 … 9/9) incluyen ya la
 Etapa F (xacro, `slam_toolbox`, `YDLidar-SDK` compilado desde fuentes, `ydlidar_ros2_driver`,
 la regla udev de `/dev/ydlidar` y `colcon build`). Antes se quedaba en «ROS 2 instalado y el
 código clonado», que no arranca.
@@ -432,22 +446,45 @@ Detalles del servicio que importan:
 
 Desde el robot de referencia ya validado (Fase 0.3 → Fase 5 completas):
 
+> 🔴 **ESTE PROCEDIMIENTO ESTABA MAL HASTA EL 2026-08-01, y el fallo era grave.** Omitía
+> `fase_6_preparar_imagen_dorada.sh` y ponía «antes de clonar, quitar lo único de cada robot»
+> **después del `dd` que ya había clonado**. Siguiéndolo al pie de la letra salían **16 robots
+> con el mismo `machine-id`, las mismas claves SSH de host, el mismo hostname y sin
+> `first-boot.service`** — o sea, sin ninguna forma de personalizarse.
+>
+> Y el mismo documento tenía el procedimiento correcto en otra sección. **Dos procedimientos
+> contradictorios, y el malo era el que estaba bajo el título «Imagen dorada — detalle».**
+
 ```bash
-# En la Pi, antes de apagar:
+# ── 1. EN LA PI ──────────────────────────────────────────────────────────
+# Comprobar que no queda trabajo sin subir. Mira los DOS repositorios.
 bash ~/atriz_migracion/scripts/fase_0_3_respaldo.sh
+
+# 🔴 EL PASO QUE FALTABA. Borra la identidad de ESTE robot e instala
+#    atriz-first-boot.service, que es quien personaliza cada clon al arrancar.
+#    Sin esto, los 16 clones son el robot 01 dieciséis veces.
+sudo bash ~/atriz_migracion/scripts/fase_6_preparar_imagen_dorada.sh
+
+# ⚠️ A partir de aquí el robot YA NO TIENE IDENTIDAD: no vuelvas a arrancarlo
+#    antes del dd, o first-boot se ejecutará y se la volverá a dar.
 sudo poweroff
 
-# Con la SD en un PC:
+# ── 2. CON LA microSD EN UN PC ───────────────────────────────────────────
 sudo dd if=/dev/mmcblk0 of=atriz_jazzy_v1.img bs=4M status=progress conv=fsync
 sha256sum atriz_jazzy_v1.img > atriz_jazzy_v1.img.sha256
 pishrink.sh atriz_jazzy_v1.img          # reduce la imagen al tamaño usado
 ```
 
-**Antes de clonar**, quitar de la imagen todo lo que debe ser único por robot:
+**Qué borra `fase_6_preparar_imagen_dorada.sh`** (no lo hagas a mano: es la lista que se
+olvida):
 - claves SSH de host (`/etc/ssh/ssh_host_*`) → se regeneran en el primer arranque
 - `machine-id` (`/etc/machine-id` vacío → systemd lo regenera)
-- hostname
+- hostname y `/etc/profile.d/atriz-robot.sh` (el `ROS_DOMAIN_ID`)
+- la marca `/var/lib/atriz-first-boot.done`, para que first-boot vuelva a correr
 - `~/.bash_history`, logs
+
+🔴 **La imagen es material sensible:** lleva la PSK del WiFi y la contraseña del usuario. No
+sale del laboratorio, no va a git, y no se comparte por servicios en la nube.
 
 ### Personalizar en el primer arranque
 
@@ -459,7 +496,7 @@ arrancar la Pi**— y un servicio que lo lee:
 ROBOT_ID=03
 ```
 
-`first-boot.service` (a escribir en la Fase 6) lee ese fichero y fija hostname,
+`first-boot.service` ✅ (ya escrito, `scripts/first-boot.service`) lee ese fichero y fija hostname,
 `ROS_DOMAIN_ID`, namespace y claves; luego se deshabilita solo.
 
 **Por qué en `/boot/firmware`:** es la partición FAT, legible desde Windows, macOS y Linux.
@@ -541,8 +578,19 @@ robots** (ver restricción 1: los CP2102 no tienen serial único).
 > sus claves en el primer arranque. Si **no** avisara, es señal de que las claves se clonaron
 > y todos los robots comparten identidad — eso sí es un problema.
 
-**5. Anotar la MAC y crear la reserva DHCP** en el router. Con 16 robots es la única forma
-sensata de saber quién es quién.
+**5. Comprobar que responde por su nombre.** Desde tu PC, no desde el robot:
+
+```bash
+ping rvr-NN.local
+```
+
+✅ **Ya no hacen falta reservas DHCP.** Cada robot lleva su IP estática en
+`/boot/firmware/red.txt` —editable metiendo la microSD en cualquier PC— **y** responde a
+`rvr-NN.local` por mDNS. No dependes de que nadie configure el router, y el robot funciona
+igual en el laboratorio que en una red que no conocías.
+
+⚠️ Sí conviene **anotar la MAC** en el inventario: sigue siendo lo único que identifica al
+hardware si hay que reclamar algo al administrador de red.
 
 **6. Verificar.** Un solo comando decide si el robot está listo:
 ```bash
@@ -552,8 +600,11 @@ bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
 esto: los fallos de este proyecto son los que no se manifiestan como error. Si sale limpio,
 comprueba además las frecuencias, que dependen de ROS 2:
 ```bash
-ros2 topic hz /rvr_NN/odom     # ~16.5 Hz
-ros2 topic hz /rvr_NN/scan     # ~10 Hz
+# 🔴 NI namespace NI `topic hz`: los topics son /odom y /scan (sin namespace), y
+#    `ros2 topic hz` da 0 Hz sobre ellos SIEMPRE porque son BEST_EFFORT y él se
+#    suscribe RELIABLE. Este comando habría hecho parecer averiado a un robot sano.
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_ritmo_ros2.py
+#    → /odom ≈ 16.5 Hz · /scan 10.1–11.9 Hz (con `atriz-escaneo on`)
 ```
 
 **7. Rellenar la fila** de la tabla de asignación de este documento. Sin inventario no se
@@ -585,7 +636,16 @@ Umbrales de referencia, de las mediciones de la Fase 0.1:
 | Señal | Normal | Sospechoso |
 |---|---|---|
 | `/odom` | 16.5 Hz | < 12 Hz |
-| `/scan` | ~10 Hz | < 8 Hz |
-| Temperatura | 55–60 °C | > 75 °C |
+| `/scan` | **10.1–11.9 Hz** | **< 9.5 Hz** |
+| Temperatura | 58–64 °C con el stack | > 75 °C |
 | RSS del driver | ~53 MB, plano | crecimiento sostenido = fuga |
-| CPU del driver | ~29 % | > 50 % sin causa |
+| CPU del driver | **~34 %** | > 55 % sin causa |
+
+🔴 **El umbral de `/scan` estaba mal y no habría saltado nunca.** Decía «normal ~10 Hz,
+sospechoso < 8». El X2 **gira libre** y lo normal son **11.5 Hz**, así que un LIDAR degradado
+un 22 % —a 9 Hz— quedaba dentro de «normal». Un umbral que no puede dispararse es peor que no
+tenerlo.
+
+⚠️ **Y no midas `/odom` ni `/scan` con `ros2 topic hz`**: los dos son BEST_EFFORT y esa
+herramienta se suscribe RELIABLE, así que da **0 Hz siempre** con el robot perfecto. Usa
+`medir_ritmo_ros2.py`.
