@@ -376,8 +376,12 @@ lo asumas en ninguna de las dos direcciones. `fase_1_higiene_so.sh` lo corrige s
   (suelo, blanco, rojo, azul, negro). Normaliza por **G**: es el canal más sensible.
 - **Luz ambiente:** es **otro sensor, en otro sitio**, y **NO depende de `color_detection`**.
   ⚠️ **Ve los LEDs del propio robot** —encenderlos todos la sube de 1.76 a **23.55**, 13.3×—
-  mientras el RGBC da valores **idénticos** con los LEDs en rojo, verde o azul. Así que
-  `/ambient_light` **no mide la luz de la sala**.
+  mientras el RGBC da valores **idénticos** con los LEDs en rojo, verde o azul.
+  ✅ **El porqué es físico y lo aportó el usuario:** el sensor mira **hacia arriba**, y el **piso
+  blanco que sostiene el LIDAR** (4.6 cm, `MEDIDAS_ROBOT.md`) le devuelve la luz de esos LEDs.
+  🔴 **DECISIÓN: `/ambient_light` NO SE USA.** En este montaje un valor alto significa «el robot
+  tiene LEDs encendidos», no «hay luz». Se deja publicado porque es gratis, pero **ningún
+  consumidor debe apoyarse en él**. No se arregla con software y no hace falta para nada.
 - 🔴 La **`confianza` de `/color` es siempre 0**: es el **clasificador**, que necesita una
   **paleta**. `load_color_palette` y `set_active_color_palette` existen en el SDK y no se usan.
 

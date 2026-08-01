@@ -1,3 +1,8 @@
+> 🔴 **El piso del LIDAR es BLANCO, y eso tiene una consecuencia medida.** Los 4.6 cm de piso
+> adicional sobre la tapa del RVR reflejan la luz de los LEDs del robot sobre el **sensor de luz
+> ambiente**, que mira hacia arriba: encenderlos todos sube la lectura **13.3×**.
+> → Por eso **`/ambient_light` no sirve en este montaje** y no se usa. Manual, cap. 18.4b.
+
 # Qué medir en el robot — y qué cambia cada cota
 
 > Creado el **2026-07-31**, después de descubrir que el URDF tenía el **largo y el ancho

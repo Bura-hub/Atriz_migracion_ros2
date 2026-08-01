@@ -58,9 +58,33 @@ que resultaron falsas y se retiran aqui.
         AZULES     R=194 G=463 B=220 clear=797
         -> IDENTICOS. El RGBC esta apantallado y solo ve lo que tiene debajo.
 
-  ⚠️ CONSECUENCIA PARA QUIEN LO USE: `/ambient_light` **NO mide la luz de la
-     sala**. Lo dominan los propios LEDs del robot. Si el robot enciende un LED,
-     la señal sube sin que la sala haya cambiado.
+  ✅✅ POR QUE PASA — LA EXPLICACION FISICA, DEL USUARIO (2026-08-01)
+
+     El sensor de luz ambiente del RVR mira HACIA ARRIBA. Y encima del Sphero hay
+     un **piso adicional que sostiene el LIDAR** —los 4.6 cm documentados en
+     `03_operacion/MEDIDAS_ROBOT.md`— que es **BLANCO**.
+
+     Ese piso hace de REFLECTOR: devuelve la luz de los propios LEDs del RVR
+     directamente sobre el sensor. De ahi el 13.3x.
+
+     📝 Esto NO se podia deducir de los datos. Los datos decian «ve los LEDs»; el
+        POR QUE es una observacion del montaje, y la aporto el usuario. Es el
+        mismo patron que con la inclinacion del robot y con el LED de los bajos:
+        **hay cosas que solo se saben MIRANDO el hardware.**
+
+  🔴 CONSECUENCIA, Y ES LA DECISION: `/ambient_light` **NO SIRVE EN ESTE MONTAJE**.
+     No mide la luz de la sala: mide el reflejo de los LEDs del propio robot en
+     una superficie blanca a 4.6 cm. Un valor alto significa «el robot tiene LEDs
+     encendidos», no «hay luz».
+
+     → DECISION DEL USUARIO: **no se usa.** Se probo solo para saber si el sensor
+       responde, y responde. El topic se deja publicado —es gratis, va en el mismo
+       stream— pero **ningun consumidor debe apoyarse en el** mientras el piso del
+       LIDAR siga ahi, que sera siempre.
+
+     ⚠️ Y NO se arregla con software. Haria falta pintar de negro la cara inferior
+        del piso, o mover el sensor. No merece la pena: nada del laboratorio
+        necesita luz ambiente.
 
   ✅ Y NO depende de `color_detection`. Funciona con el sensor de color apagado.
 

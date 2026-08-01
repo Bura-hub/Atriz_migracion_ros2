@@ -3978,9 +3978,23 @@ encender los 10 grupos de LED:  luz 1.76 -> 23.55   (13.3×)  · y vuelve a 1.30
 los mismos LEDs vistos por el RGBC:  IDÉNTICO en rojo, verde y azul
 ```
 
-⚠️ **`/ambient_light` NO mide la luz de la sala.** La dominan los LEDs del propio robot: si el
-robot enciende uno, la señal sube sin que la sala haya cambiado. Y **no depende de
-`color_detection`**.
+✅ **Y el porqué es físico, y lo aportó el usuario:** el sensor de luz ambiente **mira hacia
+arriba**, y encima del Sphero está el **piso que sostiene el LIDAR** —los 4.6 cm de
+[`MEDIDAS_ROBOT.md`](../03_operacion/MEDIDAS_ROBOT.md)—, que es **blanco**. Ese piso hace de
+reflector y devuelve la luz de los LEDs del propio robot sobre el sensor.
+
+📝 Esto **no se podía deducir de los datos**. Los datos decían «ve los LEDs»; el *porqué* es una
+observación del montaje. Es el mismo patrón que la inclinación del robot y el LED de los bajos:
+**hay cosas que solo se saben mirando el hardware.**
+
+🔴 **DECISIÓN: `/ambient_light` no se usa.** En este montaje no mide la luz de la sala — mide el
+reflejo de los LEDs del robot en una superficie blanca a 4.6 cm. Un valor alto significa «el robot
+tiene LEDs encendidos», no «hay luz». Se probó solo para saber si el sensor responde, y responde.
+
+El topic se deja publicado (es gratis, va en el mismo stream) pero **ningún consumidor debe
+apoyarse en él** mientras el piso del LIDAR siga ahí, que será siempre. Y **no se arregla con
+software**: haría falta pintar de negro la cara inferior del piso, o mover el sensor. No merece la
+pena — nada del laboratorio necesita luz ambiente. Y **no depende de `color_detection`**.
 
 #### 18.4c 🔴 Dos afirmaciones retiradas, y dos montajes que mentían
 
