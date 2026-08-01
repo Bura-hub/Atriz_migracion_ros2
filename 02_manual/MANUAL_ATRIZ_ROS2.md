@@ -4347,6 +4347,39 @@ kill -INT $(systemctl show atriz-robot -p MainPID --value)
 Funciona, y se repitió una docena de veces sin fallo. Era una de las tres redes de seguridad sin
 estrenar (cap. 17.6). **Sigue sin estrenar la espera de puertos del envoltorio.**
 
+### 18.7b ✅ La batería: usa `voltage`, no `percentage`
+
+> Implementado y verificado el 2026-08-01. Evidencia 43.
+
+🔴 **El porcentaje no sirve para decidir si hay que cargar.** Medido: decía **100 %** con la
+batería a **8.29 V**, que está a **1.29 V** del umbral de «baja» del propio firmware. Es una
+estimación gruesa.
+
+Desde el 2026-08-01 `/battery_state` publica el **voltaje real** (antes era `NaN`) y el driver
+registra los umbrales **del firmware** en el log al arrancar:
+
+```
+[rvr_driver]: umbrales de batería (firmware): baja 7.00 V · crítica 6.50 V · histéresis 0.20 V
+```
+
+| | |
+|---|---|
+| batería **baja** | `voltage` < **7.0 V** |
+| batería **crítica** | `voltage` < **6.5 V** — el RVR se apagará |
+| histéresis | **0.2 V**, la aplica el firmware, así que el estado **no rebota** |
+
+📝 **Sale gratis:** las dos lecturas van en la misma pasada del keepalive, que ya llamaba al RVR
+cada 30 s. No cuestan un viaje extra al puerto serie.
+
+⚠️ **«Batería baja» NO se marca como averiada.** `power_supply_health` no tiene un valor para
+«poca carga», y forzar `DEAD` engañaría a cualquier consumidor: una batería descargada está
+**sana**. Solo «crítica» —cuando el RVR va a apagarse— se mapea a `DEAD`.
+
+🔴 **Con 16 robots esto es una pregunta diaria.** «¿Cuál se está quedando sin carga?» no la
+responde el porcentaje.
+
+---
+
 ### 18.8 ⏳ Lo que queda abierto
 
 ✅ **CERRADO en 18.4.** La duda era «`/color` publica `(0,0,0)` con la luz encendida», y la

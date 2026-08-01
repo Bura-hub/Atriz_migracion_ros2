@@ -137,6 +137,11 @@ reconexión del UART.
 | `probar_sensor_optico.py` | color y luz ambiente por sus **tres** rutas a la vez · `--guiado` | no |
 | `probar_rosbridge.py` | qué recibe la web, y **cuántos bytes cuesta** por rosbridge | no |
 | `probar_mdns.py` | si un robot responde a `rvr-NN.local` · `--flota 16` | no |
+| `probar_sdk_no_usados.py` | los **62 métodos del SDK que el driver no usa**: cuáles responden | no |
+| `probar_sdk_tanda2.py` | temperaturas con los IDs buenos, color asíncrono, batería | `--calibrar` ⚠️ **gira 360°** |
+| `probar_magnetometro.py` | ¿hay rumbo absoluto? (respuesta: **no**) | `--calibrar` ⚠️ **gira 360°** |
+| `probar_atasco.py` | si el driver detecta un atasco **y dice qué oruga** | ⚠️ **sí, y TÚ lo bloqueas** |
+| `probar_notif_fallo_termica.py` | si llegan las notificaciones de fallo y térmica | ⚠️ **sí · calienta los motores** |
 
 🔴 **`medir_ritmo_ros2.py` documenta tres formas distintas de medir mal un ritmo**, las tres
 descubiertas el mismo día y las tres dando números bajos sobre un robot sano: `ros2 topic hz`
@@ -185,3 +190,25 @@ exactamente el día que lo necesitas. Cien líneas de protocolo crudo se pagan s
 [`03_operacion/probar_conexion_web.html`](../../../03_operacion/probar_conexion_web.html) se
 abre con doble clic **en el PC** y hace la prueba que ninguna herramienta del robot puede
 hacer: que un **navegador** abra el WebSocket.
+
+
+---
+
+## Las herramientas del SDK, y qué contestaron
+
+Se escribieron para responder a «¿qué le falta al driver del SDK del RVR?». El resultado, para
+no repetir el trabajo:
+
+| Pregunta | Respuesta |
+|---|---|
+| ¿Cuántos métodos usa el driver? | **37 de 99**. Los 62 restantes, probados uno a uno |
+| ¿Se puede leer la corriente de los motores? | 🔴 **No** — `bad_cid` |
+| ¿Hay rumbo absoluto (magnetómetro)? | 🔴 **No.** Las dos vías fallan, y el firmware ya es el último |
+| ¿Se detecta el atasco? | ✅ **Sí**, por notificación, y **dice qué oruga**. La conclusión contraria era falsa |
+| ¿Sirve la batería del firmware? | ✅ **Sí** — implementado: `voltage` + umbrales |
+| ¿Llegan las notificaciones de fallo y térmica? | ⚠️ **NO VERIFICADO** — el ensayo no pudo llegar a la temperatura de disparo |
+
+🔴 **La lección que dejó este bloque:** una de esas respuestas —«el atasco no se detecta»— fue
+**falsa durante días** porque el ensayo original usó `raw_motors`, que se salta el sistema de
+control del RVR donde vive la detección. **Prueba por el camino que el sistema usa de verdad.**
+Evidencia 44.

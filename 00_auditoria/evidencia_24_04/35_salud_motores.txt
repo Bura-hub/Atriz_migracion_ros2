@@ -61,6 +61,26 @@ Era el punto 1 del plan de la evidencia 34, y el de mas valor operativo:
        antiguedad -1. Este es el dato que lo zanja: si el problema fuera «no
        atascamos bastante», la termica habria llegado igualmente.
 
+  🔴🔴 RETRACTADO EL 2026-08-01 — VER EVIDENCIA 44. **La del ATASCO SI llega**:
+     3 de 3 detecciones con el robot bloqueado a mano, acertando la oruga las
+     tres veces.
+
+     EL ERROR ESTUVO EN ESTE MISMO ENSAYO: forzo los motores «a 220/255», o sea
+     con `raw_motors`, que es PWM crudo y **SE SALTA EL SISTEMA DE CONTROL del
+     RVR** — y la deteccion de atasco vive DENTRO de ese sistema. Con
+     `drive_rc_si_units`, que es lo que usa `cmd_vel`, salta a los ~5 s.
+
+     📝 Se probo una cosa y se concluyo sobre otra. **Prueba por el camino que
+        el sistema usa de verdad.** Esta conclusion falsa costo tres
+        investigaciones: buscar la corriente de los motores, declarar el atasco
+        imposible, e implementar un detector propio que hubo que retirar.
+
+     ⚠️ Y las de FALLO y TERMICA se probaron IGUAL DE MAL aqui. Repetidas por el
+        camino bueno el 2026-08-01: **siguen sin verificarse**, pero tampoco
+        estan desmentidas — el ensayo solo llego a 40 °C y la proteccion termica
+        no actua ahi. Quedan **NO VERIFICADAS**, no «no funcionan».
+
+── CONCLUSION ORIGINAL, CONSERVADA ─────────────────────────────────────────
   → CONCLUSION: **este firmware no emite estas notificaciones.** Es el mismo caso
     que `core_time`: esta en el enum del SDK y el RVR no lo transmite (CLAUDE.md).
 
@@ -81,7 +101,8 @@ Era el punto 1 del plan de la evidencia 34, y el de mas valor operativo:
 3. 🔴 EL ATASCO SE QUEDA FUERA, Y EL MENSAJE LO DICE
 ───────────────────────────────────────────────────────────────────────────────
   El SDK **no tiene** un `get_motor_stall_state`. El atasco solo existe por
-  notificacion, y la notificacion no llega. Asi que `atascado_*` seguira en
+  notificacion, y ✅ **ESA NOTIFICACION SI LLEGA** (retractado, evidencia 44).
+  Texto original: la notificacion no llega. Asi que `atascado_*` seguira en
   `false` mientras este firmware no cambie.
 
   ⚠️ Y ESO ES PELIGROSO SI SE LEE MAL: «atascado = false» parece «no hay atasco»

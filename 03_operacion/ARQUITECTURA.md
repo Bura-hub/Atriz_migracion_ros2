@@ -306,6 +306,10 @@ map → odom → base_footprint → base_link → { laser, imu_link, wheel_* }
 
 ✅ **Y es el árbol REAL desde el 2026-07-30**, no un objetivo.
 
+📝 **`publish_tf`** (por defecto `true`) desactiva el `TransformBroadcaster` del driver. Solo
+tiene sentido ponerlo a `false` si otro nodo va a publicar `odom → base_footprint` — con dos
+publicadores del mismo transform, el árbol queda indeterminado y **no da error**.
+
 El driver publica **`odom → base_footprint`** (parámetro `base_frame`, por defecto
 `base_footprint`). `robot_state_publisher` publica el resto desde
 `atriz_rvr_description/urdf/rvr.urdf.xacro`.
