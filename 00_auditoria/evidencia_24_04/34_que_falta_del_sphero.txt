@@ -34,20 +34,40 @@ Este fichero es el punto de partida de la proxima sesion.
        recibe. Es ademas el latido del keepalive (cada 30 s exactos).
 
 
-  🔴 CUATRO HUECOS SIN EQUIVALENTE — esto es lo que hay que hacer:
+  🔴 TRES HUECOS SIN EQUIVALENTE — esto es lo que hay que hacer:
+     (eran cuatro; `reset_odom` resulto ser un falso hueco, ver (a))
 
-  ┌─ a) `reset_odom` (std_srvs/Empty)                    COSTE: ~30 min, sin mover
+  ┌─ a) 🔴 RETRACTADO — `reset_odom` NO ES UN HUECO. YA EXISTE.
   │
-  │  El driver llama a `reset_locator_x_and_y()` AL ARRANCAR y no hay forma de
-  │  volver a hacerlo en caliente. Para una sesion larga de laboratorio —o para
-  │  la web, que querra «poner el robot a cero» entre estudiantes— esto se va a
-  │  notar. Hoy la unica forma es reiniciar el servicio.
+  │  ⚠️ ESTE FICHERO SE EQUIVOCABA. Decia que «no hay forma de resetear el
+  │     locator en caliente». **Es falso**, y se comprobo el 2026-08-01 llamando
+  │     al servicio:
   │
-  │  ⚠️ Y OJO AL IMPLEMENTARLO: `reset_locator_x_and_y()` REALINEA EL MARCO DEL
-  │     LOCATOR (CLAUDE.md, modelo de marcos). O sea que no solo pone la posicion
-  │     a cero: cambia la referencia. Hay que decidir —y medir— si tambien se
-  │     re-fija `yaw₀`, o el yaw publicado quedara descolgado de la posicion.
-  │     Es exactamente el tipo de cosa que este proyecto ya ha pagado dos veces.
+  │         ros2 service call /set_pos_and_yaw atriz_rvr_msgs/srv/SetPosAndYaw \
+  │              "{position: {x: 0.0, y: 0.0, z: 0.0}, yaw: 0.0}"
+  │         -> success=True
+  │         [rvr_driver] odometria puesta a cero (posicion y origen del yaw)
+  │         [rvr_driver] origen del yaw fijado en +47.6°
+  │
+  │         yaw publicado ANTES: -0.58°   DESPUES: -0.00°   ✅
+  │
+  │  `_srv_set_pos_yaw` con (0,0,0) llama a `reset_locator_x_and_y()` Y pone
+  │  `_yaw_offset = None`, que es exactamente lo que `reset_odom` haria. El
+  │  nombre es distinto y el tipo de mensaje es mas rico, nada mas.
+  │
+  │  📝 EL ERROR DE METODO, que es lo que hay que llevarse: se comparo la LISTA
+  │     DE NOMBRES de ROS 1 con la de ROS 2 y se dio por ausente lo que no
+  │     coincidia de nombre. Comparar interfaces por su nombre en vez de por lo
+  │     que HACEN produce huecos imaginarios — y puede esconder los de verdad.
+  │
+  │  ⏳ Lo unico que queda aqui: `set_pos_and_yaw` **rechaza cualquier pose que no
+  │     sea (0,0,0)**, y lo dice en su docstring. Fijar una pose arbitraria exige
+  │     que el driver lleve sus propios desplazamientos sobre `/odom`; es la parte
+  │     mas verificada del driver y pide su propia sesion.
+  │
+  │  📝 Y esta prueba solo demuestra la parte del YAW: la posicion ya estaba en
+  │     (0,0) cuando se llamo. Para demostrar tambien la posicion hace falta mover
+  │     el robot antes. Pendiente, ~5 min con espacio.
   │
   ├─ b) topic `ambient_light` (Float32)                  COSTE: ~30 min, sin mover
   │
@@ -142,10 +162,11 @@ Este fichero es el punto de partida de la proxima sesion.
 ───────────────────────────────────────────────────────────────────────────────
 5. ORDEN SUGERIDO PARA LA PROXIMA SESION
 ───────────────────────────────────────────────────────────────────────────────
-  1. `reset_odom`          ~30 min · sin mover el robot · lo pedira la web
-  2. notificaciones de motor atascado / fallo   ← lo de mas valor operativo
-  3. `ambient_light` y topic `encoders`         ~50 min los dos, sin mover
-  4. recibir IR                                 el mas caro, y hoy nadie lo usa
+  1. notificaciones de motor atascado / fallo   ← lo de mas valor operativo
+  2. `ambient_light` y topic `encoders`         ~50 min los dos, sin mover
+  3. recibir IR                                 el mas caro, y hoy nadie lo usa
+
+  ~~0. reset_odom~~  RETRACTADO: ya existe como `set_pos_and_yaw` (0,0,0).
 
   ⚠️ Los cuatro son trabajo de rclpy, NO de averiguar si el hardware responde:
      los sensores estan verificados desde el 2026-07-30 (evidencia 10). Si un

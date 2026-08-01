@@ -122,9 +122,15 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          └── ⚠️ sin ejercitar: la espera de puertos y Restart=always
 
      F26 Lo que queda                                                          ⏳ SIGUIENTE
+     F27 Salud de motores en /motor_status   evidencia 35                  ✅
+         └── temperatura 27.9/27.7 °C y fallo, SONDEADOS: las notificaciones
+             del SDK no llegan en este firmware (medido, como `core_time`)
+         └── ⚠️ el ATASCO se queda fuera: solo existe por notificación
+         └── ✅ y de paso se estrenó `Restart=always`
+
          0. Cerrar la integración con el SDK  evidencia 34                ← AQUÍ
-            27 de 94 métodos · 4 huecos sin equivalente · lo más valioso
-            son las notificaciones de motor atascado y fallo de motor
+            27 de 94 métodos · quedan `ambient_light`, topic `encoders`
+            y recibir IR
          1. La plataforma web                 plan, Fase 5
          2. Añadir systemd a provision.sh     al cerrar el robot de referencia
          3. Confirmar los 0 fallos de SLAM con otra tanda (p=0.113, sugerente)

@@ -1,0 +1,135 @@
+═══════════════════════════════════════════════════════════════════════════════
+SALUD DE LOS MOTORES EN ROS — y por que el diseño cambio a mitad
+Robot: rvr-01 · 2026-08-01 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Era el punto 1 del plan de la evidencia 34, y el de mas valor operativo:
+
+  Hasta hoy, UN ROBOT CON UNA ORUGA TRABADA SE VEIA EXACTAMENTE IGUAL QUE UNO
+  QUE NAVEGABA MAL. `/odom` avanzaba poco, Nav2 abortaba por «no progresar», y
+  nada distinguia un fallo de hardware de uno de algoritmo. Con 16 robots en
+  otro edificio, esa diferencia decide si alguien tiene que ir hasta alli.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. LO QUE HAY AHORA:  /motor_status
+───────────────────────────────────────────────────────────────────────────────
+  `atriz_rvr_msgs/msg/MotorStatus`, QoS RELIABLE + TRANSIENT_LOCAL — igual que
+  `/battery_state` y por la misma razon: llega cada 30 s, asi que quien se
+  conecte despues tiene que recibir el ultimo estado, no esperar medio minuto.
+
+      atasco izq/der = False/False   fallo = False
+      temperatura    = 27.9 / 27.7 °C
+      estado termico = 0/0
+      antiguedad atasco  =  -1.0 s   <- NUNCA se sabra (ver seccion 2)
+      antiguedad fallo   =   0.0 s
+      antiguedad termico =   0.0 s
+
+  📝 LA TEMPERATURA DE LOS MOTORES ES NUEVA. Este proyecto no la tenia por
+     ninguna via: `get_temperature` del SDK no se usa, y la unica fuente es esta
+     consulta.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. 🔴 EL DISEÑO CAMBIO A MITAD, Y POR UNA MEDIDA
+───────────────────────────────────────────────────────────────────────────────
+  Se implemento primero con NOTIFICACIONES, que es lo que ofrece el SDK:
+  `enable_motor_stall_notify` + `on_motor_stall_notify`, y sus equivalentes de
+  fallo y termica.
+
+  **NO LLEGA NI UNA.** Y se descarto una por una la culpa propia:
+
+    ✅ el registro es correcto
+       `on_command` del SDK mete el handler en la tabla de despacho
+       (`add_command_worker`) y VUELVE. La task terminando enseguida es NORMAL.
+       🔴 Una version de este codigo avisaba de «la task de escucha YA TERMINO»
+          como si fuera el fallo. Era un FALSO POSITIVO, y se quito.
+
+    ✅ `enable_*` no da error
+       Las tres devuelven `None`, que en este SDK significa «comando que no pide
+       respuesta», no «fallo». Asi que tampoco confirman nada — se registro la
+       respuesta a proposito para no dar por bueno un `try/except` sin excepcion,
+       que es el patron que ya escondio tres fallos de la parada de emergencia.
+
+    ✅ se provoco el atasco de verdad, DOS veces
+       · `move_timed` 0.15 m/s durante 3 s con el usuario sujetando el robot
+       · `raw_motors` a 220/255 los dos motores, 2 s, con el robot apretado
+         contra el suelo
+       En ninguna llego nada.
+
+    ✅ y la TERMICA, que deberia llegar sola, tampoco
+       100 s de escucha: 4 mensajes, los 4 del keepalive, todos con
+       antiguedad -1. Este es el dato que lo zanja: si el problema fuera «no
+       atascamos bastante», la termica habria llegado igualmente.
+
+  → CONCLUSION: **este firmware no emite estas notificaciones.** Es el mismo caso
+    que `core_time`: esta en el enum del SDK y el RVR no lo transmite (CLAUDE.md).
+
+  ✅ PERO LAS CONSULTAS DIRECTAS SI RESPONDEN:
+
+      get_motor_fault_state                -> {'is_fault': False}
+      get_motor_thermal_protection_status  -> {'left_motor_temperature': 28.03,
+                                               'left_motor_status': 0,
+                                               'right_motor_temperature': 27.50,
+                                               'right_motor_status': 0}
+
+  → El driver SONDEA cada 30 s, junto al keepalive. Son lecturas: no cambian
+    nada del robot. Las notificaciones se dejan registradas de todas formas: si
+    un firmware futuro las emite, funcionaran sin tocar nada.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 EL ATASCO SE QUEDA FUERA, Y EL MENSAJE LO DICE
+───────────────────────────────────────────────────────────────────────────────
+  El SDK **no tiene** un `get_motor_stall_state`. El atasco solo existe por
+  notificacion, y la notificacion no llega. Asi que `atascado_*` seguira en
+  `false` mientras este firmware no cambie.
+
+  ⚠️ Y ESO ES PELIGROSO SI SE LEE MAL: «atascado = false» parece «no hay atasco»
+     cuando en realidad es «no se sabe». Por eso existe `antiguedad_atasco_s`, y
+     por eso vale **-1.0**.
+
+  🔴 UN FALLO QUE SE COMETIO Y SE CORRIGIO EN LA MISMA SESION: la primera version
+     del mensaje tenia UNA sola antiguedad para las tres cosas, y el sondeo del
+     fallo la refrescaba. Resultado: `antiguedad_atasco_s = 0.0` — «recien
+     comprobado»— sobre algo que no se comprueba nunca. Falsa tranquilidad, que
+     es peor que no publicar el campo. Ahora hay una por fuente.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. DOS TRAMPAS DEL ENTORNO, RE-APRENDIDAS HOY
+───────────────────────────────────────────────────────────────────────────────
+  🔴 `colcon build` desde el directorio equivocado dice **«0 packages finished»**
+     y no compila nada. Paso DOS veces en esta sesion, y la segunda hizo leer un
+     log del codigo viejo como si fuera del nuevo. Ya estaba en CLAUDE.md.
+
+  🔴 Y UNA NUEVA: **cambiar un `.msg` no basta con `colcon build`.** Se añadio
+     `antiguedad_fallo_s`, el build dijo «2 packages finished», y el `.msg`
+     INSTALADO seguia sin el campo — el suscriptor daba
+     `AttributeError: no attribute 'antiguedad_fallo_s'`.
+     → Hay que borrar `build/` e `install/` del paquete de mensajes:
+
+         rm -rf build/atriz_rvr_msgs install/atriz_rvr_msgs
+         colcon build --packages-select atriz_rvr_msgs      # ~4.5 min
+
+     Y comprobar el EFECTO, no el mensaje:
+         grep -c campo_nuevo install/atriz_rvr_msgs/share/atriz_rvr_msgs/msg/X.msg
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. ✅ Y DE PASO SE ESTRENO `Restart=always`
+───────────────────────────────────────────────────────────────────────────────
+  Para desplegar cada version habia que reiniciar el driver, y en vez de pedir un
+  `sudo systemctl restart` se mato el proceso principal:
+
+      kill -INT $(systemctl show atriz-robot -p MainPID --value)
+
+      +5s   activating  PID=0
+      +20s  activating  PID=4258
+      +30s  active      PID=4258
+      NRestarts = 1
+
+  → **`Restart=always` FUNCIONA**, y era una de las tres redes de seguridad sin
+    estrenar (evidencia 33). Tardo ~30 s: 15 de `RestartSec` mas el arranque.
+    Se repitio cinco veces mas durante la sesion, sin un solo fallo.
+
+  📌 Sigue sin estrenar: la espera de puertos del envoltorio (siempre `tras 0s`).

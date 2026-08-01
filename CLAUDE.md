@@ -401,6 +401,24 @@ registrados y **cero datos**. Constrúyelo con el loop **parado**, antes de arra
 Es el único `get_event_loop()` de la ruta usada, el que la auditoría señaló como el riesgo del
 port. Ha mordido **dos veces**: al escribir el driver y al escribir una herramienta de banco.
 
+**🔴 LAS NOTIFICACIONES DE MOTOR NO LLEGAN, PERO LAS CONSULTAS SÍ.** `enable_motor_stall_notify`,
+`enable_motor_fault_notify` y la térmica se registran sin error y **no emiten ni un mensaje**:
+comprobado el 2026-08-01 forzando los motores a 220/255 con el robot sujeto, y esperando 100 s la
+térmica —que debería llegar sola— sin recibir nada. Es el mismo caso que `core_time`.
+→ **Sondea**: `get_motor_fault_state()` y `get_motor_thermal_protection_status()` **sí responden**
+  (27.9 / 27.7 °C). El driver lo hace cada 30 s y publica **`/motor_status`**.
+→ ⚠️ **El atasco se queda sin cubrir**: el SDK no tiene `get_motor_stall_state`. Por eso
+  `antiguedad_atasco_s` vale **-1.0** — «no se sabe», que no es lo mismo que «no hay atasco».
+
+**🔴 CAMBIAR UN `.msg` NO BASTA CON `colcon build`.** Se añadió un campo, el build dijo
+«2 packages finished», y el `.msg` **instalado** seguía sin él: el suscriptor daba
+`AttributeError`. → Borra `build/` e `install/` del paquete de mensajes y recompila (~4.5 min):
+```bash
+rm -rf build/atriz_rvr_msgs install/atriz_rvr_msgs
+colcon build --packages-select atriz_rvr_msgs
+grep -c campo_nuevo install/atriz_rvr_msgs/share/atriz_rvr_msgs/msg/X.msg   # el EFECTO
+```
+
 **`core_time` no existe en el firmware 9.1.462.** Está en el enum del SDK y el RVR **no lo
 transmite** — 0 muestras aislado y acompañado, mientras `quaternion` sí llega. No lo usa nada.
 
@@ -694,6 +712,7 @@ de verdad. Dos consecuencias que cambian el día a día:
 | `/map` | **0.200 Hz** exactos (= `map_update_interval` 5 s) | 2026-07-30 |
 | **Timeout de inactividad del RVR** | **300.6 s = 5.01 min** (dos medidas idénticas) | 2026-07-31 |
 | `/battery_state` | cada **30.0 s** exactos — es el latido del keepalive | 2026-07-31 |
+| `/motor_status` | cada **30 s** (mismo latido) · temperatura de motores **27.9 / 27.7 °C** en reposo | 2026-08-01 |
 | Enlace con keepalive | **12 min, 0 huecos** en `/odom`, 16.54 Hz | 2026-07-31 |
 | **Nav2 navegando** | error final **9–10 cm** (= la tolerancia configurada) | 2026-07-31 |
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |
@@ -768,6 +787,7 @@ lo que produce deriva entre documentación y realidad.
 | `async_slam_toolbox_node`, no el `sync` | no bloquea por barrido, y cuesta 4.5 % · manual cap. 9 |
 | SLAM va en un launch **aparte** de `robot.launch.py` | el robot tiene que arrancar sin SLAM, y SLAM reiniciarse sin soltar `/dev/rvr` |
 | **`localizacion.launch.py` es EXCLUYENTE con `slam.launch.py`** y lo comprueba al arrancar | los dos publican `map → odom`; juntos parten el árbol TF sin dar error. Manual, cap. 14.2 |
+| **La salud de motores se SONDEA, no se escucha** | las notificaciones del SDK no llegan en este firmware (medido); las consultas directas sí. `/motor_status`, evidencia 35 |
 | **El driver publica la orientación PLANA** (`publicar_inclinacion: false`) | la inclinación de 6.9° del RVR es un artefacto de su acelerómetro descalibrado, no del robot: suelo plano medido con nivel y error fijo en el marco del robot. Manual, cap. 13 |
 | **`provision.sh` NO instala systemd todavía** — se añade **cuando se cierre el robot de referencia** | mientras se prueba a mano en rvr-01, un servicio levantado pelearía por `/dev/rvr` con cada prueba. Decisión del usuario, 2026-07-31. 🔴 **Es un requisito para la imagen dorada**: sin esto los 16 saldrían sin arranque automático |
 | **Las unidades systemd arrancarán con el lidar PARADO** (`/stop_scan`) | si no, el X2 gira a 11.8 Hz 24/7 en los 16 robots en vez de a 2.7. Manual, cap. 8.4a |
