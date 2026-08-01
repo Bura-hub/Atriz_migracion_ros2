@@ -369,6 +369,26 @@ posterior. `fase_1_higiene_so.sh` lo deshabilita.
 plano. En 20.04 estaba así; en la imagen de **Server 24.04 ya viene `600`**. Compruébalo, no
 lo asumas en ninguna de las dos direcciones. `fase_1_higiene_so.sh` lo corrige si hace falta.
 
+**🔴 Y `/ambient_light` VA EN EL MISMO PAQUETE: da 0.0 sin `color_detection`.** Comparten
+óptica. Medido el 2026-08-01: **0.0 constante** con el parámetro en `false`, incluso con el robot
+**levantado** (247 muestras) y por las dos vías —stream y `get_ambient_light_sensor_value()`—; con
+`color_detection:=true` pasa a **2.497**. El topic existía, el ritmo era correcto, y el dato era
+un cero.
+
+**🔴 `undercarriage_white` NO ENCIENDE EL LED DE LOS BAJOS, y devuelve `success=True`.** Lo
+enciende **`enable_color_detection`**. Medido con el sensor de luz como testigo.
+
+**🔴 `set_all_leds` ESPERA UN VALOR DE BRILLO POR BIT DEL GRUPO, no siempre tres.** `led_group` es
+una máscara: los 10 grupos normales tienen **3 bits**, `all_lights` **30** y `undercarriage_white`
+**1**. Mandar tres a los dos últimos **no da error**: el RVR lo acepta y no hace nada. Lo
+encontró el ojo del usuario, no el código. Arreglado contando bits.
+
+**🔴 Las claves del stream de encoders son `LeftTicks`/`RightTicks`, NO `Left`/`Right`** — la
+tabla de documentación del propio SDK dice otra cosa que el payload. Con las claves malas el
+handler lanza `KeyError` y el topic queda **registrado con cero mensajes**: el síntoma exacto de
+un RVR dormido. Y **los ticks vienen sin signo en 32 bits**: un retroceso llega como `4294965940`,
+que son **−1356**.
+
 **🔴🔴 EL SENSOR DE COLOR NO DA NADA SIN SU LUZ, y `/color` publicó `[0,0,0]` durante meses.**
 Medido el 2026-07-31: canal claro **4 con la luz apagada contra 741 encendida** — 185×. Y el
 driver **nunca la encendía**: el topic existía, publicaba a 16 Hz, y el dato era oscuridad.
@@ -516,6 +536,27 @@ found`. Este sistema tiene `ros-jazzy-ros-base` y Nav2 llega en la Fase 5.
 en su buffer TF y con el `odom` anterior, y **deja de procesar**: el mapa sale idéntico celda
 a celda tras mover el robot 80 cm. Invalidó una prueba entera de la Fase 4. Arranca los dos
 juntos, `robot.launch.py` primero.
+
+**🔴🔴 USA `scripts/compilar.sh`, NO `colcon build` A PELO.** El error de compilar desde el
+directorio equivocado se cometió **seis veces el 2026-08-01**, en una sola sesión y estando ya
+documentado aquí abajo. Un aviso que se ignora seis veces no es un aviso: es una tarea pendiente.
+El script se sitúa solo en la raíz, comprueba que compiló **algo**, y detecta el workspace
+parásito.
+```bash
+bash ~/atriz_migracion/scripts/compilar.sh atriz_rvr_driver
+bash ~/atriz_migracion/scripts/compilar.sh --limpio atriz_rvr_msgs   # si tocaste un .msg
+```
+
+**🔴 NO MEZCLES `rclpy.spin_*(nodo, …)` CON UN EJECUTOR PROPIO.** Si hiciste
+`ex.add_node(n)`, todo el giro tiene que ser de `ex` — incluido
+`ex.spin_until_future_complete(futuro)`. Llamar a `rclpy.spin_until_future_complete(n, f)` mete
+el nodo en el ejecutor **global** y deja de atender tus suscripciones.
+→ El 2026-08-01 esto hizo creer durante una hora que **«un comando de LED mata la telemetría»**:
+  `/odom`, `/encoders` y la luz caían a 0.0 Hz. Se llegó a aislar quitando código y a concluir
+  que el fallo era *preexistente*. **El robot no había dejado de publicar ni un mensaje.** Con el
+  ejecutor bien usado: 16.9 → 16.6 → 16.6 → 16.5 Hz.
+→ Van **cuatro** veces que el instrumento miente en este proyecto: `ros2 topic hz`, `spin_once`
+  en bucle, `mensajes/duración`, y esto. **Ante una medida rara, sospecha del medidor.**
 
 **🔴 `colcon build` desde el directorio equivocado dice «Finished» y NO instala nada.**
 Si lo lanzas desde `~/atriz_ws/src/Atriz_rvr` en vez de la raíz `~/atriz_ws`, colcon crea
@@ -713,6 +754,8 @@ de verdad. Dos consecuencias que cambian el día a día:
 | **Timeout de inactividad del RVR** | **300.6 s = 5.01 min** (dos medidas idénticas) | 2026-07-31 |
 | `/battery_state` | cada **30.0 s** exactos — es el latido del keepalive | 2026-07-31 |
 | `/motor_status` | cada **30 s** (mismo latido) · temperatura de motores **27.9 / 27.7 °C** en reposo | 2026-08-01 |
+| `/encoders` | **16.57 Hz** · ticks con signo (7792 ticks/m) | 2026-08-01 |
+| `/ambient_light` | **13.06 Hz** · **0.0 salvo `color_detection:=true`**, y entonces 2.497 | 2026-08-01 |
 | Enlace con keepalive | **12 min, 0 huecos** en `/odom`, 16.54 Hz | 2026-07-31 |
 | **Nav2 navegando** | error final **9–10 cm** (= la tolerancia configurada) | 2026-07-31 |
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |

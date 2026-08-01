@@ -1,0 +1,134 @@
+═══════════════════════════════════════════════════════════════════════════════
+LEDS, LUZ AMBIENTE Y ENCODERS — tres bugs que solo salen MIRANDO el robot
+Robot: rvr-01 · 2026-08-01 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+El usuario pidio «prueba todos los leds para ver si hay comunicacion todavia».
+Los 12 grupos devolvieron `success=True`. **Y dos de ellos no se encendieron.**
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. 🔴 EL BUG DE LOS LEDS: `led_group` ES UNA MASCARA DE BITS
+───────────────────────────────────────────────────────────────────────────────
+  `set_all_leds` espera **UN VALOR DE BRILLO POR BIT ENCENDIDO** del grupo:
+
+      los 10 grupos normales    3 bits  -> [r, g, b]
+      all_lights               30 bits  -> [r, g, b] x 10
+      undercarriage_white       1 bit   -> un solo valor (es blanco, no RGB)
+
+  El driver mandaba **siempre tres**. Para los 10 normales acierta; para los
+  otros dos, el RVR **acepta el comando y no hace nada**.
+
+  → `success=True` con el LED apagado. Es el mismo patron que dejo `/color`
+    publicando `[0,0,0]` durante meses.
+
+  📝 LO ENCONTRO EL OJO DEL USUARIO, no el codigo: «vi en todos el azul, pero no
+     se cuales son los BAJOS», y antes «no vi los bajos ni tampoco todos». Sin
+     eso, los doce ✅ del script habrian pasado por buenos.
+
+  ARREGLO: contar los bits (`bin(grupo).count('1')`) y repetir [r,g,b] las veces
+  que haga falta; para 1 bit, `max(r,g,b)` — un LED de canal unico no tiene color,
+  solo brillo. Los TRES servicios de LED usan ahora la misma regla.
+
+  ✅ Tras el arreglo el usuario confirmo ver `all_lights` en azul.
+
+  🔴 PERO `undercarriage_white` SIGUE SIN ENCENDER, y esta vez se midio sin ojo:
+     ver la seccion 3.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. ✅ /encoders Y /ambient_light AL STREAM — con dos bugs de camino
+───────────────────────────────────────────────────────────────────────────────
+  Los dos estaban en `RvrStreamingServices`, asi que van por el mismo stream que
+  el resto. No hace falta sondear.
+
+  🔴 BUG A: LAS CLAVES SON `LeftTicks`/`RightTicks`, NO `Left`/`Right`.
+     La tabla de documentacion del PROPIO SDK dice
+         | 0x000B | ST (2) | 2 | Encoders | Left, Right |
+     y el payload real trae `LeftTicks`/`RightTicks`. Con las claves malas el
+     handler lanzaba `KeyError`, el topic quedaba REGISTRADO y con **cero
+     mensajes** — el sintoma exacto de un RVR dormido.
+     → Se desempato imprimiendo el dict CRUDO. Es lo unico que lo distingue.
+
+  🔴 BUG B: LOS TICKS VIENEN SIN SIGNO, EN 32 BITS.
+     Un retroceso llega como **4294965940**, que son **-1356**. `Encoder.msg` es
+     int32, asi que sin convertir se publicaria un numero absurdo — y creciente,
+     que es peor: pareceria un encoder sano.
+
+  ✅ MEDIDO DESPUES:  /odom 16.58 · /imu 16.57 · /encoders 16.57 · luz 13.06 Hz
+     Añadir dos sensores al stream **NO le cuesta ritmo a /odom**.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 LA LUZ AMBIENTE DA 0.0 SI EL SENSOR DE COLOR ESTA APAGADO
+───────────────────────────────────────────────────────────────────────────────
+  `/ambient_light` publicaba a 13 Hz un **0.0 constante**. Se comprobo:
+
+      en el suelo, color_detection=false     0.0   (n=40)
+      LEVANTADO 20 cm, color_detection=false 0.0   (n=247)
+      get_ambient_light_sensor_value()       0.0   ← tambien preguntando
+      con color_detection=true               **2.497**  ✅
+
+  → **El sensor de luz comparte la optica del sensor de color y necesita el mismo
+    encendido.** Es la misma trampa que dejo `/color` en `[0,0,0]`: el topic
+    existe, el ritmo es correcto, y el dato es un cero constante.
+
+  ARREGLO: el driver lo AVISA por el log cuando `color_detection` esta en false,
+  igual que ya hacia con `/color`. No se cambia el valor por defecto: encender el
+  LED blanco de los bajos gasta bateria en 16 robots, y quien quiera luz la pide.
+
+  ✅ Y ESTO CONTESTA LO DEL LED DE LOS BAJOS:
+     con `undercarriage_white` activado -> luz 0.0
+     con `color_detection:=true`        -> luz 2.497
+     **Lo enciende `enable_color_detection`, NO el grupo del SDK.**
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. 🔴 UNA CONCLUSION RETIRADA: «UN COMANDO DE LED MATA LA TELEMETRIA»
+───────────────────────────────────────────────────────────────────────────────
+  Durante un buen rato esta sesion creyo haber encontrado un fallo grave: tras
+  cualquier comando de LED, `/odom`, `/encoders` y la luz caian a **0.0 Hz** y no
+  se recuperaban. Se llego a AISLAR quitando los dos sensores nuevos, y seguia
+  pasando — o sea «preexistente», lo cual habria significado que la web no puede
+  ni encender un faro sin cegar al robot.
+
+  **ERA FALSO. El fallo estaba en el instrumento de medida.**
+
+  El script mezclaba dos formas de girar el mismo nodo:
+
+      ex = SingleThreadedExecutor(); ex.add_node(n)
+      ...
+      rclpy.spin_until_future_complete(n, futuro)   # 🔴 el nodo YA esta en `ex`
+
+  `rclpy.spin_until_future_complete` intenta meter el nodo en el ejecutor GLOBAL.
+  El nodo deja de ser atendido por `ex`, y **mis suscripciones** se callan. El
+  robot no habia dejado de publicar ni un mensaje.
+
+      con `ex.spin_until_future_complete(futuro)`:
+        antes 16.9 · tras un LED 16.6 · tras undercarriage 16.6 · tras apagar 16.5
+
+  → REGLA: **no mezcles `rclpy.spin_*(nodo, …)` con un ejecutor propio.** Si has
+    hecho `ex.add_node(n)`, todo el giro es de `ex`.
+  → Y la de siempre: es la CUARTA vez que el instrumento miente en este proyecto
+    (`ros2 topic hz`, `spin_once` en bucle, `mensajes/duracion`, y ahora esto).
+    **Antes de creerte una medida rara, sospecha del medidor.**
+
+  📝 Contribuyo a la confusion un bug propio: `_avisar_una_vez` se apoyaba en
+     `self._recibidos`, que `_quiza_publicar` **vacia en cada ciclo de /odom**.
+     Un aviso «una sola vez» salia **13 veces por segundo** desde el hilo de
+     asyncio y contra el journal.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. 🔴 SEIS VECES EL MISMO ERROR: `colcon` DESDE EL DIRECTORIO EQUIVOCADO
+───────────────────────────────────────────────────────────────────────────────
+  «Summary: 0 packages finished» — no compila nada, no parece un error, y lo
+  siguiente es reiniciar el nodo y leer un log del codigo VIEJO como si fuera del
+  nuevo. Paso **seis veces en esta sesion**, ya documentado en CLAUDE.md.
+
+  Y creo un **workspace parasito** en `src/Atriz_rvr/build`, que es el otro fallo
+  documentado de la misma familia. Borrado.
+
+  → Un aviso que se ignora seis veces no es un aviso: es una tarea pendiente.
+    Ahora hay `scripts/compilar.sh`, que se situa solo en la raiz, comprueba que
+    compilo ALGO, y avisa del workspace parasito. Probado a proposito desde el
+    directorio malo: funciona, y detecto el parasito a la primera.

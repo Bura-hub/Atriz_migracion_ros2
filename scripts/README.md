@@ -31,6 +31,7 @@ El procedimiento completo de alta de un robot está en
 | `fase_0_3_respaldo.sh` | 0.3 · A1 | no (sudo opcional) | ✅ **ejecutado** (2026-07-29). 📝 Sus dos correcciones del 2026-07-30 **sin reejecutar** |
 | `fase_1_higiene_so.sh` | 1 · C1 | sí | ✅ **ejecutado y verificado** en 24.04 (2026-07-30) |
 | `fase_1_validar_sdk_py312.py` | 1 · D2 | no | ✅ **ejecutado 2026-07-30 → 🟢 GO** (16.67 Hz en Python 3.12) |
+| `compilar.sh` | cualquiera | no | ✅ **probado** (2026-08-01), incluso a propósito desde el directorio equivocado. Existe porque el error de `colcon` se cometió **seis veces en una sesión** |
 | `fase_7_systemd.sh` | 7 | sí | ✅ **ejecutado y verificado** (2026-07-31): instalado, habilitado y **probado con un reinicio real** — el robot volvió solo. `provision.sh` **todavía no lo llama** |
 | `atriz-robot.sh` + `atriz-robot.service` | 7 | sí (instalarlos) | ✅ **funcionando bajo systemd**, comprobado por efecto. 📝 Sin ejercitar: la espera de puertos (siempre `tras 0s`) y `Restart=always` |
 | `atriz-escaneo.sh` | 7 | no | ✅ **verificado instalado**: `on`, `off` y `estado` (3 de 3 en cada estado). Tuvo **tres fallos propios** antes de funcionar |
