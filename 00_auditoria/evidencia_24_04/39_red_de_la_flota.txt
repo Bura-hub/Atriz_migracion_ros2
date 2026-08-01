@@ -345,3 +345,47 @@ Un 7.6 % de diferencia. Se explica ENTERA, y no es que un medidor falle:
 
 ✅ RIESGO Nº4 DE FLOTA.md: CERRADO. Medido dos veces, con dos clientes
    distintos, en dos maquinas distintas, en los dos estados del robot.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+🔴 UN FICHERO RANCIO EN /tmp INVENTO UN FALLO — 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+Al ejecutar `first-boot.sh --solo-red` por primera vez de verdad, el script dijo:
+
+    /tmp/netplan.err: Permission denied
+    ! netplan RECHAZO la configuracion generada:
+        Failed to send reload request: Permission denied
+        Reload daemon failed: Interactive authentication required.
+    se retira para no dejar el robot sin red
+
+**NADA DE ESO ERA CIERTO.** La reconstruccion, con evidencia:
+
+  -rw-rw-r-- 1 sphero sphero 203 Aug  1 14:43 /tmp/netplan.err
+  fs.protected_regular = 2
+
+  1. A las 14:43 se ejecuto `netplan generate` SIN sudo durante la validacion en
+     seco. Fallo (un usuario normal no puede hacer `daemon-reload`) y dejo su
+     mensaje en /tmp/netplan.err, propiedad de `sphero`.
+  2. `fs.protected_regular=2` impide a ROOT escribir en un fichero de /tmp que no
+     le pertenece. La redireccion `2>/tmp/netplan.err` fue denegada.
+  3. 🔴 SI LA REDIRECCION FALLA, BASH NO EJECUTA EL COMANDO. `netplan generate`
+     **nunca corrio**. El `if` devolvio error igualmente.
+  4. El `else` imprimio /tmp/netplan.err — o sea, el texto de las 14:43 — como si
+     fuera el fallo del momento.
+  5. Y borro el `60-atriz.yaml` que acababa de escribir bien.
+
+📝 EL DAÑO REAL NO FUE EL FALLO, FUE LA ATRIBUCION. El mensaje apuntaba a systemd
+   y a polkit; se estuvo a punto de diagnosticar un problema de D-Bus inexistente
+   en un sistema sano. Es exactamente la regla 4 del proyecto (mide antes de
+   atribuir) mordiendo desde un angulo nuevo: **el instrumento no mintio, mintio
+   el ARCHIVO donde el instrumento escribe**.
+
+✅ ARREGLADO con `mktemp` en `first-boot.sh`. Y buscado en todos los scripts, que
+   es la otra regla ya aprendida: `provision.sh` tenia el mismo patron con
+   `DEB=/tmp/ros2-apt-source.deb`, que habria mordido igual durante la
+   instalacion de los 16 robots.
+
+⚠️ ESTADO TRAS EL INCIDENTE: la red del robot quedo INTACTA (192.168.1.58 por
+   DHCP). El unico efecto fue que el netplan no se genero. Es el
+   comportamiento que se buscaba al diseñar el script: ante la duda, no tocar la
+   red.

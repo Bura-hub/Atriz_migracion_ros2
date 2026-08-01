@@ -272,7 +272,9 @@ else
         && ok "el componente 'universe' está habilitado" \
         || correr add-apt-repository -y universe
 
-    DEB=/tmp/ros2-apt-source.deb
+    # Ruta única, no fija: con `fs.protected_regular=2` un fichero de /tmp
+    # dejado por otro usuario impide a root sobrescribirlo. Ver first-boot.sh.
+    DEB=$(mktemp --suffix=.deb)
     V="$(curl -s --max-time 30 https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest \
          | grep -F '"tag_name"' | awk -F'"' '{print $4}')"
     CN="$(. /etc/os-release && echo "$VERSION_CODENAME")"

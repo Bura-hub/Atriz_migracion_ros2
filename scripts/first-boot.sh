@@ -202,16 +202,26 @@ else
         # 🔴 600: lleva la PSK del WiFi en claro. El propio netplan avisa si no.
         chmod 600 "$YAML"
 
-        if netplan generate 2>/tmp/netplan.err; then
+        # 🔴 NUNCA una ruta FIJA en /tmp. `fs.protected_regular=2` (Ubuntu 24.04)
+        #    impide a **root** escribir en un fichero de /tmp que no le pertenece.
+        #    Con un `/tmp/netplan.err` dejado por otro usuario, la redirección
+        #    falla, bash NO llega a ejecutar el comando, y el script acaba
+        #    imprimiendo el contenido RANCIO como si fuera el error de ahora.
+        #    Pasó el 2026-08-01: se leyó un fallo de systemd que nunca ocurrió y
+        #    se borró un netplan que estaba bien.
+        ERR=$(mktemp) || ERR=/dev/null
+        if netplan generate 2>"$ERR"; then
             echo "  ✓ $YAML generado (LAB $LAB_IP${CASA_IP:+ · CASA $CASA_IP})"
             echo "    ruta por defecto: ${RUTA:-dhcp}"
         else
             echo "  ! netplan RECHAZÓ la configuración generada:"
-            sed 's/^/      /' /tmp/netplan.err
+            sed 's/^/      /' "$ERR"
             echo "    se retira para no dejar el robot sin red"
             rm -f "$YAML"
             netplan generate 2>/dev/null || true
         fi
+        [[ "$ERR" != /dev/null ]] && rm -f "$ERR"
+
     fi
 fi
 

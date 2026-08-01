@@ -288,6 +288,27 @@ recibiría nada aunque acertara el tipo.
   descubre, y el QoS se elige. Un comprobador que acierta un tercio de las veces es peor que no
   tenerlo.
 
+**🔴 NUNCA ESCRIBAS EN UNA RUTA FIJA DE `/tmp` DESDE UN SCRIPT CON `sudo`.**
+Ubuntu 24.04 trae `fs.protected_regular=2`, que impide a **root** escribir en un fichero de
+un directorio pegajoso (`/tmp`) que **no le pertenece**. Y el modo de fallo es venenoso:
+
+```bash
+if netplan generate 2>/tmp/netplan.err; then     # ← si la redirección falla...
+```
+**Si la redirección falla, bash NO ejecuta el comando** y devuelve error. El script se va al
+`else` y hace `cat` del fichero — que sigue teniendo el **contenido rancio de otra ejecución**,
+de otro usuario, de horas antes. Resultado: un fallo inventado, atribuido a la causa
+equivocada, y en este caso el borrado de un netplan que estaba perfectamente bien.
+
+Pasó el 2026-08-01: el script informó de `Interactive authentication required` de systemd,
+que era el error de **una ejecución sin sudo de las 14:43**. `netplan generate` nunca llegó a
+correr. → Usa `mktemp`. Arreglado en `first-boot.sh` y en `provision.sh` (el `.deb` de ROS,
+que habría mordido igual en la instalación de los 16).
+
+→ **Y la regla general:** un error que menciona permisos o autenticación en un script que ya
+corre como root **casi nunca es lo que dice**. Mira si lo que falló fue la *redirección*, y
+comprueba la **fecha** del fichero que estás leyendo.
+
 **🔴 LOS `setup.bash` DE ROS NO SON COMPATIBLES CON `set -u`** — `AMENT_TRACE_SETUP_FILES:
 unbound variable`. Con `set -euo pipefail` matan el script antes de hacer nada, y el mensaje no
 menciona ROS. Envuelve los `source` en `set +u` / `set -u`.
