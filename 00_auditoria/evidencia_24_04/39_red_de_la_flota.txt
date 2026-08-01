@@ -200,3 +200,51 @@ laboratorio sin tocar 16 tarjetas.
   3. rosbridge: instalar, conectar un cliente, ver llegar /odom y mover el robot
      con un cmd_vel_raw.
   5. En el aula: si el AP tiene aislamiento de clientes.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+mDNS VERIFICADO DESDE EL PC DEL USUARIO — 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+Es la pieza que hace que el mismo codigo web funcione en casa y en el
+laboratorio sin saberse ninguna IP. Ya no es una suposicion.
+
+  PS C:\Users\burav> ping rvr-01.local
+  Pinging rvr-01.local [fe80::da3a:ddff:fed6:c1ee%10] with 32 bytes of data:
+  Reply from fe80::...: time=3ms      (4 de 4, 0 % de perdida, 3-7 ms)
+
+⚠️ PERO RESOLVIO A UNA IPv6 LINK-LOCAL, NO A LA IPv4. Y eso disparo dos
+   sospechas que habia que comprobar antes de darlo por bueno:
+
+  1. «rosbridge escucha en 0.0.0.0, que es solo IPv4, asi que la web fallara»
+     🔴 FALSO, y era mi sospecha. `ss -tlnp` lo desmiente en una linea:
+         LISTEN  0.0.0.0:9090      <- IPv4
+         LISTEN     [::]:9090      <- IPv6
+     Escucha en las dos familias. No hay problema.
+
+  2. «avahi publica solo la AAAA, asi que no hay camino IPv4»
+     🔴 TAMBIEN FALSO. Consultado con `probar_mdns.py`, que pide los dos
+        registros por separado:
+         A    = 192.168.1.58
+         AAAA = fe80::da3a:ddff:fed6:c1ee
+     Publica las dos. Windows simplemente PREFIERE IPv6 (RFC 6724). El camino
+     IPv4 existe entero.
+
+📝 LA LECCION DE METODO: `ping` respondio y el resultado parecia un exito
+   completo. Las dos sospechas resultaron infundadas, pero comprobarlas costo
+   dos comandos, y la alternativa era descubrirlo en la Fase 5 con la web ya
+   escrita. **Una prueba que pasa tampoco dice lo que crees que dice hasta que
+   miras QUE paso exactamente.**
+
+⚠️ LO QUE LINK-LOCAL SIGUE IMPLICANDO: solo funciona dentro del mismo segmento
+   de red. En casa es el caso. En el laboratorio, con una /21 y posibles VLAN,
+   la que va a servir es la A. Por eso importa que exista.
+
+── LO QUE FALTA, Y ES LA PRUEBA DE VERDAD ────────────────────────────────────
+Que un NAVEGADOR abra el WebSocket. `ping` prueba ICMP; la web usa TCP:9090
+sobre un nombre resuelto por el navegador, que es otro camino.
+
+  Herramienta: `03_operacion/probar_conexion_web.html`
+  Se abre con doble clic en el PC. Sin librerias ni CDN: WebSocket contra el
+  protocolo JSON de rosbridge, escrito a mano, para que funcione sin internet.
+  Prueba las DOS direcciones — se suscribe a topics (leer) y llama a
+  `set_led_rgb` (escribir) — y mide en vivo los kB/s y el x16.

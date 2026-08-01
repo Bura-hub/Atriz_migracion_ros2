@@ -750,6 +750,8 @@ verificar_inverted_lidar.py  # ⚠️ gira 50°: ¿se contradicen /scan y /odom?
 medir_parada_nav2.py         # ⚠️ MUEVE EL ROBOT ~2 m: ¿arranca solo al LIBERAR la parada?
 probar_sensor_optico.py      # color y luz por sus TRES rutas a la vez · --guiado
 probar_leds_ros2.py          # ⚠️ ENCIENDE LEDS (no mueve): los 12 grupos, ¿hay comunicación?
+probar_rosbridge.py          # cliente WebSocket propio: ¿llega la web? y CUÁNTOS BYTES cuesta
+probar_mdns.py               # ¿responde un robot a su nombre .local? · --flota 16
 ```
 
 ⚠️ **`medir_slam_ros2.py` necesita espacio, y el robot NO esquiva obstáculos** (solo tiene
@@ -872,6 +874,7 @@ lo que produce deriva entre documentación y realidad.
 | **Imagen dorada** para los 16, no aprovisionar por red | ~300 MB y 15-20 min por robot, sobre la única AP. `FLOTA.md` |
 | La imagen dorada se **construye ejecutando `provision.sh`**, no a mano | Una imagen irreproducible es una caja negra. `FLOTA.md` |
 | **`provision.sh` instala `navigation2`** desde el 2026-07-31 | Antes no lo instalaba: un robot aprovisionado con el script no podía navegar, ni tenía capa de seguridad, ni localización |
+| ✅ **La web localiza a los robots por `rvr-NN.local` (mDNS)**, con la IP como override | Es lo que hace que el mismo código funcione en casa y en el laboratorio sin tocar nada. Verificado el 2026-08-01 desde el PC del usuario: avahi publica **A=192.168.1.58 y AAAA link-local**, y rosbridge escucha en **las dos familias**. Evidencia 39 |
 | 🔴 **NO se reflashea rvr-01 para probar `provision.sh` entero** | Es el único robot montado. Decisión del usuario el 2026-07-31: se **asume** que funciona hasta tener una tarjeta de repuesto. **Es una suposición, no un hecho** — ver abajo |
 | **🟢 GO: el SDK funciona en Python 3.12** (16.67 Hz) | manual, cap. 5.1 · verificado 2026-07-30 |
 | El driver publica `odom → base_footprint`, **no** `odom → base_link` | manual, cap. 9.4 · REP-105 y un frame = un padre |

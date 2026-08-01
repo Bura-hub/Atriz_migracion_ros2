@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Atriz · prueba de conexión web ↔ robot</title>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  PARA QUÉ SIRVE ESTA PÁGINA
+  ═══════════════════════════════════════════════════════════════════════════
+  Se abre con doble clic EN EL PC (no en el robot) y comprueba lo único que la
+  Fase 5 da por supuesto: que un navegador cualquiera puede hablar con el robot
+  por su NOMBRE, sin saberse ninguna IP.
+
+  Prueba las dos direcciones, que son caminos distintos:
+    · LEER    — se suscribe a topics y mide el ritmo y los bytes/s reales
+    · ESCRIBIR— llama a un servicio (un LED). Si esto va, la web puede mandar.
+
+  🔴 NO MUEVE EL ROBOT a propósito. El camino de movimiento (`cmd_vel_raw`) se
+     salta el `collision_monitor` si se usa mal, y una página de diagnóstico no
+     es el sitio para descubrirlo. Aquí solo se enciende un LED.
+
+  📝 Sin librerías y sin CDN: es WebSocket del navegador contra el protocolo
+     JSON de rosbridge, escrito a mano. Así funciona sin internet —el
+     laboratorio puede no tenerlo— y no caduca cuando cambie una versión de
+     roslibjs.
+
+  ⚠️ Ábrela como fichero local (file://). Servida por HTTPS, el navegador
+     bloquea `ws://` por contenido mixto.
+-->
+<style>
+ :root { color-scheme: light dark; }
+ body { font: 15px/1.5 system-ui, sans-serif; max-width: 52rem; margin: 2rem auto;
+        padding: 0 1rem; }
+ h1 { font-size: 1.3rem; } h2 { font-size: 1rem; margin-top: 1.8rem; }
+ input, button { font: inherit; padding: .35rem .6rem; }
+ input { width: 14rem; }
+ #estado { padding: .6rem .9rem; border-radius: 6px; font-weight: 600; margin: 1rem 0; }
+ .off { background: #6b7280; color: #fff }
+ .on  { background: #15803d; color: #fff }
+ .err { background: #b91c1c; color: #fff }
+ table { border-collapse: collapse; width: 100%; margin-top: .5rem }
+ th, td { text-align: left; padding: .3rem .6rem; border-bottom: 1px solid #8883 }
+ td.n { text-align: right; font-variant-numeric: tabular-nums }
+ #log { background: #8881; padding: .6rem; border-radius: 6px; height: 11rem;
+        overflow: auto; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap }
+ small { opacity: .75 }
+</style>
+
+<h1>Atriz · ¿puede el navegador hablar con el robot?</h1>
+
+<p>
+  <input id="host" value="rvr-01.local"> <input id="puerto" value="9090" style="width:5rem">
+  <button id="btn">Conectar</button>
+</p>
+<p><small>Si el nombre no resuelve, prueba con la IP. Que haga falta la IP <b>es en sí
+   un resultado</b>: significa que mDNS no llega y la web necesitará una lista de
+   direcciones.</small></p>
+
+<div id="estado" class="off">desconectado</div>
+
+<h2>Lectura — ¿llegan los datos, y a qué coste?</h2>
+<table>
+  <thead><tr><th>topic</th><th class="n">msg/s</th><th class="n">bytes/msg</th>
+             <th class="n">kB/s</th><th>último valor</th></tr></thead>
+  <tbody id="filas"></tbody>
+  <tfoot><tr><th>TOTAL</th><th></th><th></th><th class="n" id="total">—</th>
+             <th id="x16"></th></tr></tfoot>
+</table>
+
+<h2>Escritura — ¿acepta órdenes?</h2>
+<p>
+  <button id="led" disabled>Encender los faros en verde</button>
+  <button id="apagar" disabled>Apagar</button>
+  <small>⚠️ Enciende LEDs del robot. No lo mueve.</small>
+</p>
+
+<h2>Registro</h2>
+<div id="log"></div>
+
+<script>
+"use strict";
+const TOPICS = [
+  { n: '/odom',          t: 'nav_msgs/msg/Odometry',
+    v: m => `x=${m.pose.pose.position.x.toFixed(3)} y=${m.pose.pose.position.y.toFixed(3)}` },
+  { n: '/scan',          t: 'sensor_msgs/msg/LaserScan',
+    v: m => `${m.ranges.length} puntos` },
+  { n: '/battery_state', t: 'sensor_msgs/msg/BatteryState',
+    // 📝 `percentage` es una FRACCIÓN 0–1, no un porcentaje. Leerlo como 0–100
+    //    hizo creer una vez que un robot al 34 % estaba agotado.
+    v: m => `${(m.percentage * 100).toFixed(0)} %` },
+];
+
+const $ = id => document.getElementById(id);
+const est = $('estado'), filas = $('filas'), logEl = $('log');
+let ws = null, stats = new Map(), t0 = 0;
+
+const log = s => {
+  const d = new Date().toTimeString().slice(0, 8);
+  logEl.textContent += `${d}  ${s}\n`;
+  logEl.scrollTop = logEl.scrollHeight;
+};
+
+function pintar() {
+  const seg = (performance.now() - t0) / 1000;
+  if (seg < 0.5) return;
+  let total = 0;
+  filas.innerHTML = '';
+  for (const t of TOPICS) {
+    const s = stats.get(t.n) || { n: 0, bytes: 0, ult: '—' };
+    const kbs = s.bytes / seg / 1000;
+    total += kbs;
+    const tr = filas.insertRow();
+    tr.innerHTML = `<td>${t.n}</td><td class="n">${(s.n / seg).toFixed(2)}</td>`
+      + `<td class="n">${s.n ? Math.round(s.bytes / s.n) : 0}</td>`
+      + `<td class="n">${kbs.toFixed(1)}</td><td>${s.ult}</td>`;
+  }
+  $('total').textContent = total.toFixed(1) + ' kB/s';
+  // El número que decide el hardware de red del laboratorio.
+  $('x16').innerHTML = `<small>×16 robots = <b>${(total * 16 * 8 / 1000).toFixed(1)}
+     Mbit/s</b></small>`;
+}
+
+function conectar() {
+  const url = `ws://${$('host').value.trim()}:${$('puerto').value.trim()}`;
+  log(`abriendo ${url} …`);
+  est.className = 'off'; est.textContent = 'conectando…';
+  try { ws = new WebSocket(url); }
+  catch (e) { est.className = 'err'; est.textContent = 'URL inválida'; return; }
+
+  ws.onopen = () => {
+    est.className = 'on';
+    est.textContent = `conectado a ${$('host').value.trim()}`;
+    log('✅ WebSocket abierto. La web PUEDE hablar con el robot por nombre.');
+    stats = new Map(); t0 = performance.now();
+    for (const t of TOPICS) {
+      ws.send(JSON.stringify({ op: 'subscribe', topic: t.n, type: t.t }));
+      log(`  subscribe ${t.n}`);
+    }
+    $('led').disabled = $('apagar').disabled = false;
+  };
+
+  ws.onmessage = ev => {
+    // Los bytes del mensaje CRUDO: es lo que viaja por el aire, y es la cifra
+    // que hay que multiplicar por 16, no el tamaño del objeto ya interpretado.
+    const bytes = new Blob([ev.data]).size;
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.op === 'service_response') {
+      log(`  respuesta de ${m.service}: ${m.result ? '✅' : '🔴'} ` +
+          `${JSON.stringify(m.values || {})}`);
+      return;
+    }
+    if (m.op !== 'publish') { log(`  ${ev.data.slice(0, 160)}`); return; }
+    const d = TOPICS.find(x => x.n === m.topic);
+    if (!d) return;
+    const s = stats.get(m.topic) || { n: 0, bytes: 0, ult: '—' };
+    s.n++; s.bytes += bytes;
+    try { s.ult = d.v(m.msg); } catch { s.ult = '(no se pudo leer)'; }
+    stats.set(m.topic, s);
+  };
+
+  ws.onerror = () => {
+    est.className = 'err'; est.textContent = 'error de conexión';
+    log('🔴 no se pudo conectar. Comprueba, en este orden:');
+    log('   1) ping ' + $('host').value.trim() + '   (¿resuelve el nombre?)');
+    log('   2) ¿corre el robot?  systemctl status atriz-robot');
+    log('   3) ¿el punto de acceso aísla a los clientes entre sí?');
+  };
+  ws.onclose = () => {
+    est.className = 'off'; est.textContent = 'desconectado';
+    $('led').disabled = $('apagar').disabled = true;
+    log('conexión cerrada');
+  };
+}
+
+// `led_id` es el ÍNDICE en la tabla LEDS del driver: 0 y 1 son los faros.
+const led = (r, g, b) => {
+  for (const id of [0, 1]) {
+    ws.send(JSON.stringify({ op: 'call_service', service: '/set_led_rgb',
+      args: { led_id: id, red: r, green: g, blue: b } }));
+  }
+  log(`  set_led_rgb(${r},${g},${b}) enviado a los faros`);
+};
+
+$('btn').onclick = () => (ws && ws.readyState === 1) ? ws.close() : conectar();
+$('led').onclick = () => led(0, 255, 0);
+$('apagar').onclick = () => led(0, 0, 0);
+setInterval(pintar, 500);
+</script>
