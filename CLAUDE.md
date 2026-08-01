@@ -298,10 +298,16 @@ SDK**. Si algo no cuadra entre el SDK y el robot, mira ahí antes de teorizar.
 
 **🔴 UN VALOR PLAUSIBLE NO ES UN VALOR VALIDADO.** El 2026-08-01 se llamó a
 `get_temperature(id0=0, id1=1)` y salió 27.76/28.61 °C, que se dio por bueno porque **encajaba**
-con la temperatura de motores ya conocida. Los IDs válidos son **4** (motor izq), **5** (motor
-der) y **8** (die del Nordic): se consultaron sensores **que no existen** y el firmware contestó
-igualmente. → Cuando un resultado confirma lo que esperabas, **es cuando más hay que comprobar
-de dónde sale**.
+con la temperatura de motores ya conocida. Los IDs documentados son **4** (motor izq), **5** (motor
+der) y **8** (die del Nordic). ✅ Comprobado después: con 4 y 5 salen 27.50/28.26 °C, que
+**coinciden en 0.08 °C** con `get_motor_thermal_protection_status`, y con 8 sale 32.0 —o sea que
+el firmware **sí respeta el ID**.
+→ ⚠️ **Pero llamar «basura» a la medida con 0 y 1 fue pasarse por mi parte:** dieron 27.76/28.61,
+  a dos décimas de lo bueno. Podrían ser alias no listados. **Usa 4, 5 y 8**, que están
+  documentados y verificados; de 0 y 1 no se sabe.
+→ 📝 **Y la lección de verdad, que costó dos vueltas: una corrección también es una afirmación,
+  y necesita la misma evidencia que lo que corrige.** Van dos veces seguidas que arreglar un
+  error genera otro.
 
 **🔴 EL FIRMWARE DEL RVR YA ESTÁ EN LA ÚLTIMA VERSIÓN, y actualizar quitaría API, no la
 añadiría.** La última publicada por Sphero (Fall 2022) es **9.1.462 / 9.2.482**, que es

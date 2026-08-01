@@ -148,3 +148,79 @@ b) `get_temperature(id0=0, id1=1)` CONSULTO SENSORES QUE NO EXISTEN. El enum del
   2. `get_current_detected_color_reading` + su notificacion, que es como funciona
   3. `set_locator_flags` — leer y entender el efecto sobre el marco del locator
   4. `magnetometer_calibrate_to_north` ⚠️ GIRA EL ROBOT 360° (evidencia 42)
+
+═══════════════════════════════════════════════════════════════════════════════
+RESULTADOS DE LA SEGUNDA TANDA (fase A) — 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+
+───────────────────────────────────────────────────────────────────────────────
+✅ 1. TEMPERATURAS: LOS IDs 4 Y 5 SON LOS MOTORES, CONFIRMADO
+───────────────────────────────────────────────────────────────────────────────
+  get_temperature(id0=4, id1=5)         -> 27.50 / 28.26 °C
+  get_motor_thermal_protection_status() -> 27.58 / 28.24 °C   (status 0 los dos)
+  get_temperature(id0=8, id1=8)         -> 32.0 / 32.0 °C     (die del Nordic)
+
+✅ Las dos primeras coinciden en **0.08 °C**: los IDs 4 y 5 son efectivamente los
+   motores, y dan el mismo dato que el sondeo que YA usa el driver.
+✅ Y que el ID 8 devuelva 32.0 —claramente distinto— prueba que **el firmware SI
+   respeta el ID** que se le pide. No devuelve siempre lo mismo.
+
+🔴 CORRECCION DE MI PROPIA CORRECCION. En este mismo fichero se dijo que la
+   medida de la primera tanda con IDs 0 y 1 era «basura plausible». **Eso fue
+   pasarse.** Aquellos IDs dieron 27.76 / 28.61, que esta a dos decimas de lo que
+   dan los IDs buenos. No se puede demostrar que fueran basura: podrian ser alias
+   validos no listados en el enum del SDK.
+
+   → Lo defendible: **usa 4, 5 y 8**, que estan documentados y verificados. De 0
+     y 1 no se sabe, asi que no se usan.
+   📝 Van dos veces seguidas que corregir un error genera otro. **Una correccion
+      tambien es una afirmacion, y necesita la misma evidencia que lo que
+      corrige.**
+
+📝 CONSECUENCIA PARA LA DETECCION DE ATASCO: no hay nada nuevo que leer. La
+   temperatura de motores que ya publica `/motor_status` es exactamente la misma
+   que da `get_temperature(4,5)`. Sigue siendo cierto lo dicho: **el dato ya esta
+   ahi; lo que falta es interpretarlo** (temperatura subiendo + movimiento
+   comandado + encoders quietos). Y `get_motor_temperature` —el que separa
+   bobinado y carcasa, y que seria mas sensible— **no esta en nuestro SDK**.
+
+───────────────────────────────────────────────────────────────────────────────
+⚠️ 2. COLOR POR CONSULTA: INCONCLUSO, NO NEGATIVO
+───────────────────────────────────────────────────────────────────────────────
+  enable_color_detection(True) + on_color_detection_notify(handler)
+  + get_current_detected_color_reading()   ->  SIN NOTIFICACION en 4 s
+
+🔴 PERO LA PRUEBA SEGUIA INCOMPLETA. La documentacion dice que
+   `Color Detection Notify` se envia «on the interval set by the user in
+   **enable_color_detection_notify**» — y esa llamada, que fija **intervalo y
+   umbral minimo de confianza**, NO SE HIZO. Solo se llamo a
+   `enable_color_detection`, que enciende el modulo.
+
+   → Queda una tercera iteracion: llamar antes a
+     `enable_color_detection_notify(is_enabled=True, interval=…, 
+     minimum_confidence_threshold=…)`.
+
+📝 Y LO QUE IMPORTA DE VERDAD: **el color SI funciona por el servicio de
+   streaming**. `/color` publica a 16 Hz con `color_detection:=true`, y esta
+   caracterizado (evidencia 37). Lo que no funciona es esta CONSULTA PUNTUAL, que
+   el driver no necesita. Es una curiosidad, no un bloqueo.
+
+───────────────────────────────────────────────────────────────────────────────
+✅ 3. BATERIA: LISTO PARA IMPLEMENTAR LA ALERTA DE FLOTA
+───────────────────────────────────────────────────────────────────────────────
+  voltios      8.2885 V
+  estado       1 (ok)          0=unknown · 1=ok · 2=low · 3=critical
+  umbrales     low 7.0 V · critical 6.5 V · histeresis 0.2 V
+  porcentaje   100 %
+
+✅ Repetible: ayer dio 8.3119 V, hoy 8.2885. Coherente con un robot en reposo.
+🔴 Y el porcentaje dice **100 %** con 8.29 V, a 1.29 V del umbral de «low». El
+   porcentaje es una estimacion gruesa; **el estado y el voltaje son lo que el
+   firmware usa para decidir**. Para la flota conviene publicar los tres.
+
+   📐 IMPLEMENTACION SUGERIDA, sin coste: el keepalive del driver ya llama al RVR
+      cada 30 s. Añadir `get_battery_voltage_state()` y `get_battery_voltage_in_volts()`
+      a esa misma pasada y publicarlos en `/battery_state` (los campos `voltage` y
+      `power_supply_health` de `sensor_msgs/BatteryState` estan sin usar).
+      ⚠️ La histeresis la aplica el FIRMWARE: no hay que replicarla, solo leer el
+      estado.
