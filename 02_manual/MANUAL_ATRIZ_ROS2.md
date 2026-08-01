@@ -23,7 +23,7 @@
 > |---|---|---|
 > | 0 | Convenciones y hardware | ✅ verificado |
 > | 1 | Enlace UART Pi ↔ RVR | ✅ verificado en 20.04 (2026-07-29) y 24.04 (2026-07-30) |
-> | 2 | Ritmo de telemetría | ✅ medido 2026-07-29 · **16.53 Hz** |
+> | 2 | Ritmo de telemetría | ✅ **16.59 Hz** (2026-07-29) · **16.53 Hz** re-medido (2026-07-31) |
 > | 3 | Flasheo de Ubuntu Server 24.04 | ✅ verificado 2026-07-30 |
 > | 4 | Higiene del SO | ✅ verificado 2026-07-30 |
 > | 5 | ROS 2 Jazzy y workspace colcon | ✅ verificado 2026-07-30 |
@@ -1033,7 +1033,13 @@ uname -r                            # ¿cambió el kernel en este reinicio?
 | WiFi power-save | (`iw` no instalado) | ✅ `Power save: off` |
 | `cloud-init` | habilitado | ✅ `/etc/cloud/cloud-init.disabled` |
 | Timers de `apt` | habilitados | ✅ `apt-daily`, `apt-daily-upgrade`, `motd-news`, `fstrim`: disabled |
-| Servicios inútiles | activos | ✅ `snapd`, `ModemManager`, `avahi`, `multipathd`, `open-iscsi`, `iscsid`, `lvm2-monitor`, `unattended-upgrades`: disabled |
+| Servicios inútiles | activos | ✅ `snapd`, `ModemManager`, `multipathd`, `open-iscsi`, `iscsid`, `lvm2-monitor`, `unattended-upgrades`: disabled. 🔴 **`avahi` YA NO** — ver abajo |
+
+> 🔴 **`avahi-daemon` SE QUEDA desde el 2026-08-01.** Esta tabla lo listaba entre los servicios
+> deshabilitados, con el criterio de «inútil en un robot headless». Era un error: **es lo que
+> hace que un robot responda a `rvr-NN.local`**, y sin él la web tendría que saberse 16 IP.
+> Además contradecía al propio manual, que en el cap. 7 decía «usa `ping rvr-01.local`».
+> `fase_1_higiene_so.sh` ahora lo **habilita** y activa `MulticastDNS=yes`. Cap. 19.5.
 | `noatime` | no | ✅ en la raíz |
 | netplan | 600 | ✅ 600, y `netplan generate` correcto |
 | `systemctl --failed` | — | ✅ vacío |
@@ -1577,12 +1583,27 @@ Según REP-105, y es lo que esperan `slam_toolbox` y Nav2 sin configuración ext
 | Transform | Lo publica | Por qué |
 |---|---|---|
 | `map → odom` | `slam_toolbox` (Fase 4) | Es la corrección del mapa. Todavía no existe |
-| **`odom → base_link`** | **el driver** (`atriz_rvr_driver`) | Es el único que sabe dónde está el robot |
+| **`odom → base_footprint`** | **el driver** (`atriz_rvr_driver`) | Es el único que sabe dónde está el robot. 🔴 **`base_footprint`, no `base_link`** — ver abajo |
 | `base_footprint → base_link` | `robot_state_publisher` | Geometría fija, sale del URDF |
 | `base_link → laser`, `imu_link`, ruedas | `robot_state_publisher` | Idem |
 
-El driver publica `odom → base_link` con su parámetro `base_frame`, cuyo valor por defecto es
-`base_link`. **Si lo cambias, cambia también el URDF**, o el árbol se vuelve a partir.
+🔴 **ESTE PÁRRAFO DECÍA JUSTO LO CONTRARIO HASTA EL 2026-08-01**, y enseñaba la configuración
+que **partió el árbol TF y costó la Fase 3**: decía que el driver publica `odom → base_link` con
+`base_frame` por defecto `base_link`.
+
+✅ **Lo correcto:** el driver publica **`odom → base_footprint`**. El parámetro `base_frame`
+vale **`base_footprint`** por defecto, y el código lleva el comentario
+`# 🔴 base_footprint, NO base_link`.
+
+**Por qué importa:** con `odom → base_link`, y el URDF publicando `base_footprint → base_link`,
+**`base_link` tendría DOS padres**. En TF un frame solo puede tener uno: el árbol se parte en
+dos mitades y `slam_toolbox` repite `Failed to compute odom pose` sin que nada más falle.
+
+⚠️ **Y la trampa de método, que es lo que de verdad hay que llevarse:** la verificación de
+entonces era `tf2_echo odom laser` y **pasaba**, resolviendo por el camino equivocado
+(`odom → base_link → laser`) mientras `base_footprint` colgaba de otro árbol. **Comprueba el
+transform que pide el consumidor, con sus frames exactos** — aquí `tf2_echo odom base_footprint`.
+Un `tf2_echo` que resuelve prueba que hay *un* camino, no que el árbol esté bien.
 
 ### 7.3 Las medidas, y cuáles son de fiar
 
@@ -2810,7 +2831,13 @@ ahí sale `0.8 m/s²`.
 
 | | Atriz (medido) | Ejemplo de Nav2 (TurtleBot) |
 |---|---|---|
-| `robot_radius` | **0.11 m** | 0.22 m — **el doble** |
+| `robot_radius` | **0.145 m** | 0.22 m — el TurtleBot es mayor |
+
+> 🔴 **Esta tabla decía `0.11 m` y lo presentaba como «Atriz (medido)».** Era falso por partida
+> doble: el fichero real tiene **0.145** (radio circunscrito medido 0.142), y el 0.11 salía de
+> las cotas equivocadas de la ficha del RVR. Con `0.11` el `collision_monitor` llegó a parar a
+> **1.1 cm de la pared** (cap. 12.4). El propio manual lo corrige en el cap. 12.10; esta tabla
+> se quedó atrás.
 | `max_vel` lineal | 0.40 m/s | 0.26 m/s |
 | `max_vel` angular | 2.0 rad/s | 1.0 rad/s |
 | alcance del LIDAR | **8.0 m** | 20.0 m |
@@ -3085,7 +3112,9 @@ cuatro rodean por la derecha con el mismo desvío (26–32 cm): es **repetible**
   pasillo despejado: se ha probado que **llega**, no que **rodee**.
 - **Fase 4c: `map_server` + AMCL** — mapear una vez y localizar en los 16 robots, en lugar de
   16 SLAM simultáneos. El `.pgm`/`.yaml` ya se genera.
-- 🔴 La **inclinación de ~8°**, sin causa determinada.
+- ✅ ~~La inclinación de ~8°, sin causa determinada~~ — **resuelta en el cap. 13**: son **6.9° y
+  están en el PITCH** (el roll es ~1°), y no es el robot sino **su acelerómetro descalibrado**
+  (`|g|` sale un 3.8 % corto). Desde el 2026-07-31 el driver publica la orientación **plana**.
 
 ---
 
@@ -3274,10 +3303,13 @@ ros2 lifecycle get /collision_monitor   # active [3] ← si no, NO FILTRA NADA
 ros2 topic info /cmd_vel --verbose      # Publisher count: 1, y es collision_monitor
 ```
 
-⏳ **Lo que queda:** medir lo del [`MEDIDAS_ROBOT.md`](../03_operacion/MEDIDAS_ROBOT.md) y
-**repetir las paradas contra pared** —los huecos de 12.4 están recalculados, no vueltos a
-medir—; el barrido de `radius` contra un mismo paso; y ajustar `min_points: 2` contra
-obstáculos finos.
+✅ **Ya hecho lo importante:** las cotas están medidas con cinta
+([`MEDIDAS_ROBOT.md`](../03_operacion/MEDIDAS_ROBOT.md), solo falta `imu_z`, que exige abrir el
+robot) y **las paradas contra pared se re-midieron** con las cotas buenas: **9.9 cm** a 0.25 m/s
+y **10.6 / 10.7 cm** a 0.40 (12.4). Ya no son recálculos.
+
+⏳ **Lo que sigue abierto:** el barrido de `radius` contra un mismo paso, y ajustar
+`min_points: 2` contra obstáculos finos de verdad (patas de silla).
 
 ✅ `desired_linear_vel` ya está en **0.40** (cap. 11.10), y navegando a esa velocidad la
 seguridad solo se activó cuatro veces, ninguna como parada.
@@ -3799,6 +3831,20 @@ Y no hay forma de evitarlo desde el driver:
 - el **watchdog de `cmd_vel`** tampoco: vigila que sigan *llegando* mensajes, y aquí no hay.
 - **`raw_motors` no tiene ningún corte automático**: sigue hasta que se le manda modo 0.
 
+🔴 **«Se comprueba en todos» ERA FALSO hasta el 2026-08-01**, y era un agujero de seguridad
+real: **`set_ir_evading` no comprobaba la parada de emergencia**. Con la parada ACTIVA
+respondía `success=True` y el RVR se ponía a conducir solo. Encontrado por una auditoría con
+agentes aislados.
+
+Y al lado había un segundo agujero: `set_ir_mode('off')` solo llamaba a
+`stop_..._broadcasting()`, así que **`following` —que también conduce— no se podía apagar**, y
+**`evading` no tenía ninguna forma de apagarse desde ROS**.
+
+✅ **Arreglado y verificado**: `set_ir_evading` comprueba la parada, `'off'` para los tres
+modos, y la parada de emergencia manda además `stop_evading` y `stop_following` — porque
+`drive_stop()` **no basta** contra un modo del firmware, que volvería a conducir en la siguiente
+detección IR.
+
 **Lo único que los detiene es la parada de emergencia**, que se comprueba en todos y está
 verificada (16.1).
 
@@ -3976,8 +4022,15 @@ Para quitarlo: `sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --quitar`.
   arranque automático** y habrá que hacerlo robot a robot — justo lo que la imagen evita.
   Está sin hacer a propósito: mientras se desarrolla en el robot de referencia, un servicio
   levantado pelearía por `/dev/rvr` con las pruebas a mano.
-- La parada de emergencia **no cancela las acciones de Nav2**, solo para los motores.
-- `rosbridge` no tiene unidad todavía; llega con la Fase 5.
+- ✅ ~~La parada de emergencia no cancela las acciones de Nav2~~ — **falso, y ya estaba
+  arreglado cuando se escribió esto**. El nodo `cancelar_nav2` manda `CANCEL_ALL`; verificado
+  con control: objetivo `CANCELED` y **0.0 cm** al liberar, contra **34.7 cm** sin él (cap.
+  15.4). 🔴 Es **la misma frase** que el cap. 15.3 documenta como el caso ejemplar de deriva
+  documental de este proyecto: sobrevivió en otro capítulo del mismo fichero. **Al corregir
+  algo, busca TODAS sus menciones.**
+- ✅ ~~`rosbridge` no tiene unidad todavía~~ — está instalado y corriendo desde el 2026-08-01,
+  dentro de `robot.launch.py` y **no** en unidad systemd propia, para que herede el
+  `ROS_DOMAIN_ID` (cap. 19.6).
 
 
 ---

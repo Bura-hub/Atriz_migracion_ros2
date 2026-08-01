@@ -199,8 +199,20 @@ fusiona con la odometría. **El modelo geométrico del robot está completo y ve
 2. **El barrido de `radius`** (0.14 / 0.16 / 0.18) contra un mismo paso estrecho, fijando el
    hueco para que el buscador no elija otro — daría la curva completa del compromiso entre
    «parar lejos de las paredes» y «cruzar huecos estrechos».
-3. 🔴 **La deriva de SLAM con y sin el roll de la IMU.** Si el robot está horizontal, el roll de
-   ~8° que el driver publica en TF es falso, e inclina el plano del láser: comprime los alcances
-   por `cos(8°) = 0.990`, un **1 %**, ~1 cm por metro. Cabe dentro de la deriva medida (1–3 cm),
-   así que **podría ser parte de ella**. La corrección sería `roll = pitch = 0.0` en
-   `_h_quaternion`, y **no se aplica sin medirla antes**.
+3. ✅ **La deriva de SLAM con y sin la inclinación — CERRADO, y el enunciado estaba mal.**
+
+   🔴 **No son «~8° de ROLL».** Son **6.9°** y están casi todos en el **PITCH**; el roll es de
+   **~1°**, y los dos **se reparten según el rumbo**. Mirar solo el roll da un falso negativo —
+   ya abortó un experimento de 45 min por eso. Mira siempre `hypot(roll, pitch)`.
+
+   Y el efecto es menor: `cos(6.9°)` comprime los alcances un **0.7 %, ~0.7 cm por metro**, no
+   un 1 %. Este párrafo lo sobreestimaba un ~40 % y lo ponía en el eje equivocado.
+
+   ✅ **La corrección ya está aplicada**: `publicar_inclinacion` es `false` por defecto desde el
+   2026-07-31, y `/odom` sale con `roll +0.00° pitch +0.00°`. Es un artefacto del acelerómetro
+   descalibrado del RVR (`|g|` un 3.8 % corto), no del robot: el suelo está plano, medido con
+   nivel. Manual, cap. 13.
+
+   📝 **Y se decidió NO perseguir su efecto en la deriva** (usuario, 2026-07-31): medido ~1 cm
+   sin significación (p=0.142). Cerrarlo costaría ~62 corridas y 5 h de robot, para 1 cm sobre
+   una tolerancia de objetivo de 10.
