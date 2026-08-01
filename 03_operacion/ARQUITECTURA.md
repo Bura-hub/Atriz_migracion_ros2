@@ -62,25 +62,63 @@ añade encima.
 
 | Capa | De qué se encarga | De qué NO |
 |---|---|---|
-| **roslibjs** (navegador) | Suscripción a `odom`, `scan`, `battery`, `map`; publicación de `cmd_vel` | Autenticación, persistencia |
+| **roslibjs** (navegador) | Suscripción a `odom`, `scan`, `battery_state`, `map`; publicación de **`cmd_vel_raw`** | Autenticación, persistencia |
 | **FastAPI** | JWT, reserva de robots por usuario, catálogo, experimentos, logging | Estar en la ruta de los datos en vivo |
-| **SSH** | Solo ciclo de vida: arrancar/parar el stack ROS. Con clave, nunca contraseña | Cualquier cosa dentro de una petición |
+| **SSH** | ~~Ciclo de vida del stack ROS~~ → **ya no hace falta**: `atriz-robot.service` levanta el robot al encender y se recupera solo (manual, cap. 17). Queda solo para **mantenimiento** | Cualquier cosa de la operación normal |
 
 **Por qué:** la telemetría en vivo no puede pasar por un proceso SSH nuevo en cada lectura.
 Con rosbridge, el navegador mantiene **un** WebSocket por robot y recibe los datos
 empujados. FastAPI deja de ser cuello de botella porque deja de estar en medio.
 
-**Contrato de topics por robot** (namespace `/rvr_NN`):
+### Contrato de topics por robot
 
-| Topic | Tipo | Dirección |
-|---|---|---|
-| `odom` | `nav_msgs/Odometry` | robot → web |
-| `imu` | `sensor_msgs/Imu` | robot → web |
-| `scan` | `sensor_msgs/LaserScan` | robot → web |
-| `battery` | `sensor_msgs/BatteryState` | robot → web |
-| `map` | `nav_msgs/OccupancyGrid` | robot → web |
-| `cmd_vel` | `geometry_msgs/Twist` | web → robot |
-| `emergency_stop` | `std_msgs/Empty` | web → robot |
+> ⏳ **DECISIÓN PENDIENTE — el namespace.** Este documento decía «namespace `/rvr_NN`», pero el
+> driver corre hoy **sin namespace** (`default_value=''` en `robot.launch.py`), así que los topics
+> reales son `/odom`, no `/rvr_01/odom`.
+>
+> El propio driver argumenta que, con **un `ROS_DOMAIN_ID` por robot** (Decisión 1), un namespace
+> **no añade aislamiento**: solo alarga cada nombre de topic y cada comando de diagnóstico. El
+> launch lo soporta si se quiere.
+>
+> 🔴 **Hay que fijarlo antes de la Fase 5**: la web necesita saber a qué nombre suscribirse, y
+> cambiarlo después obliga a tocar los 16 robots y el cliente. **Sin decidir.**
+
+| Topic / servicio | Tipo | Dirección | Nota |
+|---|---|---|---|
+| `odom` | `nav_msgs/Odometry` | robot → web | 16.5 Hz · 🔴 **BEST_EFFORT** |
+| `imu` | `sensor_msgs/Imu` | robot → web | 16.5 Hz · 🔴 **BEST_EFFORT** |
+| `scan` | `sensor_msgs/LaserScan` | robot → web | 10 Hz · 🔴 **BEST_EFFORT** · 0 si el barrido está parado |
+| `battery_state` | `sensor_msgs/BatteryState` | robot → web | cada 30 s · `percentage` es **0–1**, no % |
+| `motor_status` | `atriz_rvr_msgs/MotorStatus` | robot → web | 1 Hz · temperatura y fallo de motores |
+| `encoders` | `atriz_rvr_msgs/Encoder` | robot → web | 16.5 Hz · ticks con signo |
+| `color` | `atriz_rvr_msgs/Color` | robot → web | `[0,0,0]` salvo `color_detection:=true` |
+| `map` | `nav_msgs/OccupancyGrid` | robot → web | RELIABLE + TRANSIENT_LOCAL |
+| **`cmd_vel_raw`** | `geometry_msgs/Twist` | web → robot | 🔴 **AQUÍ, no en `cmd_vel`** — ver abajo |
+| `emergency_stop` | `std_msgs/Empty` | web → robot | el driver escucha **tres** nombres ⏳ |
+| **`/start_scan`** | `std_srvs/Empty` | web → robot | 🔴 **OBLIGATORIO al empezar sesión** |
+| `/stop_scan` | `std_srvs/Empty` | web → robot | al terminar la sesión |
+| `/release_emergency_stop` | `std_srvs/Empty` | web → robot | liberar la parada, acto **explícito** |
+
+🔴 **`cmd_vel_raw`, NO `cmd_vel`.** Este documento decía `cmd_vel`, y eso **salta la capa de
+seguridad**: `/cmd_vel` es la **salida** del `collision_monitor` y tiene un solo publicador. La
+cadena es `web → cmd_vel_raw → collision_monitor → cmd_vel → driver`. Publicar en `/cmd_vel`
+funciona —el robot obedece— y por eso es peligroso. Manual, cap. 12.
+
+🔴 **`/start_scan` es obligatorio.** Los robots arrancan solos pero con el **barrido del lidar
+parado**, y sin `/scan` el `collision_monitor` **bloquea el movimiento**. Un robot recién
+encendido **no obedece `cmd_vel`** y desde la web se verá igual que uno averiado. Manual,
+cap. 17.2.
+
+🔴 **Los cuatro topics de telemetría son BEST_EFFORT.** Un suscriptor con el perfil por defecto
+pide RELIABLE, **DDS no empareja y no llega NADA** — sin error y sin aviso. Si la web «no recibe
+odometría» y todo lo demás parece bien, **mira el QoS antes que el código**.
+
+⏳ **DECISIÓN PENDIENTE — el nombre canónico de la parada.** El driver escucha `emergency_stop`,
+`is_emergency_stop` y `/rvr/emergency_stop` (los tres, a propósito: con un botón de emergencia el
+modo de fallo es «no llega el mensaje»). Conviene fijar **cuál es el oficial** para la web.
+
+📝 `ambient_light` existe y **no se usa**: el piso blanco del LIDAR le refleja los LEDs del propio
+robot, así que no mide la luz de la sala. Manual, cap. 18.4b.
 
 ---
 

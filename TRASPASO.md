@@ -445,6 +445,18 @@ sin --hardware   76 correctas · 1 aviso · 0 fallos
 con --hardware   84 correctas · 1 aviso · 0 fallos
 ```
 
+### ⏳ Dos decisiones que hay que tomar ANTES de la Fase 5
+
+Las dos las destapó alinear `ARQUITECTURA.md` con el robot real (2026-08-01), y las dos afectan
+al cliente web, así que cambiarlas después obliga a tocar los 16 robots **y** el cliente:
+
+1. **¿Namespace `/rvr_NN` o sin namespace?** El diseño decía `/rvr_NN`; el driver corre hoy **sin
+   namespace**, así que los topics son `/odom`. Con un `ROS_DOMAIN_ID` por robot el namespace no
+   añade aislamiento —solo alarga los nombres— pero la web necesita saber a cuál suscribirse.
+2. **¿Cuál es el nombre canónico de la parada de emergencia?** El driver escucha los tres
+   (`emergency_stop`, `is_emergency_stop`, `/rvr/emergency_stop`) a propósito, pero conviene fijar
+   el oficial.
+
 ### 📌 El tercer repositorio: `Atriz_web_server`
 
 **No está clonado en este robot ni se ha tocado**, a propósito: la web es la Fase 5 y es un

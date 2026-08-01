@@ -861,7 +861,9 @@ lo que produce deriva entre documentación y realidad.
 | Ubuntu Server 24.04 + ROS 2 Jazzy (soporte a mayo 2029) | plan, Contexto |
 | Reinstalar sobre la misma microSD; reversión por imagen `dd` | plan, Fase 0.3 |
 | **Un `ROS_DOMAIN_ID` por robot** — aislamiento DDS total | `ARQUITECTURA.md`, D1 |
-| La web habla por **rosbridge**, no por SSH | `ARQUITECTURA.md`, D2 |
+| La web habla por **rosbridge**, no por SSH | `ARQUITECTURA.md`, D2. ⚠️ Y desde el 2026-08-01 **el SSH ya no hace falta ni para el ciclo de vida**: `atriz-robot.service` levanta el robot solo |
+| 🔴 **La web publica en `cmd_vel_raw`, NO en `cmd_vel`** | `/cmd_vel` es la SALIDA del `collision_monitor`. Publicar ahí funciona y **salta la seguridad**. `ARQUITECTURA.md` decía `cmd_vel` y se corrigió el 2026-08-01 |
+| ⏳ **SIN DECIDIR: namespace `/rvr_NN` o sin namespace** | el diseño decía `/rvr_NN`, el driver corre sin él. Hay que fijarlo **antes** de la Fase 5: cambiarlo después toca los 16 robots y el cliente |
 | Los robots se despliegan desde **tags**, no ramas | `ARQUITECTURA.md`, D4 |
 | **Sin cámara** en los robots | confirmado por el usuario |
 | La plataforma web **al final** | decisión del usuario |

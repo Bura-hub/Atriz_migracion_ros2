@@ -4,6 +4,39 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-01 — `ARQUITECTURA.md` contra el robot real: una errata era un fallo de seguridad
+
+Al responder a *«¿cómo esperamos cambiar la comunicación para que ya no sea por SSH?»* salió que
+el **contrato de topics para la web** ya no describía este robot.
+
+### 🔴 La grave: el contrato decía que la web publica en `cmd_vel`
+
+**Publicar ahí salta el `collision_monitor`.** `/cmd_vel` es la **salida** del monitor y tiene un
+solo publicador; la cadena es `web → cmd_vel_raw → collision_monitor → cmd_vel → driver`.
+Publicar en `/cmd_vel` **funciona** —el robot obedece— y por eso es peligroso: la Fase 5 lo habría
+implementado tal cual y el robot habría conducido sin capa de seguridad.
+
+### El resto de erratas
+
+- `battery` → el topic real es **`battery_state`**.
+- Faltaban `motor_status`, `encoders`, `color`, y —lo importante— los servicios **`/start_scan`**
+  y `/stop_scan`. `/start_scan` es **obligatorio**: sin él el robot no obedece y parece averiado.
+- No decía que `odom`, `imu`, `scan` y `color` son **BEST_EFFORT**. Un suscriptor con el perfil
+  por defecto **no recibe nada**, sin error.
+- La fila del **SSH** decía «solo ciclo de vida: arrancar/parar el stack». **Ya no hace falta**:
+  `atriz-robot.service` levanta el robot al encender y se recupera solo. El SSH sale de la
+  operación normal y queda para mantenimiento.
+
+### ⏳ Y dos decisiones que NO se han tomado
+
+Se marcan como pendientes en vez de resolverlas por cuenta propia — son de diseño y afectan al
+cliente web, así que cambiarlas después obliga a tocar los 16 robots **y** el cliente:
+
+1. **Namespace `/rvr_NN` o sin namespace.** El diseño decía `/rvr_NN`; el driver corre hoy sin él.
+2. **El nombre canónico de la parada de emergencia** — el driver escucha los tres a propósito.
+
+---
+
 ## 2026-08-01 — La imagen dorada, auditada contra el estado real
 
 Petición del usuario: *«revisa qué tan completa está la imagen dorada para pasarse a otro
