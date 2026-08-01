@@ -309,7 +309,12 @@ los 16 X2 girarian a 11.8 Hz 24/7 en vez de a 2.7. Sin `/scan` el
 ⚠️ El servicio respondio `success=true` para los dos faros. Este proyecto ya
    documenta que eso prueba que **el RVR acepto el comando**, no que el LED
    alumbre: `undercarriage_white` devuelve `success=true` y no enciende nada.
-   PENDIENTE de confirmacion visual del usuario.
+   ✅ CONFIRMADO POR EL USUARIO: «si se encendieron los faros verdes».
+
+   Asi que el camino de ESCRITURA queda verificado hasta el hardware:
+     navegador -> WebSocket -> rosbridge -> servicio ROS 2 -> driver -> SDK ->
+     puerto serie -> RVR -> LED
+   La web puede mandar ordenes de verdad, no solo recibir un `success=true`.
 
 
 ═══════════════════════════════════════════════════════════════════════════════
