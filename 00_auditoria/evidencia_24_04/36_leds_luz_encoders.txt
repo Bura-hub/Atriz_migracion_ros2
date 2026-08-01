@@ -61,8 +61,13 @@ Los 12 grupos devolvieron `success=True`. **Y dos de ellos no se encendieron.**
 ───────────────────────────────────────────────────────────────────────────────
 3. 🔴 LA LUZ AMBIENTE DA 0.0 SI EL SENSOR DE COLOR ESTA APAGADO
 ───────────────────────────────────────────────────────────────────────────────
-⚠️⚠️ EN REVISION (2026-08-01, mismo dia): la afirmacion «/ambient_light da 0.0
-sin color_detection» **NO ES COMPLETA y puede ser falsa**. Con
+🔴🔴 RETIRADA (2026-08-01, mismo dia). La afirmacion «/ambient_light da 0.0 sin
+color_detection» es **FALSA**. Cerrado en la EVIDENCIA 37: son DOS SENSORES
+DISTINTOS, en sitios distintos, y el de luz ambiente no depende del de color.
+Lo que hacia subir esa lectura eran los LEDs del propio robot, reflejados por el
+piso BLANCO que sostiene el LIDAR. NO LEER LO DE ABAJO COMO BUENO.
+
+Texto original, conservado como registro del error: Con
 `color_detection=False` y el robot LEVANTADO se midio despues media 0.90 y
 **max 2.50**, o sea que el sensor SI responde a la luz ambiente sin encender
 nada.
@@ -149,7 +154,7 @@ conocidas. NO USAR ESTA SECCION HASTA QUE SE CIERRE.
 
 
 ───────────────────────────────────────────────────────────────────────────────
-6. ⏳ UNA DUDA QUE QUEDA ABIERTA: /color sigue en (0,0,0) con la luz encendida
+6. ✅ CERRADA: /color en (0,0,0) — LA LUZ NO ESTABA ENCENDIDA
 ───────────────────────────────────────────────────────────────────────────────
   En la prueba con `color_detection=true`, la luz ambiente subio a 2.497 —o sea
   que el LED se encendio— pero `/color` seguia publicando **(0, 0, 0)** en 166
@@ -166,5 +171,13 @@ conocidas. NO USAR ESTA SECCION HASTA QUE SE CIERRE.
      ruta distinta del stream `color_detection`. Que una funcione no dice nada de
      la otra.
 
-  → PARA LA PROXIMA SESION: mirar `confidence` y contrastar el servicio contra el
-    topic con el mismo LED encendido. Es barato y no mueve el robot.
+  ✅ RESUELTO EL MISMO DIA (evidencia 37): **la luz NO estaba encendida en esa
+     prueba**. El argumento del LAUNCH pisa el valor declarado en el nodo, asi que
+     cambiar `declare_parameter('color_detection', True)` no hacia absolutamente
+     nada — y el log lo decia («el sensor optico esta APAGADO»), pero no se miro.
+
+     Con el LED encendido de verdad, `/color` acierta los CINCO colores. Y la
+     `confidence` sigue en 0 porque es el CLASIFICADOR el que necesita una paleta.
+
+  📝 LA LECCION: al cambiar un parametro, **comprueba en el log del nodo que ha
+     hecho efecto**. El driver ya lo dice en cada arranque; bastaba con leerlo.

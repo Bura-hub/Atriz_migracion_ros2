@@ -849,7 +849,83 @@ PYEOF
     fi
 fi
 
-sec "10 · Arranque automático y parada de emergencia con Nav2"
+sec "10 · Telemetría añadida el 2026-08-01"
+
+# La regla del proyecto: lo de cada día acaba aquí, o la imagen dorada no lo
+# tendrá. Se comprueba el EFECTO —que los topics PUBLIQUEN— no que existan: un
+# topic registrado y mudo es el síntoma estrella de este proyecto.
+if ps -eo comm 2>/dev/null | grep -qx 'rvr_driver_node'; then
+    RES="$(timeout 30 python3 - <<'PYEOF' 2>/dev/null || echo "0 0 0"
+import time
+import rclpy
+from rclpy.executors import SingleThreadedExecutor
+from rclpy.node import Node
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
+from atriz_rvr_msgs.msg import Encoder
+from sensor_msgs.msg import Illuminance
+q = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
+               history=HistoryPolicy.KEEP_LAST, depth=50)
+rclpy.init()
+n = Node("verif_tel_nueva"); c = {"enc": 0, "luz": 0}
+n.create_subscription(Encoder, "encoders", lambda m: c.__setitem__("enc", c["enc"] + 1), q)
+n.create_subscription(Illuminance, "ambient_light", lambda m: c.__setitem__("luz", c["luz"] + 1), q)
+
+ex = SingleThreadedExecutor(); ex.add_node(n)
+t0 = time.monotonic()
+while time.monotonic() - t0 < 8.0:
+    ex.spin_once(timeout_sec=0.1)
+print(c["enc"], c["luz"])
+PYEOF
+)"
+    N_ENC=$(awk '{print $1}' <<<"$RES"); N_LUZ=$(awk '{print $2}' <<<"$RES")
+    [[ "${N_ENC:-0}" -ge 80 ]] \
+        && _ok "/encoders: $N_ENC msgs en 8 s (~$((N_ENC/8)) Hz)" \
+        || _mal "/encoders solo $N_ENC msgs en 8 s (esperados ~130)" \
+                "las claves del stream son LeftTicks/RightTicks, no Left/Right"
+    [[ "${N_LUZ:-0}" -ge 60 ]] \
+        && _ok "/ambient_light: $N_LUZ msgs en 8 s" \
+        || _mal "/ambient_light solo $N_LUZ msgs en 8 s (esperados ~105)" \
+                "manual, cap. 18.4b"
+    # 🔴 `/motor_status` VA EN SU PROPIO PROCESO, y no es un capricho: llega cada
+    #    30 s y lo que se recibe es el ÚNICO mensaje retenido (TRANSIENT_LOCAL).
+    #    Compartiendo nodo con `/encoders` y `/ambient_light` —~30 Hz entre los
+    #    dos— ese mensaje único se quedaba esperando turno en el ejecutor y la
+    #    comprobación fallaba UNA DE CADA DOS VECES sobre un robot sano.
+    #    Un verificador intermitente se acaba ignorando (ver evidencia 32).
+    N_MOT="$(timeout 25 python3 - <<'PYEOF' 2>/dev/null || echo 0
+import time
+import rclpy
+from rclpy.executors import SingleThreadedExecutor
+from rclpy.node import Node
+from rclpy.qos import (DurabilityPolicy, HistoryPolicy, QoSProfile,
+                       ReliabilityPolicy)
+from atriz_rvr_msgs.msg import MotorStatus
+rclpy.init()
+n = Node("verif_motor_status"); c = [0]
+n.create_subscription(MotorStatus, "motor_status", lambda m: c.__setitem__(0, c[0] + 1),
+                      QoSProfile(reliability=ReliabilityPolicy.RELIABLE,
+                                 durability=DurabilityPolicy.VOLATILE,
+                                 history=HistoryPolicy.KEEP_LAST, depth=1))
+ex = SingleThreadedExecutor(); ex.add_node(n)
+t0 = time.monotonic()
+while time.monotonic() - t0 < 10.0 and c[0] == 0:
+    ex.spin_once(timeout_sec=0.1)
+print(c[0])
+PYEOF
+)"
+    [[ "${N_MOT:-0}" -ge 1 ]] \
+        && _ok "/motor_status: llega el último estado (TRANSIENT_LOCAL)" \
+        || _mal "/motor_status no publica nada" \
+                "es TRANSIENT_LOCAL: un suscriptor nuevo debe recibir el último. Manual cap. 18.1"
+else
+    _nota "rvr_driver_node no corre: no se comprueban /encoders, /ambient_light ni /motor_status."
+fi
+
+# 📝 `/ambient_light` NO se comprueba por su VALOR a propósito: en este montaje el
+#    piso blanco del LIDAR le refleja los LEDs del robot, así que el número
+#    depende de qué LEDs estén encendidos. Se decidió no usarlo (manual 18.4b).
+
+sec "11 · Arranque automático y parada de emergencia con Nav2"
 
 # Lo del 2026-07-31. Aquí casi todo son AVISOS y no fallos a propósito: el
 # arranque automático se instala aparte (fase_7_systemd.sh) y la decisión del

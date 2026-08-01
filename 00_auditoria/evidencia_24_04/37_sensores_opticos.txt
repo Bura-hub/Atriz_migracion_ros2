@@ -143,3 +143,66 @@ que resultaron falsas y se retiran aqui.
   Y la herramienta:
       mediciones_banco/probar_sensor_optico.py            # las tres rutas
       mediciones_banco/probar_sensor_optico.py --guiado   # con superficies
+
+
+═══════════════════════════════════════════════════════════════════════════════
+6. 🔴 DOS HUECOS ENCONTRADOS DE REBOTE, Y LOS DOS IMPORTAN MAS QUE LOS SENSORES
+═══════════════════════════════════════════════════════════════════════════════
+Salieron al meter los topics nuevos en el verificador. Ninguno tiene que ver con
+los sensores, y los dos afectan a la operacion del laboratorio remoto.
+
+───────────────────────────────────────────────────────────────────────────────
+(a) TRANSIENT_LOCAL NO GARANTIZA QUE UN SUSCRIPTOR TARDIO RECIBA EL ULTIMO VALOR
+───────────────────────────────────────────────────────────────────────────────
+  `/motor_status` y `/battery_state` se publican RELIABLE + TRANSIENT_LOCAL con
+  depth 1, y el driver documentaba —yo lo escribi— que «un suscriptor que llegue
+  tarde recibe el ultimo estado sin esperar medio minuto».
+
+  **MEDIDO: no es fiable.** Un suscriptor nuevo se quedaba sin recibir nada en
+  10 s **2 de cada 3 intentos**, con el topic publicando perfectamente, y tanto
+  compartiendo nodo con otros topics como EN SU PROPIO PROCESO.
+
+  ⚠️ CONSECUENCIA PARA LA WEB: con el sondeo cada 30 s, un cliente recien
+     conectado podia pasar **medio minuto a ciegas** sobre si un motor esta en
+     fallo — que es justo el dato que decide si alguien va al edificio.
+
+  ARREGLO: republicar el estado ya conocido **a 1 Hz**. Es gratis —no toca el
+  puerto serie, solo reenvia lo que hay en memoria— y hace que el topic se
+  comporte de forma predecible sin depender de la semantica de TRANSIENT_LOCAL.
+  El SONDEO sigue a 30 s, que es lo unico que cuesta.
+
+  ✅ Tras el arreglo: 3 de 3 pasadas del verificador, y luego 3 mas.
+
+  📝 Y ANTES DE ESO, la comprobacion fallaba 1 de cada 2 por OTRO motivo mio:
+     compartia nodo con `/encoders` y `/ambient_light` (~30 Hz entre los dos), y
+     el UNICO mensaje retenido se quedaba esperando turno en el ejecutor. Se
+     separo a su propio proceso. **Un verificador intermitente se acaba
+     ignorando** — es la leccion de la evidencia 32, repetida.
+
+───────────────────────────────────────────────────────────────────────────────
+(b) 🔴🔴 SI UN NODO MUERE, systemd NO SE ENTERA. El servicio sigue en VERDE.
+───────────────────────────────────────────────────────────────────────────────
+  Lo destapo un error mio: un `SyntaxError` dejo el driver del RVR **muerto
+  cuatro minutos** mientras `systemctl is-active atriz-robot` decia **active**.
+
+  LA CAUSA: el PID principal del servicio es el `ros2 launch`, no el nodo. El
+  launch SOBREVIVE a la muerte de uno de sus nodos, asi que `Restart=always`
+  —que se estreno ayer y funciona— **no cubre este caso en absoluto**.
+
+  ⚠️ Es el peor modo de fallo posible para un laboratorio remoto: un robot
+     inservible que desde fuera parece sano. Y es EXACTAMENTE el mismo patron que
+     el RVR dormido con el nodo vivo, o el topic registrado y mudo.
+
+  ARREGLO: `on_exit=Shutdown()` en el nodo del driver, en `robot.launch.py`. Si
+  el driver muere, se cae el launch entero, systemd lo ve y reinicia.
+
+  📝 Solo en el DRIVER, a proposito: sin el no hay robot. Si se cae el LIDAR el
+     robot sigue sirviendo para teleoperar, asi que ese no tumba nada.
+
+  ✅ VERIFICADO matando SOLO el nodo del driver:
+        NRestarts 12 -> 13, y el robot entero de vuelta en **25 s**.
+
+  → Y queda una pregunta abierta que NO se ha medido: que pasa si muere el
+    `collision_monitor`. Hoy el launch sobrevive, y un robot sin capa de
+    seguridad que parece sano es peligroso. Pendiente decidir si tambien lleva
+    `on_exit=Shutdown()`.

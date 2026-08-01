@@ -121,29 +121,35 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          └── costó CINCO fallos, ninguno visible leyendo el código
          └── ⚠️ sin ejercitar: la espera de puertos y Restart=always
 
-     F26 Lo que queda                                                          ⏳ SIGUIENTE
+     F27 Salud de motores en /motor_status   evidencia 35                  ✅
+         └── temperatura y fallo, SONDEADOS: las notificaciones del SDK no
+             llegan en este firmware (medido, como `core_time`)
+         └── ⚠️ el ATASCO se queda fuera: solo existe por notificación
+         └── ✅ y de paso se estrenó `Restart=always`
+
      F28 LEDs, luz ambiente y encoders       evidencia 36                  ✅
          └── bug de LEDs: set_all_leds espera un brillo POR BIT del grupo,
              y 2 de 12 grupos aceptaban el comando sin encenderse
          └── /encoders 16.57 Hz (claves LeftTicks/RightTicks, ticks con signo)
-         └── /ambient_light: 0.0 salvo color_detection:=true -> 2.497
-         └── ⏳ abierto: /color sigue en (0,0,0) con la luz encendida
+         └── 🔴 RETIRADO de aquí: «un comando de LED mata la telemetría» era
+             un fallo de MI medidor, no del robot
 
-     F27 Salud de motores en /motor_status   evidencia 35                  ✅
-         └── temperatura 27.9/27.7 °C y fallo, SONDEADOS: las notificaciones
-             del SDK no llegan en este firmware (medido, como `core_time`)
-         └── ⚠️ el ATASCO se queda fuera: solo existe por notificación
-         └── ✅ y de paso se estrenó `Restart=always`
+     F29 Los dos sensores ópticos             evidencia 37                  ✅
+         └── el de COLOR funciona: clear 12.6x entre blanco y negro, y
+             /color acierta suelo, blanco, rojo, azul y negro
+         └── la `confianza` es 0 porque falta cargar una PALETA, no por el sensor
+         └── el de LUZ AMBIENTE es OTRO sensor: el piso BLANCO del LIDAR le
+             refleja los LEDs del propio robot (13.3x)
+         └── 🔴 DECISIÓN: /ambient_light NO SE USA. No mide la luz de la sala
 
-         0. Cerrar la integración con el SDK  evidencia 34                ← AQUÍ
-            quedan: recibir IR, y mirar por qué /color sigue en (0,0,0)
-            con la luz encendida (evidencia 36, sección 6)
-         1. La plataforma web                 plan, Fase 5
+     F30 Lo que queda                                                          ⏳ SIGUIENTE
+         1. La plataforma web                 plan, Fase 5                ← AQUÍ
          2. Añadir systemd a provision.sh     al cerrar el robot de referencia
-         3. Confirmar los 0 fallos de SLAM con otra tanda (p=0.113, sugerente)
-         4. Un obstáculo que aparezca DURANTE la navegación
-         5. Clonar a los 16 robots            FLOTA.md
-         6. Rotar la credencial `sphero` y purgarla del historial  👤 usuario
+         3. Recibir IR (`infrared_messages`)  el último hueco del SDK
+         4. Confirmar los 0 fallos de SLAM con otra tanda (p=0.113)
+         5. Un obstáculo que aparezca DURANTE la navegación
+         6. Clonar a los 16 robots            FLOTA.md
+         7. Rotar la credencial `sphero` y purgarla del historial  👤 usuario
 
          🔴 SUPOSICIÓN ACEPTADA: provision.sh no se ha pasado entero sobre un
             24.04 limpio (no se reflashea rvr-01). Ver evidencia 29.

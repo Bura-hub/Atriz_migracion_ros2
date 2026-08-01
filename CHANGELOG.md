@@ -4,6 +4,57 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-01 — El piso blanco del LIDAR, y dos huecos encontrados de rebote
+
+### ✅ Por qué el sensor de luz ve los LEDs del robot — la explicación es física
+
+La aportó el usuario y cierra el hallazgo: el sensor de luz ambiente **mira hacia arriba**, y
+encima del Sphero está el **piso que sostiene el LIDAR** —los 4.6 cm ya documentados en
+`MEDIDAS_ROBOT.md`— que es **blanco**. Ese piso le devuelve la luz de los propios LEDs del robot.
+
+📝 **No se podía deducir de los datos.** Los datos decían «ve los LEDs»; el *porqué* es una
+observación del montaje. Mismo patrón que la inclinación del robot y el LED de los bajos: **hay
+cosas que solo se saben mirando el hardware.**
+
+🔴 **Decisión: `/ambient_light` no se usa.** Un valor alto significa «el robot tiene LEDs
+encendidos», no «hay luz». Se probó solo para saber si responde, y responde. Se deja publicado
+porque es gratis, pero ningún consumidor debe apoyarse en él. No se arregla con software y nada
+del laboratorio lo necesita.
+
+### 🔴 Y al meter los topics nuevos en el verificador salieron dos huecos de operación
+
+**(a) `TRANSIENT_LOCAL` no garantiza que un suscriptor tardío reciba el último valor.** El driver
+lo daba por hecho para `/motor_status` y `/battery_state` — lo escribí yo. Medido: un suscriptor
+nuevo se quedaba **sin recibir nada en 10 s, 2 de cada 3 veces**, incluso en su propio proceso.
+Con el sondeo cada 30 s, eso dejaba a la web **medio minuto a ciegas** sobre un fallo de motor.
+→ Arreglado republicando a **1 Hz**: gratis, no toca el puerto serie, y no depende de esa
+semántica. 3 de 3 pasadas estables después.
+
+**(b) 🔴🔴 Si un nodo muere, systemd no se entera.** Lo destapó un `SyntaxError` mío: el driver
+estuvo **cuatro minutos muerto** con el servicio en **`active (running)`**. El PID principal es el
+`ros2 launch`, que sobrevive a la muerte de un nodo, así que `Restart=always` —estrenado ayer y
+funcionando— **no cubre este caso**.
+
+⚠️ Es el peor modo de fallo para un laboratorio remoto: un robot inservible que **desde fuera
+parece sano**. Exactamente el mismo patrón que el RVR dormido con el nodo vivo.
+
+→ Arreglado con **`on_exit=Shutdown()`** en el nodo del driver. Verificado matando solo ese nodo:
+`NRestarts` 12→13 y el robot entero de vuelta en **25 s**. Solo en el driver: sin él no hay robot,
+mientras que sin LIDAR se puede teleoperar.
+
+⏳ **Sin decidir:** si el `collision_monitor` debe llevarlo también. Un robot sin capa de seguridad
+que parece sano es peligroso.
+
+### El verificador
+
+Sección nueva para `/encoders`, `/ambient_light` y `/motor_status` — comprueba que **publiquen**,
+no que existan. **94 comprobaciones, 0 fallos.** `/ambient_light` se comprueba por ritmo y **no
+por valor**, a propósito: su número depende de qué LEDs estén encendidos.
+
+Evidencia 37 · manual cap. 18.4.
+
+---
+
 ## 2026-08-01 — Los dos sensores ópticos: funcionan, y son DOS
 
 Petición del usuario: *«el sistema tiene problemas con los sensores de color y de luz ambiental,

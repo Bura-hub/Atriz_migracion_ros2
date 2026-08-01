@@ -314,6 +314,25 @@ mismo `map` es lo que permite que la web diga «ve a la mesa 3». Manual, cap. 1
 **📝 `/amcl_pose` no llega con el robot quieto, y no es un fallo.** AMCL solo actualiza tras
 moverse `update_min_d` (0.15 m). Mueve el robot antes de dar por roto nada.
 
+**🔴🔴 SI UN NODO MUERE, systemd NO SE ENTERA: EL SERVICIO SIGUE EN VERDE.** El PID principal de
+`atriz-robot.service` es el `ros2 launch`, que **sobrevive** a la muerte de uno de sus nodos, así
+que `Restart=always` no cubre este caso. Medido el 2026-08-01: un `SyntaxError` dejó el driver
+**muerto cuatro minutos** con `systemctl is-active` diciendo **active**.
+→ Es el peor modo de fallo para un laboratorio remoto: un robot inservible que **desde fuera
+  parece sano**, igual que el RVR dormido con el nodo vivo o el topic registrado y mudo.
+→ ✅ Arreglado con **`on_exit=Shutdown()`** en el nodo del driver (`robot.launch.py`). Verificado
+  matando solo ese nodo: `NRestarts` 12→13 y el robot entero de vuelta en **25 s**.
+→ ⏳ **Sin decidir:** si el `collision_monitor` debe llevarlo también. Hoy no lo lleva, y un robot
+  sin capa de seguridad que parece sano es peligroso.
+
+**🔴 `TRANSIENT_LOCAL` EN EL PUBLICADOR NO GARANTIZA QUE UN SUSCRIPTOR TARDÍO RECIBA EL ÚLTIMO
+VALOR.** El driver lo daba por hecho para `/motor_status` y `/battery_state`. Medido: un
+suscriptor nuevo se quedaba **sin recibir nada en 10 s, 2 de cada 3 intentos**, con el topic
+publicando bien y en su propio proceso.
+→ Con el sondeo cada 30 s, eso dejaba a la web **medio minuto a ciegas** sobre un fallo de motor.
+→ **Arreglo: republicar el estado a 1 Hz.** Es gratis —no toca el puerto serie— y no depende de
+  la semántica de TRANSIENT_LOCAL. El sondeo sigue a 30 s, que es lo que cuesta.
+
 **🔴🔴 EN UN SUSCRIPTOR, `TRANSIENT_LOCAL` NO AÑADE GARANTÍAS: SOLO RESTRINGE CON QUIÉN
 EMPAREJA.** Exige que el publicador también lo sea, y **ninguno lo es por defecto** — ni
 `ros2 topic pub`, ni rosbridge. La parada de emergencia del driver estaba suscrita
@@ -853,6 +872,7 @@ lo que produce deriva entre documentación y realidad.
 | `async_slam_toolbox_node`, no el `sync` | no bloquea por barrido, y cuesta 4.5 % · manual cap. 9 |
 | SLAM va en un launch **aparte** de `robot.launch.py` | el robot tiene que arrancar sin SLAM, y SLAM reiniciarse sin soltar `/dev/rvr` |
 | **`localizacion.launch.py` es EXCLUYENTE con `slam.launch.py`** y lo comprueba al arrancar | los dos publican `map → odom`; juntos parten el árbol TF sin dar error. Manual, cap. 14.2 |
+| 🔴 **`/ambient_light` NO SE USA** | el sensor mira hacia arriba y el **piso blanco del LIDAR** le refleja los LEDs del propio robot (13.3×). Un valor alto significa «el robot tiene LEDs encendidos», no «hay luz». Se probó, responde, y no sirve en este montaje. Decisión del usuario, 2026-08-01 |
 | **La salud de motores se SONDEA, no se escucha** | las notificaciones del SDK no llegan en este firmware (medido); las consultas directas sí. `/motor_status`, evidencia 35 |
 | **El driver publica la orientación PLANA** (`publicar_inclinacion: false`) | la inclinación de 6.9° del RVR es un artefacto de su acelerómetro descalibrado, no del robot: suelo plano medido con nivel y error fijo en el marco del robot. Manual, cap. 13 |
 | **`provision.sh` NO instala systemd todavía** — se añade **cuando se cierre el robot de referencia** | mientras se prueba a mano en rvr-01, un servicio levantado pelearía por `/dev/rvr` con cada prueba. Decisión del usuario, 2026-07-31. 🔴 **Es un requisito para la imagen dorada**: sin esto los 16 saldrían sin arranque automático |
@@ -884,7 +904,7 @@ lo que produce deriva entre documentación y realidad.
 bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
 ```
 
-**91 aserciones** con `--hardware` (89 sin él) ✅ medido 2026-07-31, 0 fallos, código de salida ≠ 0 si algo falla, y cada
+**94 aserciones** con `--hardware` ✅ medido 2026-08-01, 0 fallos, código de salida ≠ 0 si algo falla, y cada
 fallo viene con el comando que lo arregla. Existe porque el 2026-07-30 se verificó este robot a
 mano con ~25 comandos y aparecieron **cinco fallos silenciosos**. No repitas eso: pásalo al
 empezar y al cerrar.

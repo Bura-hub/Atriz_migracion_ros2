@@ -4075,15 +4075,12 @@ estrenar (cap. 17.6). **Sigue sin estrenar la espera de puertos del envoltorio.*
 
 ### 18.8 ⏳ Lo que queda abierto
 
-**`/color` sigue publicando `(0,0,0)` con la luz encendida** — 166 mensajes durante la prueba de
-`color_detection=true`, mientras la luz ambiente sí subía a 2.497. No se investigó, y **no se da
-por bueno**. Hipótesis sin comprobar: la superficie no devuelve color reconocible, o
-`ColorDetection` da (0,0,0) cuando la **confianza** es 0 —el mensaje lleva `confidence` y no se
-miró—, o hay un segundo fallo en esa ruta.
+✅ **CERRADO en 18.4.** La duda era «`/color` publica `(0,0,0)` con la luz encendida», y la
+respuesta resultó ser que **en aquella prueba la luz NO estaba encendida**: el argumento del
+launch pisa el valor declarado en el nodo, así que cambiar `declare_parameter` no servía de nada.
 
-📝 Y ojo: la medida del cap. 16 (canal claro 4 → 741) se hizo por el **servicio**
-`get_rgbc_sensor_values`, que es **otra ruta** distinta del stream `color_detection`. Que una
-funcione no dice nada de la otra.
+Con el LED encendido de verdad, `/color` **acierta los cinco colores** (18.4). Y la
+`confidence` sigue en 0 porque es el **clasificador** el que necesita una paleta, no el sensor.
 
 Evidencia cruda: `00_auditoria/evidencia_24_04/35_salud_motores.txt` y `36_leds_luz_encoders.txt`.
 
