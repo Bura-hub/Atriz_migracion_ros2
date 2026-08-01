@@ -2733,7 +2733,24 @@ que hay que usar**. Lo dice un ingeniero de Sphero en el foro oficial:
 🔴 **La calibración GIRA EL ROBOT 360°** en sentido antihorario. El ejemplo oficial de Sphero no
 lo advierte; `mediciones_banco/probar_magnetometro.py` sí, y por eso exige `--calibrar`.
 
-⏳ **SIN PROBAR TODAVÍA**, y con dos motivos concretos para dudar:
+🔴 **PROBADO EL 2026-08-01 — Y NO FUNCIONA. La vía queda cerrada.**
+
+```
+Calibración 1/3 — girando…
+   🔴 sin notificación en 45 s
+```
+
+El comando **se aceptó sin error** (no dio `bad_cid`), no llegó notificación, **y el robot no
+giró** — esto último lo confirmó el usuario mirándolo, y es lo que zanja la cuestión: sin ese
+dato, «no llegó el aviso» era ambiguo. Es un **no-op**.
+
+**Las dos vías están cerradas**, así que el RVR no puede dar un rumbo absoluto. La pose inicial
+de cada robot tendrá que venir **del mapa** (AMCL con pose inicial por robot, que ya se
+planeaba) o **del operador**. No bloquea nada —AMCL sigue la pose con 0.1 cm— pero se pierde
+poder inicializar sin intervención humana. **Es una limitación del hardware, no una tarea
+pendiente.**
+
+📝 Lo que se sospechaba, y se cumplió:
 
 1. El resultado llega por **notificación**, y en este firmware las notificaciones de motor se
    registran sin error y **no emiten ni un mensaje** (cap. 18).

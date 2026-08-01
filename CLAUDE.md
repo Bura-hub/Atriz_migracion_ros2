@@ -323,10 +323,14 @@ IMU de 9 ejes, y un ingeniero de Sphero explica que la lectura cruda **no es la 
 usar** — el patrón previsto es `magnetometer_calibrate_to_north()` (CID **0x25**, otro comando)
 → `yaw_north_direction`, que es **el desfase entre el yaw=0 arbitrario y el norte magnético**, y
 desde ahí el rumbo sale de la IMU. La app de Sphero nunca lee el magnetómetro.
-→ ⚠️ **La calibración GIRA EL ROBOT 360°** en sentido antihorario. El ejemplo oficial no lo
-  advierte; `probar_magnetometro.py` sí, y exige `--calibrar` explícito.
-→ ⏳ **Sin probar todavía.** Y hay motivo para dudar: el resultado llega por **notificación**, y
-  en este firmware las de motor no llegan nunca. Evidencia 42.
+→ 🔴 **PROBADO EL 2026-08-01, Y CERRADO: NO HAY RUMBO ABSOLUTO.**
+  `magnetometer_calibrate_to_north()` **se acepta sin error** —no da `bad_cid`— y luego **ni
+  gira el robot ni emite notificación**. Es un **no-op**. Lo zanjó el usuario mirando el robot:
+  sin ese dato, «no llegó la notificación» era ambiguo.
+→ **Consecuencia, y es una limitación del hardware, no una tarea:** la pose inicial de cada
+  robot tiene que venir de fuera — del mapa (AMCL con pose inicial por robot, que ya se
+  planeaba) o del operador. No bloquea nada: AMCL sigue la pose con 0.1 cm. **Deja de
+  buscarlo.** Evidencia 42.
 
 **🔴 `chmod` NO HACE NADA EN `/boot/firmware`, Y NO DA ERROR.** Es **vfat**, y FAT no
 almacena permisos de Unix: los fija `fmask` en el **montaje**, para toda la partición. Con el
@@ -559,6 +563,14 @@ temperaturas en `/motor_status` cada 30 s. → Lo que falta no es leer nada nuev
 **interpretarlo**: temperatura subiendo + movimiento comandado + encoders quietos = atasco
 probable. ⚠️ Es un proxy **lento** (decenas de segundos por la masa térmica): no sirve para
 parar el robot, sí para decidir si hay que ir a rescatarlo. Sin implementar. Evidencia 43.
+
+**🔴🔴 EN ESTE FIRMWARE, QUE UN COMANDO NO DÉ ERROR NO SIGNIFICA QUE HAGA ALGO.** Van
+**cinco** comandos que se aceptan en silencio y no hacen nada: `enable_motor_stall_notify`,
+`enable_motor_fault_notify`, la notificación térmica, `magnetometer_calibrate_to_north` (ni gira
+ni avisa) y `core_time` (en el enum, el RVR no lo transmite).
+→ **Comprueba siempre el EFECTO**: un dato que llega, o el robot moviéndose. Y cuando el efecto
+  es **físico, pregunta a la persona que lo está mirando** — es el único instrumento que no se
+  puede enredar. El 2026-08-01 «el robot no giró» fue lo que zanjó lo del magnetómetro.
 
 **🔴 LAS NOTIFICACIONES DE MOTOR NO LLEGAN, PERO LAS CONSULTAS SÍ.** `enable_motor_stall_notify`,
 `enable_motor_fault_notify` y la térmica se registran sin error y **no emiten ni un mensaje**:
