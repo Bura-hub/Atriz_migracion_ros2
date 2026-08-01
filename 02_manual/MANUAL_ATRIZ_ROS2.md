@@ -4154,15 +4154,14 @@ get_motor_thermal_protection_status  -> 27.9 / 27.7 °C, estados 0/0
 > 📝 **Se probó una cosa y se concluyó sobre otra.** Prueba por el camino que el sistema usa de
 > verdad. Evidencia 44.
 
-**Texto original, conservado:** 🔴 El atasco se queda fuera, y el 2026-08-01 se cerró por qué. Además de que el SDK no
-tiene `get_motor_stall_state`, la alternativa buena —deducirlo de la **corriente de los
-motores**— tampoco existe: `get_current_sense_amplifier_current` devuelve **`bad_cid`**, o sea
-que **el firmware no implementa la consulta**. No es un hueco del driver que se pueda programar.
-Evidencia 41.
+✅ **Lo que sigue siendo cierto:** el SDK **no tiene** `get_motor_stall_state` —el atasco solo
+existe por **notificación**, no por consulta— y la **corriente de los motores tampoco se puede
+leer** (`get_current_sense_amplifier_current` → `bad_cid`). Lo falso era la conclusión, no esos
+dos datos.
 
-⚠️ **El atasco se queda fuera.** El SDK **no tiene** `get_motor_stall_state`: solo existe por
-notificación. Por eso el mensaje lleva **una antigüedad por fuente** y `antiguedad_atasco_s` vale
-**−1.0** — «no se sabe», que no es lo mismo que «no hay atasco».
+📝 **Y `antiguedad_atasco_s = −1.0` sigue apareciendo**, pero significa lo que siempre debió
+significar: «**nunca se ha sabido nada**» — o sea que no ha habido ningún atasco desde que
+arrancó el driver. No es «no hay atasco».
 
 🔴 **Y ese campo nació mal:** la primera versión tenía **una sola** antigüedad para las tres
 cosas, y el sondeo del fallo la refrescaba. Daba `antiguedad_atasco_s = 0.0` —«recién

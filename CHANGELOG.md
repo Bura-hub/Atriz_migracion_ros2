@@ -4,6 +4,106 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-01 (SDK) — Se exploró el SDK entero, y una conclusión del proyecto era falsa
+
+El usuario preguntó por qué el driver usa «27 de 94» métodos del SDK. La cifra estaba vieja
+(son **37 de 99**) y, sobre todo, nadie había **probado** los 62 restantes: se hablaba de ellos
+por lo que dice la librería, que en este proyecto ya había mentido dos veces.
+
+### 🔴 Lo importante: el atasco SÍ se detecta, y llevábamos días creyendo que no
+
+`CLAUDE.md`, el manual y la evidencia 35 decían que «las notificaciones de motor no llegan». De
+ahí salió que el atasco «se queda sin cubrir», que `antiguedad_atasco_s` valdría −1.0 para
+siempre, y finalmente que la detección era **imposible**.
+
+**Es falso.** Con el robot bloqueado a mano, tres corridas, tres detecciones, **acertando la
+oruga las tres veces**:
+
+```
+18:08:07  🔴 MOTOR IZQUIERDO ATASCADO. El firmware ve corriente y no ve giro.
+18:08:09  motor izquierdo: atasco resuelto
+```
+
+**Por qué la medida anterior falló:** forzó los motores **a 220/255**, o sea con `raw_motors`,
+que es PWM crudo y **se salta el sistema de control del RVR** — y la detección de atasco vive
+**dentro** de ese sistema. Con `drive_rc_si_units`, que es lo que usa `cmd_vel`, salta a los ~5 s.
+
+📝 **Se probó una cosa y se concluyó sobre otra.** El resultado negativo era correcto para
+`raw_motors` y falso para todo lo demás. **Prueba por el camino que el sistema usa de verdad.**
+
+⚠️ Y encadenó tres investigaciones inútiles: buscar la corriente de los motores (`bad_cid`),
+declarar el atasco imposible, e implementar un detector propio por encoders — **retirado**,
+porque en la prueba ni llegó a ejecutarse y la notificación del firmware es estrictamente mejor
+(ve la **corriente**, que nosotros no podemos leer).
+
+✅ **Y lo vio el usuario mirando el robot:** durante el atasco el RVR **enciende LEDs amarillos y
+rojos** por su cuenta. El driver no los toca. Diagnóstico sin abrir un terminal, con 16 robots.
+
+### ✅ Implementado: `/battery_state` con voltaje y umbrales del firmware
+
+El porcentaje decía **100 %** con la batería a **8.29 V**, a 1.29 V del umbral de «baja». Es una
+estimación gruesa.
+
+```
+voltage 8.2803 V · estado ok · umbrales del firmware: baja 7.0 · crítica 6.5 · histéresis 0.2
+```
+
+Los umbrales se **leen del propio firmware** al arrancar, así no se codifican a mano en dos
+sitios. Van en la misma pasada del keepalive, que ya llamaba al RVR cada 30 s.
+
+⚠️ **«Batería baja» no se marca como averiada:** una batería descargada está **sana**, y forzar
+`DEAD` engañaría a cualquier consumidor. La señal para la web es **`voltage`**.
+
+### 🔴 Cerrado con evidencia: no hay rumbo absoluto
+
+El usuario encontró la página de actualización de firmware y el hilo archivado del foro de
+Sphero. Tres respuestas:
+
+1. **El firmware ya está en la última versión** — la de «Fall 2022» es 9.1.462/9.2.482, justo la
+   que tiene el robot.
+2. **Un «SDK modificado» no puede ayudar:** el SDK solo serializa el protocolo, y `bad_cid` **lo
+   responde el robot**.
+3. El RVR **sí lleva magnetómetro** (IMU de 9 ejes), pero las **dos** vías fallan:
+   `get_magnetometer_reading` da `bad_cid` y `magnetometer_calibrate_to_north` **se acepta y no
+   hace nada** — ni gira ni avisa.
+
+🔴 **Lo zanjó el usuario mirando el robot: «no giró».** Sin ese dato, «no llegó la notificación»
+era ambiguo. Consecuencia: la pose inicial de cada robot tendrá que venir del mapa o del
+operador. **Es una limitación del hardware, no una tarea pendiente.**
+
+### 📚 Rescatada la documentación oficial del protocolo
+
+`sdk.sphero.com` **ya no existe**. Guardada en `00_auditoria/referencia_sdk/` desde archive.org,
+porque no hay otra copia. Documenta el **protocolo del robot**, no el SDK de Python — por eso
+describe comandos que la librería no expone.
+
+Y destapó **dos errores propios**: clasificar como «mudo» un comando que es **asíncrono por
+diseño**, y consultar `get_temperature` con **IDs que no existen** dando el resultado por bueno
+**porque parecía razonable**. 📝 *Un valor plausible no es un valor validado.*
+
+### ⚠️ Térmica y fallo: repetidas por el camino bueno, y siguen NO VERIFICADAS
+
+10 ciclos de bloqueo subieron los motores de 28.7 a **40.0 °C** sin que saltara nada. **No prueba
+nada:** la protección térmica no actúa a 40 °C y el tope de seguridad de la prueba estaba en 65 —
+**el ensayo nunca pudo dispararla**. No se persigue: el sondeo cada 30 s ya da temperatura y
+estado, y el coste sería castigar la única unidad montada.
+
+**Pero salieron dos datos que valen:**
+- **Un motor bloqueado se calienta a ~6.5 °C/min** — sirve de **corroboración** de atasco.
+- 🔴 **La temperatura publicada puede tener 30 s de retraso.** La web **no debe leer una
+  temperatura plana como «estable»**: puede ser el mismo dato repetido. Para eso está
+  `antiguedad_termico_s`.
+
+### Lo que queda del SDK
+
+| | |
+|---|---|
+| 🔴 Necesita `rvr-02` | todo el IR robot-a-robot. Y el arreglo de seguridad de `set_ir_evading` está verificado **por código**, nunca con un emisor delante |
+| ⏳ Probable hoy | `enable_color_detection_notify` (podría explicar la confianza 0 de `/color`) · `set_locator_flags` · replicar `reset_yaw` |
+| 📝 Sin interés | `force_battery_refresh`, banderas `Boost`/`Fast Turn`/`Enable Drift`, modos de conducción alternativos |
+
+---
+
 ## 2026-08-01 (cierre) — Namespace y parada de emergencia: las dos decisiones, cerradas
 
 Eran los dos únicos bloqueos **de decisión** antes de la Fase 5. Cambiar cualquiera de las dos

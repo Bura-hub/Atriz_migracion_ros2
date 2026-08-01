@@ -4,7 +4,7 @@
 > Raspberry Pi ya se reflasheó. Está escrito para que no haga falta reconstruir el
 > contexto desde cero.
 >
-> Última actualización: **2026-08-01**.
+> Última actualización: **2026-08-01** (tras explorar el SDK entero y cerrar la 2ª auditoría).
 
 ---
 
@@ -113,6 +113,28 @@ Firmware del RVR: **9.1.462** (Nordic), confirmado también en 24.04 leyendo el 
 ⚠️ Las dos líneas base son distintas y **no se mezclan**: `00_auditoria/evidencia/` es el
 sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 
+## El SDK del RVR, explorado entero (2026-08-01)
+
+Se probaron **uno a uno** los 62 métodos que el driver no usaba. Resumen para no repetirlo:
+
+| | |
+|---|---|
+| ✅ **Batería con voltaje y umbrales del firmware** | implementado y verificado. `voltage` 8.28 V · umbrales **7.0 / 6.5 V** leídos del propio firmware. 🔴 **La web debe mirar `voltage`, no `percentage`**: el porcentaje decía 100 % a 1.29 V del umbral de «baja» |
+| 🔴 **El atasco SÍ se detecta**, y dice **qué oruga** | 3 de 3 con el robot bloqueado. La conclusión anterior («las notificaciones no llegan») era **falsa**: se había probado con `raw_motors`, que se salta el sistema de control donde vive la detección. Y el RVR **enciende LEDs amarillos y rojos** por su cuenta |
+| 🔴 **No hay rumbo absoluto** — limitación del hardware | `get_magnetometer_reading` da `bad_cid` y `magnetometer_calibrate_to_north` **no hace nada**. El firmware ya está en la última versión. **La pose inicial tendrá que venir del mapa o del operador** |
+| 🔴 **No hay corriente de motores** | `bad_cid`. Ya no importa: el atasco se detecta por notificación |
+| ⚠️ **Térmica y fallo: NO VERIFICADAS** | la prueba llegó a 40 °C y no podía disparar nada. No se persigue: el sondeo cada 30 s ya da el dato |
+| 📚 **Documentación del protocolo rescatada** | `sdk.sphero.com` ya no existe. Copia en `00_auditoria/referencia_sdk/` |
+
+⏳ **Lo único que queda necesita un segundo robot:** todo el **IR robot-a-robot**. Y el arreglo
+de seguridad de `set_ir_evading` está verificado **por código**, nunca con un emisor delante.
+
+📝 **Dos datos que la Fase 5 necesita saber:** un motor bloqueado se calienta a **~6.5 °C/min**
+(sirve de corroboración de atasco), y **la temperatura publicada puede tener 30 s de retraso** —
+una temperatura plana **no** significa «estable», puede ser el mismo dato repetido.
+
+---
+
 ## Qué está roto y confirmado
 
 | Problema | Gravedad | Estado |
@@ -127,7 +149,7 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 | ~~La parada de emergencia de la web no hace nada~~ | seguridad | ✅ **resuelta 2026-07-31**. Había **tres** causas, no una: nombre, **namespace** (`/rvr/`) y **QoS** (`TRANSIENT_LOCAL` en el suscriptor no empareja con nadie). Verificada por los tres nombres, 0 avisos de QoS. Manual, cap. 15 |
 | **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — **acción del usuario**. Y no basta con rotarla: hay que quitarla del **historial** de git, no solo del último commit |
 | ~~Sin arranque automático~~ | operación | ✅ **resuelto 2026-07-31**: `atriz-robot.service`, probado con un reinicio real. Falta que `provision.sh` lo instale |
-| **La integración con el SDK NO está completa** | funcionalidad | 🔴 abierto. 18 servicios portados, pero **el driver usa 37 de los 99 métodos públicos del SDK**, y los 62 restantes están **probados uno a uno** (evidencia 41): 14 son notificaciones que este firmware no emite, la mayoría son modos de conducción que no hacen falta, y de las 16 consultas útiles **responden 11**. 🔴 **La corriente de motores NO existe** (`bad_cid`), así que la detección de atasco es **imposible** por esa vía. 🔴 **El magnetómetro es inaccesible, CERRADO el 2026-08-01**: el hardware lo lleva (IMU de 9 ejes) pero las dos vías fallan — la lectura cruda da `bad_cid` y `magnetometer_calibrate_to_north` se acepta y **no hace nada** (ni gira ni avisa). **No hay rumbo absoluto**: la pose inicial tendrá que venir del mapa o del operador. Es una limitación del hardware, no una tarea pendiente (evidencia 42). ✅ **Lo que sí y aún no se usa: el estado de batería con umbrales del firmware** (low 7.0 V, critical 6.5 V). (Antes esta fila decía «27 de 94», mal**. **Tres** huecos sin equivalente (`ambient_light`, recibir IR, topic `encoders`) — `reset_odom` se dio por ausente y **ya existía** como `set_pos_and_yaw` (0,0,0). ✅ **2026-08-01**: `/motor_status` (temperatura y fallo, **sondeados**), **`/encoders`** a 16.57 Hz y **`/ambient_light`**. ✅ **Y los dos sensores ópticos caracterizados** (evidencia 37) — 🔴 con **`/ambient_light` descartado**: el piso blanco del LIDAR le refleja los LEDs del propio robot, así que no mide la sala. Decisión del usuario: no se usa. ⚠️ De rebote salieron dos huecos de operación, ver evidencia 37 §6: funcionan los dos, son sensores **distintos**, y `/color` acierta los cinco colores. La `confianza` es 0 porque falta cargar una **paleta**. Queda **recibir IR** y, si hiciera falta nombrar colores, portar `load_color_palette` y falta lo más valioso: **notificaciones de motor atascado y de fallo de motor**. Evidencia 34 |
+| ~~La integración con el SDK NO está completa~~ | funcionalidad | ✅ **explorado entero el 2026-08-01**: el driver usa **37 de 99** métodos, y los 62 restantes están **probados uno a uno** (evidencias 41–44). De lo que faltaba, **solo uno era aprovechable y ya está puesto** (voltaje de batería). 🔴 **El atasco SÍ se detecta** — la conclusión contraria era falsa. 🔴 **No hay rumbo absoluto**, cerrado con evidencia. ⏳ Queda el **IR**, que necesita un segundo robot |
 | ~~No hay watchdog de `cmd_vel`~~ | seguridad | ✅ **resuelto**: para en 527 ms / 7.9 cm |
 | ~~No hay URDF → árbol TF partido~~ | bloqueante | ✅ **resuelto**: `atriz_rvr_description` |
 | ~~Driver ROS del LIDAR no instalado~~ | bloqueante | ✅ **resuelto**: `/scan` a 10.1 Hz |
