@@ -122,6 +122,13 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          └── ⚠️ sin ejercitar: la espera de puertos y Restart=always
 
      F26 Lo que queda                                                          ⏳ SIGUIENTE
+     F28 LEDs, luz ambiente y encoders       evidencia 36                  ✅
+         └── bug de LEDs: set_all_leds espera un brillo POR BIT del grupo,
+             y 2 de 12 grupos aceptaban el comando sin encenderse
+         └── /encoders 16.57 Hz (claves LeftTicks/RightTicks, ticks con signo)
+         └── /ambient_light: 0.0 salvo color_detection:=true -> 2.497
+         └── ⏳ abierto: /color sigue en (0,0,0) con la luz encendida
+
      F27 Salud de motores en /motor_status   evidencia 35                  ✅
          └── temperatura 27.9/27.7 °C y fallo, SONDEADOS: las notificaciones
              del SDK no llegan en este firmware (medido, como `core_time`)
@@ -129,8 +136,8 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          └── ✅ y de paso se estrenó `Restart=always`
 
          0. Cerrar la integración con el SDK  evidencia 34                ← AQUÍ
-            27 de 94 métodos · quedan `ambient_light`, topic `encoders`
-            y recibir IR
+            quedan: recibir IR, y mirar por qué /color sigue en (0,0,0)
+            con la luz encendida (evidencia 36, sección 6)
          1. La plataforma web                 plan, Fase 5
          2. Añadir systemd a provision.sh     al cerrar el robot de referencia
          3. Confirmar los 0 fallos de SLAM con otra tanda (p=0.113, sugerente)

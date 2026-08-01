@@ -705,6 +705,7 @@ caracterizar_deriva_slam.py  # ⚠️ MUEVE EL ROBOT 20 min: 6 corridas -> distr
 medir_slam_ros2.py           # ⚠️ MUEVE EL ROBOT ~1.3 m: ¿crece el mapa? (girar NO vale)
 verificar_inverted_lidar.py  # ⚠️ gira 50°: ¿se contradicen /scan y /odom?
 medir_parada_nav2.py         # ⚠️ MUEVE EL ROBOT ~2 m: ¿arranca solo al LIBERAR la parada?
+probar_leds_ros2.py          # ⚠️ ENCIENDE LEDS (no mueve): los 12 grupos, ¿hay comunicación?
 ```
 
 ⚠️ **`medir_slam_ros2.py` necesita espacio, y el robot NO esquiva obstáculos** (solo tiene

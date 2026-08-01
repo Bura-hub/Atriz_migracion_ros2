@@ -4,6 +4,80 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-01 — LEDs, luz ambiente y encoders: tres bugs que solo salen mirando el robot
+
+El usuario pidió *«prueba todos los leds para ver si hay comunicación todavía»*. Los 12 grupos
+devolvieron `success=True`. **Y dos no se encendieron.**
+
+### 🔴 `led_group` es una máscara de bits, y `set_all_leds` quiere un brillo POR BIT
+
+Los 10 grupos normales tienen **3 bits** (R, G, B), `all_lights` tiene **30** y
+`undercarriage_white` **1**. El driver mandaba **siempre tres**: para los 10 acierta, y a los
+otros dos el RVR les dice que sí y no hace nada.
+
+📝 **Lo encontró el ojo del usuario, no el código:** *«no vi los bajos ni tampoco todos»*. Sin
+eso, los doce ✅ del script habrían pasado por buenos. Arreglado contando bits; los tres
+servicios de LED comparten ahora la misma regla, y el usuario confirmó ver `all_lights`.
+
+### ✅ `/encoders` y `/ambient_light`, con dos bugs de camino
+
+Las claves del stream son **`LeftTicks`/`RightTicks`**, no `Left`/`Right` — **la tabla de
+documentación del propio SDK dice otra cosa que el payload**. Con las claves malas el handler
+lanzaba `KeyError` y el topic quedaba registrado con **cero mensajes**: el síntoma exacto de un
+RVR dormido. Y los ticks vienen **sin signo en 32 bits**: un retroceso llega como `4294965940`,
+que son **−1356**.
+
+Medido después: `/odom` 16.58 · `/imu` 16.57 · `/encoders` 16.57 · `/ambient_light` 13.06 Hz.
+**Añadir dos sensores al stream no le cuesta ritmo a `/odom`.**
+
+### 🔴 `/ambient_light` da 0.0 si el sensor de color está apagado
+
+**0.0 constante** con `color_detection=false` — incluso con el robot **levantado** (247 muestras)
+y por las dos vías, stream y consulta directa. Con `color_detection:=true`: **2.497**. Comparten
+óptica. Es la misma trampa que dejó `/color` en `[0,0,0]` durante meses: el topic existe, el
+ritmo es correcto, y el dato es un cero. El driver ahora lo avisa por el log.
+
+✅ **Y eso contesta lo del LED de los bajos:** lo enciende `enable_color_detection`, **no** el
+grupo `undercarriage_white` del SDK.
+
+### 🔴 Una conclusión retirada, y grave: «un comando de LED mata la telemetría»
+
+Durante un buen rato esta sesión creyó haber encontrado un fallo serio: tras cualquier comando de
+LED, `/odom`, `/encoders` y la luz caían a **0.0 Hz**. Se llegó a **aislar** quitando los dos
+sensores nuevos, seguía pasando, y se concluyó *«es preexistente»* — lo cual habría significado
+que la web no puede encender un faro sin cegar al robot.
+
+**Era falso. El fallo estaba en el instrumento.** El script mezclaba
+`rclpy.spin_until_future_complete(nodo, f)` con un `SingleThreadedExecutor` que ya tenía ese
+nodo: el nodo deja de ser atendido y **mis** suscripciones se callan. Con el ejecutor bien usado:
+16.9 → 16.6 → 16.6 → 16.5 Hz. **El robot no había dejado de publicar ni un mensaje.**
+
+Van **cuatro** veces que el instrumento miente en este proyecto. Ante una medida rara, sospecha
+del medidor.
+
+📝 Contribuyó un bug propio: `_avisar_una_vez` se apoyaba en `_recibidos`, que `_quiza_publicar`
+**vacía en cada ciclo de `/odom`** — así que un aviso «una sola vez» salía **13 veces por
+segundo** desde el hilo de asyncio.
+
+### 🔴 Seis veces el mismo error de `colcon`, y por fin un arreglo
+
+«Summary: 0 packages finished» no compila nada y no parece un error; lo siguiente es reiniciar el
+nodo y leer un log del código viejo. Pasó **seis veces en esta sesión**, ya documentado. Y creó
+un **workspace parásito** en `src/Atriz_rvr/build`, borrado.
+
+→ Un aviso que se ignora seis veces no es un aviso: es una tarea pendiente. Ahora hay
+**`scripts/compilar.sh`**, que se sitúa solo en la raíz, comprueba que compiló algo y detecta el
+parásito. Probado a propósito desde el directorio malo: funciona, y encontró el parásito a la
+primera.
+
+### ⏳ Abierto
+
+`/color` sigue publicando `(0,0,0)` **con la luz encendida** (166 mensajes). No se investigó y no
+se da por bueno — hay que mirar `confidence` y contrastar el servicio contra el topic. Evidencia
+36, sección 6.
+
+---
+
 ## 2026-07-31 — «¿Está todo el Sphero en ROS?» — No: 27 de 94
 
 Pregunta del usuario al cerrar el día. Se comprobó en vez de darla por buena, y la respuesta

@@ -132,3 +132,25 @@ Los 12 grupos devolvieron `success=True`. **Y dos de ellos no se encendieron.**
     Ahora hay `scripts/compilar.sh`, que se situa solo en la raiz, comprueba que
     compilo ALGO, y avisa del workspace parasito. Probado a proposito desde el
     directorio malo: funciona, y detecto el parasito a la primera.
+
+
+───────────────────────────────────────────────────────────────────────────────
+6. ⏳ UNA DUDA QUE QUEDA ABIERTA: /color sigue en (0,0,0) con la luz encendida
+───────────────────────────────────────────────────────────────────────────────
+  En la prueba con `color_detection=true`, la luz ambiente subio a 2.497 —o sea
+  que el LED se encendio— pero `/color` seguia publicando **(0, 0, 0)** en 166
+  mensajes.
+
+  ⚠️ NO SE INVESTIGO, y no se da por bueno. Hipotesis, sin comprobar:
+     · el robot estaba sobre una superficie que no devuelve color reconocible
+     · `ColorDetection` da (0,0,0) cuando la CONFIANZA es 0, y el mensaje sí
+       lleva `confidence` — no se miro
+     · o hay un segundo fallo en la ruta del color
+
+  📝 La evidencia 27 (2026-07-31) midio el canal CLARO del sensor RGBC —4 apagado
+     contra 741 encendido— por el SERVICIO `get_rgbc_sensor_values`, que es otra
+     ruta distinta del stream `color_detection`. Que una funcione no dice nada de
+     la otra.
+
+  → PARA LA PROXIMA SESION: mirar `confidence` y contrastar el servicio contra el
+    topic con el mismo LED encendido. Es barato y no mueve el robot.
