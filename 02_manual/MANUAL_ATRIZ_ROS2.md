@@ -3853,6 +3853,180 @@ Para quitarlo: `sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --quitar`.
 - `rosbridge` no tiene unidad todavía; llega con la Fase 5.
 
 
+---
+
+## Capítulo 18 — La telemetría que faltaba: motores, encoders y luz
+
+> ✅ **Verificado el 2026-08-01** sobre rvr-01. Cada afirmación de este capítulo lleva la medida
+> que la sostiene, y las tres retractaciones están marcadas.
+
+Este capítulo cierra tres huecos del inventario del cap. 16 y **encuentra un bug de LEDs que
+llevaba ahí desde el principio**. El hilo conductor es el mismo de todo el proyecto: *el comando
+funcionó* y *el hardware hizo algo* son afirmaciones distintas.
+
+### 18.1 🔴 `/motor_status` — y por qué se SONDEA en vez de escuchar
+
+**El problema que resuelve:** hasta hoy, **un robot con una oruga trabada se veía exactamente
+igual que uno que navegaba mal**. `/odom` avanzaba poco, Nav2 abortaba por «no progresar», y nada
+distinguía un fallo de hardware de uno de algoritmo. Con 16 robots en otro edificio, esa
+diferencia decide si alguien tiene que ir hasta allí.
+
+Se implementó primero con las **notificaciones** que ofrece el SDK
+(`enable_motor_stall_notify` + `on_motor_stall_notify`, y las de fallo y térmica). **No llega ni
+una**, y se descartó la culpa propia una por una:
+
+| Se comprobó | Resultado |
+|---|---|
+| ¿está bien el registro? | ✅ `on_command` mete el handler en la tabla de despacho y vuelve. La task terminando enseguida es **normal** — una versión de este código avisaba de ello como si fuera el fallo, y era un **falso positivo** |
+| ¿da error el `enable_*`? | ✅ no. Devuelven `None`, que en este SDK significa «comando sin respuesta pedida» |
+| ¿se atascó de verdad? | ✅ dos veces: `move_timed` 0.15 m/s con el robot sujeto, y `raw_motors` a **220/255** apretado contra el suelo |
+| ¿y la térmica, que llega sola? | ✅ 100 s de escucha: **4 mensajes, los 4 del keepalive**, todos con antigüedad −1 |
+
+Ese último es el que lo zanja: si el problema fuera «no atascamos bastante», la térmica habría
+llegado igual. → **Este firmware no emite estas notificaciones**, igual que `core_time`.
+
+✅ **Las consultas directas SÍ responden**, así que el driver **sondea cada 30 s** junto al
+keepalive:
+
+```
+get_motor_fault_state                -> {'is_fault': False}
+get_motor_thermal_protection_status  -> 27.9 / 27.7 °C, estados 0/0
+```
+
+📝 Es además la **única vía** por la que este proyecto tiene temperatura de motores.
+
+⚠️ **El atasco se queda fuera.** El SDK **no tiene** `get_motor_stall_state`: solo existe por
+notificación. Por eso el mensaje lleva **una antigüedad por fuente** y `antiguedad_atasco_s` vale
+**−1.0** — «no se sabe», que no es lo mismo que «no hay atasco».
+
+🔴 **Y ese campo nació mal:** la primera versión tenía **una sola** antigüedad para las tres
+cosas, y el sondeo del fallo la refrescaba. Daba `antiguedad_atasco_s = 0.0` —«recién
+comprobado»— sobre algo que no se comprueba nunca. **Falsa tranquilidad, peor que no publicar el
+campo.**
+
+### 18.2 🔴 El bug de los LEDs: una máscara de bits, no siempre tres canales
+
+`led_group` es una **máscara**, y `set_all_leds` espera **un valor de brillo por bit encendido**:
+
+| grupo | bits | valores que espera |
+|---|---|---|
+| los 10 normales | 3 | `[r, g, b]` |
+| `all_lights` | **30** | `[r, g, b]` × 10 |
+| `undercarriage_white` | **1** | uno solo (es blanco, no RGB) |
+
+El driver mandaba **siempre tres**. Para los 10 acierta; a los otros dos **el RVR les dice que sí
+y no hace nada**. `success=True` con el LED apagado.
+
+📝 **Lo encontró el ojo del usuario, no el código.** El script reportó 12/12 ✅ y él dijo *«no vi
+los bajos ni tampoco todos»*. Sin esa frase, los doce habrían pasado por buenos. Arreglado
+contando bits; los tres servicios de LED comparten ahora la regla.
+
+⚠️ **`undercarriage_white` sigue sin encender**, y esta vez medido sin depender de la vista: con
+el sensor de luz como testigo, la luz no cambia. **El LED blanco de los bajos lo enciende
+`enable_color_detection`**, no ese grupo. Y no se ve desde arriba: está bajo el chasis.
+
+### 18.3 `/encoders` y `/ambient_light` — dos bugs de camino
+
+Los dos están en `RvrStreamingServices`, así que van por el mismo stream que el resto.
+
+🔴 **Las claves son `LeftTicks`/`RightTicks`, no `Left`/`Right`.** La tabla de documentación del
+**propio SDK** dice `| Encoders | Left, Right |` y el payload trae otra cosa. Con las claves malas
+el handler lanza `KeyError`, el topic queda **registrado y con cero mensajes** — el síntoma exacto
+de un RVR dormido. Se desempató imprimiendo el dict **crudo**.
+
+🔴 **Los ticks vienen sin signo, en 32 bits.** Un retroceso llega como **4294965940**, que son
+**−1356**. `Encoder.msg` es `int32`: sin convertir se publicaría un número absurdo **y creciente**,
+que parecería un encoder sano.
+
+✅ **Y no le cuesta ritmo a `/odom`:** 16.58 · `/imu` 16.57 · `/encoders` 16.57 ·
+`/ambient_light` 13.06 Hz.
+
+### 18.4 🔴 `/ambient_light` da 0.0 sin `color_detection`
+
+| condición | luz |
+|---|---|
+| en el suelo, `color_detection=false` | **0.0** (n=40) |
+| **levantado 20 cm**, `color_detection=false` | **0.0** (n=247) |
+| `get_ambient_light_sensor_value()` | **0.0** |
+| `color_detection=true` | **2.497** ✅ |
+
+El sensor de luz **comparte la óptica del sensor de color y necesita el mismo encendido**. Es la
+misma trampa que dejó `/color` en `[0,0,0]`: el topic existe, el ritmo es correcto, y el dato es
+un cero constante. El driver ahora **lo avisa por el log**.
+
+📝 No se cambia el valor por defecto: encender el LED blanco gasta batería en 16 robots.
+
+### 18.5 🔴 Una conclusión RETIRADA: «un comando de LED mata la telemetría»
+
+Durante una hora esta sesión creyó haber encontrado un fallo grave: tras cualquier comando de
+LED, `/odom`, `/encoders` y la luz caían a **0.0 Hz**. Se llegó a **aislar** quitando los dos
+sensores nuevos —seguía pasando— y a concluir que era **preexistente**, lo cual habría
+significado que la web no puede encender un faro sin cegar al robot.
+
+**Era falso. El fallo estaba en el instrumento de medida:**
+
+```python
+ex = SingleThreadedExecutor(); ex.add_node(n)
+...
+rclpy.spin_until_future_complete(n, futuro)   # 🔴 el nodo YA está en `ex`
+```
+
+`rclpy.spin_until_future_complete` mete el nodo en el ejecutor **global**; deja de ser atendido
+por `ex` y **las suscripciones del medidor** se callan. Con `ex.spin_until_future_complete()`:
+16.9 → 16.6 → 16.6 → 16.5 Hz. **El robot no había dejado de publicar ni un mensaje.**
+
+→ **Regla:** si hiciste `ex.add_node(n)`, todo el giro es de `ex`.
+→ Van **cuatro** veces que el instrumento miente en este proyecto (`ros2 topic hz`, `spin_once`
+  en bucle, `mensajes/duración`, y esto). **Ante una medida rara, sospecha del medidor.**
+
+📝 Contribuyó un bug propio: `_avisar_una_vez` se apoyaba en `_recibidos`, que `_quiza_publicar`
+**vacía en cada ciclo de `/odom`**, así que un aviso «una vez» salía **13 veces por segundo**
+desde el hilo de asyncio.
+
+### 18.6 🔴 Seis veces el mismo error de `colcon` — y el arreglo
+
+«Summary: 0 packages finished» no compila nada, no parece un error, y lo siguiente es reiniciar
+el nodo y leer un log del código **viejo**. Pasó **seis veces en esta sesión**, ya documentado en
+`CLAUDE.md`, y creó un **workspace parásito** en `src/Atriz_rvr/build`.
+
+→ Un aviso que se ignora seis veces no es un aviso: es una tarea pendiente. Ahora hay
+**`scripts/compilar.sh`**:
+
+```bash
+bash ~/atriz_migracion/scripts/compilar.sh atriz_rvr_driver
+bash ~/atriz_migracion/scripts/compilar.sh --limpio atriz_rvr_msgs   # si tocaste un .msg
+```
+
+⚠️ **Cambiar un `.msg` no basta con `colcon build`:** el fichero instalado se queda con la
+versión anterior y el suscriptor da `AttributeError` sobre un campo que existe en el fuente. Eso
+es `--limpio`, y tarda ~4.5 min.
+
+### 18.7 ✅ Y de paso se estrenó `Restart=always`
+
+Para desplegar cada versión se mató el proceso principal en vez de pedir un `sudo`:
+
+```
+kill -INT $(systemctl show atriz-robot -p MainPID --value)
+  +5s  activating · +20s PID nuevo · +30s active · NRestarts 0 -> 1
+```
+
+Funciona, y se repitió una docena de veces sin fallo. Era una de las tres redes de seguridad sin
+estrenar (cap. 17.6). **Sigue sin estrenar la espera de puertos del envoltorio.**
+
+### 18.8 ⏳ Lo que queda abierto
+
+**`/color` sigue publicando `(0,0,0)` con la luz encendida** — 166 mensajes durante la prueba de
+`color_detection=true`, mientras la luz ambiente sí subía a 2.497. No se investigó, y **no se da
+por bueno**. Hipótesis sin comprobar: la superficie no devuelve color reconocible, o
+`ColorDetection` da (0,0,0) cuando la **confianza** es 0 —el mensaje lleva `confidence` y no se
+miró—, o hay un segundo fallo en esa ruta.
+
+📝 Y ojo: la medida del cap. 16 (canal claro 4 → 741) se hizo por el **servicio**
+`get_rgbc_sensor_values`, que es **otra ruta** distinta del stream `color_detection`. Que una
+funcione no dice nada de la otra.
+
+Evidencia cruda: `00_auditoria/evidencia_24_04/35_salud_motores.txt` y `36_leds_luz_encoders.txt`.
+
 Hasta entonces, para reconstruir el sistema **Noetic** el procedimiento válido es el
 [manual original anotado](MANUAL_SPHERO_transcripcion.md), aplicándole las correcciones
 marcadas en sus bloques `⚠️ AUDITORÍA` — en particular los nombres de paquete de los
