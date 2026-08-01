@@ -369,13 +369,27 @@ posterior. `fase_1_higiene_so.sh` lo deshabilita.
 plano. En 20.04 estaba así; en la imagen de **Server 24.04 ya viene `600`**. Compruébalo, no
 lo asumas en ninguna de las dos direcciones. `fase_1_higiene_so.sh` lo corrige si hace falta.
 
-**⚠️ `/ambient_light` y `color_detection`: EN REVISIÓN.** Se documentó que da **0.0 sin
-`color_detection`**, y **puede ser falso**: con el parámetro en `false` y el robot **levantado de
-verdad** da media 0.90 y máximo 2.50. Las lecturas de «0.0 incluso levantado» se tomaron **con el
-robot sin levantar** — lo confirmó el usuario después.
-→ **El error de método, que es lo que hay que llevarse:** se dio por hecha una condición
-  experimental que nadie comprobó. Si tu medida depende de que alguien haga algo físico,
-  **pregunta si lo hizo** antes de concluir.
+**✅ LOS DOS SENSORES ÓPTICOS FUNCIONAN, Y SON DOS SENSORES DISTINTOS.** Caracterizados el
+2026-08-01 (evidencia 37, manual cap. 18.4):
+- **Color:** con `color_detection:=true`, `clear` recorre **12.6×** entre blanco y negro, el rojo
+  dispara R/G de 0.48 a **2.74**, el azul sube B/G a **0.86**, y `/color` acierta los cinco
+  (suelo, blanco, rojo, azul, negro). Normaliza por **G**: es el canal más sensible.
+- **Luz ambiente:** es **otro sensor, en otro sitio**, y **NO depende de `color_detection`**.
+  ⚠️ **Ve los LEDs del propio robot** —encenderlos todos la sube de 1.76 a **23.55**, 13.3×—
+  mientras el RGBC da valores **idénticos** con los LEDs en rojo, verde o azul. Así que
+  `/ambient_light` **no mide la luz de la sala**.
+- 🔴 La **`confianza` de `/color` es siempre 0**: es el **clasificador**, que necesita una
+  **paleta**. `load_color_palette` y `set_active_color_palette` existen en el SDK y no se usan.
+
+**🔴 Y ESTO COSTÓ DOS AFIRMACIONES FALSAS Y DOS MONTAJES QUE MENTÍAN:**
+- «da 0.0 sin `color_detection`» — las lecturas de 0.0 se tomaron **con el robot sin levantar**,
+  y lo confirmó el usuario **después**. → **Si tu medida depende de que alguien haga algo físico,
+  pregunta si lo hizo antes de concluir.**
+- «los reinicios degradan el stream» — era el **apagado limpio apagando los LEDs**. Lo propuso el
+  usuario y la medida le dio la razón.
+- **pegar el objeto contra la ventana tapa también el LED**: el blanco daba menos que el negro.
+- deslizar papel sin comprobar que tapa la ventana: dio números **idénticos** a la referencia.
+  **Idéntico no es parecido — es la señal de que no cambiaste nada.**
 
 **🔴 `undercarriage_white` NO ENCIENDE EL LED DE LOS BAJOS, y devuelve `success=True`.** Lo
 enciende **`enable_color_detection`**. Medido con el sensor de luz como testigo.
@@ -707,6 +721,7 @@ caracterizar_deriva_slam.py  # ⚠️ MUEVE EL ROBOT 20 min: 6 corridas -> distr
 medir_slam_ros2.py           # ⚠️ MUEVE EL ROBOT ~1.3 m: ¿crece el mapa? (girar NO vale)
 verificar_inverted_lidar.py  # ⚠️ gira 50°: ¿se contradicen /scan y /odom?
 medir_parada_nav2.py         # ⚠️ MUEVE EL ROBOT ~2 m: ¿arranca solo al LIBERAR la parada?
+probar_sensor_optico.py      # color y luz por sus TRES rutas a la vez · --guiado
 probar_leds_ros2.py          # ⚠️ ENCIENDE LEDS (no mueve): los 12 grupos, ¿hay comunicación?
 ```
 
@@ -758,7 +773,8 @@ de verdad. Dos consecuencias que cambian el día a día:
 | `/battery_state` | cada **30.0 s** exactos — es el latido del keepalive | 2026-07-31 |
 | `/motor_status` | cada **30 s** (mismo latido) · temperatura de motores **27.9 / 27.7 °C** en reposo | 2026-08-01 |
 | `/encoders` | **16.57 Hz** · ticks con signo (7792 ticks/m) | 2026-08-01 |
-| `/ambient_light` | **13.06 Hz** · **0.0 salvo `color_detection:=true`**, y entonces 2.497 | 2026-08-01 |
+| `/ambient_light` | **13.06 Hz** · ~1.8 con los LEDs apagados, **23.55 con todos encendidos** (13.3×) | 2026-08-01 |
+| `/color` (con `color_detection:=true`) | `clear` **181** (negro) → **2288** (blanco), 12.6× · rojo R/G **2.74** · azul B/G **0.86** | 2026-08-01 |
 | Enlace con keepalive | **12 min, 0 huecos** en `/odom`, 16.54 Hz | 2026-07-31 |
 | **Nav2 navegando** | error final **9–10 cm** (= la tolerancia configurada) | 2026-07-31 |
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |

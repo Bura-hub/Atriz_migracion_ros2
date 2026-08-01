@@ -1,0 +1,121 @@
+═══════════════════════════════════════════════════════════════════════════════
+LOS DOS SENSORES OPTICOS DEL RVR — caracterizados, y son DOS
+Robot: rvr-01 · 2026-08-01 · Ubuntu Server 24.04 + ROS 2 Jazzy
+═══════════════════════════════════════════════════════════════════════════════
+Peticion del usuario: «el sistema tiene problemas con los sensores de color y de
+luz ambiental, puedes probarlos con detalle para ver si funciona».
+
+RESPUESTA CORTA: **los dos funcionan.** Los "problemas" eran (a) el LED apagado
+por defecto, (b) dos montajes de prueba mal hechos, y (c) dos afirmaciones mias
+que resultaron falsas y se retiran aqui.
+
+
+───────────────────────────────────────────────────────────────────────────────
+1. ✅ EL SENSOR DE COLOR FUNCIONA — serie completa
+───────────────────────────────────────────────────────────────────────────────
+  Con `color_detection:=true` (LED blanco de los bajos encendido; el usuario
+  confirmo verlo), y colocando cada superficie DE UNA EN UNA, con el usuario
+  diciendo «listo» antes de cada medida:
+
+    superficie   clear    R/G     B/G    /color
+    ─────────────────────────────────────────────────────────────
+    suelo         1275   0.546   0.413   (255, 220, 209)  beige calido
+    blanco        2288   0.482   0.498   (244, 235, 255)  neutro
+    rojo           565   2.743   0.355   (255,  31,  43)  rojo puro
+    azul           396   0.447   0.856   ( 88, 120, 201)  azul
+    negro          181   0.480   0.460   ( 28,  27,  29)  negro
+
+  ✅ `clear` recorre **12.6x** entre blanco y negro.
+  ✅ El rojo dispara R/G de 0.48 a **2.743** (5.7x).
+  ✅ El azul sube B/G de 0.50 a **0.856**.
+  ✅ Blanco y negro dan los tres canales equilibrados, como debe ser.
+  ✅ Y `/color` acierta LOS CINCO a ojo.
+
+  📝 Se normaliza por G porque en un sensor RGBC el canal verde es el mas
+     sensible: comparar R, G y B en crudo hace parecer que "todo es verde".
+
+  🔴 LA CONFIANZA ES 0.00 EN LOS CINCO — y NO es el sensor.
+     Es el CLASIFICADOR de color del RVR, que compara contra una PALETA. El SDK
+     tiene `load_color_palette`, `save_color_palette`, `set_active_color_palette`
+     y `get_active_color_palette`, y **el driver no usa ninguna**.
+     → Si alguna vez hace falta «que el robot diga de que color es el suelo»,
+       eso es lo que hay que portar. Los datos crudos ya sirven sin ello.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2. ✅ EL SENSOR DE LUZ AMBIENTE ES **OTRO SENSOR**, EN OTRO SITIO
+───────────────────────────────────────────────────────────────────────────────
+  Lo dijo el usuario y lo confirma la medida, que es la que los separa:
+
+    ENCENDER LOS 10 GRUPOS DE LED DEL CHASIS:
+        luz ambiente   1.76  ->  23.55     **13.3x**
+        y vuelve a 1.30 al apagarlos
+
+    LOS MISMOS LEDS, VISTOS POR EL RGBC:
+        apagados   R=194 G=465 B=220 clear=797
+        ROJOS      R=194 G=463 B=219 clear=796
+        VERDES     R=196 G=465 B=220 clear=797
+        AZULES     R=194 G=463 B=220 clear=797
+        -> IDENTICOS. El RGBC esta apantallado y solo ve lo que tiene debajo.
+
+  ⚠️ CONSECUENCIA PARA QUIEN LO USE: `/ambient_light` **NO mide la luz de la
+     sala**. Lo dominan los propios LEDs del robot. Si el robot enciende un LED,
+     la señal sube sin que la sala haya cambiado.
+
+  ✅ Y NO depende de `color_detection`. Funciona con el sensor de color apagado.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3. 🔴 DOS AFIRMACIONES RETIRADAS — las dos documentadas HOY como medidas
+───────────────────────────────────────────────────────────────────────────────
+  (a) «/ambient_light da 0.0 sin color_detection»   -> **FALSO**
+      Son sensores distintos. Las lecturas de 0.0 se tomaron con el robot
+      **sin levantar de verdad** (el usuario lo confirmo despues) y con todos
+      los LEDs apagados por el driver, que es cuando esa señal baja a ~1.
+
+      🔴 EL ERROR DE METODO: se dio por hecha una condicion experimental que
+         nadie comprobo. **Si tu medida depende de que alguien haga algo fisico,
+         PREGUNTA SI LO HIZO antes de concluir.**
+
+  (b) «cada reinicio del driver degrada el stream de luz»   -> **FALSO**
+      La caida de 13.4 a 2.0 era el **apagado limpio del driver apagando los
+      LEDs**. Lo propuso el USUARIO — «seguro es porque en el reinicio apagaste
+      todos los leds del robot»— y la medida le dio la razon con 13.3x.
+
+      📝 El 13.4 de despues de encender el RVR eran **sus LEDs de arranque**.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4. 🔴 DOS MONTAJES DE PRUEBA QUE DABAN RESULTADOS ABSURDOS
+───────────────────────────────────────────────────────────────────────────────
+  (a) **Deslizar el papel sin comprobar que tapa la ventana.** El "papel blanco"
+      dio EXACTAMENTE los mismos numeros que la referencia (120/248/121, clear
+      446 los dos). Identico no es parecido: el papel no estaba encima del
+      sensor.
+
+  (b) **Pegar el objeto contra la ventana TAPA TAMBIEN EL LED.** Asi el blanco
+      dio clear=261 y el negro 795 — al reves de lo fisicamente posible.
+
+  → EL PROTOCOLO QUE SI FUNCIONA, y es el que hay que repetir:
+      · una superficie por vez
+      · el usuario la coloca y CONFIRMA antes de medir (nada de cuenta atras)
+      · a la distancia natural del suelo, sin aplastar contra el sensor
+      · y localizar la ventana primero deslizando papel blanco mientras se lee
+        `clear` en vivo: sube de 765 a 2269 (3.0x) cuando pasa por encima
+
+
+───────────────────────────────────────────────────────────────────────────────
+5. COMO REPETIRLO
+───────────────────────────────────────────────────────────────────────────────
+  Hace falta el LED encendido, y `robot.launch.py` lo tiene en `false` por
+  defecto — y el argumento del LAUNCH **pisa** el valor declarado en el nodo, asi
+  que cambiar `declare_parameter` no sirve de nada:
+
+      # en atriz_rvr_bringup/launch/robot.launch.py, linea ~141
+      'color_detection', default_value='true',     # revertir al terminar
+      bash ~/atriz_migracion/scripts/compilar.sh atriz_rvr_bringup
+      kill -INT $(systemctl show atriz-robot -p MainPID --value)
+
+  Y la herramienta:
+      mediciones_banco/probar_sensor_optico.py            # las tres rutas
+      mediciones_banco/probar_sensor_optico.py --guiado   # con superficies

@@ -4,6 +4,55 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-01 — Los dos sensores ópticos: funcionan, y son DOS
+
+Petición del usuario: *«el sistema tiene problemas con los sensores de color y de luz ambiental,
+puedes probarlos con detalle»*. **Los dos funcionan.** Los «problemas» eran el LED apagado por
+defecto, dos montajes de prueba mal hechos, y **dos afirmaciones mías que resultaron falsas**.
+
+### ✅ El sensor de color acierta los cinco
+
+| superficie | `clear` | R/G | B/G | `/color` |
+|---|---|---|---|---|
+| suelo | 1275 | 0.546 | 0.413 | (255, 220, 209) |
+| blanco | **2288** | 0.482 | 0.498 | (244, 235, 255) |
+| rojo | 565 | **2.743** | 0.355 | **(255, 31, 43)** |
+| azul | 396 | 0.447 | **0.856** | **(88, 120, 201)** |
+| negro | **181** | 0.480 | 0.460 | (28, 27, 29) |
+
+12.6× entre blanco y negro, los ratios se mueven en la dirección correcta, y `/color` acierta a
+ojo los cinco. 🔴 La **confianza es 0** en todos, y no es el sensor: es el **clasificador**, que
+necesita una **paleta** (`load_color_palette` existe en el SDK y no se usa).
+
+### ✅ Y el de luz ambiente es OTRO sensor, en otro sitio
+
+Lo dijo el usuario, y la medida lo confirmó: encender los 10 grupos de LED sube la luz de **1.76 a
+23.55** (13.3×), mientras el RGBC da valores **idénticos** con los LEDs en rojo, verde o azul.
+→ ⚠️ **`/ambient_light` no mide la luz de la sala**: la dominan los LEDs del propio robot.
+
+### 🔴 Dos afirmaciones retiradas, las dos documentadas ese mismo día
+
+**«`/ambient_light` da 0.0 sin `color_detection`»** — falso. Las lecturas de 0.0 se tomaron **con
+el robot sin levantar de verdad**, y el usuario lo confirmó *después*. → **Si tu medida depende de
+que alguien haga algo físico, pregunta si lo hizo antes de concluir.**
+
+**«cada reinicio del driver degrada el stream»** — falso. Era el **apagado limpio apagando los
+LEDs**, como propuso el usuario. Su hipótesis descartó la mía.
+
+### 🔴 Y dos montajes que daban resultados imposibles
+
+- Deslizar el papel sin comprobar que tapa la ventana: el «blanco» dio **exactamente** los mismos
+  números que la referencia. **Idéntico no es parecido: es la señal de que no cambiaste nada.**
+- **Pegar el objeto contra la ventana tapa también el LED**: el blanco daba `clear=261` y el negro
+  795, al revés de lo físicamente posible.
+
+→ El protocolo que sí funciona lo propuso el usuario: **una superficie por vez, colocada y
+confirmada antes de medir**. Con él salieron los cinco a la primera.
+
+Evidencia 37 · manual cap. 18.4.
+
+---
+
 ## 2026-08-01 — LEDs, luz ambiente y encoders: tres bugs que solo salen mirando el robot
 
 El usuario pidió *«prueba todos los leds para ver si hay comunicación todavía»*. Los 12 grupos

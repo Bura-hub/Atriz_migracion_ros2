@@ -3941,30 +3941,66 @@ que parecería un encoder sano.
 ✅ **Y no le cuesta ritmo a `/odom`:** 16.58 · `/imu` 16.57 · `/encoders` 16.57 ·
 `/ambient_light` 13.06 Hz.
 
-### 18.4 ⚠️ `/ambient_light` y `color_detection` — **EN REVISIÓN, no usar**
+### 18.4 ✅ Los DOS sensores ópticos — caracterizados, y son dos
 
-> 🔴 **La tabla de abajo está bajo sospecha.** El mismo día, con `color_detection=false` y el
-> robot **levantado de verdad**, se midió media **0.90** y máximo **2.50**: el sensor sí responde
-> a la luz ambiente sin encender nada.
->
-> Las lecturas de «0.0 incluso levantado» se tomaron **cuando el robot no estaba levantado** —
-> lo confirmó el usuario después. Es el mismo error de método que este proyecto ya ha pagado:
-> **dar por hecha una condición experimental que nadie comprobó**.
->
-> Se está re-caracterizando con un ciclo de encendido del RVR y superficies conocidas.
+> 🔴 **Esta sección sustituye a una anterior que era FALSA.** Se documentó que `/ambient_light`
+> da 0.0 sin `color_detection`, y **no es cierto**: son sensores distintos, en sitios distintos.
+> Las dos retractaciones están en 18.4c.
 
-| condición | luz |
-|---|---|
-| en el suelo, `color_detection=false` | **0.0** (n=40) |
-| **levantado 20 cm**, `color_detection=false` | **0.0** (n=247) |
-| `get_ambient_light_sensor_value()` | **0.0** |
-| `color_detection=true` | **2.497** ✅ |
+**El sensor de color funciona.** Con `color_detection:=true`, colocando cada superficie de una en
+una y con el usuario confirmando antes de cada medida:
 
-El sensor de luz **comparte la óptica del sensor de color y necesita el mismo encendido**. Es la
-misma trampa que dejó `/color` en `[0,0,0]`: el topic existe, el ritmo es correcto, y el dato es
-un cero constante. El driver ahora **lo avisa por el log**.
+| superficie | `clear` | R/G | B/G | `/color` |
+|---|---|---|---|---|
+| suelo | 1275 | 0.546 | 0.413 | (255, 220, 209) beige cálido |
+| blanco | **2288** | 0.482 | 0.498 | (244, 235, 255) neutro |
+| rojo | 565 | **2.743** | 0.355 | **(255, 31, 43)** |
+| azul | 396 | 0.447 | **0.856** | **(88, 120, 201)** |
+| negro | **181** | 0.480 | 0.460 | (28, 27, 29) |
 
-📝 No se cambia el valor por defecto: encender el LED blanco gasta batería en 16 robots.
+`clear` recorre **12.6×** entre blanco y negro, el rojo dispara R/G de 0.48 a 2.74, el azul sube
+B/G a 0.86, y `/color` **acierta los cinco**.
+
+📝 Se normaliza por **G** porque en un RGBC el verde es el canal más sensible: comparar los tres
+en crudo hace parecer que «todo es verde».
+
+🔴 **La `confianza` es 0.00 en los cinco, y NO es el sensor.** Es el **clasificador** del RVR, que
+compara contra una **paleta**. El SDK tiene `load_color_palette` y `set_active_color_palette`, y el
+driver **no usa ninguna**. Si alguna vez hace falta que el robot *nombre* un color, eso es lo que
+hay que portar; los datos crudos ya sirven sin ello.
+
+#### 18.4b `/ambient_light` es OTRO sensor, y ve los LEDs del propio robot
+
+La medida que los separa:
+
+```
+encender los 10 grupos de LED:  luz 1.76 -> 23.55   (13.3×)  · y vuelve a 1.30
+los mismos LEDs vistos por el RGBC:  IDÉNTICO en rojo, verde y azul
+```
+
+⚠️ **`/ambient_light` NO mide la luz de la sala.** La dominan los LEDs del propio robot: si el
+robot enciende uno, la señal sube sin que la sala haya cambiado. Y **no depende de
+`color_detection`**.
+
+#### 18.4c 🔴 Dos afirmaciones retiradas, y dos montajes que mentían
+
+**(a) «`/ambient_light` da 0.0 sin `color_detection`»** — falso. Las lecturas de 0.0 se tomaron
+con el robot **sin levantar de verdad** (lo confirmó el usuario después) y con los LEDs apagados.
+→ **El error de método: se dio por hecha una condición experimental que nadie comprobó.** Si tu
+medida depende de que alguien haga algo físico, **pregunta si lo hizo**.
+
+**(b) «cada reinicio del driver degrada el stream de luz»** — falso. La caída de 13.4 a 2.0 era el
+**apagado limpio apagando los LEDs**. Lo propuso el usuario y la medida le dio la razón.
+
+**Y dos montajes que daban resultados imposibles:**
+- deslizar el papel sin comprobar que tapa la ventana → el «blanco» dio **exactamente** los mismos
+  números que la referencia. Idéntico no es parecido.
+- **pegar el objeto contra la ventana tapa también el LED** → el blanco dio `clear=261` y el negro
+  795, al revés de lo físicamente posible.
+
+→ **El protocolo que sí funciona:** una superficie por vez, el usuario la coloca y **confirma**
+antes de medir, a la distancia natural del suelo, y localizando la ventana primero con papel
+blanco mientras se lee `clear` en vivo (765 → 2269, 3.0×).
 
 ### 18.5 🔴 Una conclusión RETIRADA: «un comando de LED mata la telemetría»
 
