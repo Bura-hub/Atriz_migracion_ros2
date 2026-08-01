@@ -1,0 +1,78 @@
+═══════════════════════════════════════════════════════════════════════════════
+EL DRIVER DEL LIDAR INUNDA EL JOURNAL CUANDO EL BARRIDO ESTA APAGADO
+Robot: rvr-01 · 2026-08-01 · encontrado al investigar un aviso del verificador
+═══════════════════════════════════════════════════════════════════════════════
+Salio de tirar del hilo de un aviso que resulto ser un falso positivo. El aviso
+no valia; lo que habia debajo, si.
+
+───────────────────────────────────────────────────────────────────────────────
+LO MEDIDO
+───────────────────────────────────────────────────────────────────────────────
+Con `atriz-escaneo off` —que es el ESTADO NORMAL de un robot en reposo, y el que
+tendran los 16 al arrancar por decision de diseño— el nodo del YDLIDAR emite:
+
+    [ydlidar_ros2_driver_node-3] [ERROR] ... : Failed to get scan
+
+  502 errores en 20 s  =  **25 por segundo**
+  = 2.17 millones de mensajes al dia POR ROBOT
+  = 34 millones al dia entre los 16
+
+  Y del journal del servicio:
+      47 291 de 47 551 lineas  =  **el 99 %**
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 POR QUE IMPORTA, Y NO ES QUE «MOLESTE»
+───────────────────────────────────────────────────────────────────────────────
+1. **AHOGA CUALQUIER ERROR DE VERDAD.** Un fallo real —el RVR dormido, un nodo
+   muerto, un puerto ocupado— aparece como 1 linea entre 25 por segundo de ruido.
+   Este proyecto ya tiene documentado que sus peores fallos son SILENCIOSOS; el
+   journal es donde se buscan. Ahora mismo es inservible para eso.
+
+2. **DESGASTE DE LA MICROSD.** Las tarjetas SD mueren por ESCRITURAS. 34 millones
+   de lineas diarias entre 16 robots, 24/7, sobre el unico medio de
+   almacenamiento que tienen. `fase_1_higiene_so.sh` limita el journal por
+   TAMAÑO, lo que evita llenar el disco pero NO evita las escrituras.
+
+3. **CPU 24/7 PARA NADA.** 25 formateos de mensaje y 25 escrituras por segundo,
+   en cada uno de los 16 robots, permanentemente.
+
+⚠️ Y NO LO VE NADIE: el servicio esta `active (running)`, el verificador da 105
+   correctas, y el robot funciona. Es exactamente el patron que este proyecto ya
+   documenta —«desde fuera parece sano»— aplicado al registro en vez de al nodo.
+
+───────────────────────────────────────────────────────────────────────────────
+POR QUE NADIE LO VIO ANTES
+───────────────────────────────────────────────────────────────────────────────
+La decision «las unidades systemd arrancan con el lidar PARADO» se tomo por una
+razon buena y medida: si no, el X2 gira a 11.8 Hz 24/7 en vez de a 2.7 (manual,
+cap. 8.4a).
+
+🔴 Pero esa decision se valido mirando **el motor del lidar**, no **el nodo ROS
+   que lo lee**. Nadie comprobo que hace el driver cuando le quitas los datos.
+   Hace esto. → **Al cambiar el estado por defecto de un componente, comprueba
+   que hacen TODOS los que dependian de el, no solo el que motivo el cambio.**
+
+───────────────────────────────────────────────────────────────────────────────
+OPCIONES, Y NINGUNA ES OBVIA — DECISION DEL USUARIO
+───────────────────────────────────────────────────────────────────────────────
+  A. **No arrancar el nodo del LIDAR hasta que haga falta.** Lo mas limpio: sin
+     nodo no hay error, y `atriz-escaneo on` lo levanta. ⚠️ Cambia el arranque y
+     hay que comprobar que el `collision_monitor` sigue bloqueando el movimiento
+     (deberia: sigue sin haber /scan).
+
+  B. **Bajar el nivel de log de ESE nodo** (`--log-level
+     ydlidar_ros2_driver_node:=FATAL`) mientras el barrido esta apagado.
+     Barato y reversible. 🔴 Pero taparia tambien un fallo REAL del lidar, que es
+     justo lo que no queremos.
+
+  C. **Limitar el ritmo en journald** (`RateLimitBurst`). Reduce escrituras sin
+     tocar el robot, pero el ruido sigue en el log y puede descartar mensajes
+     buenos de otros servicios.
+
+📝 RECOMENDACION: la **A**. Es la unica que ataca la causa en vez del sintoma, y
+   encaja con la decision ya tomada de arrancar sin barrido. Las otras dos
+   esconden el problema.
+
+⏳ NO IMPLEMENTADO. Requiere tocar `robot.launch.py` y volver a verificar la capa
+   de seguridad, y eso es un cambio de comportamiento del arranque: se consulta
+   antes de hacerlo.

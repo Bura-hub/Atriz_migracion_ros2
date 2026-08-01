@@ -663,6 +663,20 @@ ls -d ~/atriz_ws/src/*/build 2>/dev/null && echo "🔴 hay workspace parásito: 
 launch corriendo entre llamadas, usa `setsid nohup … < /dev/null &` y `disown`. Sin eso el
 proceso desaparece y el diagnóstico siguiente miente.
 
+**🔴🔴 CON EL BARRIDO APAGADO, EL NODO DEL LIDAR ESCUPE 25 ERRORES POR SEGUNDO.**
+`Failed to get scan`, y el barrido apagado es el **estado normal en reposo** de los 16 robots.
+Medido el 2026-08-01: **502 errores en 20 s**, **el 99 % del journal del servicio**
+(47 291 de 47 551 líneas), 2.17 millones de mensajes al día por robot.
+→ Lo grave no es el ruido: **ahoga cualquier error de verdad**, y este proyecto tiene sus
+  peores fallos documentados como silenciosos — el journal es donde se buscan. Además son
+  escrituras 24/7 sobre una **microSD**, que es lo que las mata.
+→ **Y nadie lo ve:** servicio `active`, verificador con 105 correctas, robot funcionando.
+→ **La lección:** la decisión «arrancar con el lidar parado» se validó mirando **el motor**,
+  no **el nodo ROS que lo lee**. **Al cambiar el estado por defecto de un componente,
+  comprueba qué hacen todos los que dependían de él.**
+→ ⏳ **Sin arreglar**, tres opciones en la evidencia 40. La buena es no arrancar el nodo hasta
+  que haga falta; las otras dos esconden el problema.
+
 **🔴 EL X2 GIRA SIEMPRE, Y AL PONER systemd PASARÁ A GIRAR SIEMPRE **RÁPIDO**.** DTR no
 enciende el motor: elige su velocidad. Medido el 2026-07-31, diez tramos alternados y
 confirmado por oído: `DTR=1` → **11.8 Hz**, `DTR=0` → **2.7 Hz** (4.3×, checksums 99.8 % en los
