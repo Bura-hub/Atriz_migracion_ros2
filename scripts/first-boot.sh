@@ -19,6 +19,27 @@ set -uo pipefail
 
 LOG=/var/log/atriz-first-boot.log
 ID_FILE=/boot/firmware/robot_id.txt
+
+# ── Modos ────────────────────────────────────────────────────────────────────
+#   (sin argumentos)  primer arranque completo: identidad + red, y se deshabilita
+#   --solo-red        REGENERA SOLO /etc/netplan/60-atriz.yaml y para.
+#
+# 🔴 `--solo-red` existe porque cambiar una IP no debería costar un reinicio.
+#    Con 16 robots, «edita red.txt y reinicia» es la diferencia entre un minuto
+#    y una tarde. No toca hostname, ni machine-id, ni las claves SSH, ni la
+#    marca de first-boot: solo escribe el netplan y lo valida.
+#
+# ⚠️ Y NO APLICA la configuración: la deja escrita y validada. Aplicarla es
+#    `netplan try`, que revierte solo si te quedas sin conexión. Separar
+#    «escribir» de «aplicar» es lo que hace que una IP mal puesta no te deje
+#    fuera del robot.
+SOLO_RED=no
+case "${1:-}" in
+    --solo-red) SOLO_RED=si ;;
+    '')         ;;
+    -h|--help)  sed -n '2,16p' "$0"; exit 0 ;;
+    *)          echo "uso: $0 [--solo-red]" >&2; exit 2 ;;
+esac
 exec > >(tee -a "$LOG") 2>&1
 
 echo "════ atriz-first-boot ════ $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
@@ -52,6 +73,7 @@ NS="rvr_$ID2"
 echo "identidad: ROBOT_ID=$ID2  hostname=$HOST  namespace=/$NS  ROS_DOMAIN_ID=$ID_NUM"
 
 # ── 2. Hostname ──────────────────────────────────────────────────────────────
+if [[ $SOLO_RED == no ]]; then
 echo "$HOST" > /etc/hostname
 hostnamectl set-hostname "$HOST" 2>/dev/null || true
 # /etc/hosts: sustituir la línea 127.0.1.1 o añadirla
@@ -88,6 +110,7 @@ export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 EOF
 chmod 644 /etc/profile.d/atriz-robot.sh
 echo "  ✓ /etc/profile.d/atriz-robot.sh  (ROS_DOMAIN_ID=$ID_NUM)"
+fi   # fin de las secciones 2-5, que --solo-red se salta
 
 # ── 5-bis. Red: genera /etc/netplan/60-atriz.yaml desde red.txt ──────────────
 #
@@ -193,6 +216,15 @@ else
 fi
 
 # ── 6. Deshabilitarse ────────────────────────────────────────────────────────
+if [[ $SOLO_RED == si ]]; then
+    echo "  (--solo-red: no se toca la marca de first-boot)"
+    echo
+    echo "  SIGUIENTE PASO, y hazlo tú a mano:"
+    echo "      sudo netplan try --timeout 90"
+    echo "  Aplica la red y la REVIERTE sola si pierdes la conexión."
+    exit 0
+fi
+
 mkdir -p /var/lib
 date -u '+%Y-%m-%dT%H:%M:%SZ' > /var/lib/atriz-first-boot.done
 echo "ROBOT_ID=$ID2" >> /var/lib/atriz-first-boot.done
