@@ -2696,6 +2696,59 @@ el yaw cambió             +89.4°
 el desplazamiento cambió  −88.8°     ← signo contrario
 ```
 
+### 10.2b ⏳ ¿Se puede tener un rumbo ABSOLUTO? La vía que queda
+
+El yaw arbitrario no es un problema con un robot: se resta el origen al arrancar y se navega en
+relativo. **Con 16 sobre un mapa compartido sí lo es**: cada uno cree mirar en una dirección
+distinta, y hoy la única forma de relacionarlos es que alguien los coloque a mano.
+
+🔴 **Lo que NO funciona, y por qué no insistas:**
+
+| Idea | Por qué no |
+|---|---|
+| `get_magnetometer_reading()` | **`bad_cid`** en este firmware — comando desconocido |
+| Actualizar el firmware | Ya tenemos el último: **9.1.462 / 9.2.482** (Fall 2022) |
+| Buscar un «SDK modificado» | El SDK solo serializa el protocolo. **`bad_cid` lo responde el robot** |
+
+📝 Y hay una ironía: en el foro oficial, con el firmware **anterior** (8.3.432/8.6.448), la
+lectura cruda **sí respondía**. La versión más nueva tiene **menos** API cruda, no más.
+
+✅ **Pero el RVR sí lleva magnetómetro** — es una IMU de 9 ejes — y **la lectura cruda no es la
+que hay que usar**. Lo dice un ingeniero de Sphero en el foro oficial:
+
+> «The `yaw_north_direction` value is **the offset from yaw=0 to magnetic north**.»
+>
+> «In the case of the EDU app, **it never actually requests a magnetometer reading directly.
+> Instead, it simulates the magnetometer heading using the reported north offset and the IMU
+> heading.** You can do the same in your own programs.»
+
+**El patrón previsto por el fabricante:**
+
+```
+1. magnetometer_calibrate_to_north()      ← una sola vez, CID 0x25
+2. llega la notificación con {'is_successful': True, 'yaw_north_direction': N}
+3. desde ahí:   rumbo_absoluto = yaw_de_la_IMU + N
+```
+
+🔴 **La calibración GIRA EL ROBOT 360°** en sentido antihorario. El ejemplo oficial de Sphero no
+lo advierte; `mediciones_banco/probar_magnetometro.py` sí, y por eso exige `--calibrar`.
+
+⏳ **SIN PROBAR TODAVÍA**, y con dos motivos concretos para dudar:
+
+1. El resultado llega por **notificación**, y en este firmware las notificaciones de motor se
+   registran sin error y **no emiten ni un mensaje** (cap. 18).
+2. **Hay dos motores con imanes a centímetros del sensor.** El propio Sphero avisa de que a ras
+   de suelo las lecturas son ruidosas por el hierro de las estructuras.
+
+→ **Criterio para darlo por bueno:** tres calibraciones, girando el robot en medio, que
+coincidan en unos pocos grados. **Un valor que no se repite no sirve como referencia.** Si
+falla, la pose inicial tendrá que venir del mapa o del operador, y eso pasa a ser una limitación
+del hardware, no una tarea pendiente.
+
+Detalle completo en `00_auditoria/evidencia_24_04/42_magnetometro_y_firmware.txt`.
+
+---
+
 ### 10.3 Cómo verificarlo — tres comprobaciones
 
 Son las que se usaron para validar cada pieza del arreglo, y **detectan una regresión en un

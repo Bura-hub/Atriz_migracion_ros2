@@ -1,0 +1,138 @@
+═══════════════════════════════════════════════════════════════════════════════
+EL MAGNETOMETRO DEL RVR: ¿HAY RUMBO ABSOLUTO? — investigacion 2026-08-01
+Salio de una pregunta del usuario: «he visto que el firmware se puede actualizar»
+═══════════════════════════════════════════════════════════════════════════════
+CONTEXTO: el yaw del RVR se pone a cero AL ENCENDER el robot y su origen es
+arbitrario (medido hoy: +61.0°). Con 16 robots sobre un mapa compartido, cada uno
+cree mirar en una direccion distinta. Un rumbo absoluto lo resolveria.
+
+El 2026-08-01 se midio que `get_magnetometer_reading()` devuelve **bad_cid**
+(evidencia 41) y se concluyo que no habia magnetometro utilizable. **Esa
+conclusion era prematura.**
+
+───────────────────────────────────────────────────────────────────────────────
+1. 🔴 ACTUALIZAR EL FIRMWARE: CALLEJON SIN SALIDA, Y POR UNA RAZON CURIOSA
+───────────────────────────────────────────────────────────────────────────────
+La pagina que encontro el usuario (help.sphero.com, «RVR and RVR+ Firmware Update
+– Fall 2022») publica:
+
+      Nordic SoC: 9.1.462     ST SoC: 9.2.482
+
+  🔴 ES EXACTAMENTE EL FIRMWARE QUE YA TIENE ESTE ROBOT. Medido en el proyecto:
+     `get_main_application_version(target=1)` -> 9.1.462 (Nordic)
+     `get_main_application_version(target=2)` -> 9.2.482 (ST)
+
+  → No hay nada que actualizar. Es la ultima version publicada por Sphero, de
+    otoño de 2022. Y su changelog no menciona el magnetometro: solo un algoritmo
+    de deteccion de color mejorado, recuperacion de errores del UART, arreglos en
+    el control de posicion XY y mejoras de seguimiento de yaw al frenar.
+
+  📝 Se aplica con la app Sphero Edu (iOS/Android 6.4.0+), 3-7 min. NO se puede
+     aplicar desde la Raspberry Pi. Irrelevante aqui, porque ya esta puesto.
+
+📝 UN «REPOSITORIO MODIFICADO» TAMPOCO SIRVE, y conviene entender por que:
+   el SDK de Python es solo un SERIALIZADOR DE PROTOCOLO — arma un paquete con
+   `did`, `cid`, `seq`, `target` y lo manda por el puerto serie. **`bad_cid` lo
+   responde el ROBOT**, no la libreria. Ningun fork puede añadir un comando que
+   el firmware no implementa. Los forks que existen (sphero-sdk-net, RVRsdk,
+   sphero-sdk-parallax-propeller) son ports a otros lenguajes, no arreglos de
+   firmware.
+
+───────────────────────────────────────────────────────────────────────────────
+2. ✅ PERO EL RVR SI TIENE MAGNETOMETRO
+───────────────────────────────────────────────────────────────────────────────
+Es una **IMU de 9 ejes**: acelerometro + giroscopio + magnetometro. Lo dice la
+ficha de producto de Sphero y lo confirman varias fuentes independientes.
+
+Y el firmware lo usa por dentro: en el SDK existe
+`ControlSystemTypesEnum.control_system_type_magnetometer_drive = 7`, o sea un
+sistema de control de conduccion basado en magnetometro.
+
+⚠️ Y el `bad_cid` NO es un problema de destinatario: `get_magnetometer_reading`
+   va al target 2 (ST), y `get_temperature` y `get_bot_to_bot_infrared_readings`
+   van al MISMO target 2 y si responden. Es el comando 0x52 concretamente.
+
+───────────────────────────────────────────────────────────────────────────────
+3. ✅✅ LA RESPUESTA, Y ES DE UN INGENIERO DE SPHERO
+───────────────────────────────────────────────────────────────────────────────
+Hilo del foro oficial «Understanding Sphero-provided magnetometer programs for
+the RVR» (community.sphero.com/t/…/2682), recuperado por el usuario via
+archive.org porque el dominio ya no resuelve. Respuesta de **Sphero_JimK**:
+
+  «The `yaw_north_direction` value is **the offset from yaw=0 to magnetic
+   north**. If you were to call reset_aim() when RVR is pointing north, the
+   offset would be approximately zero.»
+
+  «The intended usage of the offset is mostly for the Sphero EDU app to
+   synchronize RVR's yaw orientation with the phone on which it is running. In
+   the case of the EDU app, **it never actually requests a magnetometer reading
+   directly. Instead, it simulates the magnetometer heading using the reported
+   north offset and the IMU heading.** You can do the same in your own programs.»
+
+  «[get_magnetometer_reading] should probably have gotten a disclaimer stating
+   that **the raw readings are not as useful as you might think**.»
+
+  «Magnetometer readings tend to be **noisy at floor level due to the prevalence
+   of ferrous metals in some floor structures**, and the full rotation allows us
+   to do some extra filtering.»
+
+🔴 LA CONSECUENCIA CAMBIA EL PLANTEAMIENTO ENTERO:
+
+   **NO HAY QUE LEER EL MAGNETOMETRO NUNCA.** El patron previsto por el
+   fabricante es:
+
+       1. `magnetometer_calibrate_to_north()`  ← una vez
+       2. llega `magnetometer_calibration_complete_notify` con
+          `{'is_successful': True, 'yaw_north_direction': N}`
+       3. a partir de ahi:  rumbo_absoluto = yaw_de_la_IMU + N
+
+   Que `get_magnetometer_reading` devuelva `bad_cid` **deja de importar**: es
+   justo la funcion que el propio fabricante desaconseja.
+
+📝 Y EXPLICA EL bad_cid: en ese hilo, con firmware **8.3.432 / 8.6.448**, la
+   lectura cruda SI respondia (un usuario publica x/y/z). Con el nuestro,
+   **9.1.462 / 9.2.482**, da bad_cid. La lectura cruda se retiro o se movio en
+   una version POSTERIOR. O sea que el firmware mas nuevo tiene MENOS API cruda,
+   no mas — y actualizar nunca habria ayudado.
+
+⚠️ OTRO USUARIO DEL HILO CONFIRMA EL COMPORTAMIENTO FISICO:
+   «When I run magnetometer_calibrate_to_north.py, I get the following results:
+    Begin magnetometer calibration to find North… **RVR spins 360 in the counter
+    clockwise direction** … Calibration complete, response: {'is_successful':
+    True, 'yaw_north_direction': -166}»
+
+   🔴 **LA CALIBRACION GIRA EL ROBOT 360° EN SENTIDO ANTIHORARIO.** El ejemplo
+      oficial de Sphero NO LO ADVIERTE. Aqui si: `probar_magnetometro.py` exige
+      `--calibrar` explicito y avisa antes.
+
+───────────────────────────────────────────────────────────────────────────────
+4. HASTA DONDE PODEMOS LLEGAR — evaluacion honesta
+───────────────────────────────────────────────────────────────────────────────
+  ❌ Actualizar firmware .............. imposible: ya tenemos el ultimo
+  ❌ Repositorio modificado ........... no aplica: bad_cid lo dice el robot
+  ❌ Leer el magnetometro crudo ....... bad_cid en este firmware, y el fabricante
+                                        lo desaconseja de todos modos
+  ⏳ Rumbo absoluto por calibracion ... **VIA ABIERTA, SIN PROBAR**
+
+  Lo que haria falta para darlo por bueno:
+    · que `magnetometer_calibrate_to_north` (CID 0x25) no de bad_cid
+    · que la NOTIFICACION llegue — y aqui hay motivo real para dudar: en este
+      firmware las notificaciones de motor se registran sin error y NO EMITEN NI
+      UN MENSAJE (evidencia 35). Puede pasar lo mismo.
+    · que el valor SEA REPETIBLE: tres calibraciones girando el robot en medio
+      deben coincidir en unos pocos grados. Sphero avisa de que a ras de suelo
+      hay hierro en el suelo y las lecturas son ruidosas. **Un valor que no se
+      repite no sirve como referencia.**
+
+  ⚠️ Y aunque saliera: sigue habiendo dos motores con imanes a centimetros del
+     sensor. El propio hilo lo menciona («putting my phone compass app near the
+     RVR changes the readings, probably due to the magnets in the RVR's motors»).
+
+  📝 SI FUNCIONA, lo que se gana es concreto: los 16 robots podrian compartir una
+     referencia de rumbo sin que nadie los coloque a mano, que es hoy la unica
+     forma. Si no funciona, la pose inicial tendra que venir del mapa o del
+     operador, y eso se anota como limitacion del hardware.
+
+  Herramienta: `mediciones_banco/probar_magnetometro.py`
+      --seguro    (por defecto) solo consultas, NO mueve el robot
+      --calibrar  ⚠️ GIRA EL ROBOT 360°

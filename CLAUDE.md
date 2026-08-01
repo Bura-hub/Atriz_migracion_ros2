@@ -288,6 +288,25 @@ recibiría nada aunque acertara el tipo.
   descubre, y el QoS se elige. Un comprobador que acierta un tercio de las veces es peor que no
   tenerlo.
 
+**🔴 EL FIRMWARE DEL RVR YA ESTÁ EN LA ÚLTIMA VERSIÓN, y actualizar quitaría API, no la
+añadiría.** La última publicada por Sphero (Fall 2022) es **9.1.462 / 9.2.482**, que es
+**exactamente la que tiene este robot**. Y en el foro oficial se ve que con el firmware
+**anterior** (8.3.432/8.6.448) `get_magnetometer_reading` **sí respondía**; con el nuestro da
+`bad_cid`. → **No busques versiones nuevas ni «SDK modificados»:** el SDK solo serializa el
+protocolo, y `bad_cid` **lo responde el robot**. Ningún fork añade un comando que el firmware
+no implementa. Evidencia 42.
+
+**🔴 «El comando falla» NO es «la capacidad no existe».** El 2026-08-01 se concluyó que el RVR
+«no tiene magnetómetro» porque `get_magnetometer_reading` daba `bad_cid`. **Falso:** lleva una
+IMU de 9 ejes, y un ingeniero de Sphero explica que la lectura cruda **no es la que hay que
+usar** — el patrón previsto es `magnetometer_calibrate_to_north()` (CID **0x25**, otro comando)
+→ `yaw_north_direction`, que es **el desfase entre el yaw=0 arbitrario y el norte magnético**, y
+desde ahí el rumbo sale de la IMU. La app de Sphero nunca lee el magnetómetro.
+→ ⚠️ **La calibración GIRA EL ROBOT 360°** en sentido antihorario. El ejemplo oficial no lo
+  advierte; `probar_magnetometro.py` sí, y exige `--calibrar` explícito.
+→ ⏳ **Sin probar todavía.** Y hay motivo para dudar: el resultado llega por **notificación**, y
+  en este firmware las de motor no llegan nunca. Evidencia 42.
+
 **🔴 `chmod` NO HACE NADA EN `/boot/firmware`, Y NO DA ERROR.** Es **vfat**, y FAT no
 almacena permisos de Unix: los fija `fmask` en el **montaje**, para toda la partición. Con el
 `defaults` de Ubuntu queda todo en **755**, así que `red.txt` —que lleva **la PSK del WiFi**—
@@ -834,6 +853,7 @@ probar_sensor_optico.py      # color y luz por sus TRES rutas a la vez · --guia
 probar_leds_ros2.py          # ⚠️ ENCIENDE LEDS (no mueve): los 12 grupos, ¿hay comunicación?
 probar_rosbridge.py          # cliente WebSocket propio: ¿llega la web? y CUÁNTOS BYTES cuesta
 probar_mdns.py               # ¿responde un robot a su nombre .local? · --flota 16
+probar_magnetometro.py       # ¿hay rumbo absoluto? · --calibrar ⚠️ GIRA EL ROBOT 360°
 probar_sdk_no_usados.py      # los métodos del SDK que el driver NO usa: ¿cuáles responden?
 #                              ⚠️ necesita el driver parado (sudo systemctl stop atriz-robot)
 ```

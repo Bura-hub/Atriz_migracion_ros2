@@ -33,10 +33,20 @@ esten mal llamados: no estan.
       quietos, sin corriente. Es menos fiable (no distingue «trabado» de «rueda
       patinando») pero no cuesta hardware. No se ha intentado.
 
-🔴 CONSECUENCIA 2: NO HAY MAGNETOMETRO. El yaw del RVR se pone a cero AL ENCENDER
-   y su origen es arbitrario (medido hoy: +61.0°). No hay forma de darle una
-   referencia absoluta desde el robot. Para 16 robots sobre un mapa compartido,
-   la pose inicial tendra que venir de fuera (del mapa, o del operador).
+⚠️ CONSECUENCIA 2 — CORREGIDA EL MISMO DIA, ver evidencia 42.
+   Aqui se escribio «NO HAY MAGNETOMETRO... no hay forma de darle una referencia
+   absoluta desde el robot». **Era una conclusion prematura.**
+
+   El RVR SI tiene magnetometro (IMU de 9 ejes). Lo que no existe en ESTE
+   firmware es la LECTURA CRUDA (`get_magnetometer_reading`, CID 0x52) — y segun
+   un ingeniero de Sphero **esa lectura no es la que hay que usar**: el patron
+   previsto es calibrar una vez con `magnetometer_calibrate_to_north` (CID 0x25,
+   otro comando) y quedarse con `yaw_north_direction`, el desfase entre el yaw=0
+   arbitrario y el norte magnetico. Desde ahi el rumbo sale de la IMU.
+
+   → La via sigue ABIERTA y sin probar. Detalle completo en la evidencia 42.
+   📝 LA LECCION: «el comando falla» no es lo mismo que «la capacidad no existe».
+      Se dio por cerrada una puerta sin mirar si habia otra al lado.
 
 💥 get_core_up_time_in_milliseconds -> AttributeError: 'Unpack' has no 'uint64'
    Es un BUG DEL SDK VENDORIZADO, no del firmware: le falta el desempaquetador.
