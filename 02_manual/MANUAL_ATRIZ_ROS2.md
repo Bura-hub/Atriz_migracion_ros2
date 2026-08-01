@@ -4145,7 +4145,16 @@ get_motor_thermal_protection_status  -> 27.9 / 27.7 °C, estados 0/0
 
 📝 Es además la **única vía** por la que este proyecto tiene temperatura de motores.
 
-🔴 **El atasco se queda fuera, y el 2026-08-01 se cerró por qué.** Además de que el SDK no
+> 🔴🔴 **RETRACTADO EL 2026-08-01: EL ATASCO NO SE QUEDA FUERA.** La notificación del firmware
+> **sí llega** — 3 de 3 detecciones con el robot bloqueado a mano, acertando la oruga las tres
+> veces. La medida que decía lo contrario usó **`raw_motors`** (PWM crudo), que **se salta el
+> sistema de control del RVR**, y la detección de atasco vive dentro de ese sistema. Con
+> `drive_rc_si_units` —lo que usa `cmd_vel`— salta a los ~5 s.
+>
+> 📝 **Se probó una cosa y se concluyó sobre otra.** Prueba por el camino que el sistema usa de
+> verdad. Evidencia 44.
+
+**Texto original, conservado:** 🔴 El atasco se queda fuera, y el 2026-08-01 se cerró por qué. Además de que el SDK no
 tiene `get_motor_stall_state`, la alternativa buena —deducirlo de la **corriente de los
 motores**— tampoco existe: `get_current_sense_amplifier_current` devuelve **`bad_cid`**, o sea
 que **el firmware no implementa la consulta**. No es un hueco del driver que se pueda programar.

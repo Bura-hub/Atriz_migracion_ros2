@@ -578,13 +578,48 @@ ni avisa) y `core_time` (en el enum, el RVR no lo transmite).
   es **físico, pregunta a la persona que lo está mirando** — es el único instrumento que no se
   puede enredar. El 2026-08-01 «el robot no giró» fue lo que zanjó lo del magnetómetro.
 
-**🔴 LAS NOTIFICACIONES DE MOTOR NO LLEGAN, PERO LAS CONSULTAS SÍ.** `enable_motor_stall_notify`,
+**🔴🔴 RETRACTADO: LAS NOTIFICACIONES DE ATASCO **SÍ** LLEGAN.** Lo de abajo era falso, y
+costó tres investigaciones. Medido el 2026-08-01 con el robot bloqueado a mano: **3 de 3
+detecciones, acertando la oruga las tres veces**.
+
+```
+18:08:07  🔴 MOTOR IZQUIERDO ATASCADO. El firmware ve corriente y no ve giro.
+18:08:09  motor izquierdo: atasco resuelto
+```
+
+🔴 **Por qué la medida anterior dijo lo contrario:** forzó los motores **a 220/255**, o sea con
+`raw_motors`, que es **PWM crudo y se salta el sistema de control del RVR** — y la detección de
+atasco vive **dentro** de ese sistema. Con `drive_rc_si_units`, que es lo que usa `cmd_vel` y
+por tanto **el camino normal del robot**, salta a los ~5 s.
+
+📝 **La lección más cara de la sesión: se probó una cosa y se concluyó sobre otra.** El
+resultado negativo era correcto para `raw_motors` y falso para todo lo demás. → **Prueba por el
+camino que el sistema usa de verdad.**
+
+⚠️ Y encadenó errores: sobre esa base falsa se buscó la corriente de los motores (`bad_cid`), se
+declaró el atasco **imposible**, y se llegó a implementar un detector por encoders —**todo
+innecesario**, y retirado—. Evidencia 44.
+
+✅ **Bonus, y lo vio el usuario mirando el robot:** durante el atasco **el RVR enciende LEDs
+amarillos y rojos** por su cuenta. El driver no los toca. Es diagnóstico sin abrir un terminal.
+
+⚠️ **Lo que sigue sin verificar:** `enable_motor_fault_notify` y la notificación térmica se
+probaron **igual de mal** (con `raw_motors`), así que su resultado también es dudoso. El sondeo
+cada 30 s ya las cubre, así que no urge — pero no se dan por buenas.
+
+---
+
+**Lo que decía antes, conservado para que no vuelva por la puerta de atrás:**
+
+**🔴 ~~LAS NOTIFICACIONES DE MOTOR NO LLEGAN~~, PERO LAS CONSULTAS SÍ.** `enable_motor_stall_notify`,
 `enable_motor_fault_notify` y la térmica se registran sin error y **no emiten ni un mensaje**:
 comprobado el 2026-08-01 forzando los motores a 220/255 con el robot sujeto, y esperando 100 s la
 térmica —que debería llegar sola— sin recibir nada. Es el mismo caso que `core_time`.
 → **Sondea**: `get_motor_fault_state()` y `get_motor_thermal_protection_status()` **sí responden**
   (27.9 / 27.7 °C). El driver lo hace cada 30 s y publica **`/motor_status`**.
-→ 🔴 **EL ATASCO NO SE PUEDE CUBRIR, y desde el 2026-08-01 se sabe por qué.** No es solo que
+→ ✅ **RETRACTADO: el atasco SÍ se cubre**, por la notificación del firmware. Lo que sigue
+  siendo cierto es que **no hay consulta** (`get_motor_stall_state` no existe) y que la
+  **corriente** tampoco se puede leer. Lo falso era la conclusión. Texto original: No es solo que
   falte `get_motor_stall_state`: la mejor alternativa era deducirlo de la **corriente** de los
   motores (corriente alta + encoders quietos), y `get_current_sense_amplifier_current` devuelve
   **`bad_cid`** — el firmware **no implementa** esa consulta. Tampoco hay magnetómetro. Es una
@@ -901,6 +936,7 @@ probar_leds_ros2.py          # ⚠️ ENCIENDE LEDS (no mueve): los 12 grupos, �
 probar_rosbridge.py          # cliente WebSocket propio: ¿llega la web? y CUÁNTOS BYTES cuesta
 probar_mdns.py               # ¿responde un robot a su nombre .local? · --flota 16
 probar_magnetometro.py       # ¿hay rumbo absoluto? · --calibrar ⚠️ GIRA EL ROBOT 360°
+probar_atasco.py             # ⚠️ MUEVE EL ROBOT y TÚ LO BLOQUEAS: ¿detecta un atasco?
 probar_sdk_tanda2.py         # temperaturas con los IDs buenos, color async, batería
 #                              --calibrar ⚠️ GIRA EL ROBOT 360° tres veces
 probar_sdk_no_usados.py      # los métodos del SDK que el driver NO usa: ¿cuáles responden?
@@ -956,7 +992,7 @@ de verdad. Dos consecuencias que cambian el día a día:
 | `/map` | **0.200 Hz** exactos (= `map_update_interval` 5 s) | 2026-07-30 |
 | **Timeout de inactividad del RVR** | **300.6 s = 5.01 min** (dos medidas idénticas) | 2026-07-31 |
 | `/battery_state` | cada **30.0 s** exactos — es el latido del keepalive | 2026-07-31 |
-| `/motor_status` | cada **30 s** (mismo latido) · temperatura de motores **27.9 / 27.7 °C** en reposo | 2026-08-01 |
+| `/motor_status` | cada **30 s** (mismo latido) · temperatura de motores **27.5 / 28.3 °C** en reposo · ✅ **el atasco SÍ se detecta**, por notificación del firmware, y dice **qué oruga** | 2026-08-01 |
 | `/encoders` | **16.57 Hz** · ticks con signo (7792 ticks/m) | 2026-08-01 |
 | `/ambient_light` | **13.06 Hz** · ~1.8 con los LEDs apagados, **23.55 con todos encendidos** (13.3×) | 2026-08-01 |
 | **Batería** | ✅ **`/battery_state` publica `voltage`** desde el 2026-08-01: **8.28 V** al «100 %» · umbrales del firmware **7.0 / 6.5 V**, histéresis 0.2 | 2026-08-01, evidencia 43 |

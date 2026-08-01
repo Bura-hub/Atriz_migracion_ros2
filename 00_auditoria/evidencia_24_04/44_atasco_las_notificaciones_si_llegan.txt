@@ -1,0 +1,91 @@
+═══════════════════════════════════════════════════════════════════════════════
+🔴 LAS NOTIFICACIONES DE ATASCO SI LLEGAN — se retira una conclusion del proyecto
+Robot: rvr-01 · 2026-08-01 · firmware 9.1.462 / 9.2.482
+═══════════════════════════════════════════════════════════════════════════════
+Este proyecto llevaba documentado, en CLAUDE.md, el manual y la evidencia 35:
+
+  «LAS NOTIFICACIONES DE MOTOR NO LLEGAN. `enable_motor_stall_notify` […] se
+   registran sin error y no emiten ni un mensaje: comprobado el 2026-08-01
+   forzando los motores a 220/255 con el robot sujeto.»
+
+  Y de ahi: «el atasco se queda sin cubrir», `antiguedad_atasco_s` = -1.0 para
+  siempre, y —tras comprobar que la corriente de motores da `bad_cid`— se llego a
+  declarar la deteccion de atasco **imposible**.
+
+🔴 **ES FALSO.** Medido hoy con el robot bloqueado a mano:
+
+  18:08:02  move_timed: 6.0 s a (0.08 m/s). NO pasa por el collision_monitor.
+  18:08:07  🔴 MOTOR IZQUIERDO ATASCADO. No es que el robot este parado: el
+            firmware ve corriente y no ve giro. Comprueba la oruga.
+  18:08:09  motor izquierdo: atasco resuelto
+
+  TRES corridas, TRES detecciones, y **acerto la oruga las tres veces**
+  (izquierda, derecha, izquierda), con transiciones limpias de activado a
+  resuelto.
+
+───────────────────────────────────────────────────────────────────────────────
+POR QUE LA MEDIDA ANTERIOR DIO LO CONTRARIO
+───────────────────────────────────────────────────────────────────────────────
+Aquella prueba forzo los motores **a 220/255**, o sea con `raw_motors`, que es
+PWM crudo.
+
+🔴 **`raw_motors` SE SALTA EL SISTEMA DE CONTROL del RVR, y la deteccion de
+   atasco vive DENTRO de ese sistema de control.** Con PWM crudo el firmware no
+   tiene lazo cerrado que comparar, asi que no hay nada que detectar.
+
+Con `drive_rc_si_units` —que es lo que usa `cmd_vel`, o sea **el camino normal
+del robot**— salta a los ~5 s.
+
+📝 LA LECCION, Y ES LA MAS CARA DE LA SESION: la prueba uso un modo de conduccion
+   que NO es el que usa el robot en operacion. **Se probo una cosa y se concluyo
+   sobre otra.** El resultado negativo era correcto para `raw_motors` y falso
+   para todo lo demas.
+   → **Prueba por el camino que el sistema usa de verdad.** Si eliges otro por
+     comodidad, la conclusion solo vale para ese otro.
+
+⚠️ Y encadeno mas errores: sobre esa base falsa se busco la corriente de los
+   motores (bad_cid), se declaro el atasco imposible, y se llego a implementar un
+   detector por encoders. **Todo eso era innecesario.** Una conclusion falsa
+   temprana costo tres investigaciones.
+
+───────────────────────────────────────────────────────────────────────────────
+✅ CONFIRMACION INDEPENDIENTE: EL PROPIO ROBOT LO SEÑALA
+───────────────────────────────────────────────────────────────────────────────
+El usuario observo que durante el atasco **se encendieron luces amarillas y
+rojas** en el robot. El driver de este proyecto NO enciende ningun LED al
+detectar atasco, asi que es el **firmware** quien lo señala.
+
+→ Es una via de diagnostico que no dependia de ROS ni del SDK: **mirando el robot
+  se ve que esta atascado.** Util en el laboratorio, donde alguien puede pasar por
+  delante de 16 robots y ver cual esta en apuros sin abrir un terminal.
+
+───────────────────────────────────────────────────────────────────────────────
+EL DETECTOR POR ENCODERS QUE SE IMPLEMENTO Y SE RETIRO
+───────────────────────────────────────────────────────────────────────────────
+Se llego a implementar un detector propio: «se ordena moverse y los encoders no
+avanzan». Se verifico que NO daba falsos positivos (en reposo -1.0, moviendose
+libre False, tras parar la antiguedad crece).
+
+🔴 Pero en la prueba del positivo verdadero **no llego a ejecutarse**: `move_timed`
+   no marca `_conduciendo` ni `_t_ultimo_cmd_vel`, asi que salia por la rama de
+   «no se puede concluir». Quien detecto fue la notificacion del firmware.
+
+→ **RETIRADO.** La notificacion del firmware es estrictamente mejor: ve la
+  CORRIENTE, que nosotros no podemos leer, y funciona. Mantener dos mecanismos
+  para lo mismo —uno de ellos sin verificar en positivo— es deuda, no seguridad.
+
+📝 Y el detector resolvia un problema que **no existia**: nacio de la conclusion
+   falsa. Es el coste de no haber replicado aquella medida.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE QUEDA CIERTO DE LA EVIDENCIA 35
+───────────────────────────────────────────────────────────────────────────────
+⚠️ NO se retira todo. Sigue sin verificarse que lleguen:
+   · `enable_motor_fault_notify`  (fallo electrico)
+   · la notificacion de proteccion termica
+  Esas dos se probaron igual —con raw_motors— asi que **su resultado tambien es
+  dudoso** y habria que repetirlas por el camino bueno. Pero el sondeo cada 30 s
+  ya las cubre, asi que no urge.
+
+✅ Y sigue siendo cierto que el SDK **no tiene** `get_motor_stall_state`: la via
+   es la notificacion, no la consulta. Solo que la notificacion SI funciona.

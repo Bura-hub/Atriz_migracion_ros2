@@ -292,7 +292,12 @@ cuatro cosas probables hoy — y una de ellas importa mas que el IR.
 ───────────────────────────────────────────────────────────────────────────────
 ✅ PROBABLE HOY, POR ORDEN DE LO QUE APORTA
 ───────────────────────────────────────────────────────────────────────────────
-1. 🔴 **`get_motor_temperature` — el mejor candidato que queda.**
+⚠️ NOTA DEL MISMO DIA: el punto 1 nacio de creer que la deteccion de atasco era
+   imposible. **No lo era** (evidencia 44): la notificacion del firmware
+   funciona. `get_motor_temperature` pierde casi todo su interes — seria un
+   proxy lento de algo que el firmware ya detecta bien y rapido.
+
+1. ~~🔴 **`get_motor_temperature` — el mejor candidato que queda.**~~ (ver nota)
    Esta en el PROTOCOLO y **falta en nuestro SDK de Python**. Devuelve
    `WindingCoilTemperature` y `CaseTemperature` **por separado**, y la doc dice
    que se calcula «from motor current».

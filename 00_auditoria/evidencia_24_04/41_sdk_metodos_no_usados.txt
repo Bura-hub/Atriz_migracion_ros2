@@ -20,6 +20,15 @@ podian aportar algo.
 `bad_cid` = comando desconocido. **El firmware no los implementa.** No es que
 esten mal llamados: no estan.
 
+🔴🔴 RETRACTADO EL MISMO DIA — ver evidencia 44. Las notificaciones de atasco SI
+   llegan (3 de 3, acertando la oruga). La medida que decia lo contrario uso
+   `raw_motors`, que se salta el sistema de control del RVR donde vive la
+   deteccion. **Toda esta busqueda de la corriente era innecesaria.**
+
+   Sigue siendo cierto que `get_current_sense_amplifier_current` da bad_cid.
+   Lo falso era la premisa: que hiciera falta.
+
+── TEXTO ORIGINAL, CONSERVADO ───────────────────────────────────────────────
 🔴 CONSECUENCIA 1: LA DETECCION DE ATASCO SE QUEDA SIN CUBRIR, DEFINITIVAMENTE.
    El proyecto tenia este hueco abierto: las notificaciones de atasco no llegan y
    el SDK no tiene `get_motor_stall_state`, asi que `antiguedad_atasco_s` vale
