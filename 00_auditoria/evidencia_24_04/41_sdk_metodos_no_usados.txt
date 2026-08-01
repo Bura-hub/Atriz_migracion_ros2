@@ -1,0 +1,134 @@
+═══════════════════════════════════════════════════════════════════════════════
+LOS METODOS DEL SDK QUE EL DRIVER NO USA — probados uno a uno
+Robot: rvr-01 · 2026-08-01 · firmware 9.1.462 (Nordic) / 9.2.482 (ST)
+Herramienta: mediciones_banco/probar_sdk_no_usados.py
+═══════════════════════════════════════════════════════════════════════════════
+El driver usa 37 de los 99 metodos publicos del SDK. De los 62 restantes, 14 son
+notificaciones (que en este firmware NO llegan, ya medido), la mayoria son modos
+de conduccion alternativos que no hacen falta, y quedaban 16 consultas que si
+podian aportar algo.
+
+  ✅ responden: 11    🔴 mudos: 1    💥 error: 4
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 LO QUE NO EXISTE — y esto CIERRA lineas de investigacion
+───────────────────────────────────────────────────────────────────────────────
+  get_current_sense_amplifier_current(left_motor)   -> bad_cid
+  get_current_sense_amplifier_current(right_motor)  -> bad_cid
+  get_magnetometer_reading                          -> bad_cid
+
+`bad_cid` = comando desconocido. **El firmware no los implementa.** No es que
+esten mal llamados: no estan.
+
+🔴 CONSECUENCIA 1: LA DETECCION DE ATASCO SE QUEDA SIN CUBRIR, DEFINITIVAMENTE.
+   El proyecto tenia este hueco abierto: las notificaciones de atasco no llegan y
+   el SDK no tiene `get_motor_stall_state`, asi que `antiguedad_atasco_s` vale
+   -1.0 («no se sabe») para siempre.
+   La mejor idea que quedaba era deducirlo por la firma electrica —motor
+   comandado + corriente alta + encoders quietos—, porque los encoders ya se
+   publican. **No hay corriente que leer.**
+   → Ya no es una carencia del driver que se pueda arreglar programando: es una
+     carencia del FIRMWARE. Se deja de buscar.
+   ⚠️ Queda una via NO probada: deducir el atasco de `cmd_vel` alto + encoders
+      quietos, sin corriente. Es menos fiable (no distingue «trabado» de «rueda
+      patinando») pero no cuesta hardware. No se ha intentado.
+
+🔴 CONSECUENCIA 2: NO HAY MAGNETOMETRO. El yaw del RVR se pone a cero AL ENCENDER
+   y su origen es arbitrario (medido hoy: +61.0°). No hay forma de darle una
+   referencia absoluta desde el robot. Para 16 robots sobre un mapa compartido,
+   la pose inicial tendra que venir de fuera (del mapa, o del operador).
+
+💥 get_core_up_time_in_milliseconds -> AttributeError: 'Unpack' has no 'uint64'
+   Es un BUG DEL SDK VENDORIZADO, no del firmware: le falta el desempaquetador.
+   Sin valor para el proyecto; se anota para no volver a probarlo.
+
+🔴 get_current_detected_color_reading -> SIN RESPUESTA (se acepta y no contesta)
+   El mismo patron que `core_time`: existe en el SDK y el firmware no lo emite.
+
+───────────────────────────────────────────────────────────────────────────────
+✅ LO MEJOR DE LA TANDA: EL ESTADO DE BATERIA DEL FIRMWARE
+───────────────────────────────────────────────────────────────────────────────
+  get_battery_voltage_in_volts(calibrated_and_filtered) -> 8.3119 V
+  get_battery_voltage_state                             -> {'state': 1} = ok
+  get_battery_voltage_state_thresholds                  ->
+        low_threshold      7.0 V
+        critical_threshold 6.5 V
+        hysteresis         0.2 V
+
+✅ ESTO ES LA «ALERTA DE BATERIA BAJA» QUE PIDE EL PLAN PARA LA FLOTA, y con
+   umbrales del PROPIO FIRMWARE en vez de inventados. Estados: 0 unknown, 1 ok,
+   2 low, 3 critical.
+
+📝 Y es mejor que el porcentaje que ya se sondea: `/battery_state.percentage`
+   daba 100 % con 8.31 V. El porcentaje es una estimacion; el voltaje y el estado
+   son lo que el firmware usa para decidir.
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 LA PALETA DE COLOR EXISTE — y eso CORRIGE lo que este proyecto documentaba
+───────────────────────────────────────────────────────────────────────────────
+  get_active_color_palette -> 5 colores cargados y activos:
+      indice 0: (212, 40, 47)    rojo
+      indice 1: (243, 218, 67)   amarillo
+      indice 2: (21, 157, 128)   verde azulado
+      indice 3: (0, 140, 160)    cian
+      indice 4: (97, 53, 139)    morado
+
+🔴 `CLAUDE.md` y el manual dicen que la confianza de `/color` es siempre 0
+   «porque es el clasificador, que necesita una PALETA», y que
+   `load_color_palette` / `set_active_color_palette` «existen en el SDK y no se
+   usan».
+
+   **HAY PALETA, Y ESTA ACTIVA.** Asi que esa explicacion es falsa. La razon real
+   de la confianza 0 es que **las superficies que se probaron —suelo, papel
+   blanco, rojo, azul, negro— no se parecen a esos cinco colores**, no que falte
+   configurar nada.
+
+   ⚠️ Se corrige la documentacion. Y la leccion es la de siempre en este
+      proyecto: **una explicacion plausible no comprobada es una suposicion**.
+      Bastaba una consulta para saberlo.
+
+───────────────────────────────────────────────────────────────────────────────
+✅ UTILIDADES PARA LA FLOTA
+───────────────────────────────────────────────────────────────────────────────
+  get_bluetooth_advertising_name -> 'RV-1E6D'
+     IDENTIFICADOR UNICO DEL RVR, no de la Pi. Sirve para el inventario de los 16
+     sin abrir el robot ni fiarse de la etiqueta. La MAC identifica la Pi; esto
+     identifica la bola.
+
+  get_bot_to_bot_infrared_readings -> {'sensor_data': 4294967295}
+     0xFFFFFFFF = todos los bits a uno = sin lecturas, que es lo correcto sin un
+     segundo robot. ✅ LO QUE IMPORTA: **RESPONDE**. El camino del IR esta listo
+     para cuando exista rvr-02, y se podra CONSULTAR en vez de depender de
+     notificaciones (que en este firmware no llegan).
+
+  get_temperature(id0=0, id1=1) -> temp0 27.76 °C · temp1 28.61 °C
+     Responde, y coincide con lo que ya da el sondeo de proteccion termica
+     (27.9 / 27.7). No aporta nada nuevo, pero confirma que hay una via directa.
+
+  get_stop_controller_state -> {'stopped': True}
+     Confirmacion de que el robot esta parado, del propio firmware. Util para
+     verificar una parada de emergencia sin mirar /odom.
+
+  get_drive_target_slew_parameters ->
+     linear_acceleration 4.0 · slew_method 1 · a -177.78 · b 533.33 · c 200.0
+     Es la RAMPA DE ACELERACION, que el proyecto midio en ~0.5 s. Aqui esta el
+     parametro que la produce. Relevante para afinar Nav2.
+
+  get_ambient_light_sensor_value -> 2.4975
+     La consulta directa funciona igual que el stream. ⚠️ Da igual: `/ambient_light`
+     esta DESCARTADO porque el sensor ve los LEDs del propio robot reflejados en
+     el piso blanco del LIDAR.
+
+  get_stats_id -> 26   ·   sin uso previsto.
+
+───────────────────────────────────────────────────────────────────────────────
+📝 METODO
+───────────────────────────────────────────────────────────────────────────────
+Los tres metodos señalados de antemano como «los que podrian cambiar algo»
+—corriente de motores, magnetometro y estado de bateria— salieron 1 de 3. Los dos
+que mas prometian no existen en el firmware.
+
+**Y eso vale tanto como un acierto:** el hueco de la deteccion de atasco pasa de
+«pendiente de intentar» a «imposible por esta via», que es una respuesta. Leer el
+SDK habria hecho creer que las tres estaban disponibles: las tres estan en la
+libreria.

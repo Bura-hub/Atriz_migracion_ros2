@@ -4075,6 +4075,12 @@ get_motor_thermal_protection_status  -> 27.9 / 27.7 °C, estados 0/0
 
 📝 Es además la **única vía** por la que este proyecto tiene temperatura de motores.
 
+🔴 **El atasco se queda fuera, y el 2026-08-01 se cerró por qué.** Además de que el SDK no
+tiene `get_motor_stall_state`, la alternativa buena —deducirlo de la **corriente de los
+motores**— tampoco existe: `get_current_sense_amplifier_current` devuelve **`bad_cid`**, o sea
+que **el firmware no implementa la consulta**. No es un hueco del driver que se pueda programar.
+Evidencia 41.
+
 ⚠️ **El atasco se queda fuera.** El SDK **no tiene** `get_motor_stall_state`: solo existe por
 notificación. Por eso el mensaje lleva **una antigüedad por fuente** y `antiguedad_atasco_s` vale
 **−1.0** — «no se sabe», que no es lo mismo que «no hay atasco».
@@ -4145,7 +4151,17 @@ B/G a 0.86, y `/color` **acierta los cinco**.
 en crudo hace parecer que «todo es verde».
 
 🔴 **La `confianza` es 0.00 en los cinco, y NO es el sensor.** Es el **clasificador** del RVR, que
-compara contra una **paleta**. El SDK tiene `load_color_palette` y `set_active_color_palette`, y el
+compara contra una **paleta**.
+
+> 🔴 **Aquí este manual se equivocaba.** Decía que la confianza es 0 porque falta cargar una
+> paleta. **Hay paleta y está activa**: `get_active_color_palette` devuelve cinco colores
+> —(212,40,47), (243,218,67), (21,157,128), (0,140,160), (97,53,139)—. La confianza es 0 porque
+> las superficies probadas **no se parecen a ninguno de esos cinco**, que es un resultado
+> legítimo del clasificador. Comprobado el 2026-08-01, evidencia 41.
+>
+> 📝 **Y la lección:** era una explicación plausible que nadie comprobó. Bastaba una consulta.
+
+El SDK tiene `load_color_palette` y `set_active_color_palette`, y el
 driver **no usa ninguna**. Si alguna vez hace falta que el robot *nombre* un color, eso es lo que
 hay que portar; los datos crudos ya sirven sin ello.
 

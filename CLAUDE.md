@@ -450,7 +450,11 @@ lo asumas en ninguna de las dos direcciones. `fase_1_higiene_so.sh` lo corrige s
   tiene LEDs encendidos», no «hay luz». Se deja publicado porque es gratis, pero **ningún
   consumidor debe apoyarse en él**. No se arregla con software y no hace falta para nada.
 - 🔴 La **`confianza` de `/color` es siempre 0**: es el **clasificador**, que necesita una
-  **paleta**. `load_color_palette` y `set_active_color_palette` existen en el SDK y no se usan.
+  **paleta**… 🔴 **y esa explicación era FALSA, comprobada el 2026-08-01**:
+  `get_active_color_palette` devuelve **5 colores cargados y activos** —(212,40,47),
+  (243,218,67), (21,157,128), (0,140,160), (97,53,139)—. **Hay paleta.** La confianza es 0
+  porque las superficies probadas (suelo, blanco, rojo, azul, negro) **no se parecen a esos
+  cinco colores**, no porque falte configurar nada. Evidencia 41.
 
 **🔴 Y ESTO COSTÓ DOS AFIRMACIONES FALSAS Y DOS MONTAJES QUE MENTÍAN:**
 - «da 0.0 sin `color_detection`» — las lecturas de 0.0 se tomaron **con el robot sin levantar**,
@@ -514,7 +518,14 @@ comprobado el 2026-08-01 forzando los motores a 220/255 con el robot sujeto, y e
 térmica —que debería llegar sola— sin recibir nada. Es el mismo caso que `core_time`.
 → **Sondea**: `get_motor_fault_state()` y `get_motor_thermal_protection_status()` **sí responden**
   (27.9 / 27.7 °C). El driver lo hace cada 30 s y publica **`/motor_status`**.
-→ ⚠️ **El atasco se queda sin cubrir**: el SDK no tiene `get_motor_stall_state`. Por eso
+→ 🔴 **EL ATASCO NO SE PUEDE CUBRIR, y desde el 2026-08-01 se sabe por qué.** No es solo que
+  falte `get_motor_stall_state`: la mejor alternativa era deducirlo de la **corriente** de los
+  motores (corriente alta + encoders quietos), y `get_current_sense_amplifier_current` devuelve
+  **`bad_cid`** — el firmware **no implementa** esa consulta. Tampoco hay magnetómetro. Es una
+  carencia del firmware, no del driver: **deja de buscarlo**. Evidencia 41.
+  ⚠️ Queda una vía sin probar y menos fiable: `cmd_vel` alto + encoders quietos, sin corriente.
+  No distingue «trabado» de «rueda patinando».
+→ Por eso
   `antiguedad_atasco_s` vale **-1.0** — «no se sabe», que no es lo mismo que «no hay atasco».
 
 **🔴 CAMBIAR UN `.msg` NO BASTA CON `colcon build`.** Se añadió un campo, el build dijo
@@ -823,6 +834,8 @@ probar_sensor_optico.py      # color y luz por sus TRES rutas a la vez · --guia
 probar_leds_ros2.py          # ⚠️ ENCIENDE LEDS (no mueve): los 12 grupos, ¿hay comunicación?
 probar_rosbridge.py          # cliente WebSocket propio: ¿llega la web? y CUÁNTOS BYTES cuesta
 probar_mdns.py               # ¿responde un robot a su nombre .local? · --flota 16
+probar_sdk_no_usados.py      # los métodos del SDK que el driver NO usa: ¿cuáles responden?
+#                              ⚠️ necesita el driver parado (sudo systemctl stop atriz-robot)
 ```
 
 ⚠️ **`medir_slam_ros2.py` necesita espacio, y el robot NO esquiva obstáculos** (solo tiene
@@ -877,6 +890,8 @@ de verdad. Dos consecuencias que cambian el día a día:
 | `/motor_status` | cada **30 s** (mismo latido) · temperatura de motores **27.9 / 27.7 °C** en reposo | 2026-08-01 |
 | `/encoders` | **16.57 Hz** · ticks con signo (7792 ticks/m) | 2026-08-01 |
 | `/ambient_light` | **13.06 Hz** · ~1.8 con los LEDs apagados, **23.55 con todos encendidos** (13.3×) | 2026-08-01 |
+| **Batería, del firmware** | **8.31 V** al 100 % · umbrales `low` **7.0 V**, `critical` **6.5 V**, histéresis 0.2 | 2026-08-01, evidencia 41 |
+| **Nombre Bluetooth del RVR** | `RV-1E6D` — identifica **la bola**, no la Pi. Para el inventario | 2026-08-01 |
 | `/color` (con `color_detection:=true`) | `clear` **181** (negro) → **2288** (blanco), 12.6× · rojo R/G **2.74** · azul B/G **0.86** | 2026-08-01 |
 | Enlace con keepalive | **12 min, 0 huecos** en `/odom`, 16.54 Hz | 2026-07-31 |
 | **Nav2 navegando** | error final **9–10 cm** (= la tolerancia configurada) | 2026-07-31 |
