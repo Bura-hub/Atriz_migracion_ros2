@@ -102,5 +102,8 @@ def test_el_informe_niega_la_via_libre_cuando_hay_fallo():
 
 
 def test_el_informe_da_via_libre_cuando_todo_pasa():
+    # 🔴 Las dos mitades hacen falta: 'VIA LIBRE PARA LA FASE 5' es subcadena de
+    #    'NO HAY VIA LIBRE PARA LA FASE 5', asi que la comprobacion ingenua pasa
+    #    con el informe diciendo lo CONTRARIO. Encontrado en revision.
     txt = formatear_informe([juzgar_categorico('x', True, 'F0')], 'cabecera')
-    assert 'VIA LIBRE PARA LA FASE 5' in txt
+    assert 'NO HAY VIA LIBRE' not in txt and 'VIA LIBRE PARA LA FASE 5' in txt
