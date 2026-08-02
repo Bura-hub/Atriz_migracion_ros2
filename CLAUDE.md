@@ -485,6 +485,28 @@ el driver tiene que funcionar sin Nav2). ✅ **Verificado con control**: con el 
 `CANCELED` y **0.0 cm** al liberar; sin él, objetivo **ACTIVO** y **34.7 cm** — arrancó solo.
 Manual, cap. 15.4.
 
+**🔴🔴 Y LA QUINTA: `rclpy.init()` INVALIDA SU PROPIO CONTEXTO ANTES DE QUE PUEDAS PUBLICAR.**
+Instala **su** manejador de SIGINT, así que un `except KeyboardInterrupt` que intenta publicar la
+parada muere con `RCLError: Failed to publish: publisher's context is invalid`. Medido el
+2026-08-02 con el driver escuchando, dos veces cada variante:
+
+```
+rclpy.init()                                          → 0 líneas «PARADA DE EMERGENCIA»
+rclpy.init(signal_handler_options=SignalHandlerOptions.NO)  → 5 líneas
+```
+
+→ **Con `SignalHandlerOptions.NO` el SIGINT lo maneja Python**, el `except` corre con el contexto
+  vivo, y la parada sale. Es obligatorio en cualquier herramienta que pare el robot con Ctrl-C.
+→ ⚠️ **Y ES INTERMITENTE:** según dónde caiga el Ctrl-C a veces sí publicaba. Por eso la
+  verificación del 2026-08-01 de `probar_atasco.py` **pasó** — la parada llegó al driver aquella
+  vez. Afectaba a tres herramientas ya commiteadas; arregladas.
+→ 📝 **La lección, y es la que importa: para un mecanismo de seguridad, «lo probé y funcionó» no
+  basta.** Hay que preguntarse en qué condiciones NO funcionaría. Una sola pasada verde sobre un
+  fallo intermitente es indistinguible de que no haya fallo.
+→ ⚠️ **Trampa al verificarlo:** `journalctl --since "$(date -u +%T)"` cuenta **0 aunque la parada
+  haya llegado** — `date -u` da hora UTC y `journalctl` la interpreta como local, así que en este
+  robot (UTC−5) la ventana cae cinco horas en el futuro. Usa `--since "-25 s"`.
+
 **🔴 La parada de emergencia ha fallado TRES veces, siempre en silencio y con `200 OK`.**
 (1) nombre de topic distinto, en ROS 1. (2) **namespace**: al portar se arregló el nombre y se
 coló el `/rvr/`. (3) **QoS**. → Las causas 2 y 3 **solo aparecen publicando de verdad**: leer el

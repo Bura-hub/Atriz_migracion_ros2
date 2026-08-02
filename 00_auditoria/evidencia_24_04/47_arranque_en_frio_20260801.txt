@@ -31,3 +31,47 @@ servicio subio SOLO, en el arranque, y a la primera»**. Eso se lee sin reloj:
    ya no sera 0. Por eso F0 lo trata como REVISAR y no como FALLO, explicando las
    dos lecturas posibles: o es una repeticion de esta misma prueba, o el driver
    se cayo de verdad. Lo desempata el journal.
+
+───────────────────────────────────────────────────────────────────────────────
+LA PARADA DE EMERGENCIA POR Ctrl-C NO FUNCIONABA — 2026-08-02
+───────────────────────────────────────────────────────────────────────────────
+Lo encontro el subagente que implementaba el esqueleto de la prueba de
+aceptacion, al negarse a commitear codigo cuya verificacion no pasaba.
+
+CAUSA: `rclpy.init()` instala SU PROPIO manejador de SIGINT, que invalida el
+contexto de rclpy antes de que el `except KeyboardInterrupt` llegue a publicar.
+
+MEDIDO, con el driver escuchando, dos repeticiones de cada variante:
+
+  rclpy.init()                                         salida 130
+    -> RCLError: Failed to publish: publisher's context is invalid
+    -> «PARADA DE EMERGENCIA» en el journal:  0 lineas
+
+  rclpy.init(signal_handler_options=SignalHandlerOptions.NO)   salida 130
+    -> publicado sin excepcion
+    -> «PARADA DE EMERGENCIA» en el journal:  5 lineas
+
+⚠️ ES INTERMITENTE. Segun donde caiga el SIGINT a veces si publicaba, y por eso
+   la verificacion del 2026-08-01 de probar_atasco.py PASO: la parada llego al
+   driver aquella vez, y quedo documentado como arreglado y verificado.
+
+   📝 Para un mecanismo de seguridad, «lo probe y funciono» NO BASTA. Una sola
+      pasada verde sobre un fallo intermitente es indistinguible de que no haya
+      fallo. Hay que preguntarse en que condiciones NO funcionaria.
+
+AFECTABA A TRES HERRAMIENTAS YA COMMITEADAS, arregladas las tres:
+  medir_parada_nav2.py · probar_atasco.py · probar_notif_fallo_termica.py
+
+✅ VERIFICADO TRAS EL ARREGLO, en el robot: probar_atasco.py --vel 0.0 --seg 12
+   con Ctrl-C durante el empuje -> salida 130 y 1 linea en el journal.
+
+🔴 TRAMPA AL VERIFICARLO, que casi me hace descartar el arreglo bueno:
+   `journalctl --since "$(date -u +%T)"` cuenta 0 AUNQUE LA PARADA HAYA LLEGADO.
+   `date -u` da hora UTC y journalctl la interpreta como LOCAL, asi que en este
+   robot (UTC-5) la ventana cae cinco horas en el futuro. Usa `--since "-25 s"`.
+
+SEGUNDO FALLO DEL MISMO SUBAGENTE, tambien real:
+   La guarda de bateria esperaba /battery_state 8 s. Ese topic se publica cada
+   30 s exactos (es el latido del keepalive). Medido: 1 mensaje en 40 s, el
+   primero a los 15.3 s. La guarda habria abortado por «no llega bateria» con el
+   robot al 84 %. Subida a 35 s.
