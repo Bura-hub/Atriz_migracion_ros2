@@ -229,6 +229,39 @@ class Aceptacion:
                          1 - 2 * (q.y ** 2 + q.z ** 2))
         return p.x, p.y, yaw
 
+    def pos_mapa(self):
+        """(x, y, yaw) en el marco **map**, leido por TF. None si no hay mapa.
+
+        🔴🔴 F7 MEZCLABA MARCOS Y POR ESO SUS NUMEROS NO CUADRABAN. `pos_yaw()`
+           lee `/odom`, que esta en el marco **odom**; el objetivo se mandaba con
+           `frame_id = 'map'`. SLAM corrige `map -> odom` continuamente, asi que
+           los dos DIVERGEN segun avanza la sesion.
+           Resultado: Nav2 decia SUCCEEDED —llegaba a SU objetivo, tolerancia
+           0.10 m— y esta prueba reportaba **40.7 cm de error**. Ese numero no era
+           de navegacion: era el desfase map<->odom que yo estaba ignorando.
+           Encaja con la progresion medida: 10.5 -> 7.6 -> 40.7 cm segun SLAM
+           acumulaba correcciones.
+           📝 Cuarta vez en este proyecto que un marco equivocado da numeros
+              coherentes y sin sentido.
+        """
+        import tf2_ros
+        if not hasattr(self, '_tf_buffer'):
+            self._tf_buffer = tf2_ros.Buffer()
+            self._tf_lis = tf2_ros.TransformListener(self._tf_buffer, self.nodo)
+        fin = time.monotonic() + 3.0
+        while time.monotonic() < fin:
+            self.ex.spin_once(timeout_sec=0.05)
+            try:
+                tr = self._tf_buffer.lookup_transform(
+                    'map', 'base_footprint', rclpy.time.Time()).transform
+            except Exception:                                    # noqa: BLE001
+                continue
+            q = tr.rotation
+            return (tr.translation.x, tr.translation.y,
+                    math.atan2(2 * (q.w * q.z + q.x * q.y),
+                               1 - 2 * (q.y ** 2 + q.z ** 2)))
+        return None
+
     def pos_yaw_rapido_xy(self):
         """(x, y) del ultimo /odom ya recibido, SIN esperar. F6 lo necesita para
         saber si el robot se ha DETENIDO mientras sigue publicando cmd_vel."""
@@ -829,9 +862,20 @@ def f6(a: Aceptacion) -> None:
         i = len(s.ranges) // 2
         v = [r for r in s.ranges[i - 8:i + 8] if math.isfinite(r) and r > 0]
         frontal = min(v) * 100 if v else None
+    # 🔴 BANDA DERIVADA DE LA CONFIGURACION, no de una base obsoleta.
+    #    La version anterior usaba [0, 15] citando «CHANGELOG:1824: 9.9 cm», y
+    #    salio REVISAR dos veces con 19.0 y 18.9 cm. **El robot tenia razon.**
+    #    `collision_monitor.yaml` usa `circle` de **radius 0.18** con
+    #    `action_type: approach`, que frena ASINTOTICAMENTE hasta que un punto del
+    #    barrido entra en ese circulo: debe parar con /scan leyendo ~0.18 m.
+    #    Medido 19.0 y 18.9 -> el radio mas ~1 cm. Funciona como esta escrito.
+    #    📝 Los 9.9 cm son de ANTES de que el radio fuera 0.18: el propio YAML
+    #       documenta que con `radius 0.11` paraba a 3.0 cm de la pared. Una base
+    #       medida sobre otra configuracion no es una base.
     a.add(juzgar_banda('distancia frontal a la que quedo parado',
                        None if frontal is None else round(frontal, 1),
-                       0.0, 15.0, 'CHANGELOG:1824: 9.9 cm a 0.25 m/s', 'F6', 'cm'))
+                       15.0, 24.0,
+                       'collision_monitor.yaml: circle radius 0.18 + approach', 'F6', 'cm'))
     p1 = a.pos_yaw()
     a.add(juzgar_categorico('el robot avanzo y se detuvo solo',
                             bool(p0 and p1 and math.hypot(p1[0] - p0[0],
@@ -910,7 +954,11 @@ def f7(a: Aceptacion) -> None:
                   porque nadie sabia cual era. Y colocar el obstaculo «por
                   delante» tampoco significaba nada.
             """
-            p0 = a.pos_yaw()
+            p0 = a.pos_mapa()          # 🔴 en el marco MAP, que es donde va el
+            if p0 is None:             #    objetivo. Ver pos_mapa().
+                a.add(no_verificado(etiqueta, 'F7',
+                                    'sin TF map->base_footprint: ¿arranco SLAM?'))
+                return
             yaw = p0[2]
             g = NavigateToPose.Goal()
             g.pose.header.frame_id = 'map'
@@ -936,7 +984,7 @@ def f7(a: Aceptacion) -> None:
             desvio = 0.0
             while not rf.done() and time.monotonic() < fin:
                 a.ex.spin_once(timeout_sec=0.05)
-                p = a.pos_yaw()
+                p = a.pos_mapa()
                 if p:
                     # 🔴 Perpendicular AL RUMBO, no el eje Y del mapa. Con el
                     #    objetivo ya proyectado sobre el rumbo, medir `p.y - p0.y`
@@ -963,7 +1011,7 @@ def f7(a: Aceptacion) -> None:
                                     'F7', f'estado = {nombres.get(estado, estado)}'))
             if not ok:
                 print('    ⚠️ el error de abajo NO es de precision: no llego.')
-            p1 = a.pos_yaw()
+            p1 = a.pos_mapa() or p0
             err = math.hypot(p1[0] - (p0[0] + dx * math.cos(yaw)),
                              p1[1] - (p0[1] + dx * math.sin(yaw))) * 100
             a.add(juzgar_banda(f'{etiqueta}: error final', round(err, 1), 0.0, 15.0,

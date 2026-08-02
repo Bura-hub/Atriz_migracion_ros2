@@ -1,0 +1,61 @@
+==============================================================================
+PRUEBA DE ACEPTACION · rvr-01 · 2026-08-02 13:33:24
+==============================================================================
+
+
+── F6 ──────────────────────────────────────────────────────────────────────
+  [OK   ] el robot se detuvo SOLO (no por agotarse el tiempo)
+          si no, la distancia de abajo NO es la de parada: es donde estaba cuando el bucle acabo
+  [REV  ] distancia frontal a la que quedo parado
+          18.9 cm · banda [0.0, 15.0] cm · base CHANGELOG:1824: 9.9 cm a 0.25 m/s
+  [OK   ] el robot avanzo y se detuvo solo
+          si no avanzo nada, la prueba no demuestra nada
+  [OK   ] recorrido tras dejar de publicar cmd_vel
+          0.0 cm · banda [0.0, 12.0] cm · base CHANGELOG:3303: quieto en 527 ms, ~7.9 cm
+
+── F7 ──────────────────────────────────────────────────────────────────────
+  [OK   ] Nav2 levanta y su action server responde
+  [OK   ] objetivo limpio a 1.50 m: Nav2 lo dio por COMPLETADO
+          estado = SUCCEEDED
+  [OK   ] objetivo limpio a 1.50 m: error final
+          10.5 cm · banda [0.0, 15.0] cm · base TRASPASO:289: 8 cm; otra tanda 9-10
+  [OK   ] regreso al origen: Nav2 lo dio por COMPLETADO
+          estado = SUCCEEDED
+  [OK   ] regreso al origen: error final
+          7.6 cm · banda [0.0, 15.0] cm · base TRASPASO:289: 8 cm; otra tanda 9-10
+  [OK   ] objetivo CON obstaculo: Nav2 lo dio por COMPLETADO
+          estado = SUCCEEDED
+  [REV  ] objetivo CON obstaculo: error final
+          40.7 cm · banda [0.0, 15.0] cm · base TRASPASO:289: 8 cm; otra tanda 9-10
+  [REV  ] desvio lateral rodeando el obstaculo
+          13.9 cm · banda [15.0, 50.0] cm · base manual 11.13: 30 cm y vuelve al eje
+  [OK   ] sin «Failed to make progress»
+          el arreglo del SimpleProgressChecker sigue en pie
+
+── F9 ──────────────────────────────────────────────────────────────────────
+  [PEND ] rosbridge sin autenticacion en el 9090
+          expone raw_motors, que se salta el collision_monitor y no tiene corte automatico. Hay que decidirlo ANTES de escribir el cliente: cambia su arquitectura. Ver 03_operacion/ARQUITECTURA.md
+  [PEND ] el hueco de los precipicios
+          collision_monitor solo mira /scan, y un LIDAR 2D no ve un vacio a ninguna altura. Mitigado solo por la regla de laboratorio (suelo continuo y cerrado). Ver manual cap. 12.2b
+  [PEND ] la PSK del WiFi es legible por cualquier usuario
+          falta fmask=0177,dmask=0077 en /etc/fstab. chmod NO sirve: es FAT
+  [PEND ] la credencial sphero sin rotar
+          y sin purgar del historico de git
+
+==============================================================================
+  10 PASA · 3 REVISAR · 0 FALLO · 4 PENDIENTE
+==============================================================================
+
+  🔴 NO HAY VIA LIBRE PARA LA FASE 5
+
+     Lo que lo impide:
+       · [PENDIENTE] rosbridge sin autenticacion en el 9090
+       · [PENDIENTE] el hueco de los precipicios
+       · [PENDIENTE] la PSK del WiFi es legible por cualquier usuario
+       · [PENDIENTE] la credencial sphero sin rotar
+
+  ⚠️ Y 3 numero(s) fuera de banda. No bloquean, pero miralos:
+       · distancia frontal a la que quedo parado: 18.9 cm · banda [0.0, 15.0] cm · base CHANGELOG:1824: 9.9 cm a 0.25 m/s
+       · objetivo CON obstaculo: error final: 40.7 cm · banda [0.0, 15.0] cm · base TRASPASO:289: 8 cm; otra tanda 9-10
+       · desvio lateral rodeando el obstaculo: 13.9 cm · banda [15.0, 50.0] cm · base manual 11.13: 30 cm y vuelve al eje
+==============================================================================
