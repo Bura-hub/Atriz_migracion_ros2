@@ -538,3 +538,21 @@ rosbridge en las dos familias de IP, y una regresion que busca rutas fijas de
 
 📝 Nacio encontrando un fallo de seguridad de verdad en su primera ejecucion.
    Es lo que se le pedia: comprobar el EFECTO, no la intencion.
+
+───────────────────────────────────────────────────────────────────────────────
+COMPROBACION SUELTA — DERIVA DE YAW EN REPOSO (2026-08-01)
+───────────────────────────────────────────────────────────────────────────────
+`verificar_robot.sh` avisa si el yaw de /odom en reposo no ronda 0. Salto con
+-34°, pero el robot SE HABIA MOVIDO A MANO — el aviso ya dice que en ese caso es
+normal. Se comprobo que la queja es esa y no una perdida de la correccion de
+marcos, midiendo con suscriptor propio y el robot quieto 60 s:
+
+  t=20s  yaw=-75.86°   deriva  +0.00°   x=+0.0000  y=-0.0038
+  t=40s  yaw=-75.87°   deriva  -0.01°   x=+0.0000  y=-0.0038
+  t=60s  yaw=-75.87°   deriva  -0.01°   x=+0.0000  y=-0.0038
+
+  -> **0.01° en 60 s**, y la posicion no se mueve. La correccion de marcos de la
+     Fase 4 sigue en pie tras el reinicio del driver de hoy.
+
+📝 El aviso mide un OFFSET acumulado, no una deriva. Con el robot ya movido no
+   puede distinguir «se giro» de «se rompio»; lo que lo desempata es esta medida.
