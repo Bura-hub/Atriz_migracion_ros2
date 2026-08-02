@@ -7,6 +7,7 @@
 
 📎 Criterio y umbrales: 03_operacion/PRUEBA_ACEPTACION.md
 """
+import math
 from dataclasses import dataclass, field
 
 PASA = 'PASA'
@@ -26,6 +27,37 @@ class Resultado:
     detalle: str = ''
     medido: float | None = None
     base: str = ''
+
+
+def delta_angulo(a, b) -> float:
+    """b - a normalizado a (-pi, pi].
+
+    🔴 Hallazgo de revisión (D1): es logica pura — la funcion que se colgaba con
+       `inf` — y hasta ahora no la cubria ni un test, porque vivia en
+       `prueba_aceptacion.py`, que importa rclpy y no se puede ejercitar sin ROS.
+       Movida aqui para que pytest la alcance sin robot. `prueba_aceptacion.py`
+       la importa de vuelta, asi que el resto del codigo no cambia.
+
+    🔴 Sin esto NO SE PUEDE MEDIR UN GIRO DE 360°: atan2 devuelve -pi..pi, asi que
+       una vuelta entera se lee como ~0. F5 acumula estos deltas.
+
+    🔴 Hallazgo de revisión: con `inf` el `while` de abajo NO TERMINA NUNCA
+       (`inf - 2*pi` sigue siendo `inf`) — verificado con `timeout 3`, salida
+       124. `nan` salía bien de casualidad (toda comparación con NaN es Falsa,
+       así que ningún `while` llega a entrar). F5 llama a esto en un bucle
+       acumulando, así que un solo yaw corrupto colgaba la fase entera sin
+       ninguna traza. Se rechaza lo no finito ANTES de normalizar, con una
+       excepción que el llamador pueda distinguir de un ángulo válido — devolver
+       NaN se habría sumado en silencio sin que nadie lo notara.
+    """
+    if not (math.isfinite(a) and math.isfinite(b)):
+        raise ValueError(f'delta_angulo recibió un valor no finito: a={a!r} b={b!r}')
+    d = b - a
+    while d > math.pi:
+        d -= 2 * math.pi
+    while d <= -math.pi:
+        d += 2 * math.pi
+    return d
 
 
 def juzgar_banda(concepto, valor, lo, hi, base, fase, unidad='') -> Resultado:

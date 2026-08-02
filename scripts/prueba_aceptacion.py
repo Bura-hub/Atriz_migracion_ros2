@@ -23,7 +23,7 @@ import time
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from aceptacion_nucleo import (                                  # noqa: E402
     PASA, REVISAR, FALLO, PENDIENTE, PENDIENTES_CONOCIDOS, Resultado,
-    juzgar_banda, juzgar_categorico, no_verificado,
+    juzgar_banda, juzgar_categorico, no_verificado, delta_angulo,
     hay_via_libre, formatear_informe,
 )
 
@@ -95,6 +95,12 @@ class Aceptacion:
     def __init__(self, guiada=True):
         self.res: list[Resultado] = []
         self.guiada = guiada
+        # 🔴 Hallazgo de revisión (A1): `ejecutar()` fija esto justo antes de
+        #    llamar a cada fase (ver el bucle mas abajo), para que `puerta()`
+        #    sepa si la fase EN CURSO mueve el robot y pueda negarse a saltarse
+        #    sin nadie confirmando. Por defecto False: antes de que `ejecutar()`
+        #    entre en el bucle (p.ej. dentro de `guardas()`) no hay fase movil.
+        self.fase_mueve = False
         self._cerrado = False       # ver Aceptacion.cerrar(): la hace idempotente
         # 🔴🔴 `SignalHandlerOptions.NO` NO ES OPCIONAL, Y ES LO QUE HACE QUE LA
         #    PARADA DE EMERGENCIA FUNCIONE. `rclpy.init()` a secas instala su
@@ -131,6 +137,21 @@ class Aceptacion:
         print(f'  🔴 {texto}')
         print('─' * 74)
         if not self.guiada:
+            # 🔴🔴 Hallazgo de revisión (A1): `--sin-puertas` saltaba TODAS las
+            #    puertas, incluidas las de fases que MUEVEN el robot. Eso deja
+            #    arrancar un motor sin que nadie lo haya confirmado — exactamente
+            #    lo que el docstring de esta funcion dice que nunca debe pasar.
+            #    `ejecutar()` fija `self.fase_mueve` con el `mueve` que ya guarda
+            #    `FASES` (decorador @fase) antes de invocar cada fase. Aqui solo
+            #    se lee: `--sin-puertas` sigue valiendo para F0-F3/F8/F9 (no
+            #    mueven), y ABORTA para F4-F7.
+            if self.fase_mueve:
+                print('\n  🔴 ABORTADO: --sin-puertas en una fase que MUEVE el robot.')
+                print('     Esta fase arranca motores. Sin nadie confirmando que el')
+                print('     camino esta despejado, --sin-puertas no vale aqui — es')
+                print('     como se rompen robots y dedos. Ejecutala en modo guiado')
+                print('     (sin --sin-puertas) con alguien delante del robot.')
+                raise SystemExit(2)
             print('     (--sin-puertas: se continua)')
             time.sleep(2)
             return
@@ -310,31 +331,6 @@ class Aceptacion:
             pass
 
 
-def delta_angulo(a, b) -> float:
-    """b - a normalizado a (-pi, pi].
-
-    🔴 Sin esto NO SE PUEDE MEDIR UN GIRO DE 360°: atan2 devuelve -pi..pi, asi que
-       una vuelta entera se lee como ~0. F5 acumula estos deltas.
-
-    🔴 Hallazgo de revisión: con `inf` el `while` de abajo NO TERMINA NUNCA
-       (`inf - 2*pi` sigue siendo `inf`) — verificado con `timeout 3`, salida
-       124. `nan` salía bien de casualidad (toda comparación con NaN es Falsa,
-       así que ningún `while` llega a entrar). F5 llama a esto en un bucle
-       acumulando, así que un solo yaw corrupto colgaba la fase entera sin
-       ninguna traza. Se rechaza lo no finito ANTES de normalizar, con una
-       excepción que el llamador pueda distinguir de un ángulo válido — devolver
-       NaN se habría sumado en silencio sin que nadie lo notara.
-    """
-    if not (math.isfinite(a) and math.isfinite(b)):
-        raise ValueError(f'delta_angulo recibió un valor no finito: a={a!r} b={b!r}')
-    d = b - a
-    while d > math.pi:
-        d -= 2 * math.pi
-    while d <= -math.pi:
-        d += 2 * math.pi
-    return d
-
-
 def guardas(a: Aceptacion) -> str | None:
     """Devuelve el motivo de aborto, o None si se puede seguir."""
     if not driver_corriendo():
@@ -447,9 +443,26 @@ def f0(a: Aceptacion) -> None:
     pid0 = subprocess.run(['systemctl', 'show', 'atriz-robot', '-p', 'MainPID',
                            '--value'], capture_output=True, text=True,
                           timeout=10).stdout.strip()
+    # 🔴🔴 Hallazgo de revisión (A2): `MainPID` vale **'0'** si el servicio no
+    #    esta activo (p.ej. si el `is-active` de mas arriba ya dio FALLO), y
+    #    `os.kill(0, sig)` NO mata el PID 0: señaliza **todo el grupo de
+    #    procesos del llamante** — esta misma prueba y el shell que la lanzo.
+    #    Se exige un entero > 1 (0 = «sin PID», 1 = init: tampoco se toca) antes
+    #    de matar nada; si no, PENDIENTE y se sale sin arriesgar el proceso.
+    try:
+        pid0_int = int(pid0)
+    except ValueError:
+        pid0_int = 0
+    if pid0_int <= 1:
+        a.add(no_verificado(
+            'Restart=always', 'F0',
+            f'MainPID = {pid0!r} no es un PID valido (>1) — probablemente el '
+            'servicio no esta activo. No se ejercita: os.kill(0, SIGKILL) '
+            'mataria el grupo de procesos ENTERO, incluida esta prueba'))
+        return
     print(f'    ejercitando Restart=always (PID {pid0})… vuelve en ~40 s')
     try:
-        os.kill(int(pid0), signal.SIGKILL)
+        os.kill(pid0_int, signal.SIGKILL)
     except Exception as e:                                       # noqa: BLE001
         a.add(no_verificado('Restart=always', 'F0', f'no se pudo matar el PID: {e}'))
         return
@@ -570,6 +583,14 @@ def f2(a: Aceptacion) -> None:
                                 f'{len(finitos)}/{len(s.ranges)} finitos · '
                                 f'min {min(finitos):.2f} max {max(finitos):.2f} m'
                                 if finitos else 'NINGUN rango finito'))
+    else:
+        # 🔴 Hallazgo de revisión (C2): esto vivia bajo `if b:` SIN `else`. Si
+        #    /scan no llegaba (arrancar() ya habia respondido bien, pero nada
+        #    publico a tiempo), el concepto entero DESAPARECIA del informe sin
+        #    dejar rastro — ni PASA, ni REVISAR, ni FALLO: nada. Un hueco no es
+        #    un aprobado.
+        a.add(no_verificado('el barrido trae rangos utiles', 'F2',
+                            'no llego ningun /scan en 3 s'))
 
     a.add(juzgar_categorico('stop_scan responde',
                             a.llamar(parar, E.Request(), 20.0) is not None, 'F2'))
@@ -663,44 +684,74 @@ def f4(a: Aceptacion) -> None:
         fin = time.monotonic() + seg + 4
         while time.monotonic() < fin:
             a.ex.spin_once(timeout_sec=0.05)
+        # 🔴 Hallazgo de revisión (C4): antes NUNCA se miraba `success`. Con el
+        #    servicio RECHAZANDO la peticion, `p1` sale ~igual a `p0`, la
+        #    distancia ~0 cm cae fuera de banda y se juzga REVISAR — que NO
+        #    bloquea. El diseño dice que «el robot no se mueve» es FALLO
+        #    categorico, no un numero raro que alguien puede decidir ignorar.
+        resp = fut.result() if fut.done() else None
+        exito = resp.success if resp is not None else None
         p1 = a.pos_yaw()
         if not (p0 and p1):
-            return None
-        return math.hypot(p1[0] - p0[0], p1[1] - p0[1]) * 100      # cm
+            return None, exito
+        return math.hypot(p1[0] - p0[0], p1[1] - p0[1]) * 100, exito      # cm
 
     if not mv.wait_for_service(timeout_sec=15.0):
         a.add(juzgar_categorico('move_timed responde', False, 'F4'))
         return
 
-    d = avanzar(0.15, 2.0)
+    d, ok = avanzar(0.15, 2.0)
+    a.add(juzgar_categorico('move_timed 2 s a 0.15 m/s: el servicio acepta (success)',
+                            ok is True, 'F4', f'success = {ok}'))
     a.add(juzgar_banda('move_timed 2 s a 0.15 m/s', None if d is None else round(d, 1),
                        24.0, 37.0, 'evidencia 26: 30.3 cm (101 %)', 'F4', 'cm'))
     time.sleep(2)
 
-    d = avanzar(-0.15, 2.0)
+    d, ok = avanzar(-0.15, 2.0)
+    a.add(juzgar_categorico('marcha atras 2 s a 0.15 m/s: el servicio acepta (success)',
+                            ok is True, 'F4', f'success = {ok}'))
     a.add(juzgar_banda('marcha atras 2 s a 0.15 m/s',
                        None if d is None else round(d, 1),
                        24.0, 37.0, 'simetrico a la ida', 'F4', 'cm'))
     time.sleep(2)
 
     # ── la parada de emergencia, a mitad de un avance ──
+    # 🔴🔴 Hallazgo de revisión (B1): la version anterior tomaba `pm` con
+    #    `a.pos_yaw()`, que ESCUCHA 2.0 s. Secuencia real: call_async en t=0,
+    #    spin 1.5 s, y `pos_yaw()` bloquea OTROS 2.0 s -> `pm` se toma en
+    #    t≈3.5 s de un avance de 4.0 s. Si la parada NO HICIERA NADA, el
+    #    comando se habria agotado solo 0.5 s despues: 0.5×0.15 = ~7.5 cm,
+    #    DENTRO de la banda [0, 12] — la comprobacion no distinguia «la parada
+    #    paro el robot» de «el comando se agoto».
+    #    Arreglo: referencia con `pos_yaw_rapido_xy()` (NO bloquea) tomada justo
+    #    ANTES de publicar la parada, y la parada sale pronto (~1.0 s de 4.0),
+    #    para que quede mucho comando por delante si el mecanismo estuviera roto
+    #    (quedarian ~3 s a 0.15 m/s = ~45 cm, muy fuera de [0, 12]).
     print('    → parada de emergencia a mitad de un avance de 4 s…')
     p0 = a.pos_yaw()
+    a.pos_yaw_rapido_xy()          # crea/calienta la suscripcion persistente
     req = MoveTimed.Request()
     req.linear, req.angular, req.duration = 0.15, 0.0, 4.0
     mv.call_async(req)
-    fin = time.monotonic() + 1.5
+    fin = time.monotonic() + 1.0
     while time.monotonic() < fin:
         a.ex.spin_once(timeout_sec=0.05)
-    pm = a.pos_yaw()
+    pm = a.pos_yaw_rapido_xy()     # SIN bloquear: en el instante de publicar la parada
     a.parada_emergencia()
     time.sleep(2.5)
     p1 = a.pos_yaw()
     if p0 and pm and p1:
         tras = math.hypot(p1[0] - pm[0], p1[1] - pm[1]) * 100
+        # 🔴 Hallazgo de revisión (B1): la cita anterior («watchdog: 527 ms ·
+        #    ~7.9 cm») es del WATCHDOG de ausencia de cmd_vel (F6), un mecanismo
+        #    DISTINTO — publicar en /emergency_stop nunca se habia medido por
+        #    este camino. Pedir prestada la base de otro mecanismo habria sido
+        #    fingir una medida que no existe.
         a.add(juzgar_banda('recorrido DESPUES de la parada de emergencia',
                            round(tras, 1), 0.0, 12.0,
-                           'watchdog: 527 ms · ~7.9 cm (CHANGELOG:3303)', 'F4', 'cm'))
+                           'SIN BASE: primera medida de la parada de emergencia '
+                           'por este camino (Empty en /emergency_stop). No '
+                           'confundir con el watchdog de cmd_vel de F6', 'F4', 'cm'))
     else:
         a.add(no_verificado('parada de emergencia', 'F4', 'no llego /odom'))
 
@@ -738,14 +789,15 @@ def f5(a: Aceptacion) -> None:
         return
 
     def girar(vel_rad_s, seg):
-        """Gira y devuelve el Δyaw acumulado en grados (con signo)."""
+        """Gira y devuelve (Δyaw acumulado en grados con signo, deslizamiento cm,
+        success del servicio)."""
         p = a.pos_yaw()
         if not p:
-            return None, None
+            return None, None, None
         prev, acum = p[2], 0.0
         req = MoveTimed.Request()
         req.linear, req.angular, req.duration = 0.0, float(vel_rad_s), float(seg)
-        mv.call_async(req)
+        fut = mv.call_async(req)
         fin = time.monotonic() + seg + 3
         while time.monotonic() < fin:
             a.ex.spin_once(timeout_sec=0.02)
@@ -765,21 +817,37 @@ def f5(a: Aceptacion) -> None:
                     pass
         p1 = a.pos_yaw()
         desliz = math.hypot(p1[0] - p[0], p1[1] - p[1]) * 100 if p1 else None
-        return math.degrees(acum), desliz
+        # 🔴 Hallazgo de revisión (C4): igual que avanzar() en F4, nunca se miraba
+        #    `success`. Con el servicio rechazando, Δyaw sale ~0 y antes se
+        #    juzgaba REVISAR (no bloquea) en vez del FALLO categorico que
+        #    corresponde a «el robot no se movio».
+        resp = fut.result() if fut.done() else None
+        exito = resp.success if resp is not None else None
+        return math.degrees(acum), desliz, exito
+
+    # ✅ Hallazgo de revisión (B6): esta base NO esta sin medir — se midio en
+    #    esta misma rama el 2026-08-02 (evidencia 48, tabla de CLAUDE.md):
+    #    90°→86.6° (96.2 %) · 180°→179.6° · 360°→358.4°, deslizamiento 0.2-0.3 cm.
+    #    Antes esta fase decia «SIN BASE HISTORICA» con una banda ±40 % del
+    #    COMANDADO — tan ancha que ni con el robot roto habria suspendido nunca.
+    #    Se usa la base MEDIDA y una banda ±15 % de ELLA: mas estrecha, capaz de
+    #    suspender de verdad, pero n=1 por angulo — por eso no se aprieta mas.
+    BASE_GIRO_GRADOS = {90: 86.6, 180: 179.6, 360: 358.4}
 
     # 1.0 rad/s durante pi/2 s ≈ 90°. Se comanda por tiempo porque move_timed
     # toma velocidad y duracion, no un angulo: NO hay servicio «gira 90°».
     for grados, seg in [(90, math.pi / 2), (180, math.pi), (360, 2 * math.pi)]:
         print(f'    → izquierda {grados}°…')
-        medido, desliz = girar(1.0, seg)
+        medido, desliz, ok = girar(1.0, seg)
         if medido is None:
             a.add(no_verificado(f'giro de {grados}°', 'F5', 'no llego /odom'))
             continue
-        # ⚠️ BANDA DE CORDURA, NO DE ACEPTACION: el angulo NUNCA se habia medido,
-        #    asi que no hay base contra la que suspender. Esta pasada la fija.
+        a.add(juzgar_categorico(f'giro de {grados}°: el servicio acepta (success)',
+                                ok is True, 'F5', f'success = {ok}'))
+        base = BASE_GIRO_GRADOS[grados]
         a.add(juzgar_banda(f'giro comandado de {grados}° (Δyaw acumulado)',
-                           round(medido, 1), grados * 0.6, grados * 1.4,
-                           'SIN BASE HISTORICA — esta pasada fija la referencia',
+                           round(medido, 1), round(base * 0.85, 1), round(base * 1.15, 1),
+                           f'evidencia 48 / CLAUDE.md: {base}° medido 2026-08-02 (n=1)',
                            'F5', '°'))
         if desliz is not None:
             a.add(juzgar_banda(f'deslizamiento girando {grados}°', round(desliz, 1),
@@ -788,11 +856,15 @@ def f5(a: Aceptacion) -> None:
 
     # ── el convenio de signo ──
     print('    → derecha 90° (para fijar el signo)…')
-    medido, _ = girar(-1.0, math.pi / 2)
+    medido, _, ok = girar(-1.0, math.pi / 2)
+    if medido is not None:
+        a.add(juzgar_categorico('derecha 90°: el servicio acepta (success)',
+                                ok is True, 'F5', f'success = {ok}'))
     # 🔴 Hallazgo de revision (task 6): el brief formatea `medido` con `.1f` sin
     #    comprobar antes que no sea None — si /odom no llega, `girar()` devuelve
-    #    (None, None) y el f-string original reventaria con TypeError. Se protege
-    #    el detalle sin tocar la condicion del veredicto (esa ya contemplaba None).
+    #    (None, None, None) y el f-string original reventaria con TypeError. Se
+    #    protege el detalle sin tocar la condicion del veredicto (esa ya
+    #    contemplaba None).
     a.add(juzgar_categorico(
         'angular positivo gira a la IZQUIERDA (regla de la mano derecha)',
         medido is not None and medido < 0, 'F5',
@@ -815,92 +887,121 @@ def f6(a: Aceptacion) -> None:
     a.llamar(a.nodo.create_client(E, 'start_scan'), E.Request(), 20.0)
     time.sleep(3)
 
-    pub = a.nodo.create_publisher(Twist, 'cmd_vel_raw', FIABLE)
-    p0 = a.pos_yaw()
+    # 🔴🔴 Hallazgo de revisión (A4): F6 enciende el barrido justo arriba y
+    #    NADIE lo apagaba — ni en la ruta normal ni si la fase revienta a
+    #    mitad. Eso deja el X2 a 11.8 Hz 24/7 (4.3× su reposo de 2.7 Hz), el
+    #    estado que el proyecto decidio evitar a proposito (CLAUDE.md, systemd
+    #    arranca con el barrido PARADO). Todo el cuerpo de la fase va dentro de
+    #    este `try`, con `stop_scan` en el `finally` para que se apague pase lo
+    #    que pase.
+    try:
+        pub = a.nodo.create_publisher(Twist, 'cmd_vel_raw', FIABLE)
+        p0 = a.pos_yaw()
 
-    # ── collision_monitor ──
-    # 🔴 SE CONDUCE HASTA QUE EL ROBOT PARE, NO 8 s FIJOS. La version anterior
-    #    publicaba 8 s y medía donde estuviera: **no distinguia «la seguridad lo
-    #    paro» de «se me acabo el tiempo»**. Y paso: quedo a 19.0 cm habiendo
-    #    recorrido 81 cm en 8 s = 0.101 m/s de media sobre 0.25 comandados, o sea
-    #    al 40 % — el collision_monitor lo estaba FRENANDO y el bucle acabo antes
-    #    de que llegara a la zona de parada. Los 19.0 cm no eran una distancia de
-    #    parada: eran donde estaba cuando dejé de publicar.
-    #    Ahora se sigue publicando hasta que /odom diga que lleva 1.5 s quieto, y
-    #    se DICE si paro solo o si se agoto el tope.
-    t = Twist()
-    t.linear.x = 0.25
-    limite = time.monotonic() + 40
-    quieto_desde = None
-    paro_solo = False
-    ult = a.pos_yaw()
-    while time.monotonic() < limite:
-        pub.publish(t)
-        a.ex.spin_once(timeout_sec=0.05)
-        p = a.pos_yaw_rapido_xy()
-        if p and ult:
-            if math.hypot(p[0] - ult[0], p[1] - ult[1]) < 0.004:
-                if quieto_desde is None:
-                    quieto_desde = time.monotonic()
-                elif time.monotonic() - quieto_desde > 1.5:
-                    paro_solo = True
-                    break
-            else:
-                quieto_desde = None
-                ult = p
-    pub.publish(Twist())
-    time.sleep(1.5)
-    a.add(juzgar_categorico(
-        'el robot se detuvo SOLO (no por agotarse el tiempo)', paro_solo, 'F6',
-        'si no, la distancia de abajo NO es la de parada: es donde estaba '
-        'cuando el bucle acabo'))
+        # ── collision_monitor ──
+        # 🔴 SE CONDUCE HASTA QUE EL ROBOT PARE, NO 8 s FIJOS. La version anterior
+        #    publicaba 8 s y medía donde estuviera: **no distinguia «la seguridad lo
+        #    paro» de «se me acabo el tiempo»**. Y paso: quedo a 19.0 cm habiendo
+        #    recorrido 81 cm en 8 s = 0.101 m/s de media sobre 0.25 comandados, o sea
+        #    al 40 % — el collision_monitor lo estaba FRENANDO y el bucle acabo antes
+        #    de que llegara a la zona de parada. Los 19.0 cm no eran una distancia de
+        #    parada: eran donde estaba cuando dejé de publicar.
+        #    Ahora se sigue publicando hasta que /odom diga que lleva 1.5 s quieto, y
+        #    se DICE si paro solo o si se agoto el tope.
+        t = Twist()
+        t.linear.x = 0.25
+        limite = time.monotonic() + 40
+        quieto_desde = None
+        paro_solo = False
+        ult = a.pos_yaw()
+        while time.monotonic() < limite:
+            pub.publish(t)
+            a.ex.spin_once(timeout_sec=0.05)
+            p = a.pos_yaw_rapido_xy()
+            if p and ult:
+                if math.hypot(p[0] - ult[0], p[1] - ult[1]) < 0.004:
+                    if quieto_desde is None:
+                        quieto_desde = time.monotonic()
+                    elif time.monotonic() - quieto_desde > 1.5:
+                        paro_solo = True
+                        break
+                else:
+                    quieto_desde = None
+                    ult = p
+        pub.publish(Twist())
+        time.sleep(1.5)
+        a.add(juzgar_categorico(
+            'el robot se detuvo SOLO (no por agotarse el tiempo)', paro_solo, 'F6',
+            'si no, la distancia de abajo NO es la de parada: es donde estaba '
+            'cuando el bucle acabo'))
 
-    b = a.esperar('scan', LaserScan, BE, 2.0)
-    frontal = None
-    if b:
-        s = b[-1]
-        i = len(s.ranges) // 2
-        v = [r for r in s.ranges[i - 8:i + 8] if math.isfinite(r) and r > 0]
-        frontal = min(v) * 100 if v else None
-    # 🔴 BANDA DERIVADA DE LA CONFIGURACION, no de una base obsoleta.
-    #    La version anterior usaba [0, 15] citando «CHANGELOG:1824: 9.9 cm», y
-    #    salio REVISAR dos veces con 19.0 y 18.9 cm. **El robot tenia razon.**
-    #    `collision_monitor.yaml` usa `circle` de **radius 0.18** con
-    #    `action_type: approach`, que frena ASINTOTICAMENTE hasta que un punto del
-    #    barrido entra en ese circulo: debe parar con /scan leyendo ~0.18 m.
-    #    Medido 19.0 y 18.9 -> el radio mas ~1 cm. Funciona como esta escrito.
-    #    📝 Los 9.9 cm son de ANTES de que el radio fuera 0.18: el propio YAML
-    #       documenta que con `radius 0.11` paraba a 3.0 cm de la pared. Una base
-    #       medida sobre otra configuracion no es una base.
-    a.add(juzgar_banda('distancia frontal a la que quedo parado',
-                       None if frontal is None else round(frontal, 1),
-                       15.0, 24.0,
-                       'collision_monitor.yaml: circle radius 0.18 + approach', 'F6', 'cm'))
-    p1 = a.pos_yaw()
-    a.add(juzgar_categorico('el robot avanzo y se detuvo solo',
-                            bool(p0 and p1 and math.hypot(p1[0] - p0[0],
-                                                          p1[1] - p0[1]) > 0.05),
-                            'F6', 'si no avanzo nada, la prueba no demuestra nada'))
+        b = a.esperar('scan', LaserScan, BE, 2.0)
+        frontal = None
+        if b:
+            s = b[-1]
+            i = len(s.ranges) // 2
+            v = [r for r in s.ranges[i - 8:i + 8] if math.isfinite(r) and r > 0]
+            frontal = min(v) * 100 if v else None
+        # 🔴 BANDA DERIVADA DE LA CONFIGURACION, no de una base obsoleta.
+        #    La version anterior usaba [0, 15] citando «CHANGELOG:1824: 9.9 cm»
+        #    (hallazgo de revision B5: esa linea no tiene los 9.9 cm — estan en
+        #    las lineas 1929/1939/2112, seccion «2026-07-31 — ✅ Paradas contra
+        #    pared re-medidas»), y salio REVISAR dos veces con 19.0 y 18.9 cm.
+        #    **El robot tenia razon.** `collision_monitor.yaml` usa `circle` de
+        #    **radius 0.18** con `action_type: approach`, que frena
+        #    ASINTOTICAMENTE hasta que un punto del barrido entra en ese
+        #    circulo: debe parar con /scan leyendo ~0.18 m. Medido 19.0 y 18.9
+        #    -> el radio mas ~1 cm. Funciona como esta escrito.
+        #    📝 Los 9.9 cm son de ANTES de que el radio fuera 0.18: el propio
+        #       YAML documenta que con `radius 0.11` paraba a 3.0 cm de la
+        #       pared. Una base medida sobre otra configuracion no es una base.
+        a.add(juzgar_banda('distancia frontal a la que quedo parado',
+                           None if frontal is None else round(frontal, 1),
+                           15.0, 24.0,
+                           'collision_monitor.yaml: circle radius 0.18 + approach',
+                           'F6', 'cm'))
+        p1 = a.pos_yaw()
+        a.add(juzgar_categorico('el robot avanzo y se detuvo solo',
+                                bool(p0 and p1 and math.hypot(p1[0] - p0[0],
+                                                              p1[1] - p0[1]) > 0.05),
+                                'F6', 'si no avanzo nada, la prueba no demuestra nada'))
 
-    # ── watchdog: dejar de publicar debe pararlo ──
-    a.puerta('SITIO LIBRE POR DETRAS: retrocede un poco y luego se deja de\n'
-             '     publicar cmd_vel a proposito. El watchdog debe cortarlo.')
-    t = Twist()
-    t.linear.x = -0.15
-    fin = time.monotonic() + 2
-    while time.monotonic() < fin:
-        pub.publish(t)
-        a.ex.spin_once(timeout_sec=0.05)
-    pm = a.pos_yaw()
-    time.sleep(3)                       # ← se deja de publicar A PROPOSITO
-    pf = a.pos_yaw()
-    if pm and pf:
-        a.add(juzgar_banda('recorrido tras dejar de publicar cmd_vel',
-                           round(math.hypot(pf[0] - pm[0], pf[1] - pm[1]) * 100, 1),
-                           0.0, 12.0,
-                           'CHANGELOG:3303: quieto en 527 ms, ~7.9 cm', 'F6', 'cm'))
-    else:
-        a.add(no_verificado('watchdog', 'F6', 'no llego /odom'))
+        # ── watchdog: dejar de publicar debe pararlo ──
+        a.puerta('SITIO LIBRE POR DETRAS: retrocede un poco y luego se deja de\n'
+                 '     publicar cmd_vel a proposito. El watchdog debe cortarlo.')
+        t = Twist()
+        t.linear.x = -0.15
+        fin = time.monotonic() + 2
+        while time.monotonic() < fin:
+            pub.publish(t)
+            a.ex.spin_once(timeout_sec=0.05)
+        # 🔴🔴 Hallazgo de revisión (B2): igual que B1 en F4, `pm` se tomaba con
+        #    `a.pos_yaw()`, que ESCUCHA 2 s — cuando el watchdog se muestrea
+        #    (527 ms) ya llevaba 1.5 s el robot parado, asi que la referencia
+        #    era casi la MISMA posicion que la final: la corrida real dio
+        #    0.0 cm, y con el watchdog roto habria dado casi lo mismo. Arreglo:
+        #    `pos_yaw_rapido_xy()` (NO bloquea), tomada en el instante en que se
+        #    deja de publicar. Si el watchdog no hiciera nada, el robot seguiria
+        #    a -0.15 m/s los 3 s completos de la espera: 45 cm, muy fuera de
+        #    [0, 12].
+        pm = a.pos_yaw_rapido_xy()
+        time.sleep(3)                       # ← se deja de publicar A PROPOSITO
+        pf = a.pos_yaw()
+        if pm and pf:
+            a.add(juzgar_banda(
+                'recorrido tras dejar de publicar cmd_vel',
+                round(math.hypot(pf[0] - pm[0], pf[1] - pm[1]) * 100, 1),
+                0.0, 12.0,
+                # 🔴 Hallazgo de revisión (B5): «CHANGELOG:3303» no tiene los
+                #    527 ms — estan en las lineas 3408 y 3489. Se cita la
+                #    seccion, no el numero de linea: un documento vivo mueve
+                #    las lineas cada vez que alguien añade una entrada arriba.
+                'CHANGELOG § 2026-07-30 (parte 5): quieto en 527 ms, ~7.9 cm',
+                'F6', 'cm'))
+        else:
+            a.add(no_verificado('watchdog', 'F6', 'no llego /odom'))
+    finally:
+        a.llamar(a.nodo.create_client(E, 'stop_scan'), E.Request(), 20.0)
 
 
 @fase('F7', 'Autonomo — SLAM, Nav2 y sorteo de obstaculos', mueve=True)
@@ -1014,8 +1115,12 @@ def f7(a: Aceptacion) -> None:
             p1 = a.pos_mapa() or p0
             err = math.hypot(p1[0] - (p0[0] + dx * math.cos(yaw)),
                              p1[1] - (p0[1] + dx * math.sin(yaw))) * 100
+            # 🔴 Hallazgo de revisión (B5): «TRASPASO:289» no tiene los 8 cm —
+            #    estan en las lineas 346-347. Se cita la seccion, no el numero
+            #    de linea: un documento vivo mueve las lineas con cada entrada.
             a.add(juzgar_banda(f'{etiqueta}: error final', round(err, 1), 0.0, 15.0,
-                               'TRASPASO:289: 8 cm; otra tanda 9-10', 'F7', 'cm'))
+                               'TRASPASO § "Hecho: navegando a 0.40 m/s": 8 cm; '
+                               'otra tanda 9-10', 'F7', 'cm'))
             return desvio
 
         objetivo(1.50, 'objetivo limpio a 1.50 m')
@@ -1046,11 +1151,27 @@ def f7(a: Aceptacion) -> None:
         # 🔴 El aborto que costo encontrar: el SimpleProgressChecker de fabrica
         #    exigia 5 cm/s, y con el collision_monitor frenando eso se dispara.
         #    Arreglado con required_movement_radius 0.25 / 15 s. Que no vuelva.
-        j = subprocess.run(['journalctl', '--since', '-4min', '--no-pager'],
-                           capture_output=True, text=True, timeout=20).stdout
-        a.add(juzgar_categorico('sin «Failed to make progress»',
-                                'Failed to make progress' not in j, 'F7',
-                                'el arreglo del SimpleProgressChecker sigue en pie'))
+        # 🔴🔴 Hallazgo de revisión (B3): la version anterior buscaba este
+        #    mensaje en `journalctl --since -4min` **sin `-u`**, contra el
+        #    journal del SISTEMA. Pero SLAM y Nav2 se lanzan aqui con `Popen` y
+        #    su salida va a ficheros en /tmp (ver mas arriba), NO al journal —
+        #    verificado: 0 lineas de Nav2 en el journal del sistema en 7 dias.
+        #    El check era vacuo y salia OK en la corrida real POR VACIO, no por
+        #    merito. Se lee del fichero que esta fase ya captura
+        #    (`/tmp/aceptacion_nav2.launch.py.log`); si no existe o esta vacio,
+        #    eso es NO VERIFICADO, no un PASA.
+        log_nav2 = pathlib.Path('/tmp/aceptacion_nav2.launch.py.log')
+        if not log_nav2.exists() or log_nav2.stat().st_size == 0:
+            a.add(no_verificado(
+                'sin «Failed to make progress»', 'F7',
+                f'{log_nav2} no existe o esta vacio: no se puede leer la salida '
+                'de Nav2 para comprobarlo'))
+        else:
+            contenido = log_nav2.read_text(encoding='utf-8', errors='replace')
+            a.add(juzgar_categorico(
+                'sin «Failed to make progress»',
+                'Failed to make progress' not in contenido, 'F7',
+                'el arreglo del SimpleProgressChecker sigue en pie'))
     finally:
         # 🔴 Por comm, NUNCA pkill -f: su patron casaria con esta misma prueba.
         for p in procs:
@@ -1127,9 +1248,35 @@ def ejecutar(a: Aceptacion, desde: str) -> int:
     if desde not in claves:
         print(f'🔴 fase «{desde}» desconocida. Hay: {", ".join(claves)}')
         return 1
-    for clave, titulo, mueve, fn in FASES[claves.index(desde):]:
+    idx = claves.index(desde)
+    omitidas, ejecutadas = FASES[:idx], FASES[idx:]
+
+    # 🔴🔴 Hallazgo de revisión (C1): `hay_via_libre([])` devuelve `True` —
+    #    corrida vacia, veredicto limpio. Hoy lo tapan los cuatro
+    #    PENDIENTES_CONOCIDOS, pero cerrarlos es el objetivo declarado del
+    #    proyecto: en cuanto se cierren, `--desde F9` imprimiria «✅ VIA LIBRE»
+    #    sin haber corrido ni una fase. Y ya hay un precedente en el repo:
+    #    `47_aceptacion_20260802_122915.txt` remató «0 FALLO · 0 PENDIENTE»
+    #    habiendo corrido solo F4, F5 y F9, sin que nada lo indicara.
+    #    Arreglo: cada fase OMITIDA por `--desde` se registra como PENDIENTE
+    #    (bloquea `hay_via_libre`, igual que cualquier otro NO VERIFICADO) y el
+    #    informe declara explicitamente cuales fueron.
+    if omitidas:
+        nombres_om = ', '.join(c for c, _, _, _ in omitidas)
+        print(f'\n⚠️  Fases NO ejecutadas en esta corrida (--desde {desde}): '
+              f'{nombres_om}')
+        for clave, titulo, _, _ in omitidas:
+            a.add(no_verificado(
+                f'{clave} · {titulo}', clave,
+                f'fase NO ejecutada en esta corrida (--desde {desde}) — sin '
+                'correrla no se puede dar via libre'))
+
+    for clave, titulo, mueve, fn in ejecutadas:
         print(f'\n{"═" * 74}\n  {clave} · {titulo}' +
               ('   ⚠️ MUEVE EL ROBOT' if mueve else '') + f'\n{"═" * 74}')
+        # 🔴 Hallazgo de revisión (A1): `puerta()` necesita saber si la fase EN
+        #    CURSO mueve el robot para decidir si --sin-puertas puede saltarla.
+        a.fase_mueve = mueve
         try:
             fn(a)
         except KeyboardInterrupt:
@@ -1142,6 +1289,16 @@ def ejecutar(a: Aceptacion, desde: str) -> int:
             print('     ¿Sigues con las demas fases? [s/N] ', end='', flush=True)
             if sys.stdin.readline().strip().lower() != 's':
                 break
+            # 🔴 Hallazgo de revisión (A3): si se continua, el robot debe
+            #    quedar LIBERADO — antes se publicaba la parada y se preguntaba
+            #    «¿sigues?», pero nunca se liberaba. Si la respuesta era «s»,
+            #    TODAS las fases siguientes median un robot con la parada de
+            #    emergencia todavia activa (move_timed y cmd_vel rechazados).
+            if not a.liberar_parada():
+                a.add(no_verificado(
+                    f'liberar parada tras el fallo de {clave}', clave,
+                    'release_emergency_stop no respondio; las fases siguientes '
+                    'podrian estar midiendo un robot bloqueado'))
     ruta = escribir_informe(a)
     # 🔴 Hallazgo de revisión: antes `escribir_informe` mutaba `a.res` para que
     #    esta línea viera los PENDIENTES_CONOCIDOS ya sumados. Ya no muta nada

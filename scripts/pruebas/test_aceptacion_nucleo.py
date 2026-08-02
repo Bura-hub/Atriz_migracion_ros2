@@ -1,10 +1,70 @@
+import math
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
+import pytest
+
 from aceptacion_nucleo import (
     PASA, REVISAR, FALLO, PENDIENTE,
-    Resultado, juzgar_banda, juzgar_categorico, no_verificado,
+    Resultado, juzgar_banda, juzgar_categorico, no_verificado, delta_angulo,
 )
+
+
+# ── delta_angulo (D1: logica pura, la funcion que se colgaba con `inf`) ────
+
+def test_delta_angulo_cero():
+    assert delta_angulo(0.0, 0.0) == 0.0
+
+
+def test_delta_angulo_media_vuelta_positiva():
+    # a=0, b=pi: el limite superior del rango (-pi, pi] queda DENTRO.
+    assert math.isclose(delta_angulo(0.0, math.pi), math.pi)
+
+
+def test_delta_angulo_media_vuelta_negativa():
+    # a=0, b=-pi es el MISMO angulo que +pi (equivalentes modulo 2*pi): la
+    # normalizacion a (-pi, pi] los manda a los dos al mismo valor +pi.
+    assert math.isclose(delta_angulo(0.0, -math.pi), math.pi)
+
+
+def test_delta_angulo_nan_lanza_valueerror():
+    with pytest.raises(ValueError):
+        delta_angulo(float('nan'), 0.0)
+    with pytest.raises(ValueError):
+        delta_angulo(0.0, float('nan'))
+
+
+def test_delta_angulo_inf_lanza_valueerror():
+    # 🔴 Sin este rechazo, el `while d > math.pi: d -= 2*math.pi` de abajo NO
+    #    TERMINA NUNCA con inf (inf - 2*pi sigue siendo inf) — verificado en su
+    #    dia con `timeout 3`, salida 124. Es la razon de ser de esta funcion.
+    with pytest.raises(ValueError):
+        delta_angulo(float('inf'), 0.0)
+    with pytest.raises(ValueError):
+        delta_angulo(0.0, float('inf'))
+
+
+def test_delta_angulo_menos_inf_lanza_valueerror():
+    with pytest.raises(ValueError):
+        delta_angulo(float('-inf'), 0.0)
+    with pytest.raises(ValueError):
+        delta_angulo(0.0, float('-inf'))
+
+
+def test_delta_angulo_acumulado_una_vuelta_completa():
+    # Simula lo que hace F5: acumular deltas de un yaw que atan2 solo entrega
+    # en (-pi, pi], a lo largo de una vuelta ENTERA (360°) en pasos de 45°.
+    # Sin la normalizacion de delta_angulo, la vuelta se leeria como ~0.
+    def wrap(x):
+        return math.atan2(math.sin(x), math.cos(x))
+
+    pasos = [wrap(i * (2 * math.pi / 8)) for i in range(9)]     # 0..360° en 8 pasos
+    acumulado = 0.0
+    prev = pasos[0]
+    for q in pasos[1:]:
+        acumulado += delta_angulo(prev, q)
+        prev = q
+    assert math.isclose(math.degrees(acumulado), 360.0, abs_tol=1e-6)
 
 
 def test_dentro_de_banda_pasa():
