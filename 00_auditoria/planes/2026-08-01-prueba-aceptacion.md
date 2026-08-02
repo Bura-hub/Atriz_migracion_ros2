@@ -441,9 +441,10 @@ from std_srvs.srv import Empty as EmptySrv                       # noqa: E402
 #: el journal el 2026-08-01. Por debajo, los motores dan menos y mediriamos una
 #: regresion que no existe.
 BATERIA_MINIMA_V = 7.0
-#: F0 exige un reinicio de verdad. Sin esto, la prueba «pasaria» sobre un sistema
-#: que lleva dias encendido y arreglado a mano.
-UPTIME_MAXIMO_S = 1800
+#: Tope para «el servicio subio EN EL ARRANQUE». Medido: 23 s tras el boot
+#: (evidencia 47). Con 120 s hay holgura de sobra, y si alguien lo levanto a mano
+#: la diferencia serian minutos u horas, no segundos.
+ARRANQUE_MAXIMO_S = 120.0
 
 BE = QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)
 FIABLE = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE)
@@ -788,7 +789,7 @@ EOF
 - Modificar: `scripts/prueba_aceptacion.py`
 
 **Interfaces:**
-- Consume: `Aceptacion`, `fase`, `juzgar_*`, `no_verificado`, `UPTIME_MAXIMO_S`.
+- Consume: `Aceptacion`, `fase`, `juzgar_*`, `no_verificado`, `Resultado`, `ARRANQUE_MAXIMO_S`.
 - Produce: las fases `F0` y `F1` registradas en `FASES`.
 
 - [ ] **Paso 1: Escribir F0**
@@ -803,13 +804,33 @@ NODOS_DEL_SERVICIO = ['rvr_driver', 'ydlidar_ros2_driver_node', 'collision_monit
 
 @fase('F0', 'Arranque en frio — ¿arranco solo?')
 def f0(a: Aceptacion) -> None:
-    # ── ¿hubo reinicio de verdad? ──
+    # ── ¿el servicio subio SOLO, en el arranque y a la primera? ──
+    # 🔴 NO se mira el uptime: eso CADUCA. Si preparar la prueba lleva media hora
+    #    la comprobacion falla sin que nada este roto. Lo que se quiere probar se
+    #    lee sin reloj — ver evidencia 47_arranque_en_frio_20260801.txt.
     up = float(open('/proc/uptime').read().split()[0])
-    a.add(juzgar_categorico(
-        'hubo un reinicio de verdad', up < UPTIME_MAXIMO_S, 'F0',
-        f'uptime {up / 60:.1f} min (tope {UPTIME_MAXIMO_S / 60:.0f}). '
-        'Sin esto la prueba «pasaria» sobre un sistema encendido hace dias y '
-        'arreglado a mano — el sesgo que existe para eliminar'))
+    arranque = time.time() - up
+    def _mostrar(prop):
+        return subprocess.run(['systemctl', 'show', 'atriz-robot', '-p', prop,
+                               '--value'], capture_output=True, text=True,
+                              timeout=10).stdout.strip()
+    activo_us = _mostrar('ActiveEnterTimestampMonotonic')     # us desde el boot
+    retraso = float(activo_us) / 1e6 if activo_us.isdigit() else None
+    a.add(juzgar_banda(
+        'el servicio subio EN EL ARRANQUE (no lo levanto nadie)',
+        None if retraso is None else round(retraso, 1), 0.0, 120.0,
+        'evidencia 47: 23 s tras el boot', 'F0', 's'))
+    print(f'    uptime {up / 60:.1f} min · boot {time.strftime("%H:%M:%S", time.localtime(arranque))}')
+
+    n_re = _mostrar('NRestarts')
+    # ⚠️ REVISAR y no FALLO: F0 deja este contador a 1 al ejercitar Restart=always,
+    #    asi que una SEGUNDA pasada sobre el mismo arranque ya no vera 0. Las dos
+    #    lecturas se dicen en el detalle; lo desempata el journal.
+    a.add(Resultado('F0', 'el servicio subio a la primera (NRestarts)',
+                    PASA if n_re == '0' else REVISAR,
+                    f'NRestarts = {n_re}. Si no es 0: o es una repeticion de esta '
+                    f'misma prueba (F0 mata el driver a proposito), o el driver se '
+                    f'cayo de verdad. Lo desempata el journal'))
 
     # ── el servicio, sin que nadie lo tocara ──
     act = subprocess.run(['systemctl', 'is-active', 'atriz-robot'],

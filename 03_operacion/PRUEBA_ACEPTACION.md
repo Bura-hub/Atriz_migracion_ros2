@@ -63,8 +63,26 @@ contra un número que no existe**: la primera pasada **establece la referencia**
 sale de una banda de cordura amplia. Llamarlo aprobado o suspenso sería fingir un criterio que no
 hay.
 
-**F0 comprueba el `uptime`.** Sin eso, la prueba «pasaría» sobre un sistema que lleva días
-encendido y arreglado a mano — que es justo el sesgo que esta prueba existe para eliminar.
+**F0 comprueba que el servicio subió SOLO, en el arranque y a la primera** — no el reloj.
+
+Una primera versión de este diseño exigía `uptime < 30 min`. Funciona, pero **caduca**: si
+preparar la prueba lleva media hora, falla sin que nada esté roto. Lo que de verdad se quiere
+probar se lee sin reloj, y se midió el 2026-08-01 (evidencia 47):
+
+| Señal | Medido | Qué demuestra |
+|---|---|---|
+| `ActiveEnterTimestamp − boot` | **23 s** | subió **en el arranque**. Si lo hubiera levantado alguien a mano, serían minutos u horas |
+| `NRestarts` | **0** | a la primera, sin que `Restart=always` tuviera que rescatarlo |
+| `Result` | `success` | |
+
+Sin esto, la prueba «pasaría» sobre un sistema que lleva días encendido y arreglado a mano — el
+sesgo que existe para eliminar. El `uptime` se sigue **informando**, porque es útil leerlo, pero
+ya no decide nada.
+
+⚠️ **`NRestarts` se queda a 1 en cuanto F0 ejercita `Restart=always`**, que mata el driver a
+propósito. En una segunda pasada sobre el mismo arranque ya no será 0, así que F0 lo trata como
+**REVISAR y no FALLO**, diciendo las dos lecturas posibles: o es una repetición de esta misma
+prueba, o el driver se cayó de verdad. Lo desempata el journal.
 
 ### El journal solo se mira en F0, y hay que decir exactamente qué se mira
 

@@ -1,0 +1,33 @@
+EVIDENCIA DE ARRANQUE EN FRIO — capturada 2026-08-01 20:36:07
+════════════════════════════════════════════════════════════════════
+boot del sistema      : 2026-08-01 20:31:59
+uptime al capturar    : 4.1 min
+servicio activo desde : Sat 2026-08-01 20:32:22 -05
+reinicios desde boot  : 0
+resultado del ultimo  : success
+MainPID               : 720
+
+errores en el journal desde el arranque (-p err -b):
+  -> 0 linea(s)
+
+───────────────────────────────────────────────────────────────────────────────
+POR QUE ESTO ES MEJOR PRUEBA QUE EL UPTIME
+───────────────────────────────────────────────────────────────────────────────
+El diseño original de F0 exigia `uptime < 30 min` para demostrar que hubo un
+reinicio de verdad. Funciona, pero CADUCA: si preparar la prueba lleva media
+hora, la comprobacion falla sin que nada este roto.
+
+Lo que de verdad se quiere probar no es «hace poco que arranco», es **«el
+servicio subio SOLO, en el arranque, y a la primera»**. Eso se lee sin reloj:
+
+  · ActiveEnterTimestamp - boot = 23 s  -> subio EN EL ARRANQUE. Si alguien lo
+    hubiera levantado a mano despues, la diferencia serian minutos u horas.
+  · NRestarts = 0                       -> a la primera, sin que Restart=always
+    tuviera que rescatarlo.
+  · Result = success
+
+⚠️ NRestarts se queda a 1 en cuanto F0 ejercita `Restart=always` (mata el driver
+   a proposito). Asi que en una SEGUNDA pasada sobre el mismo arranque el valor
+   ya no sera 0. Por eso F0 lo trata como REVISAR y no como FALLO, explicando las
+   dos lecturas posibles: o es una repeticion de esta misma prueba, o el driver
+   se cayo de verdad. Lo desempata el journal.
