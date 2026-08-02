@@ -62,3 +62,16 @@ LO QUE **NO** HAY QUE TOCAR
 ───────────────────────────────────────────────────────────────────────────────
   radio circunscrito con 19.0 x 21.7 = hypot(9.5, 10.85) = 14.4 cm -> 0.144 m
   `robot_radius` configurado: 0.145 m.  Diferencia: 0.8 mm. Se deja como esta.
+
+APLICADO AL MODELO Y VERIFICADO EN EL ROBOT — 2026-08-02
+───────────────────────────────────────────────────────────────────────────────
+  rvr.urdf.xacro:  laser_x     0.0   -> -0.005
+                   base_length 0.182 ->  0.190
+  Compilado con `compilar.sh` y comprobado en el fichero INSTALADO (no el
+  fuente), y luego en el TF vivo tras desplegar:
+
+      base_footprint -> laser   Translation: [-0.005, 0.000, 0.155]
+      (antes                                 [ 0.000, 0.000, 0.155])
+
+  📝 La `z` es 0.155 y no 0.120 porque `base_footprint` esta EN EL SUELO, no en
+     `base_link`. No es un error.
