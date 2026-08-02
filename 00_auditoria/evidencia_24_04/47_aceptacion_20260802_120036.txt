@@ -1,0 +1,52 @@
+==============================================================================
+PRUEBA DE ACEPTACION · rvr-01 · 2026-08-02 12:00:36
+==============================================================================
+
+
+── F2 ──────────────────────────────────────────────────────────────────────
+  [OK   ] arranca con el barrido APAGADO
+          0 mensajes con el barrido parado
+  [OK   ] start_scan responde
+  [REV  ] ritmo de /scan
+          11.83525229438559 Hz · banda [9.0, 11.0] Hz · base manual cap. 12: 9.997 Hz · σ 0.35 ms
+  [OK   ] el barrido trae rangos utiles
+          211/250 finitos · min 0.68 max 2.82 m
+  [OK   ] stop_scan responde
+  [OK   ] stop_scan calla /scan de verdad
+          0 mensajes DESPUES de parar
+  [OK   ] el parche del YDLIDAR aguanta (no inunda el journal)
+          1 lineas en 20 s con el barrido parado (antes del parche eran miles). Referencia previa: 148
+
+── F3 ──────────────────────────────────────────────────────────────────────
+  [OK   ] set_led_rgb responde con success
+  [OK   ] set_multiple_leds responde con success
+          2 LEDs: headlight_left, headlight_right
+  [PEND ] los LEDs se encienden
+          NO VERIFICADO: nadie estaba mirando
+
+── F9 ──────────────────────────────────────────────────────────────────────
+  [PEND ] rosbridge sin autenticacion en el 9090
+          expone raw_motors, que se salta el collision_monitor y no tiene corte automatico. Hay que decidirlo ANTES de escribir el cliente: cambia su arquitectura. Ver 03_operacion/ARQUITECTURA.md
+  [PEND ] el hueco de los precipicios
+          collision_monitor solo mira /scan, y un LIDAR 2D no ve un vacio a ninguna altura. Mitigado solo por la regla de laboratorio (suelo continuo y cerrado). Ver manual cap. 12.2b
+  [PEND ] la PSK del WiFi es legible por cualquier usuario
+          falta fmask=0177,dmask=0077 en /etc/fstab. chmod NO sirve: es FAT
+  [PEND ] la credencial sphero sin rotar
+          y sin purgar del historico de git
+
+==============================================================================
+  8 PASA · 1 REVISAR · 0 FALLO · 5 PENDIENTE
+==============================================================================
+
+  🔴 NO HAY VIA LIBRE PARA LA FASE 5
+
+     Lo que lo impide:
+       · [PENDIENTE] los LEDs se encienden
+       · [PENDIENTE] rosbridge sin autenticacion en el 9090
+       · [PENDIENTE] el hueco de los precipicios
+       · [PENDIENTE] la PSK del WiFi es legible por cualquier usuario
+       · [PENDIENTE] la credencial sphero sin rotar
+
+  ⚠️ Y 1 numero(s) fuera de banda. No bloquean, pero miralos:
+       · ritmo de /scan: 11.83525229438559 Hz · banda [9.0, 11.0] Hz · base manual cap. 12: 9.997 Hz · σ 0.35 ms
+==============================================================================

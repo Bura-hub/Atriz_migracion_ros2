@@ -472,8 +472,21 @@ def f2(a: Aceptacion) -> None:
     a.add(juzgar_categorico('start_scan responde',
                             a.llamar(arrancar, E.Request(), 20.0) is not None, 'F2'))
     time.sleep(3)
+    # 🔴 BANDA CORREGIDA, y la version anterior citaba una fuente EQUIVOCADA.
+    #    Decia «manual cap. 12: 9.997 Hz · σ 0.35 ms» — pero esos 9.997 Hz son de
+    #    `/prueba_atriz`, un topic SINTETICO de String publicado con
+    #    `ros2 topic pub -r 10` para probar DDS. **No tienen nada que ver con el
+    #    LIDAR.** La pista estaba a la vista: σ 0.35 ms es un jitter imposible
+    #    para un motor que gira libre.
+    #    📝 Lo destapo un subagente al medir 11.84 Hz y negarse a tocar la banda
+    #       por su cuenta: dijo que dos fuentes del proyecto se contradecian.
+    #    Las medidas REALES de /scan en este robot, las tres con el driver ROS 2:
+    #        10.1 Hz  (2026-07-30)   12.00 Hz (2026-08-01)   11.84 Hz (2026-08-02)
+    #    Varian porque **el motor del X2 va libre**: el proyecto ya tiene medido
+    #    que su parametro `frequency` no hace nada. Por eso la banda es ancha.
     a.add(juzgar_banda('ritmo de /scan', a.ritmo('scan', LaserScan, BE, 8.0),
-                       9.0, 11.0, 'manual cap. 12: 9.997 Hz · σ 0.35 ms', 'F2', 'Hz'))
+                       9.5, 13.0, 'medido: 10.1 · 11.84 · 12.00 Hz (el motor va libre)',
+                       'F2', 'Hz'))
 
     b = a.esperar('scan', LaserScan, BE, 3.0)
     if b:

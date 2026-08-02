@@ -47,7 +47,7 @@ Se lanza por SSH después del reinicio. `--desde F4` retoma sin repetir lo ya pa
 |---|---|---|---|
 | **F0** | Arranque en frío | no | El robot arrancó **solo**: el servicio activo a 23 s del boot y `NRestarts=0` (ver abajo — **no** el `uptime`, que caduca), los 6 nodos del servicio, el journal limpio, y delega las 105 comprobaciones estáticas en `verificar_robot.sh`. Al final ejercita `Restart=always`, hoy **sin ejercitar** |
 | **F1** | Telemetría | no | Los topics con su QoS y su ritmo, medidos con **ejecutor persistente**. Voltaje, estado y umbrales de batería. Que la temperatura no medida sea `NaN` y no `0.0`. Deriva de yaw en reposo |
-| **F2** | LIDAR | no | `start_scan` → `/scan` a ~10 Hz con rangos sanos → `stop_scan` → se para. Y que el parche del journal aguanta: nada de inundación con el barrido parado |
+| **F2** | LIDAR | no | `start_scan` → `/scan` a **10–12 Hz** con rangos sanos → `stop_scan` → se para. Y que el parche del journal aguanta: nada de inundación con el barrido parado |
 | **F3** | Luces | no | 🔴 **Puerta: miras el robot.** Los cuatro servicios de LED. Lo confirmas tú con los ojos: no hay forma de leerlo desde el software |
 | **F4** | Movimiento básico | **sí** | 🔴 **Puerta: pasillo despejado.** `move_timed` adelante y atrás. Y **parada de emergencia a mitad de un avance**, midiendo cuánto recorre después de recibirla |
 | **F5** | **Ángulos** | **sí** | El hueco. Giros en el sitio de 90°, 180° y 360°, por `move_to_pos_and_yaw` y por `move_timed`, midiendo el **Δyaw** logrado contra `/odom` (nunca el yaw absoluto — ver abajo). También el convenio de signo |
@@ -133,7 +133,8 @@ batería y su propio botón. El RVR arrastra su origen desde el último encendid
 | Medida | Base medida | Fuente | Banda de aceptación |
 |---|---|---|---|
 | `/odom`, `/imu`, `/encoders` | 16.5 Hz | Fase 4 | ≥ 13 Hz |
-| `/scan` | 9.997 Hz · σ 0.35 ms | manual cap. 12 | 9–11 Hz |
+| `/scan` | **10.1 · 11.84 · 12.00 Hz** | medido ×3 con el driver ROS 2 | 9.5–13 Hz |
+| | ⚠️ *Una versión anterior citaba «9.997 Hz · σ 0.35 ms, manual cap. 12». Esa cifra es de `/prueba_atriz`, un topic **sintético** publicado a 10 Hz para probar DDS — no del LIDAR. El `/scan` real varía porque el motor del X2 **gira libre**.* | | |
 | `move_timed` 2 s @ 0.15 m/s | **30.3 cm** (101 %) | evidencia 26 | 24–37 cm |
 | `move_to_pos_and_yaw` 0.20 m | **19.5 cm** (97 %) | evidencia 26 | 16–24 cm |
 | `collision_monitor` | **9.9 cm** @ 0.25 · 10.6 @ 0.40 | CHANGELOG:1824 | ≤ 15 cm |
