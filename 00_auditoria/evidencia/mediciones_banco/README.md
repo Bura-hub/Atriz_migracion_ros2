@@ -137,7 +137,7 @@ reconexión del UART.
 | `probar_sensor_optico.py` | color y luz ambiente por sus **tres** rutas a la vez · `--guiado` | no |
 | `probar_rosbridge.py` | qué recibe la web, y **cuántos bytes cuesta** por rosbridge | no |
 | `probar_mdns.py` | si un robot responde a `rvr-NN.local` · `--flota 16` | no |
-| `probar_sdk_no_usados.py` | los **62 métodos del SDK que el driver no usa**: cuáles responden | no |
+| `probar_sdk_no_usados.py` | las **16 consultas útiles** de los 62 métodos que el driver no usa: cuáles responden | no |
 | `probar_sdk_tanda2.py` | temperaturas con los IDs buenos, color asíncrono, batería | `--calibrar` ⚠️ **gira 360°** |
 | `probar_magnetometro.py` | ¿hay rumbo absoluto? (respuesta: **no**) | `--calibrar` ⚠️ **gira 360°** |
 | `probar_atasco.py` | si el driver detecta un atasco **y dice qué oruga** | ⚠️ **sí, y TÚ lo bloqueas** |
@@ -201,7 +201,7 @@ no repetir el trabajo:
 
 | Pregunta | Respuesta |
 |---|---|
-| ¿Cuántos métodos usa el driver? | **37 de 99**. Los 62 restantes, probados uno a uno |
+| ¿Cuántos métodos usa el driver? | **37 de 99**. De los 62 restantes se probaron las **16 consultas** que podían aportar algo |
 | ¿Se puede leer la corriente de los motores? | 🔴 **No** — `bad_cid` |
 | ¿Hay rumbo absoluto (magnetómetro)? | 🔴 **No.** Las dos vías fallan, y el firmware ya es el último |
 | ¿Se detecta el atasco? | ✅ **Sí**, por notificación, y **dice qué oruga**. La conclusión contraria era falsa |

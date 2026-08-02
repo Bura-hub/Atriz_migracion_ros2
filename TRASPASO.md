@@ -115,7 +115,7 @@ sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 
 ## El SDK del RVR, explorado entero (2026-08-01)
 
-Se probaron **uno a uno** los 62 métodos que el driver no usaba. Resumen para no repetirlo:
+De los 62 métodos que el driver no usaba se **probaron las 16 consultas** que podían aportar algo. Los otros 46 son notificaciones (que este firmware no emite) y modos de conducción que no hacen falta. Resumen para no repetirlo:
 
 | | |
 |---|---|
@@ -149,7 +149,7 @@ una temperatura plana **no** significa «estable», puede ser el mismo dato repe
 | ~~La parada de emergencia de la web no hace nada~~ | seguridad | ✅ **resuelta 2026-07-31**. Había **tres** causas, no una: nombre, **namespace** (`/rvr/`) y **QoS** (`TRANSIENT_LOCAL` en el suscriptor no empareja con nadie). Verificada por los tres nombres, 0 avisos de QoS. Manual, cap. 15 |
 | **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — **acción del usuario**. Y no basta con rotarla: hay que quitarla del **historial** de git, no solo del último commit |
 | ~~Sin arranque automático~~ | operación | ✅ **resuelto 2026-07-31**: `atriz-robot.service`, probado con un reinicio real. Falta que `provision.sh` lo instale |
-| ~~La integración con el SDK NO está completa~~ | funcionalidad | ✅ **explorado entero el 2026-08-01**: el driver usa **37 de 99** métodos, y los 62 restantes están **probados uno a uno** (evidencias 41–44). De lo que faltaba, **solo uno era aprovechable y ya está puesto** (voltaje de batería). 🔴 **El atasco SÍ se detecta** — la conclusión contraria era falsa. 🔴 **No hay rumbo absoluto**, cerrado con evidencia. ⏳ Queda el **IR**, que necesita un segundo robot |
+| ~~La integración con el SDK NO está completa~~ | funcionalidad | ✅ **explorado entero el 2026-08-01**: el driver usa **37 de 99** métodos, y de los 62 restantes se probaron **las 16 consultas útiles** (evidencias 41–44); los otros 46 son notificaciones y modos de conducción alternativos. De lo que faltaba, **solo uno era aprovechable y ya está puesto** (voltaje de batería). 🔴 **El atasco SÍ se detecta** — la conclusión contraria era falsa. 🔴 **No hay rumbo absoluto**, cerrado con evidencia. ⏳ Queda el **IR**, que necesita un segundo robot |
 | ~~No hay watchdog de `cmd_vel`~~ | seguridad | ✅ **resuelto**: para en 527 ms / 7.9 cm |
 | ~~No hay URDF → árbol TF partido~~ | bloqueante | ✅ **resuelto**: `atriz_rvr_description` |
 | ~~Driver ROS del LIDAR no instalado~~ | bloqueante | ✅ **resuelto**: `/scan` a 10.1 Hz |
@@ -426,9 +426,14 @@ un suscriptor **solo restringe** y no empareja con ningún publicador por defect
 Verificada disparando los tres nombres: **3 paradas, 3 liberaciones, 0 avisos de QoS**.
 Manual, **cap. 15**.
 
-🔴 **Pero no corta lo que venga de Nav2.** Pone el flag del driver, que ignora `cmd_vel` — Nav2
-seguiría mandando objetivos. Habría que cancelar la acción además de parar los motores. **Sin
-comprobar.**
+✅ ~~Pero no corta lo que venga de Nav2~~ — **FALSO, y ya estaba arreglado cuando se escribió
+esto.** El nodo `cancelar_nav2` manda `CANCEL_ALL` a `NavigateToPose`. Verificado con control:
+objetivo `CANCELED` y **0.0 cm** al liberar la parada; sin él, objetivo **ACTIVO** y el robot
+**arrancó solo 34.7 cm** (manual, cap. 15.4).
+
+🔴 Es la **tercera** vez que esta misma frase sobrevive en un fichero distinto tras corregirla.
+Es el caso que `CLAUDE.md` usa como ejemplo canónico de deriva documental — **una función de
+seguridad descrita como rota cuando funciona**.
 
 ### ✅ Hecho: los servicios del driver, de 1 a 18
 

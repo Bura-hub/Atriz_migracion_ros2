@@ -26,6 +26,30 @@ Este proyecto llevaba documentado, en CLAUDE.md, el manual y la evidencia 35:
 ───────────────────────────────────────────────────────────────────────────────
 POR QUE LA MEDIDA ANTERIOR DIO LO CONTRARIO
 ───────────────────────────────────────────────────────────────────────────────
+⚠️ **LA PRIMERA EXPLICACION DE ESTA RETRACTACION TAMBIEN ERA INCOMPLETA**, y la
+   encontro una auditoria con agentes aislados el mismo dia.
+
+   La evidencia 35 documenta **DOS** ensayos de atasco (35:53-57):
+     · `move_timed` 0.15 m/s durante **3 s** con el usuario sujetando el robot
+     · `raw_motors` a 220/255, 2 s, con el robot apretado contra el suelo
+
+   🔴 **EL PRIMERO YA IBA POR EL CAMINO BUENO**: `move_timed` usa
+      `drive_rc_si_units`, igual que la prueba que hoy SI detecta.
+
+   → **LA CAUSA REAL ES EL TIEMPO.** La deteccion tarda ~5 s (18:08:02 ->
+     18:08:07, arriba). Aquel ensayo duro **3 s**.
+
+   📝 La leccion corregida, y mas util: no fue «se probo por el camino
+      equivocado» —eso solo explica el segundo ensayo—. Fue que **la prueba era
+      demasiado corta y nadie comprobo cuanto tarda el fenomeno en aparecer**.
+      Antes de concluir que algo NO ocurre, pregunta cuanto tendrias que haber
+      esperado. Un negativo sin esa cuenta no es un negativo.
+
+   ⚠️ Y «las de FALLO y TERMICA se probaron igual —con raw_motors—» tambien era
+      falso: la termica se probo con **100 s de escucha pasiva** (35:59-62), sin
+      forzar nada. Ese ensayo no tiene el defecto que se le atribuyo.
+
+── EXPLICACION ORIGINAL, CONSERVADA ─────────────────────────────────────────
 Aquella prueba forzo los motores **a 220/255**, o sea con `raw_motors`, que es
 PWM crudo.
 
