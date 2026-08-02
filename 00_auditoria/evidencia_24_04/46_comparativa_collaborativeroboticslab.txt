@@ -225,3 +225,167 @@ RESUMEN DE LOS CUATRO
    collision_monitor, y los marcos de referencia del locator corregidos.
    Eso no es presumir: es la razon por la que **no se adopta ninguno**, y por la
    que copiar cualquiera de ellos seria un retroceso.
+
+═══════════════════════════════════════════════════════════════════════════════
+TODAS LAS RAMAS DE LOS CUATRO — revision completa 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+  CollaborativeRoboticsLab   main · develop · ros1 (IDENTICAS, 102 ficheros) · ros2
+  UIBK (Innsbruck)           main · dev · sensors · bringup_gazebo
+  markusk/rvr                master · ros2
+  linorobot/sphero_rvr       main (rama unica)
+
+───────────────────────────────────────────────────────────────────────────────
+markusk/rvr — rama `master` (la que faltaba por mirar)
+───────────────────────────────────────────────────────────────────────────────
+55 ficheros, ROS 1 con catkin. Nodos propios: `base_controller.py`,
+`odom_publisher.py`, `motor_server.py`, `driveWithHeading.py`,
+`getBatteryState.py`, control por teclado y por joystick.
+
+Y una capa de hardware que aqui no existe: `powermonitor.py`, `OLED_text.py`,
+`beep.py`, `melody.py`, `buttontest.py` — pantalla OLED, monitor de energia y
+zumbador sobre el Pi.
+
+📝 Es un proyecto de aficionado, ROS 1, ultimo cambio en **2020**. Su rama `ros2`
+   solo tiene los ejemplos de tutorial de rclpy. **Nada que tomar**, pero la idea
+   de una **señal local en el propio robot** (OLED o zumbador) es interesante
+   para un laboratorio: hoy un robot averiado solo se ve desde la web.
+   ⚠️ Y ya tenemos algo mejor y gratis: el RVR **enciende LEDs amarillos y rojos
+      solo** cuando detecta atasco (evidencia 44).
+
+───────────────────────────────────────────────────────────────────────────────
+UIBK — las otras tres ramas
+───────────────────────────────────────────────────────────────────────────────
+  main   (2023-12)  el driver completo, 795 lineas. Es la referencia.
+  dev    (2024-03)  driver IDENTICO a main (0 lineas de diferencia). Lo que
+                    añade esta en otros ficheros — ver abajo.
+  sensors (2022-04) driver mas antiguo y corto (446 lineas). Estado anterior.
+  bringup_gazebo (2022-08) simulacion. No aplica: aqui hay robots reales.
+
+🔴 LO QUE AÑADE `dev`, Y HAY UNA COSA QUE NOS INTERESA DE VERDAD:
+
+  1. **Colores por robot en el URDF** (`materials.urdf`, y el xacro toma un
+     parametro `color:=White`). Sirve para distinguir robots en RViz.
+     📝 Con 16 robots sobre un mapa compartido, poder mirar RViz y saber cual es
+        cual **sin leer un namespace** es practico y cuesta poco. Anotado para la
+        Fase 6.
+
+  2. 🔴 **`emergency_stop.py` CON DETECCION DE PRECIPICIO:**
+
+         depth_wall_threshold   0.165   stop_on_wall   True
+         depth_floor_threshold  0.25    stop_on_floor  True
+
+     `stop_on_floor` para el robot cuando **desaparece el suelo**.
+
+     ⚠️ Su implementacion usa una **camara de profundidad** (`cv_bridge`,
+        `sensor_msgs/Image`). Aqui NO hay camara — es una decision tomada — asi
+        que **no se puede copiar**.
+
+     🔴 **PERO EL HUECO QUE SEÑALA ES NUESTRO, Y ES ESTRUCTURAL:** el
+        `collision_monitor` mira `/scan`, y el plano de barrido del X2 esta a
+        **15.5 cm del suelo** (medido). Un LIDAR a esa altura ve PAREDES; **no
+        puede ver un escalon hacia abajo, el borde de una mesa ni una rampa**.
+        Con estudiantes teleoperando 16 robots en remoto, eso es un riesgo real
+        y hoy no esta cubierto ni documentado como limitacion.
+
+     ✅ **Y TENEMOS HARDWARE PARA TAPARLO, sin camara:** el **sensor de color
+        mira hacia el suelo**, bajo el chasis, y esta caracterizado (evidencia
+        37): el canal `clear` recorre **181 (negro) a 2288 (blanco)**, y da **4**
+        con la luz apagada. Sobre un vacio no habria superficie que devuelva la
+        luz, asi que `clear` deberia desplomarse.
+        → **Un detector de precipicio con el sensor de color es construible.**
+        ⚠️ Sin medir: hay que comprobar que `clear` sobre un borde cae lo
+           bastante y lo bastante rapido a la velocidad de trabajo (0.25 m/s son
+           ~4 cm por cada 160 ms). Y exige `color_detection:=true`, que deja un
+           LED blanco encendido bajo el chasis — hoy esta en `false` por decision.
+
+───────────────────────────────────────────────────────────────────────────────
+CONCLUSION DE LA REVISION COMPLETA
+───────────────────────────────────────────────────────────────────────────────
+Sigue sin haber nada que **adoptar** tal cual. Pero de mirar TODAS las ramas han
+salido tres cosas que no estaban en las principales:
+
+  1. 🔴 **Nuestra capa de seguridad no detecta precipicios**, y es estructural
+     por la altura del LIDAR. No estaba documentado como limitacion. Hay una via
+     con el sensor de color, sin medir.
+  2. **Colores por robot en el URDF** para distinguirlos en RViz (Fase 6).
+  3. Confirmado que el driver de ROS 1 de Atriz **deriva de UIBK/main**, y que
+     su rama `dev` no cambia el driver.
+
+═══════════════════════════════════════════════════════════════════════════════
+LOS ENLACES DEL README DE UIBK — revisados 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+El README de UIBK enlaza a otros tres proyectos. Revisados:
+
+───────────────────────────────────────────────────────────────────────────────
+📝 `lomori/spherorvr-ros2` — ES EL PADRE de `linorobot/sphero_rvr`
+───────────────────────────────────────────────────────────────────────────────
+Comprobado por la API de GitHub: `linorobot/sphero_rvr` tiene `fork: True` y
+`parent: lomori/spherorvr-ros2`. **Son el mismo proyecto**, asi que no cuentan
+como dos referencias.
+
+⚠️ Y EL PADRE TIENE MAS: `sphero/config/` con `mapping_params_online_async.yaml`,
+   `localization_params_online_async.yaml` y `nav_params.yaml` — o sea
+   slam_toolbox + Nav2 configurados. El fork los quito.
+
+🔴 SU CONFIGURACION DE NAV2 CONTRA LA NUESTRA:
+
+     parametro          ellos      nosotros    comentario
+     robot_radius       0.105      **0.145**   el nuestro es el circunscrito
+                                               MEDIDO (0.142) con cinta
+     max_vel_x          0.26       **0.40**    0.26 es el valor por defecto del
+                                               TURTLEBOT3
+     resolution         0.10       **0.05**
+     inflation_radius   0.20       0.25
+
+  📝 `max_vel_x: 0.26` es literalmente el ejemplo de Nav2 para TurtleBot, que el
+     manual de este proyecto (cap. 11.4) señala explicitamente como «lo que NO
+     hay que copiar».
+  🔴 Y su `robot_radius: 0.105` esta en el MISMO error que tuvimos aqui con 0.11
+     antes de medir con cinta — el valor con el que el `collision_monitor` paro a
+     **1.1 cm de la pared** (cap. 12.4).
+
+  → **Confirma que medir las cotas del robot valio la pena**: un proyecto
+    independiente cayo en la misma trampa de la ficha del fabricante.
+
+───────────────────────────────────────────────────────────────────────────────
+`strean/rvr_ros` — ROS 1 en C++, 2020, 0 estrellas
+───────────────────────────────────────────────────────────────────────────────
+`base_controller.cpp`, `laser.cpp`, y la libreria `rvr++` — que es la de Rud
+Merriam. Un nodo experimental de ROS 1. Nada que tomar.
+
+───────────────────────────────────────────────────────────────────────────────
+📚 `bitbucket.org/rmerriam/rvr-cpp` — LA REFERENCIA DEL PROTOCOLO
+───────────────────────────────────────────────────────────────────────────────
+De su propia descripcion: «C++ implementation of the serial communications
+protocol for the RVR robots **with the original version of the firmware**. This
+started out by **reverse-engineering the protocol** from the microBits and
+Raspberry Pi SDKs. **The Wiki explains the details of the protocol** with some
+code snippets.» Ultimo cambio: julio de 2021.
+
+📝 Es el mismo Rud Merriam que aparece en el hilo del foro de Sphero sobre el
+   magnetometro (evidencia 42), donde decia «All three of the APIs are working».
+   Y su repositorio dice explicitamente **«with the original version of the
+   firmware»**.
+
+   → Encaja con lo medido aqui: lo que funcionaba en el firmware **8.x** dejo de
+     funcionar en el **9.1.462**. Su trabajo NO contradice nuestra conclusion:
+     la refuerza, porque es de otra epoca del firmware.
+
+⚠️ Su wiki podria tener CIDs que el SDK de Python no expone —por ejemplo el de
+   `get_motor_temperature`, que buscamos sin exito (evidencia 43)—. **No se
+   persigue**: la deteccion de atasco ya funciona por notificacion, asi que ese
+   CID perdio su motivo.
+
+───────────────────────────────────────────────────────────────────────────────
+RECUENTO FINAL: son CINCO proyectos, no seis
+───────────────────────────────────────────────────────────────────────────────
+  1. CollaborativeRoboticsLab   ros2_control en C++, MQTT, Docker
+  2. UIBK (Innsbruck)           🔴 el ORIGEN de nuestro driver de ROS 1
+  3. markusk/rvr                ROS 1 de aficionado + extras de hardware
+  4. lomori (= linorobot fork)  nodo minimo + Nav2 con valores de TurtleBot
+  5. rmerriam/rvr-cpp           protocolo por ingenieria inversa, firmware 8.x
+                                (y `strean/rvr_ros` solo lo envuelve en ROS 1)
+
+✅ **Ninguno tiene keepalive contra el sueño del RVR, parada de emergencia que
+   cancele Nav2, capa de seguridad, ni los marcos del locator corregidos.**
+🔴 **Y uno de ellos señala un hueco NUESTRO: la deteccion de precipicio.**
