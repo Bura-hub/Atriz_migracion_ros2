@@ -456,6 +456,109 @@ def f1(a: Aceptacion) -> None:
         a.add(no_verificado('deriva de yaw', 'F1', 'no llego /odom'))
 
 
+@fase('F2', 'LIDAR — arranca, barre y para')
+def f2(a: Aceptacion) -> None:
+    from sensor_msgs.msg import LaserScan
+    from std_srvs.srv import Empty as E
+
+    arrancar = a.nodo.create_client(E, 'start_scan')
+    parar = a.nodo.create_client(E, 'stop_scan')
+
+    # El robot arranca CON EL BARRIDO APAGADO, por decision. Debe estar mudo.
+    antes = a.esperar('scan', LaserScan, BE, 4.0)
+    a.add(juzgar_categorico('arranca con el barrido APAGADO', not antes, 'F2',
+                            f'{len(antes)} mensajes con el barrido parado'))
+
+    a.add(juzgar_categorico('start_scan responde',
+                            a.llamar(arrancar, E.Request(), 20.0) is not None, 'F2'))
+    time.sleep(3)
+    a.add(juzgar_banda('ritmo de /scan', a.ritmo('scan', LaserScan, BE, 8.0),
+                       9.0, 11.0, 'manual cap. 12: 9.997 Hz · σ 0.35 ms', 'F2', 'Hz'))
+
+    b = a.esperar('scan', LaserScan, BE, 3.0)
+    if b:
+        s = b[-1]
+        finitos = [r for r in s.ranges if math.isfinite(r) and r > 0]
+        a.add(juzgar_categorico('el barrido trae rangos utiles',
+                                len(finitos) > len(s.ranges) * 0.3, 'F2',
+                                f'{len(finitos)}/{len(s.ranges)} finitos · '
+                                f'min {min(finitos):.2f} max {max(finitos):.2f} m'
+                                if finitos else 'NINGUN rango finito'))
+
+    a.add(juzgar_categorico('stop_scan responde',
+                            a.llamar(parar, E.Request(), 20.0) is not None, 'F2'))
+    time.sleep(3)
+    despues = a.esperar('scan', LaserScan, BE, 4.0)
+    a.add(juzgar_categorico('stop_scan calla /scan de verdad', not despues, 'F2',
+                            f'{len(despues)} mensajes DESPUES de parar'))
+
+    # ── el parche contra la inundacion del journal ──
+    n0 = len(subprocess.run(['journalctl', '-u', 'atriz-robot', '--since', '-20s',
+                             '--no-pager'], capture_output=True, text=True,
+                            timeout=20).stdout.splitlines())
+    time.sleep(20)
+    n1 = len(subprocess.run(['journalctl', '-u', 'atriz-robot', '--since', '-20s',
+                             '--no-pager'], capture_output=True, text=True,
+                            timeout=20).stdout.splitlines())
+    a.add(juzgar_categorico('el parche del YDLIDAR aguanta (no inunda el journal)',
+                            n1 < 60, 'F2',
+                            f'{n1} lineas en 20 s con el barrido parado (antes del '
+                            f'parche eran miles). Referencia previa: {n0}'))
+
+
+@fase('F3', 'Luces — esta la confirmas TU con los ojos')
+def f3(a: Aceptacion) -> None:
+    from atriz_rvr_msgs.srv import SetLEDRGB, SetMultipleLEDs
+
+    a.puerta('MIRA EL ROBOT. Voy a encender los LEDs en secuencia.\n'
+             '     No hay forma de leer un LED desde el software: el robot no\n'
+             '     tiene con que mirarse. Esta fase la juzgas tu.')
+
+    rgb = a.nodo.create_client(SetLEDRGB, 'set_led_rgb')
+    varios = a.nodo.create_client(SetMultipleLEDs, 'set_multiple_leds')
+
+    TODAS = 11                    # 'all_lights' — rvr_driver_node.py:659
+    respondieron = True
+    for nombre, r, g, b in [('ROJO', 255, 0, 0), ('VERDE', 0, 255, 0),
+                            ('AZUL', 0, 0, 255)]:
+        print(f'    → todas en {nombre}')
+        req = SetLEDRGB.Request()
+        req.led_id, req.red, req.green, req.blue = TODAS, r, g, b
+        resp = a.llamar(rgb, req, 8.0)
+        if resp is None or not resp.success:
+            respondieron = False
+            print(f'      🔴 {getattr(resp, "message", "sin respuesta")}')
+        time.sleep(2)
+
+    a.add(juzgar_categorico('set_led_rgb responde con success', respondieron, 'F3'))
+
+    # Los faros por separado: comprueba que led_id direcciona de verdad y no
+    # enciende siempre lo mismo.
+    print('    → faro IZQUIERDO rojo, faro DERECHO verde (a la vez)')
+    req = SetMultipleLEDs.Request()
+    req.led_ids = [0, 1]                     # headlight_left, headlight_right
+    req.red_values, req.green_values, req.blue_values = [255, 0], [0, 255], [0, 0]
+    resp = a.llamar(varios, req, 8.0)
+    a.add(juzgar_categorico('set_multiple_leds responde con success',
+                            resp is not None and resp.success, 'F3',
+                            getattr(resp, 'message', 'sin respuesta')))
+    time.sleep(3)
+
+    if not a.guiada:
+        a.add(no_verificado('los LEDs se encienden', 'F3', 'nadie estaba mirando'))
+    else:
+        print('\n    ¿Viste ROJO, VERDE y AZUL, y luego un faro de cada color?')
+        print('    [s/N] ', end='', flush=True)
+        visto = sys.stdin.readline().strip().lower() == 's'
+        a.add(juzgar_categorico('los LEDs se encienden, cambian y se direccionan',
+                                visto, 'F3', 'confirmado a ojo por el operador'))
+
+    # Apagar: dejarlas encendidas gasta bateria y confunde a quien pase al lado.
+    req = SetLEDRGB.Request()
+    req.led_id, req.red, req.green, req.blue = TODAS, 0, 0, 0
+    a.llamar(rgb, req, 8.0)
+
+
 def ejecutar(a: Aceptacion, desde: str) -> int:
     claves = [f[0] for f in FASES]
     if desde not in claves:
