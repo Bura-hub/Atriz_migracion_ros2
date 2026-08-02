@@ -62,15 +62,29 @@ def driver_corriendo() -> bool:
 def matar_por_comm(prefijo: str) -> int:
     """Mata por nombre de proceso. 🔴 NUNCA `pkill -f`: su patron casa con la
     linea de comando entera, asi que alcanza a procesos que solo MENCIONAN el
-    nombre — incluida esta misma prueba."""
+    nombre — incluida esta misma prueba.
+
+    🔴 Hallazgo de revisión (2026-08-02): hoy no colisiona —el `comm` de este
+       proceso es `python3` y `rvr_driver_nod` no lo alcanza— pero la tarea 7
+       reutiliza esto para matar SLAM y Nav2 con prefijos más genéricos, donde sí
+       podría alcanzar a esta misma prueba o a su padre (el shell que la lanzó).
+       Se excluyen los dos por PID, no por nombre: un `comm` truncado a 15
+       caracteres puede coincidir por accidente.
+    """
     n = 0
+    propio, padre = os.getpid(), os.getppid()
     try:
         s = subprocess.run(['ps', '-eo', 'pid,comm'], capture_output=True,
                            text=True, timeout=5)
         for linea in s.stdout.splitlines()[1:]:
             partes = linea.split(None, 1)
-            if len(partes) == 2 and partes[1].strip().startswith(prefijo[:15]):
-                os.kill(int(partes[0]), signal.SIGINT)
+            if len(partes) != 2:
+                continue
+            pid = int(partes[0])
+            if pid in (propio, padre):
+                continue
+            if partes[1].strip().startswith(prefijo[:15]):
+                os.kill(pid, signal.SIGINT)
                 n += 1
     except Exception:                                            # noqa: BLE001
         pass
@@ -81,6 +95,7 @@ class Aceptacion:
     def __init__(self, guiada=True):
         self.res: list[Resultado] = []
         self.guiada = guiada
+        self._cerrado = False       # ver Aceptacion.cerrar(): la hace idempotente
         # 🔴🔴 `SignalHandlerOptions.NO` NO ES OPCIONAL, Y ES LO QUE HACE QUE LA
         #    PARADA DE EMERGENCIA FUNCIONE. `rclpy.init()` a secas instala su
         #    propio manejador de SIGINT que **invalida el contexto** antes de que
@@ -164,10 +179,15 @@ class Aceptacion:
         """
         buf = []
         sub = self.nodo.create_subscription(tipo, topic, lambda m: buf.append(m), qos)
-        fin = time.monotonic() + segundos
-        while time.monotonic() < fin:
-            self.ex.spin_once(timeout_sec=0.05)
-        self.nodo.destroy_subscription(sub)
+        try:
+            fin = time.monotonic() + segundos
+            while time.monotonic() < fin:
+                self.ex.spin_once(timeout_sec=0.05)
+        finally:
+            # 🔴 Hallazgo de revisión: si `spin_once` revienta, la version anterior
+            #    dejaba la suscripcion colgando para siempre. La heredan `guardas()`,
+            #    `ritmo()` y `pos_yaw()`, y las fases futuras que llamen a `esperar()`.
+            self.nodo.destroy_subscription(sub)
         return buf
 
     def ritmo(self, topic, tipo, qos, segundos=5.0):
@@ -195,8 +215,21 @@ class Aceptacion:
         return p.x, p.y, yaw
 
     def cerrar(self):
-        self.parada_emergencia()
-        self.liberar_parada()
+        """Para el robot y libera rclpy.
+
+        🔴 Hallazgo de revisión: IDEMPOTENTE a propósito. La ruta normal
+           (`return ejecutar(...)`) y la de Ctrl-C pueden acabar llamándola las
+           dos sobre el mismo objeto — mejor que sea seguro llamarla dos veces
+           a intentar adivinar por qué rama se pasó.
+        """
+        if self._cerrado:
+            return
+        self._cerrado = True
+        try:
+            self.parada_emergencia()
+            self.liberar_parada()
+        except Exception:                                        # noqa: BLE001
+            pass
         try:
             self.nodo.destroy_node()
             rclpy.shutdown()
@@ -209,7 +242,18 @@ def delta_angulo(a, b) -> float:
 
     🔴 Sin esto NO SE PUEDE MEDIR UN GIRO DE 360°: atan2 devuelve -pi..pi, asi que
        una vuelta entera se lee como ~0. F5 acumula estos deltas.
+
+    🔴 Hallazgo de revisión: con `inf` el `while` de abajo NO TERMINA NUNCA
+       (`inf - 2*pi` sigue siendo `inf`) — verificado con `timeout 3`, salida
+       124. `nan` salía bien de casualidad (toda comparación con NaN es Falsa,
+       así que ningún `while` llega a entrar). F5 llama a esto en un bucle
+       acumulando, así que un solo yaw corrupto colgaba la fase entera sin
+       ninguna traza. Se rechaza lo no finito ANTES de normalizar, con una
+       excepción que el llamador pueda distinguir de un ángulo válido — devolver
+       NaN se habría sumado en silencio sin que nadie lo notara.
     """
+    if not (math.isfinite(a) and math.isfinite(b)):
+        raise ValueError(f'delta_angulo recibió un valor no finito: a={a!r} b={b!r}')
     d = b - a
     while d > math.pi:
         d -= 2 * math.pi
@@ -274,9 +318,13 @@ def ejecutar(a: Aceptacion, desde: str) -> int:
             if sys.stdin.readline().strip().lower() != 's':
                 break
     ruta = escribir_informe(a)
-    print(formatear_informe(a.res, cabecera()))
+    # 🔴 Hallazgo de revisión: antes `escribir_informe` mutaba `a.res` para que
+    #    esta línea viera los PENDIENTES_CONOCIDOS ya sumados. Ya no muta nada
+    #    (ver escribir_informe), así que la misma lista se construye aquí.
+    res_final = list(a.res) + PENDIENTES_CONOCIDOS
+    print(formatear_informe(res_final, cabecera()))
     print(f'\n  📄 informe: {ruta}')
-    return 0 if hay_via_libre(a.res) else 2
+    return 0 if hay_via_libre(res_final) else 2
 
 
 def cabecera() -> str:
@@ -286,14 +334,22 @@ def cabecera() -> str:
 
 def escribir_informe(a: Aceptacion, abortada=False) -> str:
     """Se escribe SIEMPRE, pase o falle. Un informe que solo aparece cuando todo
-    va bien no sirve para depurar nada."""
+    va bien no sirve para depurar nada.
+
+    🔴 Hallazgo de revisión: la versión anterior hacía `a.res = res` al final,
+       mutando el estado compartido. Se la llama desde `ejecutar()` Y desde el
+       manejador de Ctrl-C; si el Ctrl-C llegaba justo después de que
+       `ejecutar()` ya hubiera mutado `a.res` (que ya incluía los 4 pendientes)
+       pero antes de que `ejecutar()` retornara, el segundo informe salía con
+       8 pendientes en vez de 4. No se toca `a.res`: se construye la lista
+       local y se usa solo para escribir este informe.
+    """
     res = list(a.res) + PENDIENTES_CONOCIDOS
     d = pathlib.Path.home() / 'atriz_migracion' / '00_auditoria' / 'evidencia_24_04'
     d.mkdir(parents=True, exist_ok=True)
     ruta = d / f'47_aceptacion_{time.strftime("%Y%m%d_%H%M%S")}.txt'
     cab = cabecera() + ('  ⚠️ ABORTADA POR Ctrl-C' if abortada else '')
     ruta.write_text(formatear_informe(res, cab), encoding='utf-8')
-    a.res = res
     return str(ruta)
 
 
@@ -310,7 +366,6 @@ def main() -> int:
         motivo = guardas(a)
         if motivo:
             print(f'\n🔴 {motivo}')
-            a.cerrar()
             return 1
         return ejecutar(a, args.desde)
     except KeyboardInterrupt:
@@ -325,10 +380,26 @@ def main() -> int:
             print('     ✅ parada enviada. Suelta el robot.')
             a.liberar_parada()
             escribir_informe(a, abortada=True)
+        except Exception as e:                                   # noqa: BLE001
+            # 🔴 Hallazgo de revisión: antes esto se propagaba sin capturar y se
+            #    saltaba tanto `a.cerrar()` como el `return 130` de abajo — un
+            #    Ctrl-C con traza y código arbitrario en vez de una parada
+            #    garantizada.
+            print(f'\n  🔴 fallo al parar tras Ctrl-C: {type(e).__name__}: {e}')
         finally:
+            # 🔴 Hallazgo de revisión: `cerrar()` (segundo intento de parada) va
+            #    DENTRO de esta protección, con el SIGINT todavía bloqueado —
+            #    antes quedaba fuera del try/finally, así que un fallo a mitad
+            #    del primer intento se saltaba el segundo.
+            a.cerrar()
             signal.signal(signal.SIGINT, previo)
-        a.cerrar()
         return 130
+    finally:
+        # 🔴 Hallazgo de revisión: la ruta normal (`return ejecutar(...)`) no
+        #    llamaba a `cerrar()` nunca — al completar las diez fases bien, el
+        #    caso común, no había `rclpy.shutdown()` ni parada final. `cerrar()`
+        #    es idempotente, así que da igual si la rama de Ctrl-C ya la llamó.
+        a.cerrar()
 
 
 if __name__ == '__main__':
