@@ -1243,13 +1243,30 @@ def f9(a: Aceptacion) -> None:
     print('  libre por decision del 2026-08-01. Ver PENDIENTES_CONOCIDOS.')
 
 
-def ejecutar(a: Aceptacion, desde: str) -> int:
+def ejecutar(a: Aceptacion, desde: str, solo: str | None = None) -> int:
     claves = [f[0] for f in FASES]
     if desde not in claves:
         print(f'🔴 fase «{desde}» desconocida. Hay: {", ".join(claves)}')
         return 1
     idx = claves.index(desde)
     omitidas, ejecutadas = FASES[:idx], FASES[idx:]
+
+    # 🔴 `--solo` NO relaja NINGUNA proteccion: las puertas siguen igual y una
+    #    fase que mueve sigue exigiendo modo guiado. Solo evita gastar bateria y
+    #    tiempo de robot en fases que no hacen falta para lo que se comprueba.
+    #    ⚠️ Y las fases que deja fuera cuentan como NO EJECUTADAS igual que con
+    #       `--desde`, asi que una corrida parcial NUNCA podra dar via libre.
+    if solo:
+        pedidas = [s.strip().upper() for s in solo.split(',') if s.strip()]
+        malas = [p for p in pedidas if p not in claves]
+        if malas:
+            print(f'🔴 fase(s) desconocida(s): {", ".join(malas)}. '
+                  f'Hay: {", ".join(claves)}')
+            return 1
+        ejecutadas = [ff for ff in FASES if ff[0] in pedidas]
+        omitidas = [ff for ff in FASES if ff[0] not in pedidas]
+        print(f'\n    --solo: se ejecutan {", ".join(pedidas)}. '
+              f'Las demas quedan NO EJECUTADAS.')
 
     # 🔴🔴 Hallazgo de revisión (C1): `hay_via_libre([])` devuelve `True` —
     #    corrida vacia, veredicto limpio. Hoy lo tapan los cuatro
@@ -1263,13 +1280,14 @@ def ejecutar(a: Aceptacion, desde: str) -> int:
     #    informe declara explicitamente cuales fueron.
     if omitidas:
         nombres_om = ', '.join(c for c, _, _, _ in omitidas)
-        print(f'\n⚠️  Fases NO ejecutadas en esta corrida (--desde {desde}): '
+        motivo = f'--solo {solo}' if solo else f'--desde {desde}'
+        print(f'\n⚠️  Fases NO ejecutadas en esta corrida ({motivo}): '
               f'{nombres_om}')
         for clave, titulo, _, _ in omitidas:
             a.add(no_verificado(
                 f'{clave} · {titulo}', clave,
-                f'fase NO ejecutada en esta corrida (--desde {desde}) — sin '
-                'correrla no se puede dar via libre'))
+                f'fase NO ejecutada en esta corrida ({motivo}) — sin correrla '
+                'no se puede dar via libre'))
 
     for clave, titulo, mueve, fn in ejecutadas:
         print(f'\n{"═" * 74}\n  {clave} · {titulo}' +
@@ -1339,6 +1357,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--desde', default='F0', help='retomar desde una fase (F0…F9)')
+    ap.add_argument('--solo', default=None,
+                    help='ejecutar SOLO estas fases, separadas por comas (ej. F4,F6). '
+                         'Para confirmar un arreglo sin gastar bateria en las demas')
     ap.add_argument('--sin-puertas', action='store_true',
                     help='no esperar confirmacion (solo para las fases sin movimiento)')
     args = ap.parse_args()          # 🔴 argparse LO PRIMERO: `--help` no debe mover nada
@@ -1349,7 +1370,7 @@ def main() -> int:
         if motivo:
             print(f'\n🔴 {motivo}')
             return 1
-        return ejecutar(a, args.desde)
+        return ejecutar(a, args.desde, args.solo)
     except KeyboardInterrupt:
         print('\n\n  ⛔ Ctrl-C — PARANDO EL ROBOT…')
         # 🔴 Y SE BLOQUEA LA SEÑAL: la recuperacion tarda varios segundos, y quien
