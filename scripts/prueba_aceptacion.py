@@ -134,6 +134,21 @@ class Aceptacion:
             print('     (--sin-puertas: se continua)')
             time.sleep(2)
             return
+        # 🔴🔴 SIN TERMINAL, LA PUERTA NO PARABA NADA. `sys.stdin.readline()`
+        #    devuelve '' AL INSTANTE cuando stdin no es interactivo (una tuberia,
+        #    `nohup`, `< /dev/null`, o un agente lanzandolo desde una herramienta).
+        #    O sea que la puerta que existe para que nadie arranque un motor con
+        #    algo delante **se saltaba sola, en silencio**, justo en el modo que
+        #    la pide. Encontrado el 2026-08-02 al ir a lanzar F4 en guiado.
+        #    📝 Es el mismo patron que este proyecto lleva documentado media
+        #       docena de veces: algo que devuelve sin error y no hace su trabajo.
+        if not sys.stdin.isatty():
+            print('\n  🔴 ABORTADO: modo guiado SIN TERMINAL INTERACTIVO.')
+            print('     La puerta no puede pararse, asi que el robot se moveria')
+            print('     sin que nadie hubiera confirmado nada. Ejecutalo tu en una')
+            print('     terminal, o usa --sin-puertas si NO hay nadie delante y')
+            print('     asumes el riesgo.')
+            raise SystemExit(2)
         print('     Pulsa Enter cuando este listo (o Ctrl-C para abortar)…')
         sys.stdin.readline()
 
