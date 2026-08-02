@@ -79,7 +79,9 @@ def _driver_corriendo() -> bool:
     try:
         s = subprocess.run(['ps', '-eo', 'comm'], capture_output=True,
                            text=True, timeout=5)
-        return 'rvr_driver_node' in s.stdout.split()
+        # 🔴 `comm` trunca a 15 caracteres y `rvr_driver_node` mide exactamente
+        #    15: vale hoy por un carácter. Se comprueba el prefijo truncado.
+        return any(c.startswith('rvr_driver_nod') for c in s.stdout.split())
     except Exception:                                       # noqa: BLE001
         return True
 

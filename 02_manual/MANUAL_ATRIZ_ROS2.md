@@ -4149,12 +4149,13 @@ get_motor_thermal_protection_status  -> 27.9 / 27.7 °C, estados 0/0
 
 > 🔴🔴 **RETRACTADO EL 2026-08-01: EL ATASCO NO SE QUEDA FUERA.** La notificación del firmware
 > **sí llega** — 3 de 3 detecciones con el robot bloqueado a mano, acertando la oruga las tres
-> veces. La medida que decía lo contrario usó **`raw_motors`** (PWM crudo), que **se salta el
-> sistema de control del RVR**, y la detección de atasco vive dentro de ese sistema. Con
-> `drive_rc_si_units` —lo que usa `cmd_vel`— salta a los ~5 s.
+> veces. La medida que decía lo contrario hizo **dos** ensayos, y el primero **ya usaba el camino
+> bueno** (`move_timed`) — durante **3 s**, cuando la detección tarda **~5 s**. 🔴 **La causa es
+> el TIEMPO, no el camino**; decir «se probó con `raw_motors`» solo explicaba el segundo ensayo.
+> ⚠️ Y queda un confusor sin aislar: 0.15 m/s entonces contra 0.08 ahora.
 >
-> 📝 **Se probó una cosa y se concluyó sobre otra.** Prueba por el camino que el sistema usa de
-> verdad. Evidencia 44.
+> 📝 **Antes de concluir que algo NO ocurre, pregunta cuánto tendrías que haber esperado.**
+> Evidencia 44.
 
 ✅ **Lo que sigue siendo cierto:** el SDK **no tiene** `get_motor_stall_state` —el atasco solo
 existe por **notificación**, no por consulta— y la **corriente de los motores tampoco se puede

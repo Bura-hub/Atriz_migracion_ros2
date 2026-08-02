@@ -65,10 +65,10 @@ Era el punto 1 del plan de la evidencia 34, y el de mas valor operativo:
      3 de 3 detecciones con el robot bloqueado a mano, acertando la oruga las
      tres veces.
 
-     EL ERROR ESTUVO EN ESTE MISMO ENSAYO: forzo los motores «a 220/255», o sea
-     con `raw_motors`, que es PWM crudo y **SE SALTA EL SISTEMA DE CONTROL del
-     RVR** — y la deteccion de atasco vive DENTRO de ese sistema. Con
-     `drive_rc_si_units`, que es lo que usa `cmd_vel`, salta a los ~5 s.
+     EL ERROR ESTUVO EN ESTE MISMO ENSAYO, Y ES EL TIEMPO: de los DOS ensayos de
+     arriba, el primero YA usaba `move_timed` —el camino bueno— pero solo
+     **3 segundos**. La deteccion tarda **~5 s**. No dio tiempo.
+     ⚠️ Confusor sin aislar: aquel ensayo iba a 0.15 m/s y el que detecta, a 0.08.
 
      📝 Se probo una cosa y se concluyo sobre otra. **Prueba por el camino que
         el sistema usa de verdad.** Esta conclusion falsa costo tres

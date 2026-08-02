@@ -109,7 +109,9 @@ def _driver_corriendo() -> bool:
     try:
         s = subprocess.run(['ps', '-eo', 'comm'], capture_output=True,
                            text=True, timeout=5)
-        return 'rvr_driver_node' in s.stdout.split()
+        # 🔴 `comm` trunca a 15 caracteres y `rvr_driver_node` mide exactamente
+        #    15: vale hoy por un carácter. Se comprueba el prefijo truncado.
+        return any(c.startswith('rvr_driver_nod') for c in s.stdout.split())
     except Exception:                                       # noqa: BLE001
         return True
 
@@ -178,17 +180,30 @@ async def main(calibrar: bool, espera: float) -> int:
     except Exception as e:                                  # noqa: BLE001
         print(f'     🔴 no se pudo registrar la notificación: {e}')
 
-    # 🔴 La cabecera prometía «este script pide espacio antes» y NO lo pedía:
-    #    mandaba el giro en la misma línea. Encontrado en auditoría 2026-08-01.
-        print('     🔴 EL ROBOT VA A GIRAR 360°. Despeja un círculo de ~40 cm.')
-        for _s in (5, 4, 3, 2, 1):
-            print(f'        empieza en {_s}…', flush=True)
-            await asyncio.sleep(1)
+    # 🔴 LA CUENTA ATRÁS VA AQUÍ, EN EL CAMINO NORMAL.
+    #    La primera versión de este arreglo la dejó DENTRO del `except` de
+    #    arriba, así que solo se ejecutaba si fallaba el registro del manejador:
+    #    en el camino de éxito el robot giraba **sin aviso**. Y los propios
+    #    comentarios ocultaban la indentación mala. Lo encontró una auditoría
+    #    adversarial el 2026-08-01, con el AST — `ast.parse` no lo detecta porque
+    #    es Python perfectamente válido.
+    print('     🔴 EL ROBOT VA A GIRAR 360°. Despeja un círculo de ~40 cm.')
+    for _s in (5, 4, 3, 2, 1):
+        print(f'        empieza en {_s}…', flush=True)
+        await asyncio.sleep(1)
+
     try:
         await rvr.magnetometer_calibrate_to_north(timeout=8)
         print('     · comando aceptado, esperando el resultado…')
     except Exception as e:                                  # noqa: BLE001
         print(f'     🔴 {type(e).__name__}: {e}')
+        # 🔴 `drive_stop()` TAMBIÉN AQUÍ: el comando pudo ser ACEPTADO por el
+        #    robot antes de que saltara el timeout, así que el giro pudo haber
+        #    empezado. Era el único camino que cerraba el puerto sin parar.
+        try:
+            await rvr.drive_stop()
+        except Exception:                                   # noqa: BLE001
+            pass
         await rvr.close()
         print('═' * 78)
         return 1

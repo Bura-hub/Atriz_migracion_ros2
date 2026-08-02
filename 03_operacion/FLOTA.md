@@ -570,14 +570,22 @@ robots, reflashear será rutina, no emergencia.
 
 ### Lo que hay que tener antes de empezar
 
+- **El robot montado y cableado**: TX/RX **cruzados** entre la Pi y el RVR, **GND común**, y el
+  LIDAR enchufado. Batería del RVR cargada — el paso 7 le habla al RVR y al LIDAR de verdad.
 - Una microSD (16 GB o más) y un lector en el PC.
+- **Un PC con Linux o WSL**, con `sudo`, y **este repositorio ya clonado ahí** — `preparar_tarjeta.sh`
+  y `red.txt.ejemplo` viven en él, y para clonarlo hace falta el PAT.
 - El **PAT de GitHub** — el repositorio es privado y `provision.sh` clona de él.
 - Los datos de red: SSID y contraseña, y **la IP que le toca a este robot**.
 
 ### Los pasos
 
 **1. Grabar Ubuntu Server 24.04 LTS arm64** con Raspberry Pi Imager. En sus opciones avanzadas:
-hostname `rvr-02`, usuario `sphero`, y **habilitar SSH**.
+hostname `rvr-02`, usuario `sphero`, **habilitar SSH**, y 🔴 **CONFIGURAR LA WIFI** (SSID y
+contraseña; preferir 5 GHz).
+
+⚠️ **Sin WiFi aquí no hay forma de entrar.** El Pi 4 va headless: sin red no hay SSH, y sin SSH
+no hay pasos 5 a 8. La primera vez lo encuentras por `ping rvr-02.local` o mirando el router.
 
 **2. 🔴 `preparar_tarjeta.sh`, CON LA TARJETA EN EL PC. NO ES OPCIONAL.**
 
@@ -599,11 +607,18 @@ la IP de este robot. Manual, cap. 19.3. ⚠️ Lleva la PSK del WiFi: **no va a 
 **4. Meter la tarjeta, arrancar, y entrar por SSH.** Comprobar el UART antes de nada:
 
 ```bash
-cat /proc/device-tree/aliases/uart0     # debe dar /soc/serial@7e201000 (PL011)
-ls -l /dev/serial0
+cat /proc/device-tree/soc/serial@7e215040/status   # debe decir: disabled
+cat /proc/device-tree/aliases/serial0              # /soc/serial@7e201000 (PL011)
 ```
 
-🔴 Si sale `7e215040` sigues en el mini-UART: el paso 2 no se aplicó. **Párate aquí.**
+🔴 **Si el mini-UART NO dice `disabled`, el paso 2 no se aplicó. Párate aquí.**
+
+> ⚠️ **La primera versión de este procedimiento comprobaba `aliases/uart0` y `ls /dev/serial0`, y
+> las dos estaban mal.** `aliases/uart0` da `/soc/serial@7e201000` **siempre** —es un alias fijo
+> del DTB base, no lo cambia `disable-bt`— así que la comprobación **no podía fallar nunca**. Y
+> `/dev/serial0` **no existe en Ubuntu**: es de Raspberry Pi OS. Habrías pasado el control con el
+> `cmdline.txt` sin arreglar y te enterarías 40 minutos después, cuando el RVR no conteste.
+> Encontrado en auditoría el 2026-08-01, midiéndolo en rvr-01.
 
 **5. Credenciales de git** — el repositorio es privado y sin esto `provision.sh` no puede clonar:
 
@@ -624,20 +639,52 @@ sudo bash ~/atriz_migracion/scripts/provision.sh
 2: hasta ahora solo se ha probado con `--simular`, que convierte en no-operación justo lo que
 instala. **Anota cualquier fallo**: es la suposición más peligrosa que le queda al proyecto.
 
-**7. Verificar**, que es lo que decide si el robot está listo:
+**6-bis. 🔴 LA RED, que `provision.sh` NO configura.** El `red.txt` del paso 3 lo lee
+`atriz-first-boot`, y ese servicio **solo lo instala `fase_6_preparar_imagen_dorada.sh`** — que en
+una instalación limpia todavía no se ha ejecutado. Sin este paso el robot se queda en **DHCP puro**,
+sin su IP de laboratorio:
+
+```bash
+sudo bash ~/atriz_migracion/scripts/first-boot.sh --solo-red
+sudo netplan try --timeout 90        # revierte solo si pierdes la conexión
+```
+
+**6-ter. ⚠️ EL LIDAR: la regla udev lleva el puerto de rvr-01 a fuego.** Si el LIDAR de este robot
+no va **exactamente en el mismo puerto USB físico**, no habrá `/dev/ydlidar` → sin `/scan` → el
+`collision_monitor` bloquea el movimiento → **el robot parecerá averiado**. Comprueba y corrige:
+
+```bash
+ls -l /dev/ydlidar || udevadm info -q property -n /dev/ttyUSB0 | grep ID_PATH=
+# si el ID_PATH no coincide con el de 99-ydlidar.rules, edítalo y:
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+**7. Reiniciar y verificar** — en ese orden, que es el que dice `provision.sh`:
+
+```bash
+sudo reboot
+```
+
+⚠️ `fase_7` deja el servicio **habilitado pero sin arrancar**, así que antes del reinicio no corre
+nada y media docena de comprobaciones de ROS saldrían mal **sin que el robot esté mal**.
+
+Y entonces, lo que decide si el robot está listo:
 
 ```bash
 bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
 ```
 
-**8. Reiniciar de verdad** y comprobar que vuelve solo:
+**8. Comprobar que vuelve solo:**
 
 ```bash
-sudo reboot
-# al volver:
 systemctl status atriz-robot
 atriz-escaneo on          # sin barrido el collision_monitor no deja conducir
 ```
+
+📝 **Si `provision.sh` falló en algún paso:** no aborta, **acumula** los fallos y los lista al
+final bajo `PASOS CON PROBLEMAS`. Es **idempotente**: arregla la causa y vuelve a ejecutarlo. ⚠️ Un
+`provision.sh` que «termina» puede haber dejado Nav2 sin instalar o el workspace sin compilar —
+**lee esa lista**, no solo el código de salida.
 
 ### Y entonces sí, la imagen dorada
 

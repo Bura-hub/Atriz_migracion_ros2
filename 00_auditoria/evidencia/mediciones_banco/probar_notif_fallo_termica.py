@@ -23,10 +23,10 @@ error y no emiten ni un mensaje», y de ahí salieron varias conclusiones.
    `raw_motors` (PWM crudo), que **se salta el sistema de control del RVR**, y la
    detección vive dentro de ese sistema.
 
-⚠️ **Las otras dos se probaron IGUAL DE MAL.** Su resultado negativo es
-   sospechoso por la misma razón, y no se puede dar por bueno sin repetirlo por
-   el camino que el robot usa de verdad: `drive_rc_si_units`, que es lo que hay
-   debajo de `move_timed` y de `cmd_vel`.
+⚠️ **Las otras dos siguen sin verificarse, pero NO por el mismo motivo.** La
+   térmica se probó con **100 s de escucha pasiva**, sin forzar nada — no tiene
+   el defecto que se le atribuyó. Lo que falta es llegar a la temperatura de
+   disparo, que es lo que esta herramienta intenta.
 
 ═══════════════════════════════════════════════════════════════════════════════
 CÓMO SE PROVOCAN
@@ -163,6 +163,18 @@ if __name__ == '__main__':
         # 🔴 El `move_timed` corre en el SERVIDOR y no se entera de este Ctrl-C.
         #    Lo único que lo corta es la parada de emergencia.
         print('\n  🔴 Ctrl-C — publicando PARADA DE EMERGENCIA para cortar el empuje…')
+        # 🔴🔴 Y SE BLOQUEA LA SEÑAL mientras dura esto. Este bloque tarda hasta
+        #    ~11 s (cinco publicaciones + dos esperas de 5 s), y un usuario que ve
+        #    que el robot no para al primer Ctrl-C pulsa un segundo — es el
+        #    reflejo. Ese segundo Ctrl-C caía DENTRO de la recuperación y la
+        #    abortaba: si llegaba antes del bucle de publicación **el robot no
+        #    llegaba a pararse**, y si llegaba después quedaba parado sin liberar,
+        #    obedeciendo a nadie hasta que alguien lo supiera desbloquear.
+        #    El manejador de Ctrl-C tenía el mismo fallo que venía a arreglar.
+        #    Encontrado en auditoría el 2026-08-01.
+        import signal as _sig
+        _previo = _sig.signal(_sig.SIGINT, _sig.SIG_IGN)
+        print('     (Ctrl-C ignorado hasta que termine — deja que acabe)')
         try:
             import rclpy as _r
             from rclpy.node import Node as _N
@@ -194,3 +206,6 @@ if __name__ == '__main__':
             print(f'     🔴 no se pudo publicar la parada: {e}')
             print('        HAZLO A MANO: ros2 topic pub --once /emergency_stop '
                   'std_msgs/msg/Empty "{}"')
+        finally:
+            _sig.signal(_sig.SIGINT, _previo)               # se devuelve la señal
+        raise SystemExit(130)

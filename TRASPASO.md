@@ -119,14 +119,14 @@ Firmware del RVR: **9.1.462** (Nordic), confirmado también en 24.04 leyendo el 
 ⚠️ Las dos líneas base son distintas y **no se mezclan**: `00_auditoria/evidencia/` es el
 sistema viejo, `00_auditoria/evidencia_24_04/` el nuevo.
 
-## El SDK del RVR, explorado entero (2026-08-01)
+## El SDK del RVR, explorado (2026-08-01) — 16 consultas de 62 métodos
 
-De los 62 métodos que el driver no usaba se **probaron las 16 consultas** que podían aportar algo. Los otros 46 son notificaciones (que este firmware no emite) y modos de conducción que no hacen falta. Resumen para no repetirlo:
+De los 62 métodos que el driver no usaba se **probaron las 16 consultas** que podían aportar algo. Los otros 46 son **notificaciones** —cuyo estado es **NO VERIFICADO**, no «no emiten»: la de atasco **sí** llega— y modos de conducción alternativos que no hacen falta. Resumen para no repetirlo:
 
 | | |
 |---|---|
 | ✅ **Batería con voltaje y umbrales del firmware** | implementado y verificado. `voltage` 8.28 V · umbrales **7.0 / 6.5 V** leídos del propio firmware. 🔴 **La web debe mirar `voltage`, no `percentage`**: el porcentaje decía 100 % a 1.29 V del umbral de «baja» |
-| 🔴 **El atasco SÍ se detecta**, y dice **qué oruga** | 3 de 3 con el robot bloqueado. La conclusión anterior («las notificaciones no llegan») era **falsa**: se había probado con `raw_motors`, que se salta el sistema de control donde vive la detección. Y el RVR **enciende LEDs amarillos y rojos** por su cuenta |
+| 🔴 **El atasco SÍ se detecta**, y dice **qué oruga** | 3 de 3 con el robot bloqueado. La conclusión anterior («las notificaciones no llegan») era **falsa**, y la causa es **el tiempo**: el ensayo original duró **3 s** y la detección tarda **~5 s**. Y el RVR **enciende LEDs amarillos y rojos** por su cuenta |
 | 🔴 **No hay rumbo absoluto** — limitación del hardware | `get_magnetometer_reading` da `bad_cid` y `magnetometer_calibrate_to_north` **no hace nada**. El firmware ya está en la última versión. **La pose inicial tendrá que venir del mapa o del operador** |
 | 🔴 **No hay corriente de motores** | `bad_cid`. Ya no importa: el atasco se detecta por notificación |
 | ⚠️ **Térmica y fallo: NO VERIFICADAS** | la prueba llegó a 40 °C y no podía disparar nada. No se persigue: el sondeo cada 30 s ya da el dato |
@@ -155,7 +155,7 @@ una temperatura plana **no** significa «estable», puede ser el mismo dato repe
 | ~~La parada de emergencia de la web no hace nada~~ | seguridad | ✅ **resuelta 2026-07-31**. Había **tres** causas, no una: nombre, **namespace** (`/rvr/`) y **QoS** (`TRANSIENT_LOCAL` en el suscriptor no empareja con nadie). Verificada por los tres nombres, 0 avisos de QoS. Manual, cap. 15 |
 | **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — **acción del usuario**. Y no basta con rotarla: hay que quitarla del **historial** de git, no solo del último commit |
 | ~~Sin arranque automático~~ | operación | ✅ **resuelto 2026-07-31**: `atriz-robot.service`, probado con un reinicio real. Falta que `provision.sh` lo instale |
-| ~~La integración con el SDK NO está completa~~ | funcionalidad | ✅ **explorado entero el 2026-08-01**: el driver usa **37 de 99** métodos, y de los 62 restantes se probaron **las 16 consultas útiles** (evidencias 41–44); los otros 46 son notificaciones y modos de conducción alternativos. De lo que faltaba, **solo uno era aprovechable y ya está puesto** (voltaje de batería). 🔴 **El atasco SÍ se detecta** — la conclusión contraria era falsa. 🔴 **No hay rumbo absoluto**, cerrado con evidencia. ⏳ Queda el **IR**, que necesita un segundo robot |
+| ~~La integración con el SDK NO está completa~~ | funcionalidad | ✅ **explorado el 2026-08-01**: el driver usa **37 de 99** métodos, y de los 62 restantes se probaron **las 16 consultas útiles** (evidencias 41–44); los otros 46 son notificaciones y modos de conducción alternativos. De lo que faltaba, **solo uno era aprovechable y ya está puesto** (voltaje de batería). 🔴 **El atasco SÍ se detecta** — la conclusión contraria era falsa. 🔴 **No hay rumbo absoluto**, cerrado con evidencia. ⏳ Queda el **IR**, que necesita un segundo robot |
 | ~~No hay watchdog de `cmd_vel`~~ | seguridad | ✅ **resuelto**: para en 527 ms / 7.9 cm |
 | ~~No hay URDF → árbol TF partido~~ | bloqueante | ✅ **resuelto**: `atriz_rvr_description` |
 | ~~Driver ROS del LIDAR no instalado~~ | bloqueante | ✅ **resuelto**: `/scan` a 10.1 Hz |

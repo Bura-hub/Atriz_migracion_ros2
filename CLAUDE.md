@@ -618,14 +618,16 @@ detecciones, acertando la oruga las tres veces**.
 18:08:09  motor izquierdo: atasco resuelto
 ```
 
-🔴 **Por qué la medida anterior dijo lo contrario:** forzó los motores **a 220/255**, o sea con
-`raw_motors`, que es **PWM crudo y se salta el sistema de control del RVR** — y la detección de
-atasco vive **dentro** de ese sistema. Con `drive_rc_si_units`, que es lo que usa `cmd_vel` y
-por tanto **el camino normal del robot**, salta a los ~5 s.
+🔴 **La causa real es el TIEMPO, no el camino.** La evidencia 35 hizo **dos** ensayos, y el
+primero ya usaba `move_timed` —`drive_rc_si_units`, el camino bueno— durante **3 s**. La
+detección tarda **~5 s**. No dio tiempo. ⚠️ Y hay un confusor sin aislar: aquel ensayo iba a
+0.15 m/s y el que detecta a 0.08.
+📝 **La lección: antes de concluir que algo NO ocurre, pregunta cuánto tendrías que haber
+esperado.** Un negativo sin esa cuenta no es un negativo.
 
-📝 **La lección más cara de la sesión: se probó una cosa y se concluyó sobre otra.** El
-resultado negativo era correcto para `raw_motors` y falso para todo lo demás. → **Prueba por el
-camino que el sistema usa de verdad.**
+⚠️ La primera explicación de esta retractación decía «se probó con `raw_motors`, que se salta el
+sistema de control». **Eso solo cubre el segundo ensayo**, y hubo que corregirlo — corregir un
+error generó otro, por tercera vez en el día.
 
 ⚠️ Y encadenó errores: sobre esa base falsa se buscó la corriente de los motores (`bad_cid`), se
 declaró el atasco **imposible**, y se llegó a implementar un detector por encoders —**todo
@@ -1120,6 +1122,7 @@ lo que produce deriva entre documentación y realidad.
 | La imagen dorada se **construye ejecutando `provision.sh`**, no a mano | Una imagen irreproducible es una caja negra. `FLOTA.md` |
 | **`provision.sh` instala `navigation2`** desde el 2026-07-31 | Antes no lo instalaba: un robot aprovisionado con el script no podía navegar, ni tenía capa de seguridad, ni localización |
 | ✅ **Estática y DHCP CONVIVEN en `wlan0`** (verificado 2026-08-01) | 3 direcciones IPv4 a la vez (`10.14.7.7`, `192.168.1.200`, DHCP) y la ruta por defecto la pone el DHCP. Era **la suposición que sostenía todo el diseño de red**. Un robot se muda de red **sin tocar un comando**. Manual, cap. 19 |
+| 🔴 **PENDIENTE Y BLOQUEANTE: rosbridge está ABIERTO** | Puerto 9090 **sin autenticación ni TLS**, en todas las interfaces, y expone los 18 servicios — incluido `raw_motors`, que se salta el `collision_monitor` y **no tiene corte automático**. Cualquiera en la red del aula puede mover un robot. Hay que decidirlo **antes** de escribir el cliente: cambia su arquitectura. `ARQUITECTURA.md` |
 | ✅ **El camino web ↔ robot está verificado de extremo a extremo** | Navegador del PC → `ws://rvr-01.local:9090` → topics **y** servicios. `03_operacion/probar_conexion_web.html`, sin librerías ni CDN. La web **no necesita SSH para nada operativo**. Evidencia 39 |
 | ✅ **La web localiza a los robots por `rvr-NN.local` (mDNS)**, con la IP como override | Es lo que hace que el mismo código funcione en casa y en el laboratorio sin tocar nada. Verificado el 2026-08-01 desde el PC del usuario: avahi publica **A=192.168.1.58 y AAAA link-local**, y rosbridge escucha en **las dos familias**. Evidencia 39 |
 | 🔴 **NO se reflashea rvr-01 para probar `provision.sh` entero** | Es el único robot montado. Decisión del usuario el 2026-07-31: se **asume** que funciona hasta tener una tarjeta de repuesto. **Es una suposición, no un hecho** — ver abajo |

@@ -138,22 +138,56 @@ oficial (tambien tienen una version C++ basada en el «RVR CPP» de Rud Merriam 
 el mismo Rud del hilo del foro de Sphero, evidencia 42— pero dicen que **no esta
 soportada**).
 
-**LA COINCIDENCIA NO ES CASUALIDAD.** Nombres de servicio compartidos con
-`Atriz_rvr_node.py` (el driver de ROS 1 de este proyecto):
+🔴 **NO ES UNA INFERENCIA: ESTA EN EL HISTORIAL DE GIT DE ESTE REPOSITORIO.**
 
-    battery_state · enable_color · move_to_pose · move_to_pos_and_yaw
-    release_emergency_stop · reset_odom
+   La primera version de esta evidencia razonaba por «coincidencia de nombres de
+   servicio», que es justo la clase de inferencia que este proyecto ha tenido que
+   retirar tres veces. **No hacia falta**: el arbol de UIBK esta dentro del repo.
 
-Seis de sus nueve servicios, con el nombre EXACTO. Y ademas:
-  · el topic **`/is_emergency_stop`** — el nombre raro que costo el fallo nº1 de
-    la parada de emergencia en este proyecto;
-  · su README dice literalmente «The rvr would stop after two seconds of no
-    command sent, however, **we have reduced this to 0.3 seconds**» — que es
-    **exactamente nuestro `cmd_vel_timeout = 0.3`**.
+     $ git -C ~/atriz_ws/src/Atriz_rvr log --reverse --oneline | head -1
+     024aaf2 First commit        (2024-08-15)
 
-→ **Atriz partio de este repositorio.** Explica de donde salieron nombres que
-  aqui parecian arbitrarios. Atriz AÑADIO despues LEDs, IR, movimiento temporizado
-  y streaming configurable; y DESCARTO `calibrate_magnetometer`, `sleep` y `wake`.
+     $ git ls-tree 024aaf2
+     160000 commit 5e1885f...  **ros-sphero-rvr-msgs**   <- SUBMODULO, el nombre
+                                                            exacto del .repos de UIBK
+     040000 tree ...           serial_lib
+     040000 tree ...           sphero_rvr
+     040000 tree ...           sphero_rvr_hw             <- sus nombres de paquete
+
+     $ git show 024aaf2:sphero_rvr_hw/scripts/rvr-ros.py | wc -l
+     795                        <- exactamente el driver de UIBK
+
+   **El primer commit de Atriz_rvr ES el arbol de UIBK, literal.** No hay nada que
+   inferir.
+
+🔴🔴 Y HAY ALGO MAS, QUE ES LA LECCION DE VERDAD:
+
+     $ git log --oneline --all | grep -i magnet
+     8702d40 magnetometer eliminado, no funciona      (2025-09-10, Bura-Hub)
+
+   **Este proyecto YA HABIA PROBADO EL MAGNETOMETRO Y CONCLUIDO QUE NO FUNCIONA**,
+   en septiembre de 2025. Ese commit borra las 73 lineas exactas: `yaw_north`,
+   `calibrate_magnetometer_callback`, `on_calibration_complete_notify_handler`,
+   `pub_magnet`.
+
+   Y el 2026-08-01 se repitio la investigacion **entera** desde cero: leer el SDK,
+   probar `bad_cid`, buscar el firmware, rescatar el foro, escribir una
+   herramienta, girar el robot. Varias horas.
+
+   📝 **PORQUE ESTABA EN EL HISTORIAL DE GIT Y NO EN LA DOCUMENTACION.** Es la
+      regla 3 del proyecto —«nada se ejecuta sin documentarse»— incumplida, con
+      un coste medible. Un mensaje de commit **no es documentacion**: nadie lo
+      encuentra buscando «magnetometro» en el manual.
+
+   ⚠️ Lo unico bueno: las dos investigaciones, con **dos años de diferencia**,
+      llegaron a la misma conclusion. Eso es una replica involuntaria.
+
+→ Atriz AÑADIO despues LEDs, IR, movimiento temporizado y streaming configurable.
+  ⚠️ **NO «descarto sleep y wake»**: venian ya COMENTADOS del original de UIBK.
+     Lo unico que Atriz elimino a proposito fue `calibrate_magnetometer`.
+  📝 De los seis servicios que se citaban como heredados, **cuatro estan activos**
+     (`battery_state`, `enable_color`, `reset_odom`, `release_emergency_stop`) y
+     **dos estan comentados** (`move_to_pose`, `move_to_pos_and_yaw`).
 
 ✅ Y LO MAS UTIL: **implementan el magnetometro EXACTAMENTE como lo probamos**
    (`rvr-ros.py:536-561`):
@@ -281,21 +315,36 @@ UIBK — las otras tres ramas
         que **no se puede copiar**.
 
      🔴 **PERO EL HUECO QUE SEÑALA ES NUESTRO, Y ES ESTRUCTURAL:** el
-        `collision_monitor` mira `/scan`, y el plano de barrido del X2 esta a
-        **15.5 cm del suelo** (medido). Un LIDAR a esa altura ve PAREDES; **no
-        puede ver un escalon hacia abajo, el borde de una mesa ni una rampa**.
+        `collision_monitor` tiene **una sola fuente**, `/scan`
+        (`collision_monitor.yaml:196-200`).
+
+        ⚠️ **Y la causa NO son los 15.5 cm de altura**, como decia la primera
+           version de esta evidencia. Es la **DIMENSIONALIDAD del sensor**: un
+           LIDAR **2D horizontal** no veria un precipicio **a ninguna altura** —
+           el rayo simplemente no vuelve, y una lectura fuera de `range_max` no
+           es un obstaculo para `nav2_collision_monitor`.
+           📝 La altura importa para el problema CONTRARIO, ya documentado: el
+              plano pasa **por encima** de zocalos y cajas bajas.
         Con estudiantes teleoperando 16 robots en remoto, eso es un riesgo real
         y hoy no esta cubierto ni documentado como limitacion.
 
      ✅ **Y TENEMOS HARDWARE PARA TAPARLO, sin camara:** el **sensor de color
-        mira hacia el suelo**, bajo el chasis, y esta caracterizado (evidencia
-        37): el canal `clear` recorre **181 (negro) a 2288 (blanco)**, y da **4**
-        con la luz apagada. Sobre un vacio no habria superficie que devuelva la
+        mira hacia el suelo** —«el RGBC esta apantallado y solo ve lo que tiene
+        debajo», evidencia 37:59— y esta caracterizado: el canal `clear` recorre
+        **181 (negro) a 2288 (blanco)** (evidencia 37:23,26).
+
+        ⚠️ El «4 con la luz apagada» NO es de la evidencia 37: es de la **36**, y
+           se midio por **otra ruta** (el servicio `get_rgbc_sensor_values`, no el
+           stream `color_detection`) contra un valor de 741, no contra 181/2288.
+           Este proyecto tiene documentado que **«que una ruta funcione no dice
+           nada de las otras»**, asi que no se pueden mezclar. Corregido. Sobre un vacio no habria superficie que devuelva la
         luz, asi que `clear` deberia desplomarse.
         → **Un detector de precipicio con el sensor de color es construible.**
-        ⚠️ Sin medir: hay que comprobar que `clear` sobre un borde cae lo
-           bastante y lo bastante rapido a la velocidad de trabajo (0.25 m/s son
-           ~4 cm por cada 160 ms). Y exige `color_detection:=true`, que deja un
+        ⚠️ Sin medir, **y nunca se ha medido el sensor sobre un VACIO**: hay que
+           comprobar que `clear` cae lo bastante y **a tiempo**. A la velocidad
+           real de trabajo —**0.40 m/s**, no 0.25: `desired_linear_vel` en
+           `nav2_atriz.yaml:124`— el robot avanza **~6.4 cm cada 160 ms**, un
+           **60 % mas** de lo que decia la primera version de esta evidencia. Y exige `color_detection:=true`, que deja un
            LED blanco encendido bajo el chasis — hoy esta en `false` por decision.
 
 ───────────────────────────────────────────────────────────────────────────────
@@ -332,20 +381,27 @@ como dos referencias.
      parametro          ellos      nosotros    comentario
      robot_radius       0.105      **0.145**   el nuestro es el circunscrito
                                                MEDIDO (0.142) con cinta
-     max_vel_x          0.26       **0.40**    0.26 es el valor por defecto del
-                                               TURTLEBOT3
+     vel. lineal        0.26       **0.40**    ⚠️ `max_vel_x` NO existe en nuestro
+                                               YAML: lo comparable es
+                                               `desired_linear_vel: 0.40`
      resolution         0.10       **0.05**
      inflation_radius   0.20       0.25
 
-  📝 `max_vel_x: 0.26` es literalmente el ejemplo de Nav2 para TurtleBot, que el
-     manual de este proyecto (cap. 11.4) señala explicitamente como «lo que NO
-     hay que copiar».
-  🔴 Y su `robot_radius: 0.105` esta en el MISMO error que tuvimos aqui con 0.11
-     antes de medir con cinta — el valor con el que el `collision_monitor` paro a
-     **1.1 cm de la pared** (cap. 12.4).
+  📝 **0.26 es el ejemplo de Nav2 para TurtleBot**, que el manual (cap. 11.4) pone
+     en la columna «Ejemplo de Nav2 (TurtleBot)» frente a nuestros 0.40 medidos.
+     ⚠️ El manual dice «ejemplo», no «valor por defecto», y «TurtleBot», no
+        «TurtleBot3». La primera version de esta evidencia lo endurecio.
 
-  → **Confirma que medir las cotas del robot valio la pena**: un proyecto
-    independiente cayo en la misma trampa de la ficha del fabricante.
+  ⚠️ **Y NO se sostiene el paralelismo del radio.** Se dijo que su `0.105` esta
+     «en el mismo error que tuvimos con 0.11». **Falso**: nuestro manual documenta
+     que el error del ejemplo de Nav2 es **0.22 — el DOBLE, no la mitad**, y
+     nuestro 0.11 salio de la ficha cruzada del RVR, que es otro error distinto.
+     Que otro proyecto ponga 0.105 puede ser simplemente que **su robot sea mas
+     pequeño**: no tenemos sus cotas.
+     📝 Era la inferencia mas debil de este documento y se retira.
+
+  ✅ Lo que si se sostiene: **nuestros 0.145 salen del circunscrito MEDIDO con
+     cinta (0.142)**, y eso es comprobable en `MEDIDAS_ROBOT.md`.
 
 ───────────────────────────────────────────────────────────────────────────────
 `strean/rvr_ros` — ROS 1 en C++, 2020, 0 estrellas

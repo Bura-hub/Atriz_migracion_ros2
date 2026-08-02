@@ -45,6 +45,7 @@ magnético**. Es la referencia absoluta que le falta a la flota.
    descarta.
 """
 import argparse
+import select
 import asyncio
 import subprocess
 import statistics
@@ -73,7 +74,9 @@ def _driver_corriendo() -> bool:
     try:
         s = subprocess.run(['ps', '-eo', 'comm'], capture_output=True,
                            text=True, timeout=5)
-        return 'rvr_driver_node' in s.stdout.split()
+        # 🔴 `comm` trunca a 15 caracteres y `rvr_driver_node` mide exactamente
+        #    15: vale hoy por un carácter. Se comprueba el prefijo truncado.
+        return any(c.startswith('rvr_driver_nod') for c in s.stdout.split())
     except Exception:                                       # noqa: BLE001
         return True
 
@@ -205,8 +208,24 @@ async def fase_b(vueltas: int, espera: float):
             return
         if i < vueltas:
             print('     ⚠️ GIRA EL ROBOT A MANO unos 90° y pulsa Enter…')
+            print('        (o Ctrl-C para abortar)')
             try:
-                await loop.run_in_executor(None, input)
+                # 🔴 `run_in_executor(None, input)` COLGABA EL PROCESO con Ctrl-C.
+                #    El hilo del executor se queda bloqueado dentro de `input()`,
+                #    que no es interrumpible, y el intérprete no sale hasta que
+                #    ese hilo termine — o sea, nunca. El usuario veía el proceso
+                #    congelado **con el robot despierto**, sin `drive_stop()` ni
+                #    `close()`, y acababa en `kill -9`, que tampoco lo para.
+                #    Ahora se sondea stdin: Ctrl-C entra al instante y cae en el
+                #    manejador de abajo, que sí para el robot.
+                #    Encontrado en auditoría el 2026-08-01.
+                while True:
+                    listo, _, _ = select.select([sys.stdin], [], [], 0.2)
+                    if listo:
+                        if sys.stdin.readline() == '':
+                            raise EOFError
+                        break
+                    await asyncio.sleep(0)
             except EOFError:
                 # Sin terminal interactivo (pipe, nohup) `input()` lanza EOFError
                 # y salía de main SIN drive_stop() ni close(), justo después de

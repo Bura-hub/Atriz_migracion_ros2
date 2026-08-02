@@ -191,7 +191,44 @@ seguridad**: `/cmd_vel` es la **salida** del `collision_monitor` y tiene un solo
 cadena es `web → cmd_vel_raw → collision_monitor → cmd_vel → driver`. Publicar en `/cmd_vel`
 funciona —el robot obedece— y por eso es peligroso. Manual, cap. 12.
 
+### 🔴🔴 SEGURIDAD: rosbridge está ABIERTO, y expone `raw_motors`
+
+`robot.launch.py` levanta `rosbridge_websocket` en el **9090, sin autenticación ni TLS,
+escuchando en todas las interfaces**. Y el contrato de arriba dice —correctamente— que **los 18
+servicios son alcanzables por rosbridge**, incluidos los cinco de riesgo alto.
+
+🔴 **Cualquiera en la red del aula puede abrir un WebSocket y llamar a `raw_motors`**, que se
+salta el `collision_monitor` y el watchdog y **no tiene corte automático**. Con estudiantes en el
+laboratorio, eso no es teórico.
+
+⚠️ Las cuatro defensas de la Decisión 3 **no cubren esto**: paran al robot, no impiden la orden.
+Y el JWT de la Decisión 2 está en FastAPI, **explícitamente fuera de la ruta de datos**.
+
+⏳ **DECISIÓN PENDIENTE, y hay que tomarla antes de escribir el cliente porque cambia su
+arquitectura:** ¿token en el propio WebSocket? ¿rosbridge en `localhost` y FastAPI como proxy?
+¿lista blanca de servicios en rosbridge? Encontrado en auditoría el 2026-08-01.
+
+---
+
 ### 🔴 Lo que la web necesita y NO está aquí todavía
+
+**Cuatro trampas de rosbridge que no son obvias y que costarán horas si no se saben:**
+
+| | |
+|---|---|
+| 🔴 **`rosapi` NO se arranca** | `robot.launch.py` levanta solo `rosbridge_websocket`. Sin `rosapi_node`, los `ros.getTopics()`, `getServices()` y `getTopicType()` de roslibjs **se quedan colgados sin error**. Cualquier UI que descubra topics por introspección no funcionará |
+| 🔴 **El QoS depende del ORDEN de conexión** | rosbridge **infiere** el QoS mirando los publicadores que existen **en el instante de suscribirse**; si no hay ninguno usa `VOLATILE + BEST_EFFORT`, y **no se reajusta**. Si la web se suscribe a `battery_state`, `motor_status` o `map` **antes** de que el driver publique, **no recibe el último valor latcheado**. El síntoma es «la batería tarda 30 s» y se busca en el sitio equivocado |
+| ⚠️ **El aviso de RELIABLE no aplica a la web** | «un suscriptor con el perfil por defecto pide RELIABLE y no empareja» es cierto para un **nodo ROS nativo**. rosbridge pide **BEST_EFFORT** por defecto, así que para el desarrollador web apunta al modo de fallo equivocado |
+| ⚠️ **`geometry_msgs/Twist` es correcto solo por un valor por defecto** | Nav2 declara `enable_stamped_cmd_vel` en `false`, y `collision_monitor.yaml` **no fija el parámetro**. Si un `apt upgrade` invierte ese default, `/cmd_vel_raw` pasa a `TwistStamped` y **la web deja de mover el robot en silencio**. → Conviene fijarlo explícito en el YAML |
+
+📝 Y una corrección: este documento decía que **«rosbridge no es TRANSIENT_LOCAL»** para justificar
+el QoS de la parada. En esta versión **sus publicadores sí lo son**, con `lifespan = 1 s`. No rompe
+nada —el suscriptor VOLATILE del driver empareja igual— pero implica algo que nadie había
+considerado: **un driver que se reinicia puede recibir hasta 1 s de `cmd_vel_raw` o de
+`emergency_stop` atrasados** al engancharse. Con `on_exit=Shutdown()` reiniciando cada 25 s, ese
+caso ocurrirá.
+
+
 
 Con este contrato **no se puede programar la Fase 5 entera**. Falta:
 
