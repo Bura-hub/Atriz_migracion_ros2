@@ -1,0 +1,34 @@
+==============================================================================
+PRUEBA DE ACEPTACION · rvr-01 · 2026-08-02 14:10:16
+==============================================================================
+
+
+── F8 ──────────────────────────────────────────────────────────────────────
+  [OK   ] rosbridge completa el handshake WebSocket
+          HTTP/1.1 101 Switching Protocols
+Server: TornadoServer/6.4
+  [OK   ] la web recibe /odom por rosbridge
+          suscripcion real, no solo el puerto abierto
+
+── F9 ──────────────────────────────────────────────────────────────────────
+  [PEND ] rosbridge sin autenticacion en el 9090
+          expone raw_motors, que se salta el collision_monitor y no tiene corte automatico. Hay que decidirlo ANTES de escribir el cliente: cambia su arquitectura. Ver 03_operacion/ARQUITECTURA.md
+  [PEND ] el hueco de los precipicios
+          collision_monitor solo mira /scan, y un LIDAR 2D no ve un vacio a ninguna altura. Mitigado solo por la regla de laboratorio (suelo continuo y cerrado). Ver manual cap. 12.2b
+  [PEND ] la PSK del WiFi es legible por cualquier usuario
+          falta fmask=0177,dmask=0077 en /etc/fstab. chmod NO sirve: es FAT
+  [PEND ] la credencial sphero sin rotar
+          y sin purgar del historico de git
+
+==============================================================================
+  2 PASA · 0 REVISAR · 0 FALLO · 4 PENDIENTE
+==============================================================================
+
+  🔴 NO HAY VIA LIBRE PARA LA FASE 5
+
+     Lo que lo impide:
+       · [PENDIENTE] rosbridge sin autenticacion en el 9090
+       · [PENDIENTE] el hueco de los precipicios
+       · [PENDIENTE] la PSK del WiFi es legible por cualquier usuario
+       · [PENDIENTE] la credencial sphero sin rotar
+==============================================================================

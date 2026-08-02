@@ -4,15 +4,15 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
-## 2026-08-02 — Prueba de aceptación: seis fases corriendo, y el ángulo medido por fin
+## 2026-08-02 — Prueba de aceptación: las diez fases escritas, F8 verificado de verdad
 
-Se diseñó y se está construyendo una **prueba de aceptación de extremo a extremo**, de arranque
-en frío a navegación autónoma, para responder a una sola pregunta antes de abrir la Fase 5:
-**¿se puede construir la web sobre este robot?** Diseño en
+Se diseñó y se construyó una **prueba de aceptación de extremo a extremo**, de arranque en frío
+a navegación autónoma, para responder a una sola pregunta antes de abrir la Fase 5: **¿se puede
+construir la web sobre este robot?** Diseño en
 [`03_operacion/PRUEBA_ACEPTACION.md`](03_operacion/PRUEBA_ACEPTACION.md), plan en
 `00_auditoria/planes/`.
 
-**Estado: F0 a F5 corriendo. 12 PASA · 0 REVISAR · 0 FALLO** en la última corrida.
+**Estado: F0 a F5 corriendo. 12 PASA · 0 REVISAR · 0 FALLO** en la última corrida de esa mitad.
 
 ### Lo que se cierra
 
@@ -53,10 +53,57 @@ Es el mismo patrón que `chmod` sobre FAT, `colcon build` desde el directorio ma
 con máscara corta y `netplan generate` que nunca llegó a ejecutarse. **Comprueba el efecto, no el
 código de salida.**
 
+### F6, F7, F8 y F9 escritas y ejecutadas — las diez fases existen
+
+**F6 (seguridad) y F7 (autónomo con obstáculo), última corrida real** (informe
+`47_aceptacion_20260802_133324.txt`): **10 PASA · 3 REVISAR · 0 FALLO · 4 PENDIENTE**. El
+`collision_monitor` paró solo, Nav2 completó los tres objetivos (`SUCCEEDED`), y no reapareció
+«Failed to make progress». Los tres REVISAR de esa corrida:
+
+- distancia frontal de parada: **18.9 cm** contra una banda `[0, 15]` que citaba una base
+  (`CHANGELOG:1824: 9.9 cm`) medida con **otro `radius`** de `collision_monitor.yaml` (0.11, no
+  el 0.18 actual). **El robot tenía razón, la banda no** — corregida a `[15, 24]` en el código.
+- objetivo con obstáculo, error final **40.7 cm**, y desvío lateral **13.9 cm**: los dos venían
+  de que la fase medía el error en el marco **odom** (`pos_yaw()`) mientras el objetivo se
+  mandaba en **map** — Nav2 decía `SUCCEEDED` sobre un objetivo que había llegado desplazado por
+  el desfase `map↔odom`. Arreglado con `pos_mapa()` (TF `map → base_footprint`).
+
+🔴🔴 **Los dos arreglos ya están en el código commiteado, pero no se ha vuelto a correr F6/F7
+para confirmar 0 REVISAR con ellos puestos** — esta tarea (8) tenía prohibido mover el robot.
+Queda para la corrida completa del paso 2 del diseño (reinicio real + `prueba_aceptacion.py`
+entera), que le toca al usuario por el `sudo reboot`.
+
+✅ **Y el usuario contrastó F6 a mano con cinta métrica** (evidencia 49,
+`00_auditoria/evidencia_24_04/49_f6_f7_medido_a_cinta.txt`), y salieron tres cosas que el `/scan`
+por sí solo no decía:
+
+- La distancia que importa es la del **borde del chasis**, no la del LIDAR: **7–8 cm reales**
+  tras la parada del `collision_monitor` (el `/scan` decía 18.9, medido desde el sensor). No
+  choca.
+- ⏳ **`laser_x = 0` es sospechoso**: con el LIDAR centrado, el borde debería quedar a
+  `18.9 − 9.1 = 9.8 cm`, y se midieron 7–8. Faltan ~2 cm sin explicar. `laser_x` es del
+  2026-07-30, anotado como «centrado» **sin cinta detrás**, a diferencia de `laser_z`, que se
+  midió y resultó estar 2 cm mal. Pendiente de medir; afecta a dónde cree Nav2 que hay un
+  obstáculo.
+- El retroceso del watchdog comandó 30 cm y avanzó solo **14**: el polígono estático
+  `Precaucion` se extiende 0.36 m **hacia delante** y frena al 40 % aunque el robot se aleje. No
+  es un fallo del watchdog — es cómo funciona un polígono estático, y hay que decírselo a la web.
+
+**F8 (web por rosbridge), ejecutado hoy sin mover el robot** (informe
+`47_aceptacion_20260802_141016.txt`): **2 PASA**. Handshake WebSocket a mano →
+`HTTP/1.1 101 Switching Protocols`, y una suscripción real a `/odom` que **sí** entrega mensaje —
+no solo «el puerto está abierto».
+
+**F9 (veredicto):** imprime el aviso de los pendientes y añade los cuatro `PENDIENTES_CONOCIDOS`
+al informe. Con solo F8+F9 corridas: **2 PASA · 0 REVISAR · 0 FALLO · 4 PENDIENTE**, y
+`🔴 NO HAY VÍA LIBRE PARA LA FASE 5` — el comportamiento acordado el 2026-08-01, no un fallo.
+
 ### Lo que queda
 
-F6 (seguridad), F7 (Nav2 con obstáculo), F8 (web) y F9. Y **la vía libre sigue bloqueada** por
-los cuatro pendientes conocidos, empezando por **rosbridge sin autenticación** — como se decidió:
+**Correr las diez fases de un tirón, tras un reinicio real** (paso 2 del diseño: `sudo reboot` →
+`python3 -u scripts/prueba_aceptacion.py`), para confirmar en una sola pasada los arreglos de F6/F7
+de más arriba y cerrar el informe definitivo. Y, siempre, **la vía libre sigue bloqueada** por los
+cuatro pendientes conocidos, empezando por **rosbridge sin autenticación** — como se decidió:
 «robot impecable» y «vía libre» no son lo mismo.
 
 ---

@@ -1065,6 +1065,63 @@ def f7(a: Aceptacion) -> None:
         time.sleep(5)
 
 
+@fase('F8', 'Web — rosbridge de verdad, no «el puerto esta abierto»')
+def f8(a: Aceptacion) -> None:
+    import json
+    import socket
+    import base64
+    import struct
+
+    # Handshake WebSocket a mano: no hay dependencia de websockets en el robot,
+    # y meterla solo para esto no compensa.
+    try:
+        s = socket.create_connection(('127.0.0.1', 9090), timeout=10)
+    except OSError as e:
+        a.add(juzgar_categorico('rosbridge acepta conexiones en el 9090',
+                                False, 'F8', str(e)))
+        return
+    clave = base64.b64encode(os.urandom(16)).decode()
+    s.send(f'GET / HTTP/1.1\r\nHost: 127.0.0.1:9090\r\nUpgrade: websocket\r\n'
+           f'Connection: Upgrade\r\nSec-WebSocket-Key: {clave}\r\n'
+           f'Sec-WebSocket-Version: 13\r\n\r\n'.encode())
+    resp = s.recv(4096)
+    a.add(juzgar_categorico('rosbridge completa el handshake WebSocket',
+                            b'101' in resp[:20], 'F8', resp[:60].decode('latin1')))
+
+    def enviar(obj):
+        d = json.dumps(obj).encode()
+        cab = bytearray([0x81])
+        m = os.urandom(4)
+        if len(d) < 126:
+            cab.append(0x80 | len(d))
+        else:
+            cab.append(0x80 | 126)
+            cab += struct.pack('>H', len(d))
+        cab += m
+        cab += bytes(b ^ m[i % 4] for i, b in enumerate(d))
+        s.send(bytes(cab))
+
+    enviar({'op': 'subscribe', 'topic': '/odom', 'type': 'nav_msgs/msg/Odometry'})
+    s.settimeout(12)
+    recibido = False
+    try:
+        for _ in range(6):
+            if b'/odom' in s.recv(65536):
+                recibido = True
+                break
+    except socket.timeout:
+        pass
+    s.close()
+    a.add(juzgar_categorico('la web recibe /odom por rosbridge', recibido, 'F8',
+                            'suscripcion real, no solo el puerto abierto'))
+
+
+@fase('F9', 'Veredicto')
+def f9(a: Aceptacion) -> None:
+    print('\n  Los pendientes conocidos se añaden al informe y BLOQUEAN la via')
+    print('  libre por decision del 2026-08-01. Ver PENDIENTES_CONOCIDOS.')
+
+
 def ejecutar(a: Aceptacion, desde: str) -> int:
     claves = [f[0] for f in FASES]
     if desde not in claves:

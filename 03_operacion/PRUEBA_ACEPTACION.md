@@ -219,3 +219,65 @@ sorteo. Los umbrales están calibrados contra ese escenario, así que en otro si
 
 ⚠️ **Acciones físicas.** El robot se mueve en F4, F5, F6 y F7, y enciende LEDs en F3. Ten el
 pasillo despejado y no te pongas delante.
+
+---
+
+## Cómo leer el informe
+
+El informe se escribe **siempre**, pase o falle, en
+`00_auditoria/evidencia_24_04/47_aceptacion_<fecha>.txt`, y la propia terminal imprime el mismo
+texto al final. La cabecera dice de qué robot y cuándo:
+
+```
+==============================================================================
+PRUEBA DE ACEPTACION · rvr-01 · 2026-08-02 14:10:16
+==============================================================================
+```
+
+Después va una sección por fase (`── F8 ──…`), con una línea por comprobación y su icono:
+
+```
+── F8 ──────────────────────────────────────────────────────────────────────
+  [OK   ] rosbridge completa el handshake WebSocket
+          HTTP/1.1 101 Switching Protocols
+Server: TornadoServer/6.4
+  [OK   ] la web recibe /odom por rosbridge
+          suscripcion real, no solo el puerto abierto
+```
+
+Los cuatro iconos son los cuatro niveles de siempre — `OK` (PASA), `REV` (REVISAR), `FALLO` y
+`PEND` (PENDIENTE) — y significan exactamente lo que dice la tabla de «El veredicto» de más
+arriba. La línea sin sangría es el concepto comprobado; la línea sangrada, si la hay, es el
+detalle: el número medido y su banda, el mensaje de error, o por qué algo quedó sin verificar.
+
+Al final va el recuento y el veredicto, en ese orden:
+
+```
+==============================================================================
+  2 PASA · 0 REVISAR · 0 FALLO · 4 PENDIENTE
+==============================================================================
+
+  🔴 NO HAY VIA LIBRE PARA LA FASE 5
+
+     Lo que lo impide:
+       · [PENDIENTE] rosbridge sin autenticacion en el 9090
+       · [PENDIENTE] el hueco de los precipicios
+       · [PENDIENTE] la PSK del WiFi es legible por cualquier usuario
+       · [PENDIENTE] la credencial sphero sin rotar
+==============================================================================
+```
+
+(Salida real de `python3 -u scripts/prueba_aceptacion.py --desde F8 --sin-puertas`, 2026-08-02 —
+por eso solo aparecen F8 y F9: no repite lo ya pasado.)
+
+**Lo único que importa para decidir si se puede empezar la Fase 5 es esa línea `VIA LIBRE` /
+`NO HAY VIA LIBRE`.** Sale de `hay_via_libre()`: cero `FALLO` y cero `PENDIENTE`, sin excepción.
+Un `REVISAR` **no** aparece en «lo que lo impide» — puede haber decenas y seguir habiendo vía
+libre, porque es un número fuera de banda con n=1 a n=4 detrás, no un «no funciona». Si hay algún
+`REVISAR`, el informe los lista aparte, al final, bajo «Y N número(s) fuera de banda»: para
+mirarlos, no para bloquear por ellos.
+
+📝 Los cuatro `PENDIENTE` de F9 (`PENDIENTES_CONOCIDOS` en `aceptacion_nucleo.py`) **aparecen
+siempre**, en cualquier corrida, aunque el robot esté impecable — son decisiones abiertas que
+ninguna ejecución cierra, no algo que esta prueba pueda medir. Que bloqueen la vía libre es el
+comportamiento acordado el 2026-08-01, no un fallo de la prueba ni del robot.

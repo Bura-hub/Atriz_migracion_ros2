@@ -4,7 +4,8 @@
 > Raspberry Pi ya se reflasheó. Está escrito para que no haga falta reconstruir el
 > contexto desde cero.
 >
-> Última actualización: **2026-08-01** (tras explorar el SDK entero y cerrar la 2ª auditoría).
+> Última actualización: **2026-08-02** (las diez fases de la prueba de aceptación escritas;
+> falta una corrida completa tras un reinicio real — ver más abajo).
 
 ---
 
@@ -164,27 +165,45 @@ una temperatura plana **no** significa «estable», puede ser el mismo dato repe
 
 ---
 
-## 🔴 Prueba de aceptación en curso (2026-08-02) — F0 a F5 corriendo
+## 🔴 Prueba de aceptación: las diez fases escritas, falta UNA corrida completa (2026-08-02)
 
-Antes de abrir la Fase 5 se está construyendo una **prueba de aceptación de extremo a extremo**:
+Antes de abrir la Fase 5 se construyó una **prueba de aceptación de extremo a extremo**:
 `scripts/prueba_aceptacion.py`, diez fases, de arranque en frío a navegación autónoma. Diseño en
 [`03_operacion/PRUEBA_ACEPTACION.md`](03_operacion/PRUEBA_ACEPTACION.md).
 
-**Última corrida: 12 PASA · 0 REVISAR · 0 FALLO.**
+**Las diez fases (F0–F9) están escritas y cada una se ha ejecutado con éxito por separado.** Lo
+que falta es correrlas **de un tirón**, tras un reinicio real (paso 2 del diseño) — no se ha
+hecho todavía porque exige `sudo reboot`, que es un paso del usuario.
 
-| Fase | Estado |
-|---|---|
-| F0 arranque en frío | ✅ 11 OK · **`Restart=always` ejercitado por primera vez** (PID 725→12608) |
-| F1 telemetría | ✅ `/odom` 16.58 Hz · `/imu` 16.56 · 7.75 V · deriva de yaw **0.002°/30 s** |
-| F2 LIDAR | ✅ arranca apagado · 11.81 Hz · 213/260 finitos · el parche del journal aguanta |
-| F3 luces | ⏳ los servicios responden; **falta la confirmación visual de una persona** |
-| F4 movimiento | ✅ 29.9 / 30.4 cm · **parada de emergencia en 1.5 cm** y rechaza `move_timed` |
-| F5 **ángulos** | ✅ **90°→86.6° · 180°→179.6° · 360°→358.4°** · signo REP-103 · ⚠️ n=1. Evidencia 48 |
-| F6 seguridad · F7 autónomo · F8 web · F9 | ⏳ pendientes |
+| Fase | Estado | Fuente |
+|---|---|---|
+| F0 arranque en frío | ✅ 11 OK · **`Restart=always` ejercitado por primera vez** (PID 725→12608) | corrida F0-F5 |
+| F1 telemetría | ✅ `/odom` 16.58 Hz · `/imu` 16.56 · 7.75 V · deriva de yaw **0.002°/30 s** | corrida F0-F5 |
+| F2 LIDAR | ✅ arranca apagado · 11.81 Hz · 213/260 finitos · el parche del journal aguanta | corrida F0-F5 |
+| F3 luces | ⏳ los servicios responden; **falta la confirmación visual de una persona** | corrida F0-F5 |
+| F4 movimiento | ✅ 29.9 / 30.4 cm · **parada de emergencia en 1.5 cm** y rechaza `move_timed` | corrida F0-F5 |
+| F5 **ángulos** | ✅ **90°→86.6° · 180°→179.6° · 360°→358.4°** · signo REP-103 · ⚠️ n=1. Evidencia 48 | corrida F0-F5 |
+| F6 seguridad | ✅ paró solo · 0.0 cm tras soltar `cmd_vel` · ⚠️ REVISAR de banda ya corregido en código (ver abajo) | `47_..._133324.txt` |
+| F7 autónomo | ✅ 3/3 objetivos `SUCCEEDED` · errores 10.5 / 7.6 cm · ⚠️ REVISAR de marco (`map`/`odom`) ya corregido en código (ver abajo) | `47_..._133324.txt` |
+| F8 web (rosbridge) | ✅ handshake `101` · **`/odom` sí llega** por una suscripción real, no solo «el puerto abierto» | `47_..._141016.txt` |
+| F9 veredicto | ✅ imprime y añade los 4 `PENDIENTES_CONOCIDOS`. Con F8+F9: **2 PASA · 0 REVISAR · 0 FALLO · 4 PENDIENTE** | `47_..._141016.txt` |
+
+⚠️ **El REVISAR de F6** (18.9 cm de `/scan` contra una banda `[0,15]` medida con otro `radius` de
+`collision_monitor.yaml`) y **los dos de F7** (error 40.7 cm y desvío 13.9 cm, por mezclar el
+marco `odom` de `pos_yaw()` con el objetivo mandado en `map`) están **arreglados en el código
+commiteado** — banda corregida a `[15,24]` y medida por `pos_mapa()` (TF real) — pero **no se han
+vuelto a verificar con una corrida nueva**, porque esta tarea tenía prohibido mover el robot.
+✅ **Y el usuario contrastó F6 a mano con cinta** (evidencia 49): el `/scan` decía 18.9 cm pero el
+**borde del chasis** quedó a **7–8 cm reales** (no choca), y «se movió torcido, pero fue y
+regresó» es la observación física del **mismo** bug de marcos que ya explicaba el 40.7 cm.
+⏳ Y salió un pendiente nuevo, sin cerrar: `laser_x = 0` es un **supuesto sin cinta detrás** (a
+diferencia de `laser_z`, que sí se midió y estaba 2 cm mal) — con el LIDAR centrado el borde
+debería quedar a 9.8 cm y se midieron 7–8: faltan ~2 cm sin explicar.
 
 ⚠️ **La vía libre está BLOQUEADA**, y es lo acordado: los cuatro pendientes conocidos —empezando
 por **rosbridge sin autenticación**— impiden decir «se puede empezar la web» aunque el robot esté
-impecable.
+impecable. F8 lo confirma de nuevo: rosbridge sirve datos reales (no solo el puerto abierto), y
+sigue **sin autenticación**.
 
 🔴 **Cómo lanzarla:** el modo guiado **exige un terminal de verdad**. Ni el prefijo `!` de Claude
 Code ni las herramientas de un agente dan TTY, y desde el 2026-08-02 la prueba **aborta con
@@ -195,6 +214,10 @@ ssh sphero@rvr-01.local
 cd ~/atriz_migracion && source /opt/ros/jazzy/setup.bash && source ~/atriz_ws/install/setup.bash
 python3 -u scripts/prueba_aceptacion.py            # entera, o --desde F4
 ```
+
+🔴 **El siguiente paso exacto: `sudo reboot` y correr las diez fases de un tirón** (paso 2 del
+diseño). Es lo único que falta para el informe definitivo de esta prueba — todo lo demás ya está
+escrito, ejecutado por partes y con sus arreglos commiteados.
 
 ---
 
