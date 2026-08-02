@@ -58,7 +58,7 @@ bash scripts/verificar_robot.sh --hardware
 ```
 
 **105 comprobaciones** con `--hardware` (102 sin él) y código de salida ≠ 0 si algo falla. Es lo que hace que 16 robots sean
-manejables: no se pueden revisar a ojo. En `rvr-01`, el 2026-07-31: **50 correctas, 0 fallos**.
+manejables: no se pueden revisar a ojo. En `rvr-01`, el 2026-08-01: **105 correctas con `--hardware`, 0 fallos**.
 
 Su regla es **comprobar el efecto, no la intención**, y no es retórica: comprueba el *ritmo* de
 `/odom` (no que el topic exista) porque el RVR se dormía dejando el nodo vivo y publicando cero,

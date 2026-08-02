@@ -15,7 +15,8 @@
 > 🔴 **Y hay TRES bloqueantes más, auditados el 2026-08-01** (evidencia 38):
 > 1. **`~/.git-credentials` con el PAT viaja en la imagen.** `fase_6` avisa pero no lo borra.
 >    Repartir un token personal en 16 microSD es una decisión, no un detalle. 👤
-> 2. **rosbridge no está instalado**, y la web habla por ahí. Clonar antes de la Fase 5 significa
+> 2. ✅ ~~rosbridge no está instalado~~ — **instalado el 2026-08-01**, va en `provision.sh` y lo
+>    levanta `robot.launch.py`. Verificado desde un navegador. Texto original: y la web habla por ahí. Clonar antes de la Fase 5 significa
 >    clonar dos veces.
 > 3. ~~La imagen y `provision.sh` divergen~~ ✅ **RESUELTO 2026-08-01**: `provision.sh` instala el
 >    arranque automático en su paso **8/9**. Ya no divergen.
@@ -117,7 +118,7 @@ consume menos de un núcleo de los cuatro del Pi 4.
 el nodo de ROS Noetic — y estaba presentada como referencia actual. Mezclar las dos líneas base
 es un error que este proyecto prohíbe explícitamente.
 
-### 4. 🔴 El riesgo de red sigue sin medir, y es el principal
+### 4. ✅ El riesgo de red, MEDIDO (era el principal)
 
 Esta Pi, con **un** robot y sin rosbridge, ya registra:
 

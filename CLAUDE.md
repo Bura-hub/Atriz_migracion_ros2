@@ -586,7 +586,10 @@ registrados y **cero datos**. Constrúyelo con el loop **parado**, antes de arra
 Es el único `get_event_loop()` de la ruta usada, el que la auditoría señaló como el riesgo del
 port. Ha mordido **dos veces**: al escribir el driver y al escribir una herramienta de banco.
 
-**⏳ LA DETECCIÓN DE ATASCO PODRÍA REABRIRSE, por un camino que ya tenemos.** La doc oficial
+**✅ ~~LA DETECCIÓN DE ATASCO PODRÍA REABRIRSE~~ — NO HACE FALTA: ya funciona** por la
+notificación del firmware (3 de 3, y dice qué oruga). Esto nació de creer que era imposible.
+📝 La temperatura sigue valiendo como **corroboración**: un motor bloqueado sube ~6.5 °C/min.
+Texto original: La doc oficial
 dice que la temperatura del motor está **«calculated from motor current»** — o sea que es un
 **proxy de la corriente**, que es lo que no se puede leer. Y el driver **ya publica** las dos
 temperaturas en `/motor_status` cada 30 s. → Lo que falta no es leer nada nuevo, es
@@ -595,9 +598,13 @@ probable. ⚠️ Es un proxy **lento** (decenas de segundos por la masa térmica
 parar el robot, sí para decidir si hay que ir a rescatarlo. Sin implementar. Evidencia 43.
 
 **🔴🔴 EN ESTE FIRMWARE, QUE UN COMANDO NO DÉ ERROR NO SIGNIFICA QUE HAGA ALGO.** Van
-**cinco** comandos que se aceptan en silencio y no hacen nada: `enable_motor_stall_notify`,
-`enable_motor_fault_notify`, la notificación térmica, `magnetometer_calibrate_to_north` (ni gira
-ni avisa) y `core_time` (en el enum, el RVR no lo transmite).
+**dos** comandos comprobados que se aceptan en silencio y no hacen nada:
+`magnetometer_calibrate_to_north` (ni gira ni avisa) y `core_time` (en el enum, el RVR no lo
+transmite).
+→ ⚠️ **Antes esta lista decía CINCO** e incluía `enable_motor_stall_notify` —que **sí funciona**,
+  retractado— y las notificaciones de fallo y térmica, que quedaron **NO VERIFICADAS**: el ensayo
+  no llegó a la temperatura de disparo, así que no están desmentidas. **«Sin verificar» no es
+  «no funciona»**, y meterlas en la misma lista fue lo que alimentó la conclusión falsa.
 → **Comprueba siempre el EFECTO**: un dato que llega, o el robot moviéndose. Y cuando el efecto
   es **físico, pregunta a la persona que lo está mirando** — es el único instrumento que no se
   puede enredar. El 2026-08-01 «el robot no giró» fue lo que zanjó lo del magnetómetro.
@@ -660,8 +667,9 @@ térmica —que debería llegar sola— sin recibir nada. Es el mismo caso que `
   motores (corriente alta + encoders quietos), y `get_current_sense_amplifier_current` devuelve
   **`bad_cid`** — el firmware **no implementa** esa consulta. Tampoco hay magnetómetro. Es una
   carencia del firmware, no del driver: **deja de buscarlo**. Evidencia 41.
-  ⚠️ Queda una vía sin probar y menos fiable: `cmd_vel` alto + encoders quietos, sin corriente.
-  No distingue «trabado» de «rueda patinando».
+  ✅ **Ya no hace falta ninguna vía alternativa:** la notificación del firmware funciona. Se
+  llegó a implementar un detector por encoders y **se retiró** — resolvía un problema que no
+  existía. Evidencia 44.
 → Por eso
   `antiguedad_atasco_s` vale **-1.0** — «no se sabe», que no es lo mismo que «no hay atasco».
 
@@ -1119,7 +1127,7 @@ lo que produce deriva entre documentación y realidad.
 | SLAM va en un launch **aparte** de `robot.launch.py` | el robot tiene que arrancar sin SLAM, y SLAM reiniciarse sin soltar `/dev/rvr` |
 | **`localizacion.launch.py` es EXCLUYENTE con `slam.launch.py`** y lo comprueba al arrancar | los dos publican `map → odom`; juntos parten el árbol TF sin dar error. Manual, cap. 14.2 |
 | 🔴 **`/ambient_light` NO SE USA** | el sensor mira hacia arriba y el **piso blanco del LIDAR** le refleja los LEDs del propio robot (13.3×). Un valor alto significa «el robot tiene LEDs encendidos», no «hay luz». Se probó, responde, y no sirve en este montaje. Decisión del usuario, 2026-08-01 |
-| **La salud de motores se SONDEA, no se escucha** | las notificaciones del SDK no llegan en este firmware (medido); las consultas directas sí. `/motor_status`, evidencia 35 |
+| **La salud de motores se SONDEA *y* se escucha** (corregido 2026-08-01) | El **atasco SÍ llega por notificación** —3 de 3, acertando la oruga— y era falso que no. El **fallo** y la **térmica** se sondean cada 30 s porque sus notificaciones siguen **NO VERIFICADAS**, que no es lo mismo que «no llegan». Evidencias 35 y 44 |
 | **El driver publica la orientación PLANA** (`publicar_inclinacion: false`) | la inclinación de 6.9° del RVR es un artefacto de su acelerómetro descalibrado, no del robot: suelo plano medido con nivel y error fijo en el marco del robot. Manual, cap. 13 |
 | ✅ **`provision.sh` instala el arranque automático** (paso 8/9) desde el 2026-08-01 | Antes no, a propósito: un servicio levantado peleaba por `/dev/rvr` con las pruebas a mano. Se añadió al desaparecer esa razón y para cerrar la **divergencia** con la imagen dorada —que sí lo lleva, porque un `dd` copia todo— y la regla dice que gana el script. Evidencia 38 |
 | **Las unidades systemd arrancarán con el lidar PARADO** (`/stop_scan`) | si no, el X2 gira a 11.8 Hz 24/7 en los 16 robots en vez de a 2.7. Manual, cap. 8.4a |

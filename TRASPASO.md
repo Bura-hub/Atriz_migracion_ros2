@@ -91,7 +91,13 @@ repetir.
 ⚠️ **El experimento de la deriva con y sin ese roll NO responde la pregunta**: el efecto buscado
 era de ~1 cm y apareció el fallo de 12–56 cm que lo entierra.
 
-**Lo siguiente es el fallo bimodal a 2.3 m** — es hoy el problema abierto más serio.
+✅ ~~Lo siguiente es el fallo bimodal a 2.3 m~~ — **cerrado el 2026-07-31** con
+`referenciar_posicion.py`: 0 fallos de 12 y peor caso 4.4 cm.
+
+🔴 **LO SIGUIENTE DE VERDAD, HOY: migrar el robot 2** →
+[`03_operacion/FLOTA.md`, «Robot 2: instalación LIMPIA»](03_operacion/FLOTA.md). Levanta la
+única suposición peligrosa que queda (`provision.sh` nunca se ha ejecutado entero), da el
+segundo robot para el IR, y valida la imagen dorada antes de replicarla catorce veces.
 
 ---
 
@@ -476,7 +482,7 @@ cuando el driver tenía el puerto ocupado. Los tres corregidos.
 
 ```
 sin --hardware   76 correctas · 1 aviso · 0 fallos
-con --hardware   84 correctas · 1 aviso · 0 fallos
+con --hardware   105 correctas · 0 fallos   (2026-08-01)
 ```
 
 ### ✅ Dos decisiones CERRADAS el 2026-08-01 (eran los últimos bloqueos de la Fase 5)
@@ -599,7 +605,7 @@ velocidad** (+1.0 cm a 0.25, +1.8 a 0.40). La holgura **no se degrada al acelera
 📝 Cambiar `laser_z` y `wheel_radius` **no alteró el comportamiento**, como se preveía: son
 traslaciones en Z y el monitor trabaja en el plano.
 
-### 1. ⏳ Cargar el robot y medir la deriva con y sin el roll — es lo siguiente
+### ✅ ~~Cargar el robot y medir la deriva con y sin el roll~~ — CERRADO, no se persigue
 
 El interruptor ya está: `robot.launch.py publicar_inclinacion:=false`. Lo que falta es
 ejecutar **12 corridas** de `caracterizar_deriva_slam.py`, 6 por condición.
@@ -629,7 +635,9 @@ Y las «tres vías independientes» **no eran independientes**: el árbol TF sal
 y el acelerómetro es el mismo chip. **Una sola fuente contada tres veces.** El TF no
 confirmaba: repetía.
 
-⏳ **Consecuencia sin aplicar:** el driver publica un roll falso de ~8° en `/odom` y en TF. Eso
+✅ **YA APLICADO** (2026-07-31): `publicar_inclinacion` es `false` por defecto y `/odom` sale
+con `roll +0.00° pitch +0.00°`. ⚠️ Y no eran «~8° de roll»: son **6.9° y están en el PITCH**.
+Texto original: el driver publica un roll falso de ~8° en `/odom` y en TF. Eso
 inclina el plano del láser y comprime los alcances un **1 %** (~1 cm por metro) — y la deriva
 de SLAM medida es de **1–3 cm**. El orden de magnitud coincide: **podría ser parte de ella**.
 La corrección es una línea y **no se aplica sin medirla**. Manual, **cap. 13**.

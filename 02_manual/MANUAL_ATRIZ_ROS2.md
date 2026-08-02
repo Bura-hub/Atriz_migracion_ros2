@@ -2752,8 +2752,10 @@ pendiente.**
 
 📝 Lo que se sospechaba, y se cumplió:
 
-1. El resultado llega por **notificación**, y en este firmware las notificaciones de motor se
-   registran sin error y **no emiten ni un mensaje** (cap. 18).
+1. El resultado llega por **notificación**. ⚠️ Y este argumento se apoyaba en que «las
+   notificaciones de motor no llegan», **que resultó ser falso** (cap. 18): la de atasco sí
+   llega. Así que la sospecha era más débil de lo que parecía — pero la conclusión no cambia,
+   porque la calibración se probó y **no hizo nada**.
 2. **Hay dos motores con imanes a centímetros del sensor.** El propio Sphero avisa de que a ras
    de suelo las lecturas son ruidosas por el hierro de las estructuras.
 
@@ -4387,7 +4389,9 @@ respuesta resultó ser que **en aquella prueba la luz NO estaba encendida**: el 
 launch pisa el valor declarado en el nodo, así que cambiar `declare_parameter` no servía de nada.
 
 Con el LED encendido de verdad, `/color` **acierta los cinco colores** (18.4). Y la
-`confidence` sigue en 0 porque es el **clasificador** el que necesita una paleta, no el sensor.
+`confidence` sigue en 0 — pero 🔴 **NO porque falte una paleta**: la hay y está **activa**
+(cinco colores, cap. 18.4, comprobado el 2026-08-01). Es que las superficies probadas **no se
+parecen a ninguno de los cinco**, que es un resultado legítimo del clasificador, no un fallo.
 
 Evidencia cruda: `00_auditoria/evidencia_24_04/35_salud_motores.txt` y `36_leds_luz_encoders.txt`.
 
@@ -4687,7 +4691,7 @@ se estuvo a punto de diagnosticar un problema de D-Bus inexistente en un sistema
 
 | Pendiente | Por qué importa |
 |---|---|
-| `netplan try` en vivo | es la suposición que sostiene el diseño: ¿conviven estática y DHCP? |
+| ✅ ~~`netplan try` en vivo~~ | **Verificado el 2026-08-01**: `wlan0` con **tres** direcciones IPv4 a la vez y la ruta por defecto del DHCP. Conviven |
 | mDNS **por enlace** (`wlan0: no`) | el robot no resuelve el `.local` de otros robots |
 | Aislamiento de clientes del AP del aula | rompería mDNS y la comunicación PC↔robot |
 | El bloque de IP del laboratorio | el usuario lo tiene asignado, pendiente de tenerlo a mano |

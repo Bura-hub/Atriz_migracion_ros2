@@ -143,7 +143,8 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          └── 🔴 DECISIÓN: /ambient_light NO SE USA. No mide la luz de la sala
 
      F30 Lo que queda                                                          ⏳ SIGUIENTE
-         1. La plataforma web                 plan, Fase 5                ← AQUÍ
+         1. Migrar el robot 2                 FLOTA.md, «Robot 2»         ← AQUÍ
+         2. La plataforma web                 plan, Fase 5
          2. ✅ systemd en provision.sh        HECHO 2026-08-01 (paso 8/9)
          3. Recibir IR (`infrared_messages`)  el último hueco del SDK
          4. Confirmar los 0 fallos de SLAM con otra tanda (p=0.113)

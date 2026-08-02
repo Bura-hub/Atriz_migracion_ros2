@@ -135,7 +135,7 @@ Valores de referencia medidos sobre **ROS 2 Jazzy**:
 
 Si te desvías mucho de esos números, algo cambió. Son la línea base.
 
-O de una vez, con las 50 aserciones:
+O de una vez, con las **105** aserciones (`--hardware`):
 
 ```bash
 bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
