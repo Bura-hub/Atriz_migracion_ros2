@@ -221,6 +221,29 @@ escrito, ejecutado por partes y con sus arreglos commiteados.
 
 ---
 
+## ⏳ PENDIENTE DE VALIDAR CON EL ROBOT ENCENDIDO (2026-08-02)
+
+El robot se apagó para cargar (batería a **7.14 V, 20 %**; la guarda aborta a 7.00). Estas tres
+cosas están **hechas y sin validar contra hardware**. Es lo primero al volver.
+
+| Qué | Cómo se valida | Por qué no basta lo hecho |
+|---|---|---|
+| 🔴 **La lista blanca de rosbridge** | Con el RVR encendido y espacio libre, mandar `raw_motors` por WebSocket **con velocidad real** y **mirar el robot** | Que rosbridge no responda **no prueba que la orden no pasara**. Es el recíproco de la trampa que este proyecto lleva seis veces documentada |
+| 🔴 **B1 y B2 de la prueba de aceptación** | `python3 -u scripts/prueba_aceptacion.py --solo F4,F6` | ✅ Ya validado el 2026-08-02: parada **1.8 cm** (rota daría 45) y watchdog **2.6 cm** (rota daría 75). **Esto ya está cerrado** |
+| ⏳ **`base_length` 18.2 vs 19.0 cm** | Con escuadra, el robot quieto | Dos medidas con cinta que difieren 0.8 cm, y las dos anotadas como medidas. `laser_x = −0.005` **sí** quedó cerrado |
+
+**El comando de la primera, preparado:**
+
+```bash
+# 1. Enciende el RVR y déjale ~2 m despejados por delante
+python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/probar_lista_blanca.py
+# 2. Y la comprobación que la herramienta NO puede hacer sola: mandar raw_motors
+#    con velocidad REAL desde un cliente y MIRAR si el robot se mueve.
+#    Debe quedarse quieto. Si se mueve, la lista blanca no sirve.
+```
+
+---
+
 ## El siguiente paso, exacto
 
 ### ✅ Hecho el 2026-07-31: el keepalive del driver
