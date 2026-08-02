@@ -16,13 +16,21 @@ diagnóstico: una herramienta rota que se recomienda es peor que ninguna.
 ═══════════════════════════════════════════════════════════════════════════════
 🔴 TRES TRAMPAS QUE HACEN QUE ESTA MEDIDA SEA DIFÍCIL DE HACER BIEN
 ═══════════════════════════════════════════════════════════════════════════════
-Las tres se descubrieron el 2026-07-31, y las tres dan números BAJOS sobre un robot
-perfectamente sano — que es la peor forma de fallar, porque llevan a «arreglar»
-lo que no está roto.
+De las tres, **la primera resultó ser falsa** y está retractada abajo; las otras
+dos son reales y dan números BAJOS sobre un robot perfectamente sano — que es la
+peor forma de fallar, porque llevan a «arreglar» lo que no está roto.
 
-**1. `ros2 topic hz` NO PUEDE MEDIR ESTOS TOPICS.** `/odom`, `/imu` y `/scan` se
-   publican **BEST_EFFORT**, y `ros2 topic hz` se suscribe RELIABLE **sin opción
-   de cambiarlo** en Jazzy. DDS no empareja y da **0 Hz siempre**.
+**1. ~~`ros2 topic hz` NO PUEDE MEDIR ESTOS TOPICS.~~ FALSO. RETRACTADO.**
+   Se afirmó que `ros2 topic hz` se suscribe RELIABLE y por tanto da 0 Hz sobre
+   `/odom`, `/imu` y `/scan`. **No es cierto en `ros2cli 0.32.10`**: medido tres
+   veces sobre `/imu`, que es BEST_EFFORT, da **16.3–16.5 Hz**.
+
+   📝 Y de dónde salió el error, porque es la trampa que importa: al canalizar la
+      salida (`ros2 topic hz /imu | tail`) **Python pasa a buffer de bloque y no
+      imprime nada** antes de que el timeout lo mate. Sale vacío, que se leyó
+      como «no mide». Se arregla con `stdbuf -oL`, o mirándolo en la terminal.
+   → **La herramienta servía; el que la usó mal fui yo.** `ros2 topic hz` es
+      válido para estos topics. Retractado el 2026-08-01.
 
 **2. `rclpy.spin_once(nodo, …)` EN BUCLE PIERDE MENSAJES.** Cada llamada engancha
    el nodo al ejecutor global y lo desengancha al salir; en ese hueco se pierde

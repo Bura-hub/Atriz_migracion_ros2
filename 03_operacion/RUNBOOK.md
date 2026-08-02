@@ -258,6 +258,31 @@ espejado o emborronado — y coherente consigo mismo, así que mirarlo no lo det
 
 **5. ¿Reiniciaste el driver con SLAM ya arrancado?** Reinicia también SLAM.
 
+🔴🔴 **LO QUE LA CAPA DE SEGURIDAD NO VE: LOS PRECIPICIOS**
+
+`collision_monitor` tiene **una sola fuente**: `/scan` (`collision_monitor.yaml:196-200`). Y un
+LIDAR **2D horizontal no detecta un vacío a ninguna altura** — el rayo simplemente no vuelve, y
+una lectura fuera de `range_max` **no es un obstáculo** para `nav2_collision_monitor`. No es un
+ajuste que falte: es la dimensionalidad del sensor.
+
+⚠️ **Consecuencia operativa:** un escalón, el borde de una mesa o el hueco de una escalera **no
+frenan al robot**. Con estudiantes teleoperando 16 robots **en remoto y sin verlos**, esto es un
+riesgo real, y hoy la única mitigación es **dónde se ponen los robots**.
+
+→ 📌 **Regla de laboratorio:** los robots operan **sobre suelo continuo y cerrado**, nunca en
+  mesas, tarimas ni cerca de escaleras sin una barrera física.
+
+✅ **Hay hardware para taparlo, sin cámara**, y está caracterizado: el sensor de color mira al
+suelo (evidencia 37:59) y su canal `clear` recorre **181 (negro) a 2288 (blanco)** (evidencia
+37:23,26). Sobre un vacío no habría superficie que devuelva la luz.
+⚠️ **Sin medir, y nunca se ha probado sobre un VACÍO.** A la velocidad real de trabajo —**0.40
+m/s**, `desired_linear_vel` en `nav2_atriz.yaml:124`— el robot avanza **~6.4 cm cada 160 ms**, así
+que habría que comprobar que `clear` cae lo bastante **y a tiempo**. Además exige
+`color_detection:=true`, que deja un LED blanco encendido bajo el chasis (hoy en `false`).
+📎 Análisis completo: `00_auditoria/evidencia_24_04/46_comparativa_collaborativeroboticslab.txt`
+
+---
+
 ### El robot chocó durante una prueba
 
 Las herramientas de banco **mueven el robot y no hay evitación de obstáculos**: solo existe el

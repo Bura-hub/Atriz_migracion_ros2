@@ -3234,6 +3234,31 @@ cuando el robot está **atascado**, o sea pegado a algo. `backup` habría retroc
 Arreglo: remapear `cmd_vel → cmd_vel_raw` también en el `behavior_server`. **No lo delataba
 ningún error** — solo salió de mirar el número.
 
+### 12.2b 🔴🔴 Lo que NO ve: los precipicios
+
+`collision_monitor` tiene **una sola fuente**, `/scan` (`collision_monitor.yaml:196-200`), y un
+LIDAR **2D horizontal no detecta un vacío a ninguna altura**: el rayo no vuelve, y una lectura
+fuera de `range_max` **no es un obstáculo** para `nav2_collision_monitor`.
+
+⚠️ No confundirlo con la limitación del capítulo 12.2, que es la contraria: allí el plano pasa
+**por encima** de zócalos y cajas bajas. Aquí el problema no es la altura del plano — **es que un
+sensor 2D no tiene con qué ver un hueco.** Subir o bajar el LIDAR no lo arregla.
+
+**Qué significa en la práctica:** un escalón, el borde de una mesa o el hueco de una escalera **no
+frenan al robot**. Con estudiantes teleoperando en remoto y sin ver el robot, es un riesgo real.
+
+📌 **Regla de laboratorio, y hoy es la única mitigación:** suelo continuo y cerrado. Nunca sobre
+mesas o tarimas, ni cerca de escaleras sin barrera física.
+
+✅ **Se puede tapar sin cámara**, y el hardware ya está caracterizado: el sensor de color mira al
+suelo y su canal `clear` va de **181 (negro) a 2288 (blanco)**. Sobre un vacío no habría
+superficie que devolviera la luz.
+⚠️ **Nunca se ha medido sobre un vacío.** A 0.40 m/s el robot avanza **~6.4 cm cada 160 ms**: hay
+que comprobar que `clear` se desploma lo bastante **y a tiempo**. Y exige `color_detection:=true`,
+que enciende un LED blanco bajo el chasis (hoy en `false`).
+
+---
+
 ### 12.3 🔴 `approach` no es una parada de seguridad
 
 Primera configuración, con `radius: 0.11` (el mismo `robot_radius` de los costmaps):
@@ -4150,7 +4175,7 @@ get_motor_thermal_protection_status  -> 27.9 / 27.7 °C, estados 0/0
 > 🔴🔴 **RETRACTADO EL 2026-08-01: EL ATASCO NO SE QUEDA FUERA.** La notificación del firmware
 > **sí llega** — 3 de 3 detecciones con el robot bloqueado a mano, acertando la oruga las tres
 > veces. La medida que decía lo contrario hizo **dos** ensayos, y el primero **ya usaba el camino
-> bueno** (`move_timed`) — durante **3 s**, cuando la detección tarda **~5 s**. 🔴 **La causa es
+> bueno** (`move_timed`) — durante **3 s**, cuando la detección tardó **~5 s** (⚠️ n=1, **5 ±2 s** por la resolución del journal, y a distinta velocidad que el ensayo fallido — ver `CLAUDE.md`). 🔴 **La causa es
 > el TIEMPO, no el camino**; decir «se probó con `raw_motors`» solo explicaba el segundo ensayo.
 > ⚠️ Y queda un confusor sin aislar: 0.15 m/s entonces contra 0.08 ahora.
 >
@@ -4368,7 +4393,7 @@ registra los umbrales **del firmware** en el log al arrancar:
 | | |
 |---|---|
 | batería **baja** | `voltage` < **7.0 V** |
-| batería **crítica** | `voltage` < **6.5 V** — el RVR se apagará |
+| batería **crítica** | `voltage` < **6.5 V** — umbral que **devuelve el propio firmware** (`get_battery_voltage_state_thresholds`). ⚠️ Qué hace el RVR al cruzarlo **no está documentado y no se ha provocado**: no asumas que se apaga solo |
 | histéresis | **0.2 V**, la aplica el firmware, así que el estado **no rebota** |
 
 📝 **Sale gratis:** las dos lecturas van en la misma pasada del keepalive, que ya llamaba al RVR

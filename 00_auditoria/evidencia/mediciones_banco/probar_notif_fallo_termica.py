@@ -42,10 +42,18 @@ CÓMO SE PROVOCAN
 
    ⚠️ Y el margen es a propósito: la temperatura de `/motor_status` **se sondea
       cada 30 s**, así que el valor que lee esta prueba puede tener medio minuto
-      de retraso. A los ~6.5 °C/min medidos, eso son **~3 °C de sobrepaso** antes
-      de que el corte se entere. Con el tope en 65 el corte real llegaba cerca de
-      70. La herramienta ahora **mira `antiguedad_termico_s`** y avisa si el dato
+      de retraso. Con el tope en 65 el corte real llegaba muy por encima de 65.
+      La herramienta ahora **mira `antiguedad_termico_s`** y avisa si el dato
       está viejo.
+
+   🔴 CUÁNTO es ese sobrepaso: NO se sabe con precisión, y el número que se venía
+      usando (~3 °C, de «~6.5 °C/min») **está subestimado**. En la única tirada
+      que existe el ritmo **no es constante y va subiendo**: 5.0 → 8.4 → 10.2
+      °C/min entre tramos consecutivos. Con el último ritmo medido el sobrepaso
+      son **~5 °C**, no 3, y **la extrapolación empeora cuanto más caliente**,
+      que es justo el régimen en el que importa.
+      Por eso 55: 55 + 5 = 60, aún lejos de cualquier daño. **El margen se
+      sostiene por holgura, no por la cifra.** No lo subas apoyándote en 6.5.
 """
 import argparse
 import time
@@ -57,7 +65,8 @@ from atriz_rvr_msgs.msg import MotorStatus
 from atriz_rvr_msgs.srv import MoveTimed
 
 #: 🔴 55 y no 65: el dato llega con hasta 30 s de retraso (sondeo del driver) y
-#: los motores suben ~6.5 °C/min, así que el sobrepaso real ronda los 3 °C.
+#: el ritmo medido va de 5 a 10 °C/min **y subiendo**, así que el sobrepaso llega
+#: a ~5 °C. Ver la cabecera: NO uses «6.5 °C/min» para recalcular este tope.
 TOPE_C = 55.0
 #: Si el dato de temperatura es más viejo que esto, no sirve para cortar.
 EDAD_MAX_S = 45.0

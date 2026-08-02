@@ -283,13 +283,25 @@ Medido en este robot con `ros2cli 0.32.10`:
 
 ```
 ros2 topic hz /odom       → average rate: 16.525     (Reliability: BEST_EFFORT)
-ros2 topic hz /imu        → average rate: 13.338
+ros2 topic hz /imu        → average rate: 13.338 · 16.297 · 16.505   (tres tomas)
 ros2 topic hz /encoders   → average rate: 16.669
 ```
 
-El `ros2 topic hz` de Jazzy **consulta el QoS del publicador y lo adapta**. Lo de abajo era
-cierto en alguna versión anterior de `ros2cli` y **dejó de serlo sin que nadie lo volviera a
-medir**.
+**Por qué funciona**, leído en el código y no supuesto: `ros2topic/verb/hz.py:268` se suscribe con
+**`qos_profile_sensor_data` fijo** — BEST_EFFORT · VOLATILE · depth 5. Un suscriptor BEST_EFFORT
+empareja con publicadores **BEST_EFFORT y RELIABLE** por igual (lo pedido ≤ lo ofrecido), así que
+`hz` sirve para **todos** los topics. Es exactamente lo contrario de lo que decía la creencia.
+📝 Una versión anterior de esta nota decía que `hz` «consulta el QoS del publicador y lo adapta».
+**Eso también era inventado**: no consulta nada, lleva el perfil clavado. La conclusión era
+correcta por una razón equivocada, y corregir solo la conclusión habría dejado el error en pie.
+
+⚠️ **Dos trampas al usarlo:**
+- **Canalizar su salida la esconde.** `ros2 topic hz /imu | tail` no imprime nada antes del
+  timeout, porque Python pasa a buffer de bloque. Sale vacío y se lee como «no mide» — que es
+  justo de donde salió la creencia falsa. Usa `stdbuf -oL`, o míralo en la terminal.
+- **`/imu` no tiene un ritmo estable:** 13.338, 16.297 y 16.505 Hz en tres tomas, más **15.27 Hz**
+  con suscriptor propio. La dispersión es del **±11 %** y **no está explicada**. No cites un
+  número suelto de `/imu` como si fuera su frecuencia.
 
 🔴 **Y esa creencia falsa ha costado caro:** guió el rediseño del verificador, y el 2026-08-01
 llevó a «corregir» el plan y el RUNBOOK sustituyendo un comando que funciona. Se detectó al
@@ -588,7 +600,7 @@ port. Ha mordido **dos veces**: al escribir el driver y al escribir una herramie
 
 **✅ ~~LA DETECCIÓN DE ATASCO PODRÍA REABRIRSE~~ — NO HACE FALTA: ya funciona** por la
 notificación del firmware (3 de 3, y dice qué oruga). Esto nació de creer que era imposible.
-📝 La temperatura sigue valiendo como **corroboración**: un motor bloqueado sube ~6.5 °C/min.
+📝 La temperatura sigue valiendo como **corroboración**: un motor bloqueado sube **+11.1 °C en 90 s** de bloqueo (ritmo NO constante, 5→10 °C/min, n=1).
 Texto original: La doc oficial
 dice que la temperatura del motor está **«calculated from motor current»** — o sea que es un
 **proxy de la corriente**, que es lo que no se puede leer. Y el driver **ya publica** las dos
@@ -620,7 +632,10 @@ detecciones, acertando la oruga las tres veces**.
 
 🔴 **La causa real es el TIEMPO, no el camino.** La evidencia 35 hizo **dos** ensayos, y el
 primero ya usaba `move_timed` —`drive_rc_si_units`, el camino bueno— durante **3 s**. La
-detección tarda **~5 s**. No dio tiempo. ⚠️ Y hay un confusor sin aislar: aquel ensayo iba a
+detección tardó **~5 s**. No dio tiempo.
+
+⚠️ **Ese «~5 s» es débil y conviene saberlo:** sale de **un solo par de marcas del journal** (18:08:02 → 18:08:07), que tiene resolución de 1 s en cada extremo — o sea **5 ±2 s**. El atasco se detectó 3 de 3, pero **solo se cronometró una vez**. Y no basta para cerrar la explicación: el ensayo fallido iba a **0.15 m/s** y el bueno a **0.08 m/s**, así que cambiaron dos cosas a la vez. Lo razonable es que a más velocidad se detecte *antes* (el error entre comandado y medido es mayor), lo que **refuerza** la conclusión — pero eso es un argumento, no una medida.
+📝 **El experimento que lo cerraría**, ahora que `probar_atasco.py` respeta sus argumentos de verdad: `--vel 0.15 --seg 3` reproduce las condiciones exactas del ensayo fallido. Si detecta, la explicación del tiempo es incompleta. Requiere bloquear el robot a mano. ⚠️ Y hay un confusor sin aislar: aquel ensayo iba a
 0.15 m/s y el que detecta a 0.08.
 📝 **La lección: antes de concluir que algo NO ocurre, pregunta cuánto tendrías que haber
 esperado.** Un negativo sin esa cuenta no es un negativo.
@@ -639,14 +654,17 @@ amarillos y rojos** por su cuenta. El driver no los toca. Es diagnóstico sin ab
 ⚠️ **`enable_motor_fault_notify` y la térmica: repetidas por el camino bueno y quedan NO
 VERIFICADAS.** 10 ciclos de bloqueo real subieron los motores de 28.7 a **40.0 °C** y no saltó
 ninguna. Pero **eso no prueba nada**: la protección térmica no actúa a 40 °C, y el tope de
-seguridad de la prueba estaba en 65 — **el ensayo nunca pudo dispararla**. Llegar a 70-80 °C
-exigiría ~5 min más de bloqueo continuo. 📝 **No se persigue**: el sondeo cada 30 s ya da la
+seguridad de la prueba estaba en 65 — **el ensayo nunca pudo dispararla**.
+📝 A qué temperatura salta **no se sabe**: no está en el SDK ni en la documentación de Sphero
+que se rescató. La versión anterior de este párrafo decía «70-80 °C» y «~5 min más», y **las dos
+cifras eran inventadas**: la primera no tiene fuente, y la segunda extrapolaba linealmente un
+ritmo que en la propia medición **no es lineal** (5.0 → 8.4 → 10.2 °C/min entre tramos). 📝 **No se persigue**: el sondeo cada 30 s ya da la
 temperatura **y** el estado térmico, así que saber si además llega la *notificación* aporta muy
 poco, y el coste es estrés real sobre la única unidad montada. El fallo eléctrico no se puede
 provocar sin romper algo.
 
 ✅ **Y de esa prueba salieron dos datos que sí valen:**
-- **Un motor bloqueado se calienta a ~6.5 °C/min.** La temperatura sirve de **corroboración** de
+- **Un motor bloqueado sube **+11.1 °C en 90 s** de bloqueo (ritmo NO constante, 5→10 °C/min, n=1).** La temperatura sirve de **corroboración** de
   atasco: si `/motor_status` marca atasco *y* la temperatura sube, no hay duda.
 - 🔴 **La temperatura publicada puede tener 30 s de retraso** — solo cambia cuando corre el
   sondeo. **La web no debe leer una temperatura plana como «estable»**: puede ser el mismo dato
@@ -1039,7 +1057,7 @@ de verdad. Dos consecuencias que cambian el día a día:
 | `/map` | **0.200 Hz** exactos (= `map_update_interval` 5 s) | 2026-07-30 |
 | **Timeout de inactividad del RVR** | **300.6 s = 5.01 min** (dos medidas idénticas) | 2026-07-31 |
 | `/battery_state` | cada **30.0 s** exactos — es el latido del keepalive | 2026-07-31 |
-| `/motor_status` | cada **30 s** · temperatura en reposo **27.5 / 28.3 °C** · ✅ **el atasco SÍ se detecta** y dice **qué oruga** · bloqueado sube a **~6.5 °C/min** | 2026-08-01 |
+| `/motor_status` | cada **30 s** · temperatura en reposo **27.5 / 28.3 °C** · ✅ **el atasco SÍ se detecta** y dice **qué oruga** · bloqueado **+11.1 °C en 90 s** (5→10 °C/min, n=1) | 2026-08-01 |
 | `/encoders` | **16.57 Hz** · ticks con signo (7792 ticks/m) | 2026-08-01 |
 | `/ambient_light` | **13.06 Hz** · ~1.8 con los LEDs apagados, **23.55 con todos encendidos** (13.3×) | 2026-08-01 |
 | **Batería** | ✅ **`/battery_state` publica `voltage`** desde el 2026-08-01: **8.28 V** al «100 %» · umbrales del firmware **7.0 / 6.5 V**, histéresis 0.2 | 2026-08-01, evidencia 43 |

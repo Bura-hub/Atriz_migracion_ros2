@@ -354,7 +354,8 @@ Sigue sin haber nada que **adoptar** tal cual. Pero de mirar TODAS las ramas han
 salido tres cosas que no estaban en las principales:
 
   1. 🔴 **Nuestra capa de seguridad no detecta precipicios**, y es estructural
-     por la altura del LIDAR. No estaba documentado como limitacion. Hay una via
+     por la DIMENSIONALIDAD del LIDAR (2D horizontal), no por su altura — esta
+     conclusion se habia quedado con la explicacion vieja, ya corregida arriba. No estaba documentado como limitacion. Hay una via
      con el sensor de color, sin medir.
   2. **Colores por robot en el URDF** para distinguirlos en RViz (Fase 6).
   3. Confirmado que el driver de ROS 1 de Atriz **deriva de UIBK/main**, y que

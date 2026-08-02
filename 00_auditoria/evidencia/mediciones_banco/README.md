@@ -143,10 +143,13 @@ reconexión del UART.
 | `probar_atasco.py` | si el driver detecta un atasco **y dice qué oruga** | ⚠️ **sí, y TÚ lo bloqueas** |
 | `probar_notif_fallo_termica.py` | si llegan las notificaciones de fallo y térmica | ⚠️ **sí · calienta los motores** |
 
-🔴 **`medir_ritmo_ros2.py` documenta tres formas distintas de medir mal un ritmo**, las tres
-descubiertas el mismo día y las tres dando números bajos sobre un robot sano: `ros2 topic hz`
-(QoS incompatible), `rclpy.spin_once` en bucle (pierde mensajes) y `mensajes/duración` (mete el
-descubrimiento de DDS en el denominador). Merece leerse la cabecera antes de escribir cualquier
+🔴 **`medir_ritmo_ros2.py` documenta formas de medir mal un ritmo**, todas dando números bajos
+sobre un robot sano: `rclpy.spin_once` en bucle (pierde mensajes) y `mensajes/duración` (mete el
+descubrimiento de DDS en el denominador).
+
+⚠️ Incluía una tercera —«`ros2 topic hz` no empareja con BEST_EFFORT»— que **es falsa y está
+retractada**: medido, da 16.3–16.5 Hz sobre `/imu`. Lo que pasaba es que **al canalizar su salida
+Python cambia a buffer de bloque** y no imprime nada antes del timeout. Usa `stdbuf -oL`. Merece leerse la cabecera antes de escribir cualquier
 medida de frecuencia en este proyecto.
 
 

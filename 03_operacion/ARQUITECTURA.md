@@ -174,6 +174,31 @@ expone 18**, y **todos son alcanzables por rosbridge**, así que conviene saber 
 ⚠️ **`/start_scan` y `/stop_scan` NO son del driver**: son servicios del **nodo del YDLIDAR**.
 Buscarlos en el driver es media hora tirada.
 
+🔴🔴 **LO QUE LA CAPA DE SEGURIDAD NO VE: LOS PRECIPICIOS**
+
+`collision_monitor` tiene **una sola fuente**: `/scan` (`collision_monitor.yaml:196-200`). Y un
+LIDAR **2D horizontal no detecta un vacío a ninguna altura** — el rayo simplemente no vuelve, y
+una lectura fuera de `range_max` **no es un obstáculo** para `nav2_collision_monitor`. No es un
+ajuste que falte: es la dimensionalidad del sensor.
+
+⚠️ **Consecuencia operativa:** un escalón, el borde de una mesa o el hueco de una escalera **no
+frenan al robot**. Con estudiantes teleoperando 16 robots **en remoto y sin verlos**, esto es un
+riesgo real, y hoy la única mitigación es **dónde se ponen los robots**.
+
+→ 📌 **Regla de laboratorio:** los robots operan **sobre suelo continuo y cerrado**, nunca en
+  mesas, tarimas ni cerca de escaleras sin una barrera física.
+
+✅ **Hay hardware para taparlo, sin cámara**, y está caracterizado: el sensor de color mira al
+suelo (evidencia 37:59) y su canal `clear` recorre **181 (negro) a 2288 (blanco)** (evidencia
+37:23,26). Sobre un vacío no habría superficie que devuelva la luz.
+⚠️ **Sin medir, y nunca se ha probado sobre un VACÍO.** A la velocidad real de trabajo —**0.40
+m/s**, `desired_linear_vel` en `nav2_atriz.yaml:124`— el robot avanza **~6.4 cm cada 160 ms**, así
+que habría que comprobar que `clear` cae lo bastante **y a tiempo**. Además exige
+`color_detection:=true`, que deja un LED blanco encendido bajo el chasis (hoy en `false`).
+📎 Análisis completo: `00_auditoria/evidencia_24_04/46_comparativa_collaborativeroboticslab.txt`
+
+---
+
 🔴 **Los servicios de movimiento SE SALTAN el `collision_monitor` y el watchdog.** No publican
 en ningún topic: hablan al RVR **por el puerto serie**. Lo único que los para es la parada de
 emergencia. Y `raw_motors` **no tiene corte automático**: sigue hasta que se le manda modo 0.
@@ -256,7 +281,7 @@ gruesa. Los umbrales son del propio firmware y el driver los registra en el log 
 | | |
 |---|---|
 | batería **baja** | `voltage` < **7.0 V** |
-| batería **crítica** | `voltage` < **6.5 V** — el RVR se apagará |
+| batería **crítica** | `voltage` < **6.5 V** — umbral que **devuelve el propio firmware** (`get_battery_voltage_state_thresholds`). ⚠️ Qué hace el RVR al cruzarlo **no está documentado y no se ha provocado**: no asumas que se apaga solo |
 | histéresis | **0.2 V**, la aplica el firmware (no rebota solo) |
 
 ⚠️ `power_supply_health` **no puede expresar «baja»**, y no se fuerza: una batería con poca

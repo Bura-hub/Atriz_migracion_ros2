@@ -242,8 +242,9 @@ cat <<EOF
   AHORA:
     1. Expulsa la tarjeta con seguridad y ponla en el robot $ID2.
     2. Arranca. Espera 2-3 minutos: cloud-init hace su trabajo inicial.
-    3. Anota la MAC del robot en el router y crea la RESERVA DHCP.
-       (Con 16 robots es la única forma sensata de saber quién es quién.)
+    3. NO hace falta reserva DHCP: el robot toma la IP fija que le da red.txt
+       (10.14.7.NN en el laboratorio) Y DHCP a la vez. Se llega por nombre:
+       rvr-$ID2.local, que funciona en las dos redes sin tocar el router.
     4. Entra por SSH y comprueba que es quien debe ser:
 
          ssh sphero@rvr-$ID2.local        # o por la IP del router

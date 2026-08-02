@@ -89,7 +89,10 @@ nada:** la protección térmica no actúa a 40 °C y el tope de seguridad de la 
 estado, y el coste sería castigar la única unidad montada.
 
 **Pero salieron dos datos que valen:**
-- **Un motor bloqueado se calienta a ~6.5 °C/min** — sirve de **corroboración** de atasco.
+- **Un motor bloqueado sube +11.1 °C en 90 s de bloqueo** — sirve de **corroboración** de atasco.
+  ⚠️ Se publicó como «~6.5 °C/min». Es engañoso: el ritmo **no es constante y sube**
+  (5.0 → 8.4 → 10.2 °C/min entre tramos de la MISMA tirada, n=1), y el denominador
+  contaba 10 ciclos donde hay 9 intervalos. Corregido el 2026-08-01.
 - 🔴 **La temperatura publicada puede tener 30 s de retraso.** La web **no debe leer una
   temperatura plana como «estable»**: puede ser el mismo dato repetido. Para eso está
   `antiguedad_termico_s`.

@@ -126,7 +126,7 @@ De los 62 métodos que el driver no usaba se **probaron las 16 consultas** que p
 | | |
 |---|---|
 | ✅ **Batería con voltaje y umbrales del firmware** | implementado y verificado. `voltage` 8.28 V · umbrales **7.0 / 6.5 V** leídos del propio firmware. 🔴 **La web debe mirar `voltage`, no `percentage`**: el porcentaje decía 100 % a 1.29 V del umbral de «baja» |
-| 🔴 **El atasco SÍ se detecta**, y dice **qué oruga** | 3 de 3 con el robot bloqueado. La conclusión anterior («las notificaciones no llegan») era **falsa**, y la causa es **el tiempo**: el ensayo original duró **3 s** y la detección tarda **~5 s**. Y el RVR **enciende LEDs amarillos y rojos** por su cuenta |
+| 🔴 **El atasco SÍ se detecta**, y dice **qué oruga** | 3 de 3 con el robot bloqueado. La conclusión anterior («las notificaciones no llegan») era **falsa**, y la causa es **el tiempo**: el ensayo original duró **3 s** y la detección tardó **~5 s** (⚠️ n=1, de un par de marcas del journal con resolución de 1 s: **5 ±2 s**, y a otra velocidad que el ensayo fallido). Y el RVR **enciende LEDs amarillos y rojos** por su cuenta |
 | 🔴 **No hay rumbo absoluto** — limitación del hardware | `get_magnetometer_reading` da `bad_cid` y `magnetometer_calibrate_to_north` **no hace nada**. El firmware ya está en la última versión. **La pose inicial tendrá que venir del mapa o del operador** |
 | 🔴 **No hay corriente de motores** | `bad_cid`. Ya no importa: el atasco se detecta por notificación |
 | ⚠️ **Térmica y fallo: NO VERIFICADAS** | la prueba llegó a 40 °C y no podía disparar nada. No se persigue: el sondeo cada 30 s ya da el dato |
@@ -135,7 +135,7 @@ De los 62 métodos que el driver no usaba se **probaron las 16 consultas** que p
 ⏳ **Lo único que queda necesita un segundo robot:** todo el **IR robot-a-robot**. Y el arreglo
 de seguridad de `set_ir_evading` está verificado **por código**, nunca con un emisor delante.
 
-📝 **Dos datos que la Fase 5 necesita saber:** un motor bloqueado se calienta a **~6.5 °C/min**
+📝 **Dos datos que la Fase 5 necesita saber:** un motor bloqueado sube **+11.1 °C en 90 s** de bloqueo (ritmo NO constante, 5→10 °C/min, n=1)
 (sirve de corroboración de atasco), y **la temperatura publicada puede tener 30 s de retraso** —
 una temperatura plana **no** significa «estable», puede ser el mismo dato repetido.
 
