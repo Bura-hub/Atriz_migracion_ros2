@@ -155,13 +155,24 @@ comunicación PC↔robot si el PC va por WiFi.
 La tabla de arriba solo lista los tres que la web necesita en su ciclo normal. **El driver
 expone 18**, y **todos son alcanzables por rosbridge**, así que conviene saber qué hay:
 
-| Grupo | Servicios | Riesgo |
+> 🔴 **ESTA TABLA LISTABA CINCO SERVICIOS QUE NO EXISTEN** hasta el 2026-08-01: `set_all_leds`,
+> `turn_leds_off`, `enable_color_detection`, `reset_locator` y `reset_yaw`. Son **métodos del
+> SDK**, no servicios ROS, y el manual los cita en otro contexto — por eso el error era
+> plausible y difícil de ver. Quien programara la web escribiría el cliente, no obtendría
+> respuesta, y buscaría el fallo en el QoS. Lista verificada contra el código y contra
+> `ros2 service list`.
+
+| Grupo | Servicios (**los reales**) | Riesgo |
 |---|---|---|
-| LEDs | `set_led_rgb`, `set_leds`, `set_all_leds`, `turn_leds_off` | ninguno |
-| Sensores | `get_rgbc_sensor_values`, `enable_color_detection`, … | ninguno |
-| Configuración | `set_drive_parameters`, `reset_locator`, `reset_yaw` | bajo |
+| LEDs | `set_led_rgb`, `set_leds`, `set_multiple_leds`, `trigger_led_event` | ninguno |
+| Lectura | `get_rgbc_sensor_values`, `get_encoders`, `get_system_info`, `get_control_state` | ninguno |
+| Configuración | `set_drive_parameters`, `set_pos_and_yaw` | bajo |
+| Parada | `release_emergency_stop` | — |
 | 🔴 **Movimiento** | `move_timed`, `raw_motors`, `move_to_pose`, `move_to_pos_and_yaw` | **alto** |
-| 🔴 **Infrarrojos** | `set_ir_mode`, `set_ir_evading` | **alto** |
+| 🔴 **Infrarrojos** | `set_ir_mode`, `set_ir_evading`, `send_infrared_message` | **alto** |
+
+⚠️ **`/start_scan` y `/stop_scan` NO son del driver**: son servicios del **nodo del YDLIDAR**.
+Buscarlos en el driver es media hora tirada.
 
 🔴 **Los servicios de movimiento SE SALTAN el `collision_monitor` y el watchdog.** No publican
 en ningún topic: hablan al RVR **por el puerto serie**. Lo único que los para es la parada de
@@ -171,13 +182,35 @@ emergencia. Y `raw_motors` **no tiene corte automático**: sigue hasta que se le
 No los uses desde la web sin espacio despejado. Comprueban la parada de emergencia **desde el
 2026-08-01** — antes no, y era un agujero real.
 
-📝 **Y `ros2 service list` no es autoritativo:** omitió 1 de los 18. Para saber si un servicio
+📝 **Y `ros2 service list` no es autoritativo:** vuelve a omitir `set_drive_parameters`
+(17 de 18), comprobado el 2026-08-01. Para saber si un servicio
 existe, usa un cliente.
 
 🔴 **`cmd_vel_raw`, NO `cmd_vel`.** Este documento decía `cmd_vel`, y eso **salta la capa de
 seguridad**: `/cmd_vel` es la **salida** del `collision_monitor` y tiene un solo publicador. La
 cadena es `web → cmd_vel_raw → collision_monitor → cmd_vel → driver`. Publicar en `/cmd_vel`
 funciona —el robot obedece— y por eso es peligroso. Manual, cap. 12.
+
+### 🔴 Lo que la web necesita y NO está aquí todavía
+
+Con este contrato **no se puede programar la Fase 5 entera**. Falta:
+
+| Falta | Por qué importa |
+|---|---|
+| **`/navigate_to_pose`** (`nav2_msgs/action/NavigateToPose`) | Es «ve a la mesa 3», el caso de uso que justifica AMCL y el marco compartido. Es una **acción**, no un topic ni un servicio: rosbridge la expone distinto |
+| **`/initialpose`** (`geometry_msgs/PoseWithCovarianceStamped`) | El RVR **no tiene rumbo absoluto** (cap. 19 y evidencia 42), así que **la pose inicial de cada robot tiene que venir de fuera**. Sin esto, AMCL no sabe dónde empieza |
+
+🔴 **Y una contradicción que hay que resolver antes de la Fase 5: NADIE ARRANCA Nav2 NI AMCL.**
+`atriz-robot.service` levanta **solo** `robot.launch.py`. `nav2.launch.py`, `slam.launch.py` y
+`localizacion.launch.py` se lanzan **a mano, por SSH, en dos terminales**. Así que la afirmación
+de la Decisión 2 —«el SSH ya no hace falta ni para el ciclo de vida»— **es cierta solo para
+conducir en teleoperación**: para navegar, hoy alguien tiene que entrar por SSH.
+
+⏳ **Decisión pendiente:** ¿una segunda unidad systemd? ¿la web los arranca por un servicio ROS?
+¿se fusionan en `robot.launch.py` con un argumento? Hay que fijarlo, porque **cambia el
+contrato**.
+
+---
 
 🔴 **Para la batería, la web debe mirar `voltage`, no `percentage`.** Medido: el porcentaje
 decía **100 %** con la batería a **8.29 V**, a 1.29 V del umbral de «baja». Es una estimación

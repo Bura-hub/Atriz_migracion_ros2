@@ -1,9 +1,11 @@
 # Runbook de operación
 
-> **Estado: válido para el sistema ROS Noetic actual** (verificado 2026-07-29).
-> Se reescribirá para ROS 2 Jazzy en las fases 2–5. Los procedimientos de
-> **diagnóstico** de la sección «Cuando algo falla» son en su mayoría independientes
-> de la versión de ROS y seguirán sirviendo.
+> ## ✅ Estado: **ROS 2 Jazzy**, verificado sobre rvr-01
+>
+> 🔴 Esta cabecera decía «válido para el sistema ROS Noetic actual · se reescribirá para ROS 2
+> Jazzy» hasta el 2026-08-01, cuando **todo el cuerpo del documento ya era ROS 2**. Hacía
+> desconfiar del documento entero justo cuando más falta hace: es el que se abre con el robot
+> caído.
 
 ---
 
@@ -86,7 +88,9 @@ Y lo más importante: **¿está el RVR encendido, con la batería puesta?** Un R
 produce exactamente el mismo síntoma que un cable mal conectado.
 
 > **Para el sistema viejo (Noetic), tras restaurar la imagen `dd`:** `roscore` en una terminal
-> y `rosrun atriz_rvr_driver Atriz_rvr_node.py` en otra, o `bash ~/atriz_git/src/Atriz_rvr/start_ros.sh`.
+> 📝 Eso era ROS 1. Hoy el robot **arranca solo** con `atriz-robot.service`, y para lanzarlo a
+> mano hay que **parar el servicio primero** (`sudo systemctl stop atriz-robot`) o los dos se
+> pelean por `/dev/rvr`.
 > Los nombres del `MANUAL SPHERO.docx` (`sphero_rvr_hw`, `sphero_rvr`) **no existen**.
 
 ---
@@ -102,7 +106,10 @@ ros2 node list                       # /rvr_driver /robot_state_publisher /ydlid
 antes **pasaba con el sistema roto**:
 
 ```bash
-ros2 topic hz /odom          # 16.7 Hz  🔴 el RITMO, no que el topic exista: el RVR se dormía
+ros2 topic hz /odom          # ~16.5 Hz ✅ funciona: topic hz adapta el QoS
+#    🔴 Mira el RITMO, no que el topic exista: `ros2 topic list` conserva topics
+#       de nodos MUERTOS, y el RVR se dormía con el topic registrado.
+#    📝 Para caracterizar (jitter, huecos) usa `medir_ritmo_ros2.py`.
                              #          dejando el nodo vivo y publicando CERO, sin un error
 ros2 run tf2_ros tf2_echo odom base_footprint
                              # 🔴 ESTA, no `odom laser`: la segunda resolvía por el camino
@@ -110,7 +117,7 @@ ros2 run tf2_ros tf2_echo odom base_footprint
 ros2 topic echo /battery_state --once
                              # llega cada 30 s. Es el latido del keepalive: si no llega,
                              # el robot se dormirá a los 5 min
-ros2 topic hz /scan          # ~10 Hz
+ros2 topic hz /scan          # 10.1–11.9 Hz, con el barrido ENCENDIDO
 ros2 lifecycle get /slam_toolbox     # active [3] — si dice `unconfigured`, está vivo y NO mapea
 ```
 
@@ -180,7 +187,7 @@ nodo aparece en `ros2 node list`, los topics están registrados (`Publisher coun
 hay ni un error en el log**.
 
 ```bash
-ros2 topic hz /odom          # ¿16.7 Hz, o nada?
+ros2 topic hz /odom          # ¿~16.5 Hz, o nada?
 ```
 
 **Si no llega nada, el RVR se durmió.** Medido: se duerme a los **300.6 s = 5.01 min** exactos
@@ -424,7 +431,8 @@ sudo dmesg | grep -iE "throttl|under.?volt"                    # vacío = alimen
 ### La batería se agota
 
 ```bash
-rosservice call /battery_state
+# `battery_state` es un TOPIC, no un servicio — y `rosservice` es de ROS 1.
+ros2 topic echo /battery_state --once
 ```
 
 La Pi se alimenta del USB del RVR, así que **una batería baja apaga las dos cosas**. Si el
@@ -438,7 +446,7 @@ software.
 **`git fetch` primero.** Siempre.
 
 ```bash
-cd ~/atriz_git/src/Atriz_rvr
+cd ~/atriz_ws/src/Atriz_rvr        # ~/atriz_git era la ruta del sistema VIEJO
 git fetch origin
 git status -sb
 git log --oneline HEAD..origin/main    # ¿qué me falta?
@@ -472,7 +480,11 @@ journalctl -u atriz-robot -f
 atriz-escaneo on | off | estado
 
 # Emergencia
-ros2 topic pub --once /rvr/emergency_stop std_msgs/msg/Empty "{}"
+# ✅ El oficial es /emergency_stop, con RELIABLE + VOLATILE.
+#    /rvr/emergency_stop lo escucha el driver a propósito (la web heredada lo
+#    usaba), pero es el nombre que causó el fallo nº2: no lo enseñes.
+ros2 topic pub --once /emergency_stop std_msgs/msg/Empty "{}" \
+  --qos-reliability reliable --qos-durability volatile
 ros2 service call /release_emergency_stop std_srvs/srv/Empty
 
 # Estabilidad prolongada (12 min)

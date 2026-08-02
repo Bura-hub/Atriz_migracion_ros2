@@ -284,12 +284,10 @@ Nodo con `MultiThreadedExecutor` y callback groups separados para comandos y tel
 
 **Verificación:**
 ```bash
-# 🔴 NO uses `ros2 topic hz /odom`: da 0 Hz SIEMPRE con el robot perfecto. `/odom` es
-#    BEST_EFFORT y `ros2 topic hz` se suscribe RELIABLE sin opción de cambiarlo en Jazzy;
-#    DDS no empareja y no llega nada. La misma trampa de QoS que costó la parada de
-#    emergencia. Mide con un suscriptor propio:
-python3 ~/atriz_migracion/00_auditoria/evidencia/mediciones_banco/medir_ritmo_ros2.py
-#    → /odom ≈ 16.5 Hz (techo del firmware con interval=60), /scan ≈ 10-12 Hz
+ros2 topic hz /odom          # ≈16.5 Hz — el techo del firmware con interval=60
+#    📝 `topic hz` SÍ funciona sobre BEST_EFFORT (medido 2026-08-01, ros2cli
+#       0.32.10: adapta el QoS al del publicador). Para jitter y huecos usa
+#       `mediciones_banco/medir_ritmo_ros2.py`.
 
 # 🔴 Y publica en `cmd_vel_raw`, NO en `cmd_vel`: `/cmd_vel` es la SALIDA del
 #    collision_monitor. Publicar ahí funciona —el robot obedece— y SALTA LA SEGURIDAD.
@@ -546,8 +544,7 @@ Sobre un robot, con el sistema arrancado por systemd tras un reinicio limpio y *
    nodos muertos** y llegó a dar por vivo un robot apagado.
 2. `ros2 run tf2_ros tf2_echo odom base_footprint` resuelve — **el transform que pide el
    consumidor**, no uno cualquiera.
-3. `medir_ritmo_ros2.py` da `/odom` ≈ 16.5 Hz y `/scan` 10.1–11.9 Hz. 🔴 **No con
-   `ros2 topic hz`**, que sobre estos topics da 0 Hz siempre (QoS).
+3. `ros2 topic hz /odom` ≈ 16.5 Hz y `/scan` 10.1–11.9 Hz (con el barrido encendido).
 4. Desde el navegador: teleoperación fluida, telemetría en vivo, mapa construyéndose.
 5. Enviar destino de navegación desde la web → el robot llega evitando un obstáculo.
 6. **Prueba de fallo:** cortar el WiFi de la Pi → la UI marca desconexión y el robot se detiene en <500 ms.

@@ -1,0 +1,71 @@
+═══════════════════════════════════════════════════════════════════════════════
+🔴 RETRACTADO: `ros2 topic hz` SI FUNCIONA SOBRE TOPICS BEST_EFFORT
+Robot: rvr-01 · 2026-08-01 · ros2cli 0.32.10-1noble.20260612
+═══════════════════════════════════════════════════════════════════════════════
+Este proyecto lleva documentado desde el 2026-07-31, en CLAUDE.md y en varios
+sitios mas:
+
+  «🔴 `ros2 topic hz /odom` DA 0 Hz SIEMPRE, con el robot perfecto. `/odom` se
+   publica BEST_EFFORT y `ros2 topic hz` se suscribe RELIABLE **sin opcion de
+   cambiarlo** en Jazzy. DDS no empareja y no llega nada.»
+
+🔴 **ES FALSO HOY.** Medido:
+
+    ros2 topic hz /odom       -> average rate: 16.525   (min 0.054 max 0.070)
+    ros2 topic hz /imu        -> average rate: 13.338
+    ros2 topic hz /encoders   -> average rate: 16.669
+
+    ros2 topic info /odom --verbose  ->  Reliability: BEST_EFFORT
+
+El `ros2 topic hz` de esta version **consulta el QoS del publicador y lo adapta**.
+
+📝 Probablemente fue cierto en una version anterior de `ros2cli`. **Dejo de serlo
+   sin que nadie lo volviera a medir**, y el sistema se actualiza solo:
+   `unattended-upgrades` venia activo y metio 8 lotes de paquetes en 4 minutos
+   durante la instalacion (ya documentado).
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE ESTA CREENCIA COSTO
+───────────────────────────────────────────────────────────────────────────────
+1. Guio el rediseño del verificador, que sustituyo `topic hz` por un suscriptor
+   propio. ⚠️ Ese cambio NO se revierte: el suscriptor propio mide mejor —da
+   jitter, huecos y percentiles— y ademas permite elegir el QoS. Lo que era falso
+   era el MOTIVO, no la decision.
+
+2. El 2026-08-01 llevo a «corregir» el plan de la Fase 5 y el RUNBOOK,
+   sustituyendo un comando que funciona por un script, y presentandolo como un
+   arreglo de un fallo. **Esas dos correcciones se han deshecho.**
+
+3. Y estuvo a punto de propagarse a un cuarto fichero. Se detecto porque el
+   manual conservaba un log donde `ros2 topic hz /odom` daba **16.669** —
+   contradiciendo la trampa— y se decidio medirlo en vez de asumir cual de los
+   dos estaba mal.
+
+───────────────────────────────────────────────────────────────────────────────
+📝 LA LECCION, Y ES NUEVA PARA ESTE PROYECTO
+───────────────────────────────────────────────────────────────────────────────
+**Una trampa documentada tambien caduca.** Las reglas del proyecto exigen medir
+antes de afirmar, y eso se ha aplicado siempre a lo que se descubre. No se habia
+aplicado a lo YA ESCRITO.
+
+🔴 Y el riesgo es mayor con lo que depende de la VERSION de una herramienta que
+   se actualiza sola: un `apt upgrade` puede convertir una trampa vigente en una
+   creencia falsa sin que nada avise.
+
+→ Cuando una evidencia del propio repositorio contradiga a una trampa
+  documentada, **mide**. No supongas cual de las dos esta vieja.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE SIENDO CIERTO
+───────────────────────────────────────────────────────────────────────────────
+✅ `/odom`, `/imu`, `/scan`, `/color`, `/ambient_light` y `/encoders` SON
+   BEST_EFFORT. Eso no cambia, y sigue siendo la primera causa a mirar cuando un
+   suscriptor «no recibe nada»: un cliente con el perfil por defecto de `rclpy`
+   pide RELIABLE y **DDS no empareja**, sin error y sin aviso. La web debe
+   suscribirse BEST_EFFORT.
+
+✅ `ros2 topic list` sigue conservando topics de nodos MUERTOS.
+✅ `ros2 service list` sigue sin ser autoritativo (omitio `set_drive_parameters`
+   otra vez el 2026-08-01).
+✅ `medir_ritmo_ros2.py` sigue siendo mejor para CARACTERIZAR: `topic hz` da la
+   media; el script da jitter, huecos y el reparto de intervalos.

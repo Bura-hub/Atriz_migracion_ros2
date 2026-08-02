@@ -438,8 +438,12 @@ if [[ -d /opt/ros/jazzy ]]; then
         #    dormido» sobre un robot que simplemente estaba apagado. Falso
         #    positivo, 2026-07-31.
         if ps -eo comm | grep -qx 'rvr_driver_node'; then
-            # 🔴 Y NO SE USA `ros2 topic hz`: `/odom` se publica **BEST_EFFORT**
-            #    (rvr_driver_node.py, `qos_tel`) y `ros2 topic hz` se suscribe
+            # 📝 NO se usa `ros2 topic hz`, y el MOTIVO cambió el 2026-08-01:
+            #    se creía que no podía medir `/odom` por QoS, y **eso era falso**
+            #    (evidencia 45: da 16.525 Hz sobre un topic BEST_EFFORT). La
+            #    razón buena es otra: un suscriptor propio da **jitter y huecos**,
+            #    elige el QoS explícitamente, y no depende de la versión de
+            #    `ros2cli`, que se actualiza sola.
             #    RELIABLE sin opción de cambiarlo en Jazzy. DDS no empareja, no
             #    llega nada, y da 0 Hz SIEMPRE — con el robot funcionando
             #    perfectamente. Es la misma trampa de QoS que ya costó la parada

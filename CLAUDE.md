@@ -278,7 +278,31 @@ while ...: ex.spin_once(timeout_sec=0.1)      # 16.5 Hz — el valor real
 ```
 → Para *conducir* o esperar, `rclpy.spin_once` vale: ahí no se cuenta nada.
 
-**🔴 `ros2 topic hz /odom` DA 0 Hz SIEMPRE, con el robot perfecto.** `/odom` se publica
+**🔴🔴 RETRACTADO EL 2026-08-01: `ros2 topic hz` SÍ FUNCIONA sobre topics BEST_EFFORT.**
+Medido en este robot con `ros2cli 0.32.10`:
+
+```
+ros2 topic hz /odom       → average rate: 16.525     (Reliability: BEST_EFFORT)
+ros2 topic hz /imu        → average rate: 13.338
+ros2 topic hz /encoders   → average rate: 16.669
+```
+
+El `ros2 topic hz` de Jazzy **consulta el QoS del publicador y lo adapta**. Lo de abajo era
+cierto en alguna versión anterior de `ros2cli` y **dejó de serlo sin que nadie lo volviera a
+medir**.
+
+🔴 **Y esa creencia falsa ha costado caro:** guió el rediseño del verificador, y el 2026-08-01
+llevó a «corregir» el plan y el RUNBOOK sustituyendo un comando que funciona. Se detectó al
+medirlo antes de propagar la corrección a un cuarto fichero.
+
+📝 **La lección: una trampa documentada también caduca.** Este proyecto exige medir antes de
+afirmar; eso vale igual para lo que ya está escrito, sobre todo si depende de la versión de una
+herramienta que se actualiza sola.
+
+⚠️ **`medir_ritmo_ros2.py` sigue valiendo más** para caracterizar: da jitter, huecos y percentiles,
+y `topic hz` solo la media. Pero para «¿publica esto?» `topic hz` sirve.
+
+**Texto original, conservado:** 🔴 `ros2 topic hz /odom` DA 0 Hz SIEMPRE, con el robot perfecto. `/odom` se publica
 **BEST_EFFORT** y `ros2 topic hz` se suscribe RELIABLE **sin opción de cambiarlo** en Jazzy. DDS
 no empareja y no llega nada. Es la misma trampa de QoS que costó la parada de emergencia, y
 estuvo **dentro del verificador** sin que nadie lo notara — porque el bloque solo corría si
