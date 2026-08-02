@@ -818,7 +818,7 @@ def f0(a: Aceptacion) -> None:
     retraso = float(activo_us) / 1e6 if activo_us.isdigit() else None
     a.add(juzgar_banda(
         'el servicio subio EN EL ARRANQUE (no lo levanto nadie)',
-        None if retraso is None else round(retraso, 1), 0.0, 120.0,
+        None if retraso is None else round(retraso, 1), 0.0, ARRANQUE_MAXIMO_S,
         'evidencia 47: 23 s tras el boot', 'F0', 's'))
     print(f'    uptime {up / 60:.1f} min · boot {time.strftime("%H:%M:%S", time.localtime(arranque))}')
 
