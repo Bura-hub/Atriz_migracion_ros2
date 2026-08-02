@@ -1,0 +1,64 @@
+═══════════════════════════════════════════════════════════════════════════════
+`laser_x` MEDIDO: EL LIDAR NO ESTABA CENTRADO — 2026-08-02
+═══════════════════════════════════════════════════════════════════════════════
+Lo cerro el usuario con una cinta, tras una discrepancia de ~2 cm entre lo que
+leia /scan y lo que el media en el suelo.
+
+MEDIDAS DEL USUARIO
+───────────────────────────────────────────────────────────────────────────────
+  largo frente-atras, CON las orugas que sobresalen : 19.0 cm
+  centro del tambor giratorio del LIDAR, desde ATRAS:  9.0 cm  -> 10.0 de frente
+  ancho lado a lado                                  : 21.7 cm, LIDAR CENTRADO
+
+RESULTADO
+───────────────────────────────────────────────────────────────────────────────
+  centro geometrico del chasis:  19.0 / 2  =  9.5 cm desde atras
+  centro del tambor           :               9.0 cm desde atras
+
+  ✅ laser_x = -0.005 m   (0.5 cm POR DETRAS del centro)
+  ✅ laser_y =  0         confirmado con cinta, ya no es una suposicion
+
+  El modelo decia `laser_x = 0`, anotado el 2026-07-30 como «centrado» SIN cinta
+  detras — a diferencia de `laser_z`, que se midio expresamente y resulto estar
+  2 cm mal.
+
+¿CIERRA LA DISCREPANCIA DE ~2 cm? EN SU MAYOR PARTE, SI
+───────────────────────────────────────────────────────────────────────────────
+Tras la parada del collision_monitor en F6:
+  /scan leia 18.9 cm; con el LIDAR a 10.0 cm del borde delantero, el borde
+  deberia estar a 8.9 cm de la pared. El usuario midio 7 y 8 cm.
+
+     con laser_x = 0      residuo 2.3 cm   -> FUERA del ruido de medida
+     con laser_x = -0.5   residuo 1.4 cm   -> DENTRO del ruido
+
+⚠️ Y el ruido no es despreciable: las DOS ESQUINAS del usuario difieren 1.0 cm
+   entre si (7 contra 8), o sea que el robot estaba ~1 cm torcido y la cinta va
+   contra una superficie curva. Lo que queda sin explicar **no se distingue del
+   error de medida**, asi que no se persigue mas.
+
+🔴 UNA HIPOTESIS MIA QUE ERA FALSA, Y CONVIENE QUE CONSTE
+───────────────────────────────────────────────────────────────────────────────
+Propuse que la diferencia venia de que el LIDAR barre a 15.5 cm mientras la
+cinta media la oruga a ras de suelo. **Es falso por dos razones:**
+
+  1. Una pared vertical esta a la misma distancia HORIZONTAL a cualquier altura.
+  2. La oruga se CURVA al envolver la rueda, asi que su punto mas adelantado
+     esta a la altura del eje (3.5 cm), no en el suelo. Medir a ras de suelo
+     daria una distancia MAYOR, no menor: mi explicacion iba en direccion
+     contraria al dato.
+
+📝 La confirmo el usuario diciendo que midio «a ras de suelo, desde la oruga»,
+   que es justo lo que la desmiente.
+
+🔴 CONFLICTO QUE QUEDA ABIERTO: EL LARGO DEL ROBOT
+───────────────────────────────────────────────────────────────────────────────
+  MEDIDAS_ROBOT.md dice  18.2 cm   (2026-07-31, «medido con cinta, con orugas»)
+  el usuario mide        19.0 cm   (2026-08-02, «incluyendo las orugas»)
+
+  Difieren 0.8 cm y LAS DOS se anotaron como medidas. Nadie ha arbitrado.
+  ⏳ Repetir con el robot quieto y una escuadra.
+
+LO QUE **NO** HAY QUE TOCAR
+───────────────────────────────────────────────────────────────────────────────
+  radio circunscrito con 19.0 x 21.7 = hypot(9.5, 10.85) = 14.4 cm -> 0.144 m
+  `robot_radius` configurado: 0.145 m.  Diferencia: 0.8 mm. Se deja como esta.

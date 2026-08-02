@@ -149,7 +149,9 @@ afecta a nada**: la IMU no se fusiona con la odometría. Se deja como está y se
 | `x2_height` (alto del LIDAR) | **0.050 m** | 2026-07-31 |
 | `wheel_separation` (entre centros) | **0.183 m** | 2026-07-31 |
 | `wheel_width` | **0.035 m** | 2026-07-31 |
-| `laser_x`, `laser_y` | ⚠️ **0, 0 — SUPUESTO, no medido con cinta.** El 2026-08-02 el usuario midió a mano tras una parada del `collision_monitor`: el borde delantero quedó a **7–8 cm** de la pared cuando el `/scan` leía 18.9 cm. Con `laser_x=0` deberían ser 9.8. **Faltan ~2 cm.** ⏳ Pendiente de medir. Evidencia 49 | 2026-07-30 |
+| `laser_x` | ✅ **−0.005 m MEDIDO el 2026-08-02** (0.5 cm **por detrás** del centro). El centro del tambor está a **9.0 cm del borde trasero** sobre un chasis de **19.0 cm**, cuyo centro cae en 9.5. ⚠️ El modelo decía `0`. Evidencia 51 | 2026-08-02 |
+| `laser_y` | ✅ **0 MEDIDO** — centrado lado a lado, confirmado con cinta sobre los 21.7 cm | 2026-08-02 |
+| 🔴 **CONFLICTO SIN RESOLVER: el largo** | Esta ficha dice **18.2 cm**; medido de nuevo el 2026-08-02 con cinta e incluyendo las orugas, **19.0 cm**. **Difieren 0.8 cm y las dos se anotaron como medidas.** Nadie ha vuelto a arbitrar. ⏳ Repetir con el robot quieto y una escuadra | — |
 | `wheel_radius` (suelo → centro del eje) | **0.035 m** | 2026-07-31 |
 | nivelación del LIDAR | **igual en los 4 puntos** | 2026-07-31 |
 | centrado del LIDAR | **confirmado** con las cotas nuevas | 2026-07-31 |
