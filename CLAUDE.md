@@ -518,6 +518,21 @@ un objeto de 5 cm da 2-3 puntos y en un barrido suelto puede desaparecer. → Pa
 fina, **acumula 6-8 s de barridos y toma la mediana por sector angular**. Un `/scan` suelto no
 basta, y hace dudar de `min_points: 2` con obstáculos así.
 
+**🔴 EL POLÍGONO DE FRENADO NO SABE HACIA DÓNDE VAS: frena igual al alejarte.** Medido con
+cinta el 2026-08-02: un retroceso comandado de 2 s a 0.15 m/s (30 cm esperados) hizo **14 cm**.
+`Precaucion` es un polígono **estático** que se extiende 0.36 m **hacia delante** con
+`slowdown_ratio: 0.4`; con la pared a ~19 cm del centro sigue dentro, así que frena al 40 %
+**aunque el robot se esté alejando** — `0.15 × 0.4 × 2 s = 12 cm`, y se midieron 14.
+→ No es un fallo, es cómo funciona un polígono estático. Pero **la web tiene que saberlo**: un
+  retroceso puede tardar más del doble de lo esperado si hay algo delante. No es que no obedezca.
+→ Y explica por qué al robot «le cuesta» salir de un rincón. Evidencia 49.
+
+**⚠️ `laser_x = 0` ESTÁ SUPUESTO, NO MEDIDO — y hay ~2 cm que no cuadran.** Con el LIDAR
+centrado y 18.2 cm de chasis, el borde delantero debería quedar a `18.9 − 9.1 = 9.8 cm` de la
+pared cuando `/scan` lee 18.9. El usuario midió **7–8 cm**. Este proyecto ya descubrió que la
+ficha del RVR mentía en las tres dimensiones y que `laser_z` estaba 2 cm mal. ⏳ **Pendiente de
+medir con cinta**; afecta a dónde cree Nav2 que está un obstáculo. `MEDIDAS_ROBOT.md`.
+
 **Una capa de seguridad hace abortar a Nav2 por «no progresar».** El `SimpleProgressChecker`
 de fábrica exige 0.5 m en 10 s; el `collision_monitor` frena al 40 % y `approach` baja más la
 velocidad junto a un obstáculo, así que salta `Failed to make progress` con el robot

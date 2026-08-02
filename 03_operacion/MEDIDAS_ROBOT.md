@@ -149,7 +149,7 @@ afecta a nada**: la IMU no se fusiona con la odometría. Se deja como está y se
 | `x2_height` (alto del LIDAR) | **0.050 m** | 2026-07-31 |
 | `wheel_separation` (entre centros) | **0.183 m** | 2026-07-31 |
 | `wheel_width` | **0.035 m** | 2026-07-31 |
-| `laser_x`, `laser_y` | **0, 0** — centrado | 2026-07-30 |
+| `laser_x`, `laser_y` | ⚠️ **0, 0 — SUPUESTO, no medido con cinta.** El 2026-08-02 el usuario midió a mano tras una parada del `collision_monitor`: el borde delantero quedó a **7–8 cm** de la pared cuando el `/scan` leía 18.9 cm. Con `laser_x=0` deberían ser 9.8. **Faltan ~2 cm.** ⏳ Pendiente de medir. Evidencia 49 | 2026-07-30 |
 | `wheel_radius` (suelo → centro del eje) | **0.035 m** | 2026-07-31 |
 | nivelación del LIDAR | **igual en los 4 puntos** | 2026-07-31 |
 | centrado del LIDAR | **confirmado** con las cotas nuevas | 2026-07-31 |

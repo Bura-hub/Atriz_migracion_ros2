@@ -1,0 +1,69 @@
+═══════════════════════════════════════════════════════════════════════════════
+F6 Y F7 CONTRASTADAS CON CINTA — 2026-08-02
+═══════════════════════════════════════════════════════════════════════════════
+El usuario midió a mano lo que el robot hizo en F6, y sus numeros destapan tres
+cosas que el /scan por si solo NO decia. Es un contraste independiente del
+sensor, que es justo lo que este proyecto valora.
+
+LO QUE MIDIO EL USUARIO
+───────────────────────────────────────────────────────────────────────────────
+  tras la parada del collision_monitor:   7 cm frente DERECHO
+                                          8 cm frente IZQUIERDO
+  tras el retroceso del watchdog:        21 cm derecho / 22 cm izquierdo
+                                         (o sea, retrocedio 14 cm)
+  en la puerta 3 (F7): «se movio torcido, pero fue y regreso»
+
+1. ✅ LA CAPA DE SEGURIDAD DEJA 7-8 cm REALES
+───────────────────────────────────────────────────────────────────────────────
+El /scan de la prueba decia 18.9 cm, pero eso es **desde el LIDAR**. Lo que
+importa para saber si choca es el borde del chasis, y son 7-8 cm. NO CHOCA.
+
+📝 Que sea 7 por un lado y 8 por otro dice que llego ~1 cm torcido en 20 cm de
+   ancho. Sin importancia, pero explica parte de la dispersion.
+
+2. 🔴 LA CUENTA NO CUADRA POR ~2 cm: `laser_x` ES SOSPECHOSO
+───────────────────────────────────────────────────────────────────────────────
+Con `laser_x = 0` (LIDAR centrado) y 18.2 cm de frente a atras, el borde
+delantero esta 9.1 cm por delante del LIDAR:
+
+    18.9 cm (LIDAR->pared)  -  9.1 cm  =  9.8 cm esperados en el borde
+                                MEDIDO:    7-8 cm
+
+Faltan ~2 cm. O el LIDAR no esta centrado en X, o el borde delantero no esta a
+9.1 cm del centro.
+
+⚠️ `laser_x = 0` es del **2026-07-30**, un dia antes que casi todas las demas
+   cotas, y esta anotado como «centrado» SIN cinta detras — a diferencia de
+   `laser_z`, que se midio expresamente y resulto estar 2 cm mal.
+   📝 Este proyecto ya descubrio que la ficha del RVR mentia en las TRES
+      dimensiones. `laser_x` es candidato a ser el siguiente.
+
+⏳ PENDIENTE: medir `laser_x` con cinta. Afecta a donde cree Nav2 que esta un
+   obstaculo, asi que no es cosmetico.
+
+3. 🔴 EL POLIGONO DE FRENADO NO SABE HACIA DONDE VAS
+───────────────────────────────────────────────────────────────────────────────
+El retroceso comandaba 2 s a 0.15 m/s = **30 cm esperados**. Se movio **14**.
+
+`Precaucion` es un poligono estatico que se extiende **0.36 m hacia DELANTE**
+(`[[0.36, 0.20], [0.36, -0.20], [-0.24, -0.20], [-0.24, 0.20]]`) con
+`slowdown_ratio: 0.4`. Con la pared a ~19 cm del centro esta DENTRO del poligono,
+asi que el monitor frenaba al 40 % **aunque el robot se estuviera alejando**:
+
+    0.15 m/s x 0.4 = 0.06 m/s x 2 s = 12 cm     <- medido 14
+
+📝 No es un fallo: es como funciona un poligono estatico. Pero no estaba
+   documentado, y explica por que al robot «le cuesta» salir de un rincon.
+   ⚠️ Para la web: un comando de retroceso puede tardar mas del doble de lo
+      esperado si hay algo delante. No es que no obedezca.
+
+4. ✅ «SE MOVIO TORCIDO PERO FUE Y REGRESO» CONFIRMA LA MEZCLA DE MARCOS
+───────────────────────────────────────────────────────────────────────────────
+Es exactamente lo que produce leer la pose de /odom (marco **odom**) y mandar el
+objetivo con `frame_id = 'map'`: el objetivo queda desplazado por el desfase
+map<->odom que SLAM va corrigiendo. El robot iba a un punto girado respecto a lo
+que el usuario esperaba, PERO LLEGABA, porque para Nav2 ese era el objetivo.
+
+La observacion fisica del usuario y el «SUCCEEDED con 40.7 cm de error» del
+informe son **el mismo fenomeno visto desde dos sitios**. Arreglado con
+`pos_mapa()`, que lee la pose por TF en `map -> base_footprint`.
