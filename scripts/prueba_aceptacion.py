@@ -832,16 +832,23 @@ def f7(a: Aceptacion) -> None:
     a.puerta('PASILLO LIBRE, 2 m POR DELANTE. Se lanzan SLAM y Nav2 y el robot\n'
              '     ira solo a un objetivo a 1.50 m. Tarda ~1 min en arrancar.')
 
+    # 🔴 LOS DOS `Popen` VAN DENTRO DEL `try`. La version anterior los lanzaba
+    #    FUERA, asi que si el segundo fallaba despues de arrancar el primero,
+    #    **SLAM quedaba huerfano**: ~5 % de un nucleo, un `map -> odom` que nadie
+    #    esperaba, y peleando por los recursos con la siguiente corrida. Nadie lo
+    #    habria visto: el fallo se atribuiria a Nav2.
+    #    📝 Encontrado por lectura en la revision de la tarea 7, no ejecutando.
     procs = []
-    for paquete, fichero in [('atriz_rvr_bringup', 'slam.launch.py'),
-                             ('atriz_rvr_bringup', 'nav2.launch.py')]:
-        procs.append(subprocess.Popen(['ros2', 'launch', paquete, fichero],
-                                      stdout=subprocess.DEVNULL,
-                                      stderr=subprocess.DEVNULL))
-        time.sleep(20)
-
     cli = ActionClient(a.nodo, NavigateToPose, 'navigate_to_pose')
     try:
+        for paquete, fichero in [('atriz_rvr_bringup', 'slam.launch.py'),
+                                 ('atriz_rvr_bringup', 'nav2.launch.py')]:
+            print(f'    lanzando {fichero}…')
+            procs.append(subprocess.Popen(['ros2', 'launch', paquete, fichero],
+                                          stdout=subprocess.DEVNULL,
+                                          stderr=subprocess.DEVNULL))
+            time.sleep(20)
+
         listo = cli.wait_for_server(timeout_sec=90.0)
         a.add(juzgar_categorico('Nav2 levanta y su action server responde',
                                 listo, 'F7'))
