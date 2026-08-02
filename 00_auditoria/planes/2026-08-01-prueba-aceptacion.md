@@ -926,9 +926,22 @@ def f1(a: Aceptacion) -> None:
         a.add(juzgar_banda(f'ritmo de /{topic}', a.ritmo(topic, tipo, BE, 6.0),
                            lo, hi, 'Fase 4: 16.5 Hz', 'F1', 'Hz'))
 
-    b = a.esperar('battery_state', BatteryState, FIABLE, 8.0)
+    # 🔴 40 s, NO 8. Mismo fallo que ya se arreglo en `guardas()` y que aqui se
+    #    quedo sin arreglar: `/battery_state` se publica **cada 30 s exactos**.
+    #    📝 Es el patron que este proyecto tiene documentado: arreglar dos de tres
+    #       llamadas deja el fallo intacto. Aqui costo TRES comprobaciones, no una:
+    #       al no llegar el mensaje se saltaban EN SILENCIO la banda de voltaje y
+    #       la de temperatura NaN, y el informe enseñaba un solo PENDIENTE donde
+    #       deberia haber tres.
+    #    ⚠️ Y son 40 y no 35 porque **F0 acaba de reiniciar el driver**: el nuevo
+    #       proceso tarda en publicar su primera lectura. Medido el 2026-08-02:
+    #       con 35 s justo despues de F0, NO llegaba.
+    print('    esperando a /battery_state (cada 30 s, y el driver acaba de reiniciarse)…')
+    b = a.esperar('battery_state', BatteryState, FIABLE, 40.0)
     if not b:
-        a.add(no_verificado('/battery_state', 'F1', 'no llego ningun mensaje'))
+        a.add(no_verificado('/battery_state', 'F1',
+                            'no llego ningun mensaje en 40 s. ⚠️ Con el se pierden '
+                            'TAMBIEN la banda de voltaje y la de temperatura NaN'))
     else:
         m = b[-1]
         a.add(juzgar_banda('voltaje de bateria', round(m.voltage, 2),

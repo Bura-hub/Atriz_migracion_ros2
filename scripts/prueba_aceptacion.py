@@ -297,6 +297,165 @@ def fase(clave, titulo, mueve=False):
     return deco
 
 
+NODOS_DEL_SERVICIO = ['rvr_driver', 'ydlidar_ros2_driver_node', 'collision_monitor',
+                      'lifecycle_manager_seguridad', 'robot_state_publisher',
+                      'rosbridge_websocket']
+
+
+@fase('F0', 'Arranque en frio — ¿arranco solo?')
+def f0(a: Aceptacion) -> None:
+    # ── ¿el servicio subio SOLO, en el arranque y a la primera? ──
+    # 🔴 NO se mira el uptime: eso CADUCA. Si preparar la prueba lleva media hora
+    #    la comprobacion falla sin que nada este roto. Lo que se quiere probar se
+    #    lee sin reloj — ver evidencia 47_arranque_en_frio_20260801.txt.
+    up = float(open('/proc/uptime').read().split()[0])
+    arranque = time.time() - up
+    def _mostrar(prop):
+        return subprocess.run(['systemctl', 'show', 'atriz-robot', '-p', prop,
+                               '--value'], capture_output=True, text=True,
+                              timeout=10).stdout.strip()
+    activo_us = _mostrar('ActiveEnterTimestampMonotonic')     # us desde el boot
+    retraso = float(activo_us) / 1e6 if activo_us.isdigit() else None
+    a.add(juzgar_banda(
+        'el servicio subio EN EL ARRANQUE (no lo levanto nadie)',
+        None if retraso is None else round(retraso, 1), 0.0, ARRANQUE_MAXIMO_S,
+        'evidencia 47: 23 s tras el boot', 'F0', 's'))
+    print(f'    uptime {up / 60:.1f} min · boot {time.strftime("%H:%M:%S", time.localtime(arranque))}')
+
+    n_re = _mostrar('NRestarts')
+    # ⚠️ REVISAR y no FALLO: F0 deja este contador a 1 al ejercitar Restart=always,
+    #    asi que una SEGUNDA pasada sobre el mismo arranque ya no vera 0. Las dos
+    #    lecturas se dicen en el detalle; lo desempata el journal.
+    a.add(Resultado('F0', 'el servicio subio a la primera (NRestarts)',
+                    PASA if n_re == '0' else REVISAR,
+                    f'NRestarts = {n_re}. Si no es 0: o es una repeticion de esta '
+                    f'misma prueba (F0 mata el driver a proposito), o el driver se '
+                    f'cayo de verdad. Lo desempata el journal'))
+
+    # ── el servicio, sin que nadie lo tocara ──
+    act = subprocess.run(['systemctl', 'is-active', 'atriz-robot'],
+                         capture_output=True, text=True, timeout=10).stdout.strip()
+    a.add(juzgar_categorico('atriz-robot arranco solo', act == 'active', 'F0',
+                            f'systemctl is-active = {act}'))
+
+    # ── los seis nodos ──
+    vivos = {n for n, _ in a.nodo.get_node_names_and_namespaces()}
+    for n in NODOS_DEL_SERVICIO:
+        a.add(juzgar_categorico(f'nodo {n}', n in vivos, 'F0',
+                                '' if n in vivos else f'no esta. Vivos: {sorted(vivos)}'))
+
+    # ── el journal, y SOLO AQUI ──
+    # 🔴 Esta comprobacion NO puede repetirse al final: el driver registra la
+    #    parada de emergencia con nivel ERROR, y F4 y F6 la provocan a proposito.
+    #    Buscarla despues encontraria los errores que la propia prueba causo.
+    j = subprocess.run(['journalctl', '-u', 'atriz-robot', '-p', 'err', '-b',
+                        '--no-pager'], capture_output=True, text=True, timeout=20)
+    errores = [l for l in j.stdout.splitlines()
+               if l.strip() and not l.startswith('-- ')]
+    a.add(juzgar_categorico(
+        'journal sin errores desde el arranque', not errores, 'F0',
+        '' if not errores else f'{len(errores)} linea(s): {errores[0][:110]}'))
+
+    # ── las 105 comprobaciones estaticas ──
+    v = subprocess.run(['bash', str(pathlib.Path.home() / 'atriz_migracion' /
+                                    'scripts' / 'verificar_robot.sh')],
+                       capture_output=True, text=True, timeout=300)
+    malas = [l.strip() for l in v.stdout.splitlines() if l.strip().startswith('✗')]
+    avisos = [l.strip() for l in v.stdout.splitlines() if l.strip().startswith('!')]
+    a.add(juzgar_categorico('verificar_robot.sh sin fallos', not malas, 'F0',
+                            f'{len(malas)} fallo(s); {len(avisos)} aviso(s). '
+                            + (malas[0][:110] if malas else '')))
+    for av in avisos:
+        # ⚠️ Los avisos NO son FALLO. Se informan tal cual; los que son decisiones
+        #    abiertas ya estan en PENDIENTES_CONOCIDOS y bloquean desde alli.
+        a.add(Resultado('F0', f'aviso: {av[:90]}', REVISAR, ''))
+
+    # ── Restart=always, documentado como SIN EJERCITAR ──
+    pid0 = subprocess.run(['systemctl', 'show', 'atriz-robot', '-p', 'MainPID',
+                           '--value'], capture_output=True, text=True,
+                          timeout=10).stdout.strip()
+    print(f'    ejercitando Restart=always (PID {pid0})… vuelve en ~40 s')
+    try:
+        os.kill(int(pid0), signal.SIGKILL)
+    except Exception as e:                                       # noqa: BLE001
+        a.add(no_verificado('Restart=always', 'F0', f'no se pudo matar el PID: {e}'))
+        return
+    fin = time.monotonic() + 90
+    pid1 = pid0
+    while time.monotonic() < fin:
+        time.sleep(3)
+        pid1 = subprocess.run(['systemctl', 'show', 'atriz-robot', '-p', 'MainPID',
+                               '--value'], capture_output=True, text=True,
+                              timeout=10).stdout.strip()
+        if pid1 not in ('0', '', pid0) and driver_corriendo():
+            break
+    a.add(juzgar_categorico('Restart=always revive el driver',
+                            pid1 not in ('0', '', pid0), 'F0',
+                            f'PID {pid0} → {pid1}. Primera vez que se ejercita'))
+    time.sleep(10)          # que el driver termine de suscribirse
+
+
+@fase('F1', 'Telemetria — los sentidos del robot')
+def f1(a: Aceptacion) -> None:
+    from nav_msgs.msg import Odometry
+    from sensor_msgs.msg import Imu, BatteryState
+    from atriz_rvr_msgs.msg import MotorStatus
+
+    for topic, tipo, lo, hi in [('odom', Odometry, 13.0, 25.0),
+                                ('imu', Imu, 13.0, 25.0)]:
+        a.add(juzgar_banda(f'ritmo de /{topic}', a.ritmo(topic, tipo, BE, 6.0),
+                           lo, hi, 'Fase 4: 16.5 Hz', 'F1', 'Hz'))
+
+    # 🔴 40 s, NO 8. Mismo fallo que ya se arreglo en `guardas()` y que aqui se
+    #    quedo sin arreglar: `/battery_state` se publica **cada 30 s exactos**.
+    #    📝 Es el patron que este proyecto tiene documentado: arreglar dos de tres
+    #       llamadas deja el fallo intacto. Aqui costo TRES comprobaciones, no una:
+    #       al no llegar el mensaje se saltaban EN SILENCIO la banda de voltaje y
+    #       la de temperatura NaN, y el informe enseñaba un solo PENDIENTE donde
+    #       deberia haber tres.
+    #    ⚠️ Y son 40 y no 35 porque **F0 acaba de reiniciar el driver**: el nuevo
+    #       proceso tarda en publicar su primera lectura. Medido el 2026-08-02:
+    #       con 35 s justo despues de F0, NO llegaba.
+    print('    esperando a /battery_state (cada 30 s, y el driver acaba de reiniciarse)…')
+    b = a.esperar('battery_state', BatteryState, FIABLE, 40.0)
+    if not b:
+        a.add(no_verificado('/battery_state', 'F1',
+                            'no llego ningun mensaje en 40 s. ⚠️ Con el se pierden '
+                            'TAMBIEN la banda de voltaje y la de temperatura NaN'))
+    else:
+        m = b[-1]
+        a.add(juzgar_banda('voltaje de bateria', round(m.voltage, 2),
+                           6.5, 8.5, 'firmware: critica 6.50, baja 7.00', 'F1', 'V'))
+        # 🔴 El RVR no da temperatura de BATERIA. Debe ser NaN, no 0.0: un 0.0
+        #    es un dato, no un hueco, y la web lo pintaria como «bateria helada».
+        a.add(juzgar_categorico('temperatura de bateria es NaN y no 0.0',
+                                m.temperature != m.temperature, 'F1',
+                                f'temperature = {m.temperature}'))
+
+    ms = a.esperar('motor_status', MotorStatus, FIABLE, 35.0)   # se sondea cada 30 s
+    if not ms:
+        a.add(no_verificado('/motor_status', 'F1', 'nada en 35 s (se sondea cada 30)'))
+    else:
+        t = ms[-1]
+        a.add(juzgar_banda('temperatura del motor izquierdo',
+                           round(t.temperatura_izquierdo, 1), 10.0, 55.0,
+                           'reposo medido: 27.5 / 28.3 °C', 'F1', '°C'))
+        a.add(juzgar_categorico('en reposo no hay atasco ni fallo',
+                                not (t.atascado_izquierdo or t.atascado_derecho
+                                     or t.fallo), 'F1'))
+
+    # ── deriva de yaw en reposo (NO valor absoluto: ver el diseño) ──
+    p0 = a.pos_yaw()
+    time.sleep(30)
+    p1 = a.pos_yaw()
+    if p0 and p1:
+        d = abs(math.degrees(delta_angulo(p0[2], p1[2])))
+        a.add(juzgar_banda('deriva de yaw en 30 s de reposo', round(d, 3),
+                           0.0, 0.5, 'medido 2026-08-01: 0.01°/60 s', 'F1', '°'))
+    else:
+        a.add(no_verificado('deriva de yaw', 'F1', 'no llego /odom'))
+
+
 def ejecutar(a: Aceptacion, desde: str) -> int:
     claves = [f[0] for f in FASES]
     if desde not in claves:
