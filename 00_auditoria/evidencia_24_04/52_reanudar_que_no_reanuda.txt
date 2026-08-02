@@ -1,0 +1,53 @@
+═══════════════════════════════════════════════════════════════════════════════
+«STREAMING REANUDADO» CON EL RVR APAGADO — 2026-08-02
+═══════════════════════════════════════════════════════════════════════════════
+Lo destapó apagar el robot para cargarlo dejando la Pi encendida — un estado que
+NADIE había probado, y que en el laboratorio será COTIDIANO: 16 robots cargando
+con sus Pi vivas.
+
+MEDIDO
+───────────────────────────────────────────────────────────────────────────────
+  mensajes de /odom en 15 s          :   0     (con el RVR vivo serían ~250)
+  «streaming reanudado» en el log    :   8 en 30 s
+  intentos de reconexión acumulados  : 123 y subiendo, uno cada 4 s
+  volumen de log                     : ~32 líneas/min  ->  ~46 000 al día
+
+  El mensaje literal, repetido sin parar:
+
+     WARN  el RVR lleva 4.0 s sin enviar telemetría […] Intentando reanudar
+           (intento nº 123)…
+     INFO  streaming reanudado. Si esto se repite cada pocos minutos, el
+           keepalive no está llegando: revisa keepalive_period y el enlace.
+
+🔴 EL PROBLEMA
+───────────────────────────────────────────────────────────────────────────────
+1. **«streaming reanudado» ES FALSO.** El driver lo imprime porque las llamadas
+   `wake` + `stop` + `start` no lanzan excepción, no porque haya vuelto un solo
+   dato. Es el patrón que este proyecto lleva documentado SEIS veces: algo que
+   informa de éxito sin haber hecho nada — `chmod` sobre FAT, `colcon build`
+   desde el directorio malo, `set_all_leds` con máscara corta,
+   `undercarriage_white`, `netplan generate` que no llegó a ejecutarse, y la
+   puerta de la prueba de aceptación saltándose sola.
+   → **Comprueba el efecto, no el código de salida.** Aquí el efecto es que
+     vuelvan muestras, y no vuelven.
+
+2. **Un robot muerto parece sano en el log.** Es el peor modo de fallo para un
+   laboratorio remoto, y este proyecto ya tiene tres de la misma familia: el RVR
+   dormido con el nodo vivo, el topic registrado y mudo, y el nodo muerto con
+   systemd en verde.
+
+3. **No hay espera creciente.** 123 intentos, uno cada 4 s, indefinidamente.
+   Con 16 robots cargando de noche son ~46 000 líneas por robot y por día
+   escritas sobre una microSD, que es lo que las mata.
+
+⏳ QUÉ HARÍA FALTA (sin implementar, decisión pendiente)
+───────────────────────────────────────────────────────────────────────────────
+  · No decir «reanudado» hasta que llegue una muestra DE VERDAD. El driver ya
+    sabe cuándo llegó la última: es lo que usa para detectar el silencio.
+  · Espera creciente entre intentos, con tope (p. ej. 4 s -> 60 s).
+  · Y tras N intentos fallidos, decirlo UNA vez y bajar el ritmo, en vez de
+    repetir lo mismo para siempre.
+
+📝 NO SE TOCA HOY: el driver está verificado y estable, y esto no impide operar.
+   Pero va a `TRASPASO.md` porque afecta a la Fase 5 — la web necesita distinguir
+   «robot cargando» de «robot roto», y hoy el log dice lo mismo en los dos casos.

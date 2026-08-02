@@ -120,6 +120,17 @@ reproduce el fallo a propósito.
   **ritmo**, no si el nodo o el topic existen — las dos cosas eran ciertas mientras estaba
   mudo. Y un `systemd` con `Restart=always` no habría arreglado nada: el proceso no muere.
 
+**🔴 CON EL RVR APAGADO, EL DRIVER DICE «streaming reanudado» PARA SIEMPRE.** Medido el
+2026-08-02 apagando el robot para cargarlo con la Pi encendida —un estado **cotidiano** en el
+laboratorio y que nadie había probado—: **`/odom` a 0 mensajes en 15 s** mientras el log escribía
+**8 «streaming reanudado» en 30 s**, y 123 intentos de reconexión, uno cada 4 s, sin espera
+creciente. Lo imprime porque `wake`+`stop`+`start` no lanzan excepción, **no porque vuelva un
+dato**.
+→ **Un robot muerto parece sano en el log.** Misma familia que el RVR dormido con el nodo vivo y
+  que el nodo muerto con systemd en verde.
+→ Y son ~46 000 líneas al día por robot sobre una **microSD**. ⏳ Pendiente: no decir «reanudado»
+  hasta que llegue una muestra de verdad, y espera creciente con tope. Evidencia 52.
+
 **Que el nodo arranque NO prueba que el enlace funcione.** `rvr_fw_check_async.py` captura
 `except (asyncio.TimeoutError, Exception)` y continúa en silencio: el nodo registra sus
 topics, parece sano, y no circula ni un dato.
