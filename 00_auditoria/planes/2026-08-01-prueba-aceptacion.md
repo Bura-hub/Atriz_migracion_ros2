@@ -434,6 +434,7 @@ from rclpy.node import Node                                      # noqa: E402
 from rclpy.executors import SingleThreadedExecutor               # noqa: E402
 from rclpy.qos import (QoSProfile, ReliabilityPolicy,            # noqa: E402
                        DurabilityPolicy)
+from rclpy.signals import SignalHandlerOptions                   # noqa: E402
 from std_msgs.msg import Empty                                   # noqa: E402
 from std_srvs.srv import Empty as EmptySrv                       # noqa: E402
 
@@ -482,7 +483,17 @@ class Aceptacion:
     def __init__(self, guiada=True):
         self.res: list[Resultado] = []
         self.guiada = guiada
-        rclpy.init()
+        # 🔴🔴 `SignalHandlerOptions.NO` NO ES OPCIONAL, Y ES LO QUE HACE QUE LA
+        #    PARADA DE EMERGENCIA FUNCIONE. `rclpy.init()` a secas instala su
+        #    propio manejador de SIGINT que **invalida el contexto** antes de que
+        #    el `except KeyboardInterrupt` llegue a publicar:
+        #        RCLError: Failed to publish: publisher's context is invalid
+        #    Medido el 2026-08-02 con el driver escuchando: por defecto **0
+        #    lineas** de «PARADA DE EMERGENCIA» en el journal; con NO, **5**.
+        #    ⚠️ Y es INTERMITENTE segun donde caiga el Ctrl-C, que es como paso la
+        #       verificacion del 2026-08-01. Un fallo de seguridad que funciona a
+        #       veces es peor que uno que no funciona nunca.
+        rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
         self.nodo = Node('prueba_aceptacion')
         self.ex = SingleThreadedExecutor()
         self.ex.add_node(self.nodo)
@@ -620,10 +631,16 @@ def guardas(a: Aceptacion) -> str | None:
         return ('el driver no esta corriendo. Esta prueba lo necesita:\n'
                 '     sudo systemctl start atriz-robot')
 
+    # 🔴 35 s, NO 8. `/battery_state` se publica **cada 30 s exactos** (es el
+    #    latido del keepalive), asi que una ventana de 8 s casi nunca ve un
+    #    mensaje y la guarda abortaria por «no llega» con la bateria perfecta.
+    #    Medido el 2026-08-02: **1 mensaje en 40 s, el primero a los 15.3 s**.
     from sensor_msgs.msg import BatteryState
-    b = a.esperar('battery_state', BatteryState, FIABLE, 8.0)
+    print('    esperando a /battery_state (se publica cada 30 s)…')
+    b = a.esperar('battery_state', BatteryState, FIABLE, 35.0)
     if not b:
-        return 'no llega /battery_state: sin saber la bateria no se mueve nada'
+        return ('no llega /battery_state en 35 s. Sin saber la bateria no se mueve\n'
+                '     nada. ¿Esta el driver publicando? journalctl -u atriz-robot -n 40')
     v = b[-1].voltage
     if v == v and v < BATERIA_MINIMA_V:     # v==v descarta NaN
         return (f'bateria a {v:.2f} V, por debajo de {BATERIA_MINIMA_V} V (umbral '

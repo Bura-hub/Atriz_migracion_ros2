@@ -38,6 +38,7 @@ import sys
 import time
 
 import rclpy
+from rclpy.signals import SignalHandlerOptions
 import tf2_ros
 from geometry_msgs.msg import PoseStamped
 from nav2_msgs.action import NavigateToPose
@@ -115,7 +116,19 @@ def main() -> int:
                     help='cuánto se vigila el robot después de liberar la parada')
     a = ap.parse_args()
 
-    rclpy.init()
+    # 🔴🔴 `SignalHandlerOptions.NO` NO ES OPCIONAL AQUI, Y COSTO ENCONTRARLO.
+#    `rclpy.init()` instala SU PROPIO manejador de SIGINT, que **invalida el
+#    contexto** antes de que el `except KeyboardInterrupt` llegue a publicar. La
+#    parada de emergencia moria con:
+#        RCLError: Failed to publish: publisher's context is invalid
+#    Medido el 2026-08-02, con el driver escuchando: por defecto **0 lineas** de
+#    «PARADA DE EMERGENCIA» en el journal; con NO, **5**.
+#    ⚠️ Y es INTERMITENTE: segun donde caiga el Ctrl-C a veces si publicaba, que
+#       es como paso la verificacion del 2026-08-01. Un fallo de seguridad que
+#       funciona a veces es peor que uno que no funciona nunca.
+#    → Con NO, el SIGINT lo maneja Python: el `except KeyboardInterrupt` corre con
+#      el contexto VIVO y la parada sale de verdad.
+    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     n = Medidor()
 
     print('═' * 74)
