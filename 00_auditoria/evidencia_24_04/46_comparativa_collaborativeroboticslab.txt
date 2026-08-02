@@ -124,3 +124,104 @@ lo caracterizado.
    `ros2_control` en vez de a un nodo monolitico. Si algun dia este driver hay
    que reescribirlo, esa es la direccion canonica — y ellos ya tienen 836 lineas
    de hardware interface que servirian de referencia.
+
+═══════════════════════════════════════════════════════════════════════════════
+OTROS TRES REPOSITORIOS, revisados el 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 A. git.uibk.ac.at/informatik/stair/ros-sphero-rvr — **EL ORIGEN DE NUESTRO
+   DRIVER DE ROS 1**, y no estaba documentado en ninguna parte
+───────────────────────────────────────────────────────────────────────────────
+Universidad de Innsbruck. ROS 1, driver en Python de 795 lineas sobre el SDK
+oficial (tambien tienen una version C++ basada en el «RVR CPP» de Rud Merriam —
+el mismo Rud del hilo del foro de Sphero, evidencia 42— pero dicen que **no esta
+soportada**).
+
+**LA COINCIDENCIA NO ES CASUALIDAD.** Nombres de servicio compartidos con
+`Atriz_rvr_node.py` (el driver de ROS 1 de este proyecto):
+
+    battery_state · enable_color · move_to_pose · move_to_pos_and_yaw
+    release_emergency_stop · reset_odom
+
+Seis de sus nueve servicios, con el nombre EXACTO. Y ademas:
+  · el topic **`/is_emergency_stop`** — el nombre raro que costo el fallo nº1 de
+    la parada de emergencia en este proyecto;
+  · su README dice literalmente «The rvr would stop after two seconds of no
+    command sent, however, **we have reduced this to 0.3 seconds**» — que es
+    **exactamente nuestro `cmd_vel_timeout = 0.3`**.
+
+→ **Atriz partio de este repositorio.** Explica de donde salieron nombres que
+  aqui parecian arbitrarios. Atriz AÑADIO despues LEDs, IR, movimiento temporizado
+  y streaming configurable; y DESCARTO `calibrate_magnetometer`, `sleep` y `wake`.
+
+✅ Y LO MAS UTIL: **implementan el magnetometro EXACTAMENTE como lo probamos**
+   (`rvr-ros.py:536-561`):
+
+       on_magnetometer_calibration_complete_notify(handler=...)
+       magnetometer_calibrate_to_north(timeout=...)
+       espera a la notificacion -> yaw_north_direction
+
+   Sin ningun paso previo que nos hubieramos saltado. Y su docstring avisa: «Note
+   that **the rvr will spin very fast** during the calibration».
+
+   🔴 **Eso CORROBORA nuestra prueba** (evidencia 42): una implementacion
+      independiente hace lo mismo, y en nuestro firmware 9.1.462 el comando **no
+      gira el robot ni emite notificacion**. La conclusion «no hay rumbo
+      absoluto» se sostiene, y ahora tiene un contraste externo.
+
+   ⚠️ Su README anuncia un topic **`/magnet`** con la rotacion al norte. No dice
+      con que firmware lo probaron. Su repo es de ROS 1 y su driver C++ se basa
+      en trabajo de 2020-2021, o sea de la epoca del firmware **8.x**, que es
+      justo donde el foro documenta que la lectura cruda SI respondia.
+
+───────────────────────────────────────────────────────────────────────────────
+B. github.com/markusk/rvr, rama `ros2` — CALLEJON SIN SALIDA
+───────────────────────────────────────────────────────────────────────────────
+Ultimo cambio: **octubre de 2020**. Su rama `ros2` contiene unicamente los
+**ejemplos de tutorial de rclpy** (`minimal_publisher`, `minimal_subscriber`,
+copiados de `examples_rclpy_*`). **No hay driver del RVR en ROS 2.** Es una
+exploracion abandonada. 8 estrellas.
+→ Nada que tomar.
+
+───────────────────────────────────────────────────────────────────────────────
+C. github.com/linorobot/sphero_rvr — MINIMO, pero con UNA idea
+───────────────────────────────────────────────────────────────────────────────
+«Minimal implementation of a ROS2 node». 14 ficheros, ~370 lineas, sobre el SDK
+oficial de Python. Ultimo cambio 2021-2022.
+
+  publica:     **`/odom/unfiltered`** y `/imu/data`
+  se suscribe: `/cmd_vel`
+  keepalive 0 · emergency 0 · watchdog 0 · collision 0
+
+⚠️ **No tiene NADA de seguridad ni de salud de enlace.** Con el RVR durmiendose a
+   los 300.6 s (medido aqui), ese nodo se queda mudo solo y sin avisar.
+
+✅ **LA IDEA QUE SI VALE: el nombre `/odom/unfiltered`.** Delata que alimentan un
+   **EKF de `robot_localization`** que fusiona odometria e IMU y publica el
+   `/odom` bueno.
+
+   📝 Aqui NO se hace: el driver publica `/odom` directamente desde el locator
+      del RVR. Y este proyecto tiene medido que **el acelerometro del RVR esta
+      descalibrado** (|g| un 3.8 % corto) y que la inclinacion que reporta es un
+      artefacto — por eso se publica la orientacion PLANA.
+   ⚠️ Un EKF **no arreglaria** un sensor sesgado, y podria empeorarlo dandole
+      peso. No se adopta sin medir. Pero queda anotado como la alternativa
+      canonica si algun dia la odometria del locator se queda corta.
+
+───────────────────────────────────────────────────────────────────────────────
+RESUMEN DE LOS CUATRO
+───────────────────────────────────────────────────────────────────────────────
+  CollaborativeRoboticsLab  ros2_control en C++ · MQTT de flota · Docker.
+                            Sin keepalive, sin parada, nav en move_base (ROS 1).
+  UIBK (Innsbruck)          🔴 EL ORIGEN de nuestro driver de ROS 1. ROS 1.
+                            Corrobora la prueba del magnetometro.
+  markusk/rvr               Ejemplos de tutorial. Abandonado en 2020.
+  linorobot                 Nodo minimo, sin seguridad. Idea: EKF con
+                            `/odom/unfiltered`.
+
+📝 **NINGUNO tiene lo que a este proyecto le costo mas caro**: keepalive contra
+   el sueño del RVR a los 300.6 s, parada de emergencia que cancela Nav2,
+   collision_monitor, y los marcos de referencia del locator corregidos.
+   Eso no es presumir: es la razon por la que **no se adopta ninguno**, y por la
+   que copiar cualquiera de ellos seria un retroceso.

@@ -197,3 +197,31 @@ pose inicial tiene que venir de fuera**:
    siguiendo la pose (evidencia 24). Lo que se pierde es poder inicializar sin
    intervencion humana. **Se anota como limitacion del hardware y se deja de
    buscar.**
+
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ CONTRASTE EXTERNO: otro equipo implementa lo mismo — 2026-08-01
+═══════════════════════════════════════════════════════════════════════════════
+El driver de Innsbruck (`git.uibk.ac.at/informatik/stair/ros-sphero-rvr`,
+`rvr-ros.py:536-561`) hace **exactamente la misma secuencia** que se probo aqui:
+
+    on_magnetometer_calibration_complete_notify(handler=...)
+    magnetometer_calibrate_to_north(timeout=...)
+    esperar la notificacion -> yaw_north_direction
+
+**Sin ningun paso previo** que nos hubieramos saltado. Y su docstring avisa:
+«Note that **the rvr will spin very fast** during the calibration».
+
+🔴 Eso confirma dos cosas:
+   1. **La prueba estaba bien hecha.** No fue un error de uso.
+   2. **El robot DEBERIA haber girado.** Que no lo hiciera es el dato.
+
+⚠️ Su README anuncia un topic `/magnet` con la rotacion al norte, pero no dice
+   con que firmware. Su trabajo es de 2020-2021, o sea de la epoca del **8.x** —
+   justo donde el foro de Sphero documenta que la lectura cruda SI respondia
+   (ver mas arriba). Encaja: la capacidad se perdio en una version posterior.
+
+📝 Y ese mismo repositorio resulta ser **el origen del driver de ROS 1 de este
+   proyecto** (evidencia 46). Atriz lo tomo como base y **descarto justamente
+   `calibrate_magnetometer`**, asi que el magnetometro nunca estuvo en este
+   linaje.
