@@ -759,6 +759,161 @@ def f5(a: Aceptacion) -> None:
         else 'no llego /odom'))
 
 
+@fase('F6', 'Seguridad — collision_monitor y watchdog', mueve=True)
+def f6(a: Aceptacion) -> None:
+    from geometry_msgs.msg import Twist
+    from sensor_msgs.msg import LaserScan
+    from std_srvs.srv import Empty as E
+
+    a.puerta('PARED U OBSTACULO GRANDE A ~1 m POR DELANTE del robot.\n'
+             '     Va a conducir hacia el y la capa de seguridad debe pararlo\n'
+             '     sola. Base: 9.9 cm a 0.25 m/s.')
+
+    # El collision_monitor necesita /scan: sin barrido no ve nada.
+    a.llamar(a.nodo.create_client(E, 'start_scan'), E.Request(), 20.0)
+    time.sleep(3)
+
+    pub = a.nodo.create_publisher(Twist, 'cmd_vel_raw', FIABLE)
+    p0 = a.pos_yaw()
+
+    # ── collision_monitor ──
+    t = Twist()
+    t.linear.x = 0.25
+    fin = time.monotonic() + 8
+    while time.monotonic() < fin:
+        pub.publish(t)
+        a.ex.spin_once(timeout_sec=0.05)
+    pub.publish(Twist())
+    time.sleep(1.5)
+
+    b = a.esperar('scan', LaserScan, BE, 2.0)
+    frontal = None
+    if b:
+        s = b[-1]
+        i = len(s.ranges) // 2
+        v = [r for r in s.ranges[i - 8:i + 8] if math.isfinite(r) and r > 0]
+        frontal = min(v) * 100 if v else None
+    a.add(juzgar_banda('distancia frontal a la que quedo parado',
+                       None if frontal is None else round(frontal, 1),
+                       0.0, 15.0, 'CHANGELOG:1824: 9.9 cm a 0.25 m/s', 'F6', 'cm'))
+    p1 = a.pos_yaw()
+    a.add(juzgar_categorico('el robot avanzo y se detuvo solo',
+                            bool(p0 and p1 and math.hypot(p1[0] - p0[0],
+                                                          p1[1] - p0[1]) > 0.05),
+                            'F6', 'si no avanzo nada, la prueba no demuestra nada'))
+
+    # ── watchdog: dejar de publicar debe pararlo ──
+    a.puerta('SITIO LIBRE POR DETRAS: retrocede un poco y luego se deja de\n'
+             '     publicar cmd_vel a proposito. El watchdog debe cortarlo.')
+    t = Twist()
+    t.linear.x = -0.15
+    fin = time.monotonic() + 2
+    while time.monotonic() < fin:
+        pub.publish(t)
+        a.ex.spin_once(timeout_sec=0.05)
+    pm = a.pos_yaw()
+    time.sleep(3)                       # ← se deja de publicar A PROPOSITO
+    pf = a.pos_yaw()
+    if pm and pf:
+        a.add(juzgar_banda('recorrido tras dejar de publicar cmd_vel',
+                           round(math.hypot(pf[0] - pm[0], pf[1] - pm[1]) * 100, 1),
+                           0.0, 12.0,
+                           'CHANGELOG:3303: quieto en 527 ms, ~7.9 cm', 'F6', 'cm'))
+    else:
+        a.add(no_verificado('watchdog', 'F6', 'no llego /odom'))
+
+
+@fase('F7', 'Autonomo — SLAM, Nav2 y sorteo de obstaculos', mueve=True)
+def f7(a: Aceptacion) -> None:
+    from nav2_msgs.action import NavigateToPose
+    from rclpy.action import ActionClient
+    from geometry_msgs.msg import PoseStamped
+
+    a.puerta('PASILLO LIBRE, 2 m POR DELANTE. Se lanzan SLAM y Nav2 y el robot\n'
+             '     ira solo a un objetivo a 1.50 m. Tarda ~1 min en arrancar.')
+
+    procs = []
+    for paquete, fichero in [('atriz_rvr_bringup', 'slam.launch.py'),
+                             ('atriz_rvr_bringup', 'nav2.launch.py')]:
+        procs.append(subprocess.Popen(['ros2', 'launch', paquete, fichero],
+                                      stdout=subprocess.DEVNULL,
+                                      stderr=subprocess.DEVNULL))
+        time.sleep(20)
+
+    cli = ActionClient(a.nodo, NavigateToPose, 'navigate_to_pose')
+    try:
+        listo = cli.wait_for_server(timeout_sec=90.0)
+        a.add(juzgar_categorico('Nav2 levanta y su action server responde',
+                                listo, 'F7'))
+        if not listo:
+            return
+
+        def objetivo(dx, etiqueta):
+            p0 = a.pos_yaw()
+            g = NavigateToPose.Goal()
+            g.pose.header.frame_id = 'map'
+            g.pose.header.stamp = a.nodo.get_clock().now().to_msg()
+            g.pose.pose.position.x = p0[0] + dx
+            g.pose.pose.position.y = p0[1]
+            g.pose.pose.orientation.w = 1.0
+
+            fut = cli.send_goal_async(g)
+            fin = time.monotonic() + 20
+            while not fut.done() and time.monotonic() < fin:
+                a.ex.spin_once(timeout_sec=0.05)
+            if not fut.done() or not fut.result().accepted:
+                a.add(juzgar_categorico(f'{etiqueta}: objetivo aceptado', False, 'F7'))
+                return
+            rf = fut.result().get_result_async()
+            fin = time.monotonic() + 120
+            desvio = 0.0
+            while not rf.done() and time.monotonic() < fin:
+                a.ex.spin_once(timeout_sec=0.05)
+                p = a.pos_yaw()
+                if p:
+                    desvio = max(desvio, abs(p[1] - p0[1]) * 100)
+            if not rf.done():
+                a.add(juzgar_categorico(f'{etiqueta}: llego en 120 s', False, 'F7'))
+                return
+            p1 = a.pos_yaw()
+            err = math.hypot(p1[0] - (p0[0] + dx), p1[1] - p0[1]) * 100
+            a.add(juzgar_banda(f'{etiqueta}: error final', round(err, 1), 0.0, 15.0,
+                               'TRASPASO:289: 8 cm; otra tanda 9-10', 'F7', 'cm'))
+            return desvio
+
+        objetivo(1.50, 'objetivo limpio a 1.50 m')
+
+        a.puerta('COLOCA EL OBSTACULO a ~0.75 m por delante, escorado un poco a\n'
+                 '     la izquierda del eje. Algo de ~16 cm de ancho (una caja).\n'
+                 '     Deja ~60 cm libres por la derecha para que pueda rodearlo.')
+        # Volver al punto de partida a mano es mas fiable que otro objetivo.
+        a.puerta('DEVUELVE EL ROBOT a donde empezo, mirando al mismo sitio.')
+
+        desvio = objetivo(1.50, 'objetivo CON obstaculo')
+        if desvio is not None:
+            a.add(juzgar_banda('desvio lateral rodeando el obstaculo',
+                               round(desvio, 1), 15.0, 50.0,
+                               'manual 11.13: 30 cm y vuelve al eje', 'F7', 'cm'))
+
+        # 🔴 El aborto que costo encontrar: el SimpleProgressChecker de fabrica
+        #    exigia 5 cm/s, y con el collision_monitor frenando eso se dispara.
+        #    Arreglado con required_movement_radius 0.25 / 15 s. Que no vuelva.
+        j = subprocess.run(['journalctl', '--since', '-4min', '--no-pager'],
+                           capture_output=True, text=True, timeout=20).stdout
+        a.add(juzgar_categorico('sin «Failed to make progress»',
+                                'Failed to make progress' not in j, 'F7',
+                                'el arreglo del SimpleProgressChecker sigue en pie'))
+    finally:
+        # 🔴 Por comm, NUNCA pkill -f: su patron casaria con esta misma prueba.
+        for p in procs:
+            p.send_signal(signal.SIGINT)
+        matar_por_comm('async_slam_tool')
+        for n in ('controller_server', 'planner_server', 'bt_navigator',
+                  'behavior_server'):
+            matar_por_comm(n)
+        time.sleep(5)
+
+
 def ejecutar(a: Aceptacion, desde: str) -> int:
     claves = [f[0] for f in FASES]
     if desde not in claves:
