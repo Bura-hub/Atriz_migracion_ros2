@@ -290,7 +290,7 @@ más trampas de las que caben en una lista de pasos.
 | Script | Dónde corre | Qué hace |
 |---|---|---|
 | **`provision.sh`** | en el robot | De un 24.04 recién instalado a robot terminado. Idempotente. **Es la fuente de verdad**: la imagen dorada se construye ejecutándolo |
-| **`preparar_tarjeta.sh`** | en el **PC** (Linux/WSL) | Sobre una tarjeta recién grabada: `cmdline.txt`, `config.txt` con `[all]`, `robot_id.txt`. Elimina el editar ficheros a mano |
+| 🔴 **`preparar_tarjeta.sh`** | en el **PC** (Linux/WSL) | **OBLIGATORIO antes del primer arranque**, no es comodidad: `cmdline.txt` (si no, el UART queda para la consola y **el RVR no habla**), `config.txt` bajo `[all]`, y `robot_id.txt` — que **`provision.sh` necesita**. 🔴 `provision.sh` **no toca `cmdline.txt`** |
 | **`verificar_robot.sh`** | en el robot | **105 aserciones** con `--hardware` (102 sin él). Sale con código ≠ 0 si algo falla. **Es quien decide si un robot está listo** |
 | **`fase_6_preparar_imagen_dorada.sh`** | en el robot de referencia | Le quita la identidad para poder clonarlo |
 
@@ -555,7 +555,100 @@ robots, reflashear será rutina, no emergencia.
 
 ---
 
-## Alta de un robot nuevo
+## 🔴 Robot 2: instalación LIMPIA, paso a paso
+
+> **Este es el procedimiento de HOY**, y es distinto del «alta de un robot nuevo» de más abajo,
+> que parte de la **imagen dorada**. Esa imagen **todavía no existe** y no debe construirse
+> hasta que `provision.sh` se haya ejecutado entero al menos una vez — que es justamente lo que
+> hace el robot 2.
+>
+> 🔴 **Hasta el 2026-08-01 esta sección no existía y el camino era circular**: el `README` decía
+> «migra el robot 2 con `provision.sh`», `INSTALACION.md` decía «no sigas esta ruta a mano, ve a
+> `FLOTA.md`», y `FLOTA.md` empezaba por «graba la imagen dorada». Nadie enumeraba los pasos en
+> un solo sitio.
+
+### Lo que hay que tener antes de empezar
+
+- Una microSD (16 GB o más) y un lector en el PC.
+- El **PAT de GitHub** — el repositorio es privado y `provision.sh` clona de él.
+- Los datos de red: SSID y contraseña, y **la IP que le toca a este robot**.
+
+### Los pasos
+
+**1. Grabar Ubuntu Server 24.04 LTS arm64** con Raspberry Pi Imager. En sus opciones avanzadas:
+hostname `rvr-02`, usuario `sphero`, y **habilitar SSH**.
+
+**2. 🔴 `preparar_tarjeta.sh`, CON LA TARJETA EN EL PC. NO ES OPCIONAL.**
+
+```bash
+sudo bash ~/atriz_migracion/scripts/preparar_tarjeta.sh --id 02
+```
+
+Hace tres cosas que **nada más hace**, y las tres fallan en silencio si faltan:
+
+| | Si falta |
+|---|---|
+| quita `console=serial…` de `cmdline.txt` | el UART queda reservado para la consola del kernel y **el RVR no habla**. 🔴 `provision.sh` **no toca `cmdline.txt`**: `fase_0_1_fix_uart.sh` solo **avisa** de que hay que quitarlo a mano |
+| `dtoverlay=disable-bt` bajo `[all]` en `config.txt` | el PL011 no llega a los pines GPIO14/15 donde está cableado el RVR. ⚠️ Sin la cabecera `[all]` **no da error** y no hace nada |
+| crea `/boot/firmware/robot_id.txt` | 🔴 **`provision.sh` lo NECESITA**: su paso 8/9 falla al instalar el arranque automático, y sin él no hay hostname ni `ROS_DOMAIN_ID` |
+
+**3. `red.txt` en la misma partición FAT**, copiando `scripts/red.txt.ejemplo` y rellenándolo con
+la IP de este robot. Manual, cap. 19.3. ⚠️ Lleva la PSK del WiFi: **no va a git**.
+
+**4. Meter la tarjeta, arrancar, y entrar por SSH.** Comprobar el UART antes de nada:
+
+```bash
+cat /proc/device-tree/aliases/uart0     # debe dar /soc/serial@7e201000 (PL011)
+ls -l /dev/serial0
+```
+
+🔴 Si sale `7e215040` sigues en el mini-UART: el paso 2 no se aplicó. **Párate aquí.**
+
+**5. Credenciales de git** — el repositorio es privado y sin esto `provision.sh` no puede clonar:
+
+```bash
+git config --global credential.helper 'store --file ~/.git-credentials'
+git clone https://github.com/Bura-hub/Atriz_migracion_ros2.git ~/atriz_migracion
+#   Username: Bura-hub · Password: el PAT
+chmod 600 ~/.git-credentials
+```
+
+**6. Aprovisionar.** Son ~40 min, la mayoría compilando:
+
+```bash
+sudo bash ~/atriz_migracion/scripts/provision.sh
+```
+
+⚠️ **Es la primera vez que este script se ejecuta entero.** Es exactamente el objetivo del robot
+2: hasta ahora solo se ha probado con `--simular`, que convierte en no-operación justo lo que
+instala. **Anota cualquier fallo**: es la suposición más peligrosa que le queda al proyecto.
+
+**7. Verificar**, que es lo que decide si el robot está listo:
+
+```bash
+bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
+```
+
+**8. Reiniciar de verdad** y comprobar que vuelve solo:
+
+```bash
+sudo reboot
+# al volver:
+systemctl status atriz-robot
+atriz-escaneo on          # sin barrido el collision_monitor no deja conducir
+```
+
+### Y entonces sí, la imagen dorada
+
+Con el robot 2 funcionando, `provision.sh` deja de ser una suposición. **Ese es el momento** de
+construir la imagen dorada (sección de abajo) y clonar los 14 restantes.
+
+---
+
+## Alta de un robot nuevo — **desde la imagen dorada**
+
+> ⚠️ **Esto es para los robots 3 a 16**, cuando la imagen dorada ya exista. Para el **robot 2**,
+> que es una instalación limpia y el que valida `provision.sh`, usa la sección de arriba.
 
 **1. Grabar** la imagen dorada en la microSD (Raspberry Pi Imager o `dd`).
 

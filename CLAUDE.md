@@ -1211,7 +1211,7 @@ Su regla es **comprobar el efecto, no la intención**. Si añades comprobaciones
 
 | Script | Dónde corre | Para qué |
 |---|---|---|
-| `preparar_tarjeta.sh --id NN` | en el **PC** | Tarjeta recién grabada: `cmdline.txt`, `config.txt`, `robot_id.txt` |
+| 🔴 `preparar_tarjeta.sh --id NN` | en el **PC** | **OBLIGATORIO antes del primer arranque**, no es comodidad: `cmdline.txt` (si no, el UART queda para la consola y **el RVR no habla**), `config.txt` con `[all]`, y `robot_id.txt` — que **`provision.sh` NECESITA** en su paso 8/9. `provision.sh` **no toca `cmdline.txt`** |
 | `provision.sh` | en el robot | De un 24.04 limpio a robot terminado. Idempotente: sirve para actualizar |
 | `verificar_robot.sh` | en el robot | Decide si el robot está listo |
 | `fase_7_systemd.sh --id NN` | en el robot | Arranque automático. ✅ Probado con un reinicio real. ✅ `provision.sh` **lo llama** desde el 2026-08-01 (paso 8/9) |

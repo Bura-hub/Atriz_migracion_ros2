@@ -190,13 +190,19 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 >
 > ### Y si estás instalando el robot 2, 3… 16
 >
-> **No sigas esta ruta a mano.** Hay tres scripts para eso, y el procedimiento completo está en
-> [`03_operacion/FLOTA.md`](03_operacion/FLOTA.md):
+> **No sigas esta ruta a mano.** Hay tres scripts para eso, y el procedimiento completo, paso a
+> paso, está en **[`03_operacion/FLOTA.md` → «Robot 2: instalación LIMPIA»](03_operacion/FLOTA.md)**.
+>
+> ⚠️ **Ojo con cuál de las dos secciones de `FLOTA.md` sigues:**
+> · **Robot 2** → «Robot 2: instalación LIMPIA, paso a paso». Es una instalación desde cero, y
+>   es la que **valida `provision.sh`**, que nunca se ha ejecutado entero.
+> · **Robots 3–16** → «Alta de un robot nuevo», que parte de la **imagen dorada**. Esa imagen
+>   **no debe construirse** hasta que el robot 2 haya funcionado.
 >
 > | Script | Dónde | Qué hace |
 > |---|---|---|
-> | `preparar_tarjeta.sh --id NN` | en el **PC** | `cmdline.txt`, `config.txt` y `robot_id.txt` de una tarjeta recién grabada |
-> | `provision.sh` | en el robot | Todas las etapas B–E de una vez. Idempotente |
+> | 🔴 `preparar_tarjeta.sh --id NN` | en el **PC** | **OBLIGATORIO**, no es comodidad. `cmdline.txt` (si no, el UART queda para la consola del kernel y **el RVR no habla**), `config.txt` bajo `[all]`, y `robot_id.txt` — que **`provision.sh` necesita** en su paso 8/9. 🔴 **`provision.sh` NO toca `cmdline.txt`** |
+> | `provision.sh` | en el robot | Todas las etapas **B–F** de una vez (9 pasos, incluido el arranque automático). Idempotente |
 > | `verificar_robot.sh` | en el robot | Decide si quedó bien |
 >
 > Esta ruta a mano es **para el primer robot** y para entender *por qué* hace cada cosa. A
