@@ -1,0 +1,64 @@
+═══════════════════════════════════════════════════════════════════════════════
+EL ANGULO, MEDIDO POR PRIMERA VEZ — 2026-08-02
+═══════════════════════════════════════════════════════════════════════════════
+Fase F5 de la prueba de aceptacion, corrida guiada por el usuario en su terminal.
+Robot rvr-01, bateria 7.61 V (55 %), giros en el sitio por `move_timed` a
+1.0 rad/s durante angulo/1.0 segundos.
+
+EL HUECO QUE CIERRA
+───────────────────────────────────────────────────────────────────────────────
+`move_to_pos_and_yaw` estaba verificado en DISTANCIA (0.20 m comandados -> 19.5
+cm medidos, evidencia 26) pero **su componente de yaw NO**, y `move_to_pose`
+figuraba como «✅» sin un solo numero detras. O sea: el proyecto llevaba desde el
+principio sin saber si el robot gira lo que se le pide.
+
+RESULTADO
+───────────────────────────────────────────────────────────────────────────────
+  comandado    medido     %      deficit    deslizamiento
+      90°       86.6°   96.2 %    +3.4°        0.2 cm
+     180°      179.6°   99.8 %    +0.4°        0.3 cm
+     360°      358.4°   99.6 %    +1.6°        0.2 cm
+
+  ✅ CONVENIO DE SIGNO CONFIRMADO: con `angular` NEGATIVO el Δyaw fue **-86.3°**.
+     Angular positivo gira a la IZQUIERDA, como manda REP-103.
+
+  ✅ El deslizamiento girando en el sitio es **0.2-0.3 cm**. Practicamente nulo:
+     el robot gira sobre su eje, no describe un arco.
+
+⚠️ n=1 POR ANGULO. NO SE PUEDE ATRIBUIR EL DEFICIT
+───────────────────────────────────────────────────────────────────────────────
+El deficit NO es constante (3.4 · 0.4 · 1.6 grados) NI proporcional (3.78 %,
+0.22 %, 0.44 %). Con una sola medida por angulo eso no distingue entre:
+
+  · la rampa de aceleracion de ~0.5 s ya documentada, que penalizaria mas a los
+    giros cortos (el de 90° dura 1.57 s, o sea un tercio en rampa) — encaja con
+    que 90° sea el peor, PERO no explica que 360° falle mas que 180°
+  · ruido de medida del propio /odom
+  · algo dependiente del tiempo de giro
+
+→ **Para cerrarlo harian falta repeticiones**, no otra tirada suelta. Hoy no se
+  persigue: 96-100 % es de sobra para lo que la web necesita, y Nav2 no conduce
+  en lazo abierto — corrige con el mapa.
+
+COMO SE MIDIO, Y POR QUE ASI
+───────────────────────────────────────────────────────────────────────────────
+🔴 **Δyaw ACUMULADO, nunca yaw absoluto.** `reset_yaw()` NO pone el yaw a cero
+   (rvr_driver_node.py:316): solo se pone a cero al ENCENDER el RVR, y reiniciar
+   la Pi no lo hace. El origen viene arrastrado de quien sabe cuando.
+
+🔴 **Y sin acumular deltas normalizados no se puede medir 360°**: `atan2` devuelve
+   -pi..pi, asi que una vuelta entera se leeria como ~0. El acumulador suma
+   `delta_angulo(prev, actual)` a ~50 Hz mientras el robot gira.
+
+📝 `move_timed` toma VELOCIDAD y DURACION, no un angulo. No existe un servicio
+   «gira 90°»: el angulo sale de velocidad x tiempo, en lazo abierto.
+
+RESTO DE LA CORRIDA (F4)
+───────────────────────────────────────────────────────────────────────────────
+  move_timed 2 s a 0.15 m/s        29.9 cm  (base 30.3)
+  marcha atras 2 s a 0.15 m/s      30.4 cm
+  tras la PARADA DE EMERGENCIA      1.5 cm  (base watchdog ~7.9 cm)  <- muy bueno
+  con la parada activa, move_timed rechazado con success=False
+  release_emergency_stop devuelve el control
+
+  Total: 12 PASA · 0 REVISAR · 0 FALLO.

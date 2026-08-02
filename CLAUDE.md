@@ -1086,6 +1086,7 @@ de verdad. Dos consecuencias que cambian el día a día:
 | **Nombre Bluetooth del RVR** | `RV-1E6D` — identifica **la bola**, no la Pi. Para el inventario | 2026-08-01 |
 | `/color` (con `color_detection:=true`) | `clear` **181** (negro) → **2288** (blanco), 12.6× · rojo R/G **2.74** · azul B/G **0.86** | 2026-08-01 |
 | Enlace con keepalive | **12 min, 0 huecos** en `/odom`, 16.54 Hz | 2026-07-31 |
+| ✅ **GIRO POR ANGULO** (nuevo) | 90°→**86.6°** (96.2 %) · 180°→**179.6°** · 360°→**358.4°** · deslizamiento **0.2–0.3 cm** · signo REP-103 confirmado. ⚠️ **n=1 por ángulo** | 2026-08-02, evidencia 48 |
 | **Nav2 navegando** | error final **9–10 cm** (= la tolerancia configurada) | 2026-07-31 |
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |
 | Nav2 solo | ~58 % de un núcleo — la pieza más pesada | 2026-07-31 |

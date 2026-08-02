@@ -1,0 +1,54 @@
+==============================================================================
+PRUEBA DE ACEPTACION · rvr-01 · 2026-08-02 12:29:15
+==============================================================================
+
+
+── F4 ──────────────────────────────────────────────────────────────────────
+  [OK   ] move_timed 2 s a 0.15 m/s
+          29.9 cm · banda [24.0, 37.0] cm · base evidencia 26: 30.3 cm (101 %)
+  [OK   ] marcha atras 2 s a 0.15 m/s
+          30.4 cm · banda [24.0, 37.0] cm · base simetrico a la ida
+  [OK   ] recorrido DESPUES de la parada de emergencia
+          1.5 cm · banda [0.0, 12.0] cm · base watchdog: 527 ms · ~7.9 cm (CHANGELOG:3303)
+  [OK   ] con la parada activa, move_timed es rechazado
+          success = False
+  [OK   ] release_emergency_stop devuelve el control
+
+── F5 ──────────────────────────────────────────────────────────────────────
+  [OK   ] giro comandado de 90° (Δyaw acumulado)
+          86.6 ° · banda [54.0, 125.99999999999999] ° · base SIN BASE HISTORICA — esta pasada fija la referencia
+  [OK   ] deslizamiento girando 90°
+          0.2 cm · banda [0.0, 15.0] cm · base giro en el sitio: deberia ser ~0
+  [OK   ] giro comandado de 180° (Δyaw acumulado)
+          179.6 ° · banda [108.0, 251.99999999999997] ° · base SIN BASE HISTORICA — esta pasada fija la referencia
+  [OK   ] deslizamiento girando 180°
+          0.3 cm · banda [0.0, 15.0] cm · base giro en el sitio: deberia ser ~0
+  [OK   ] giro comandado de 360° (Δyaw acumulado)
+          358.4 ° · banda [216.0, 503.99999999999994] ° · base SIN BASE HISTORICA — esta pasada fija la referencia
+  [OK   ] deslizamiento girando 360°
+          0.2 cm · banda [0.0, 15.0] cm · base giro en el sitio: deberia ser ~0
+  [OK   ] angular positivo gira a la IZQUIERDA (regla de la mano derecha)
+          con angular NEGATIVO el Δyaw fue -86.3° (negativo = derecha, como manda REP-103)
+
+── F9 ──────────────────────────────────────────────────────────────────────
+  [PEND ] rosbridge sin autenticacion en el 9090
+          expone raw_motors, que se salta el collision_monitor y no tiene corte automatico. Hay que decidirlo ANTES de escribir el cliente: cambia su arquitectura. Ver 03_operacion/ARQUITECTURA.md
+  [PEND ] el hueco de los precipicios
+          collision_monitor solo mira /scan, y un LIDAR 2D no ve un vacio a ninguna altura. Mitigado solo por la regla de laboratorio (suelo continuo y cerrado). Ver manual cap. 12.2b
+  [PEND ] la PSK del WiFi es legible por cualquier usuario
+          falta fmask=0177,dmask=0077 en /etc/fstab. chmod NO sirve: es FAT
+  [PEND ] la credencial sphero sin rotar
+          y sin purgar del historico de git
+
+==============================================================================
+  12 PASA · 0 REVISAR · 0 FALLO · 4 PENDIENTE
+==============================================================================
+
+  🔴 NO HAY VIA LIBRE PARA LA FASE 5
+
+     Lo que lo impide:
+       · [PENDIENTE] rosbridge sin autenticacion en el 9090
+       · [PENDIENTE] el hueco de los precipicios
+       · [PENDIENTE] la PSK del WiFi es legible por cualquier usuario
+       · [PENDIENTE] la credencial sphero sin rotar
+==============================================================================
