@@ -229,6 +229,15 @@ class Aceptacion:
                          1 - 2 * (q.y ** 2 + q.z ** 2))
         return p.x, p.y, yaw
 
+    def pos_yaw_rapido_xy(self):
+        """(x, y) del ultimo /odom ya recibido, SIN esperar. F6 lo necesita para
+        saber si el robot se ha DETENIDO mientras sigue publicando cmd_vel."""
+        self.pos_yaw_rapido()          # crea la suscripcion si no existe
+        if not getattr(self, '_odom_buf', None):
+            return None
+        p = self._odom_buf[-1].pose.pose.position
+        return p.x, p.y
+
     def pos_yaw_rapido(self):
         """Solo el yaw del ultimo /odom ya recibido, SIN esperar.
 
@@ -777,14 +786,41 @@ def f6(a: Aceptacion) -> None:
     p0 = a.pos_yaw()
 
     # ── collision_monitor ──
+    # 🔴 SE CONDUCE HASTA QUE EL ROBOT PARE, NO 8 s FIJOS. La version anterior
+    #    publicaba 8 s y medía donde estuviera: **no distinguia «la seguridad lo
+    #    paro» de «se me acabo el tiempo»**. Y paso: quedo a 19.0 cm habiendo
+    #    recorrido 81 cm en 8 s = 0.101 m/s de media sobre 0.25 comandados, o sea
+    #    al 40 % — el collision_monitor lo estaba FRENANDO y el bucle acabo antes
+    #    de que llegara a la zona de parada. Los 19.0 cm no eran una distancia de
+    #    parada: eran donde estaba cuando dejé de publicar.
+    #    Ahora se sigue publicando hasta que /odom diga que lleva 1.5 s quieto, y
+    #    se DICE si paro solo o si se agoto el tope.
     t = Twist()
     t.linear.x = 0.25
-    fin = time.monotonic() + 8
-    while time.monotonic() < fin:
+    limite = time.monotonic() + 40
+    quieto_desde = None
+    paro_solo = False
+    ult = a.pos_yaw()
+    while time.monotonic() < limite:
         pub.publish(t)
         a.ex.spin_once(timeout_sec=0.05)
+        p = a.pos_yaw_rapido_xy()
+        if p and ult:
+            if math.hypot(p[0] - ult[0], p[1] - ult[1]) < 0.004:
+                if quieto_desde is None:
+                    quieto_desde = time.monotonic()
+                elif time.monotonic() - quieto_desde > 1.5:
+                    paro_solo = True
+                    break
+            else:
+                quieto_desde = None
+                ult = p
     pub.publish(Twist())
     time.sleep(1.5)
+    a.add(juzgar_categorico(
+        'el robot se detuvo SOLO (no por agotarse el tiempo)', paro_solo, 'F6',
+        'si no, la distancia de abajo NO es la de parada: es donde estaba '
+        'cuando el bucle acabo'))
 
     b = a.esperar('scan', LaserScan, BE, 2.0)
     frontal = None
@@ -838,15 +874,19 @@ def f7(a: Aceptacion) -> None:
     #    esperaba, y peleando por los recursos con la siguiente corrida. Nadie lo
     #    habria visto: el fallo se atribuiria a Nav2.
     #    📝 Encontrado por lectura en la revision de la tarea 7, no ejecutando.
-    procs = []
+    procs, registros = [], []
     cli = ActionClient(a.nodo, NavigateToPose, 'navigate_to_pose')
     try:
         for paquete, fichero in [('atriz_rvr_bringup', 'slam.launch.py'),
                                  ('atriz_rvr_bringup', 'nav2.launch.py')]:
             print(f'    lanzando {fichero}…')
+            # 🔴 NO a DEVNULL. La primera corrida de F7 salio rara y **no habia
+            #    NADA que mirar**: la salida de Nav2 se estaba tirando. Un fallo
+            #    sin registro no se puede diagnosticar despues.
+            reg = open(f'/tmp/aceptacion_{fichero}.log', 'w')
+            registros.append(reg)
             procs.append(subprocess.Popen(['ros2', 'launch', paquete, fichero],
-                                          stdout=subprocess.DEVNULL,
-                                          stderr=subprocess.DEVNULL))
+                                          stdout=reg, stderr=subprocess.STDOUT))
             time.sleep(20)
 
         listo = cli.wait_for_server(timeout_sec=90.0)
@@ -882,6 +922,21 @@ def f7(a: Aceptacion) -> None:
             if not rf.done():
                 a.add(juzgar_categorico(f'{etiqueta}: llego en 120 s', False, 'F7'))
                 return
+            # 🔴 EL ESTADO, ANTES QUE LA DISTANCIA. `rf.done()` es cierto tanto
+            #    si el objetivo TERMINO BIEN como si Nav2 ABORTO o lo CANCELARON,
+            #    asi que la version anterior reportaba «error final 77.2 cm» sobre
+            #    una navegacion que podia haberse RENDIDO. Es un diagnostico
+            #    completamente distinto, y el numero no significaba lo que decia.
+            from action_msgs.msg import GoalStatus
+            estado = rf.result().status
+            nombres = {GoalStatus.STATUS_SUCCEEDED: 'SUCCEEDED',
+                       GoalStatus.STATUS_ABORTED: 'ABORTED',
+                       GoalStatus.STATUS_CANCELED: 'CANCELED'}
+            ok = estado == GoalStatus.STATUS_SUCCEEDED
+            a.add(juzgar_categorico(f'{etiqueta}: Nav2 lo dio por COMPLETADO', ok,
+                                    'F7', f'estado = {nombres.get(estado, estado)}'))
+            if not ok:
+                print('    ⚠️ el error de abajo NO es de precision: no llego.')
             p1 = a.pos_yaw()
             err = math.hypot(p1[0] - (p0[0] + dx), p1[1] - p0[1]) * 100
             a.add(juzgar_banda(f'{etiqueta}: error final', round(err, 1), 0.0, 15.0,
@@ -890,11 +945,22 @@ def f7(a: Aceptacion) -> None:
 
         objetivo(1.50, 'objetivo limpio a 1.50 m')
 
-        a.puerta('COLOCA EL OBSTACULO a ~0.75 m por delante, escorado un poco a\n'
-                 '     la izquierda del eje. Algo de ~16 cm de ancho (una caja).\n'
-                 '     Deja ~60 cm libres por la derecha para que pueda rodearlo.')
-        # Volver al punto de partida a mano es mas fiable que otro objetivo.
-        a.puerta('DEVUELVE EL ROBOT a donde empezo, mirando al mismo sitio.')
+        # 🔴🔴 EL ROBOT VUELVE SOLO, NO A MANO. La version anterior pedia
+        #    «DEVUELVE EL ROBOT a donde empezo», y eso **corrompe la pose de
+        #    SLAM**: la odometria no ve el desplazamiento, asi que slam_toolbox
+        #    sigue creyendo que esta donde lo dejaste. Todo lo que se midiera
+        #    despues quedaba sin sentido — y no como «salio mal», sino como «no
+        #    se sabe que se midio».
+        #    📝 Este proyecto ya tiene documentado que no se reinicia el driver
+        #       por debajo de un slam_toolbox vivo. Moverlo a mano es peor.
+        print('    volviendo al origen con Nav2 (sin tocarlo)…')
+        objetivo(-1.50, 'regreso al origen')
+        time.sleep(3)
+        a.puerta('COLOCA EL OBSTACULO a ~0.75 m por delante del robot, escorado\n'
+                 '     ~6 cm a la IZQUIERDA del eje. Algo de ~16 cm de ancho.\n'
+                 '     🔴 MAS ALTO DE 15.5 cm: por debajo el LIDAR NO LO VE.\n'
+                 '     Deja ~60 cm libres por la derecha para que pueda rodearlo.\n'
+                 '     ⚠️ NO muevas el robot: romperia la pose de SLAM.')
 
         desvio = objetivo(1.50, 'objetivo CON obstaculo')
         if desvio is not None:
@@ -914,6 +980,9 @@ def f7(a: Aceptacion) -> None:
         # 🔴 Por comm, NUNCA pkill -f: su patron casaria con esta misma prueba.
         for p in procs:
             p.send_signal(signal.SIGINT)
+        for r in registros:
+            r.close()
+        print('    📄 registros de Nav2 en /tmp/aceptacion_*.log')
         matar_por_comm('async_slam_tool')
         for n in ('controller_server', 'planner_server', 'bt_navigator',
                   'behavior_server'):
