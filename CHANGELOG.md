@@ -4,6 +4,64 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-02 — Prueba de aceptación: seis fases corriendo, y el ángulo medido por fin
+
+Se diseñó y se está construyendo una **prueba de aceptación de extremo a extremo**, de arranque
+en frío a navegación autónoma, para responder a una sola pregunta antes de abrir la Fase 5:
+**¿se puede construir la web sobre este robot?** Diseño en
+[`03_operacion/PRUEBA_ACEPTACION.md`](03_operacion/PRUEBA_ACEPTACION.md), plan en
+`00_auditoria/planes/`.
+
+**Estado: F0 a F5 corriendo. 12 PASA · 0 REVISAR · 0 FALLO** en la última corrida.
+
+### Lo que se cierra
+
+| | |
+|---|---|
+| ✅ **`Restart=always` EJERCITADO por primera vez** | `PID 725 → 12608`. Llevaba desde el principio documentado como «sin ejercitar» |
+| ✅ **EL ÁNGULO, MEDIDO POR PRIMERA VEZ** | 90°→**86.6°** · 180°→**179.6°** · 360°→**358.4°** · deslizamiento **0.2–0.3 cm** · signo REP-103 confirmado. ⚠️ n=1 por ángulo. Evidencia 48 |
+| ✅ **La parada de emergencia corta en 1.5 cm** | Cinco veces mejor que la base del watchdog (~7.9 cm), y además **rechaza** `move_timed` con `success=False` |
+
+### 🔴 Y seis defectos encontrados, cinco de ellos MÍOS
+
+Los subagentes que implementaron y revisaron cada tarea encontraron esto, y ninguno era del
+robot:
+
+1. 🔴🔴 **La parada de emergencia por Ctrl-C NO llegaba al driver.** `rclpy.init()` instala su
+   propio manejador de SIGINT que **invalida el contexto** antes de poder publicar. Medido:
+   **0 líneas** de «PARADA DE EMERGENCIA» por defecto contra **5** con `SignalHandlerOptions.NO`.
+   ⚠️ **Es intermitente**, y por eso pasó la verificación del día anterior. Afectaba a **tres
+   herramientas ya commiteadas**. Arregladas.
+2. 🔴🔴 **La puerta de seguridad se saltaba sola sin terminal.** `sys.stdin.readline()` devuelve
+   `''` al instante si stdin no es interactivo, así que la puerta que existe para que nadie
+   arranque un motor con algo delante **no paraba nada** — justo en el escenario en que un agente
+   podría lanzarla. Su docstring decía «NO se salta nunca en las fases que mueven el robot».
+   Ahora aborta con código 2.
+3. 🔴 **La banda de `/scan` citaba una fuente que no era del LIDAR.** «manual cap. 12: 9.997 Hz ·
+   σ 0.35 ms» es de `/prueba_atriz`, un topic **sintético** publicado a 10 Hz para probar DDS.
+   📝 La pista estaba a la vista: **σ 0.35 ms** es un jitter imposible en un motor que gira libre.
+4. 🔴 **F1 esperaba `/battery_state` 8 s**, cuando se publica cada 30 — y ya se había arreglado en
+   la guarda. **Arreglar dos de tres llamadas deja el fallo intacto.** Costó tres comprobaciones,
+   no una: se saltaban **en silencio** la banda de voltaje y la del `NaN`.
+5. 🔴 **`delta_angulo(0, inf)` se colgaba para siempre.** Verificado con `timeout`, salida 124. Y
+   F5 la llama en bucle: una muestra corrupta habría colgado la fase sin dejar traza.
+6. 🔴 **`cerrar()` no se llamaba en el camino de éxito**, así que al completar las diez fases bien
+   —el caso normal— el nodo nunca se cerraba ni se mandaba parada final.
+
+📝 **La lección que atraviesa a casi todos:** algo que **devuelve sin error y no hace su trabajo**.
+Es el mismo patrón que `chmod` sobre FAT, `colcon build` desde el directorio malo, `set_all_leds`
+con máscara corta y `netplan generate` que nunca llegó a ejecutarse. **Comprueba el efecto, no el
+código de salida.**
+
+### Lo que queda
+
+F6 (seguridad), F7 (Nav2 con obstáculo), F8 (web) y F9. Y **la vía libre sigue bloqueada** por
+los cuatro pendientes conocidos, empezando por **rosbridge sin autenticación** — como se decidió:
+«robot impecable» y «vía libre» no son lo mismo.
+
+---
+
+
 ## 2026-08-01 (SDK) — Se exploró el SDK entero, y una conclusión del proyecto era falsa
 
 El usuario preguntó por qué el driver usa «27 de 94» métodos del SDK. La cifra estaba vieja

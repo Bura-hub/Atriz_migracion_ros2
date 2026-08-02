@@ -164,6 +164,40 @@ una temperatura plana **no** significa «estable», puede ser el mismo dato repe
 
 ---
 
+## 🔴 Prueba de aceptación en curso (2026-08-02) — F0 a F5 corriendo
+
+Antes de abrir la Fase 5 se está construyendo una **prueba de aceptación de extremo a extremo**:
+`scripts/prueba_aceptacion.py`, diez fases, de arranque en frío a navegación autónoma. Diseño en
+[`03_operacion/PRUEBA_ACEPTACION.md`](03_operacion/PRUEBA_ACEPTACION.md).
+
+**Última corrida: 12 PASA · 0 REVISAR · 0 FALLO.**
+
+| Fase | Estado |
+|---|---|
+| F0 arranque en frío | ✅ 11 OK · **`Restart=always` ejercitado por primera vez** (PID 725→12608) |
+| F1 telemetría | ✅ `/odom` 16.58 Hz · `/imu` 16.56 · 7.75 V · deriva de yaw **0.002°/30 s** |
+| F2 LIDAR | ✅ arranca apagado · 11.81 Hz · 213/260 finitos · el parche del journal aguanta |
+| F3 luces | ⏳ los servicios responden; **falta la confirmación visual de una persona** |
+| F4 movimiento | ✅ 29.9 / 30.4 cm · **parada de emergencia en 1.5 cm** y rechaza `move_timed` |
+| F5 **ángulos** | ✅ **90°→86.6° · 180°→179.6° · 360°→358.4°** · signo REP-103 · ⚠️ n=1. Evidencia 48 |
+| F6 seguridad · F7 autónomo · F8 web · F9 | ⏳ pendientes |
+
+⚠️ **La vía libre está BLOQUEADA**, y es lo acordado: los cuatro pendientes conocidos —empezando
+por **rosbridge sin autenticación**— impiden decir «se puede empezar la web» aunque el robot esté
+impecable.
+
+🔴 **Cómo lanzarla:** el modo guiado **exige un terminal de verdad**. Ni el prefijo `!` de Claude
+Code ni las herramientas de un agente dan TTY, y desde el 2026-08-02 la prueba **aborta con
+código 2** en vez de mover el robot sin confirmación.
+
+```bash
+ssh sphero@rvr-01.local
+cd ~/atriz_migracion && source /opt/ros/jazzy/setup.bash && source ~/atriz_ws/install/setup.bash
+python3 -u scripts/prueba_aceptacion.py            # entera, o --desde F4
+```
+
+---
+
 ## El siguiente paso, exacto
 
 ### ✅ Hecho el 2026-07-31: el keepalive del driver
