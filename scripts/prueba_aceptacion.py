@@ -896,13 +896,33 @@ def f7(a: Aceptacion) -> None:
             return
 
         def objetivo(dx, etiqueta):
+            """Objetivo a `dx` metros POR DELANTE DEL ROBOT (dx<0 = hacia atras).
+
+            🔴🔴 ANTES ERA `position.x = p0[0] + dx` CON `orientation.w = 1.0`, y
+               eso NO es «1.50 m por delante»: es **1.50 m a lo largo del eje X
+               del MAPA**, acabando mirando a +X. Ese eje lo fija el driver la
+               ultima vez que arranco, y desde entonces el robot ha girado —F5 le
+               da 90+180+360-90 grados—, asi que la direccion real del objetivo
+               era **impredecible para quien monta el escenario**.
+               Lo destapo el usuario preguntando «¿pero el robot ira donde detecte
+               2 m libres?». No: iba a donde apuntara un eje invisible.
+               📝 Consecuencia practica: era imposible despejar el pasillo bueno,
+                  porque nadie sabia cual era. Y colocar el obstaculo «por
+                  delante» tampoco significaba nada.
+            """
             p0 = a.pos_yaw()
+            yaw = p0[2]
             g = NavigateToPose.Goal()
             g.pose.header.frame_id = 'map'
             g.pose.header.stamp = a.nodo.get_clock().now().to_msg()
-            g.pose.pose.position.x = p0[0] + dx
-            g.pose.pose.position.y = p0[1]
-            g.pose.pose.orientation.w = 1.0
+            # proyectado sobre el rumbo ACTUAL: «delante» quiere decir delante
+            g.pose.pose.position.x = p0[0] + dx * math.cos(yaw)
+            g.pose.pose.position.y = p0[1] + dx * math.sin(yaw)
+            # y llega mirando hacia donde ya miraba, no hacia +X del mapa
+            g.pose.pose.orientation.z = math.sin(yaw / 2.0)
+            g.pose.pose.orientation.w = math.cos(yaw / 2.0)
+            print(f'    objetivo {dx:+.2f} m sobre el rumbo actual '
+                  f'({math.degrees(yaw):+.0f}°)')
 
             fut = cli.send_goal_async(g)
             fin = time.monotonic() + 20
@@ -918,7 +938,13 @@ def f7(a: Aceptacion) -> None:
                 a.ex.spin_once(timeout_sec=0.05)
                 p = a.pos_yaw()
                 if p:
-                    desvio = max(desvio, abs(p[1] - p0[1]) * 100)
+                    # 🔴 Perpendicular AL RUMBO, no el eje Y del mapa. Con el
+                    #    objetivo ya proyectado sobre el rumbo, medir `p.y - p0.y`
+                    #    daria el desvio en un eje que no tiene nada que ver con
+                    #    la trayectoria salvo que el robot mirase justo a +X.
+                    dxr, dyr = p[0] - p0[0], p[1] - p0[1]
+                    lateral = abs(-dxr * math.sin(yaw) + dyr * math.cos(yaw))
+                    desvio = max(desvio, lateral * 100)
             if not rf.done():
                 a.add(juzgar_categorico(f'{etiqueta}: llego en 120 s', False, 'F7'))
                 return
@@ -938,7 +964,8 @@ def f7(a: Aceptacion) -> None:
             if not ok:
                 print('    ⚠️ el error de abajo NO es de precision: no llego.')
             p1 = a.pos_yaw()
-            err = math.hypot(p1[0] - (p0[0] + dx), p1[1] - p0[1]) * 100
+            err = math.hypot(p1[0] - (p0[0] + dx * math.cos(yaw)),
+                             p1[1] - (p0[1] + dx * math.sin(yaw))) * 100
             a.add(juzgar_banda(f'{etiqueta}: error final', round(err, 1), 0.0, 15.0,
                                'TRASPASO:289: 8 cm; otra tanda 9-10', 'F7', 'cm'))
             return desvio
