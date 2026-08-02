@@ -1,0 +1,126 @@
+═══════════════════════════════════════════════════════════════════════════════
+COMPARATIVA: CollaborativeRoboticsLab/sphero_rvr_ros contra este proyecto
+Revisado el 2026-08-01 · las CUATRO ramas
+═══════════════════════════════════════════════════════════════════════════════
+https://github.com/CollaborativeRoboticsLab/sphero_rvr_ros
+
+───────────────────────────────────────────────────────────────────────────────
+1. LAS RAMAS: solo hay DOS versiones, no cuatro
+───────────────────────────────────────────────────────────────────────────────
+  main · develop · ros1   ->  **102 ficheros, contenido IDENTICO**. Son ROS 1.
+  ros2                    ->  118 ficheros. Es la unica distinta.
+
+  Ultimo cambio: 2026-02-27. 1 estrella, 1 fork. Licencia MIT.
+  📝 La descripcion del repo sigue diciendo «ROS1 meta package».
+
+───────────────────────────────────────────────────────────────────────────────
+2. 🔴 LA DIFERENCIA DE FONDO ES ARQUITECTONICA: ellos usan `ros2_control`
+───────────────────────────────────────────────────────────────────────────────
+  ELLOS                                  NOSOTROS
+  ─────────────────────────────────────  ─────────────────────────────────────
+  `sphero_rvr_control`: hardware          Un nodo `rclpy` monolitico
+  interface de **ros2_control en C++**    (`rvr_driver_node.py`) que habla al
+  (836 lineas), sobre una dependencia     SDK de Python VENDORIZADO.
+  `sphero_rvr_driver_cpp::RvrDriver`.
+
+  Controladores estandar:                 Publicadores propios: /odom, /imu,
+  `diff_drive_controller`,                /encoders, /color, /ambient_light,
+  `imu_broadcaster`, y **broadcasters     /motor_status, /battery_state.
+  propios en C++** para luz ambiente
+  y color.
+
+  `twist_mux` + `joy` para teleoperar     `cmd_vel_raw` -> collision_monitor
+  con multiplexado de entradas.           -> `cmd_vel` -> driver.
+
+  ⚖️ VALORACION HONESTA: `ros2_control` es la arquitectura canonica de ROS 2 y
+     seria mas limpia. Pero migrar a ella es **reescribir el driver entero en
+     C++**, y perderíamos todo lo caracterizado (marcos de referencia, keepalive,
+     parada de emergencia, ritmos medidos). No compensa hoy.
+
+───────────────────────────────────────────────────────────────────────────────
+3. ⚠️ SU RAMA ros2 NO ESTA COMPLETA — y conviene saberlo antes de copiar nada
+───────────────────────────────────────────────────────────────────────────────
+  · `sphero_rvr_navigation/config/move_base_flex.yaml` -> **move_base es ROS 1**.
+    La navegacion no esta portada a Nav2.
+  · Los `launch` de bringup, control y navegacion son **XML** (ROS 2 los admite,
+    pero delata el origen).
+  · Su fichero TODO entero dice: «add battery LED monitor» y «check imu data
+    topic name».
+
+  🔴 Y NO TIENEN NADA DE LO QUE A NOSOTROS MAS CARO NOS SALIO:
+     · keepalive / detector de silencio — **el RVR se duerme a los 300.6 s**
+       (medido). No hay rastro en su codigo ni en su TODO.
+     · parada de emergencia
+     · collision_monitor o equivalente
+     · correccion de los marcos de referencia del locator y el yaw
+
+  📝 Eso no es una critica: su objetivo es otro (un kit SparkFun con GPS y
+     camara). Pero significa que **copiar su driver nos costaria volver a
+     tropezar con lo que ya tenemos resuelto y medido**.
+
+───────────────────────────────────────────────────────────────────────────────
+4. ✅ LA IDEA QUE SI MERECE LA PENA: TELEMETRIA DE FLOTA POR MQTT
+───────────────────────────────────────────────────────────────────────────────
+  `rvr_autokit_driver/rvr_autokit_driver/mqtt_fleet_logger_node.py` (123 lineas):
+
+      robot_id           parametro, p.ej. 'rvr-001'
+      mqtt_broker/port   por defecto localhost:1883
+      mqtt_topic_prefix  'fleet/rvr'
+      publish_rate       **1.0 Hz**
+
+  Y `sphero_rvr_deployment/` trae **docker-compose + Mosquitto** (el broker).
+
+  🔴 POR QUE NOS INTERESA, Y NO SUSTITUYE A ROSBRIDGE — LOS DOS SON COSAS
+     DISTINTAS:
+
+       rosbridge  ->  OPERAR un robot. Medido: **80.7 kB/s** por robot
+                      navegando, 10.3 Mbit/s los 16. Es un WebSocket por robot,
+                      y solo mientras alguien lo esta usando.
+       MQTT 1 Hz  ->  SALUD de la flota. Unos pocos cientos de bytes por robot y
+                      minuto, SIEMPRE, contra un solo broker.
+
+     La pregunta «¿cual de los 16 se esta quedando sin bateria?» hoy exigiria
+     abrir 16 WebSockets. Con un canal de salud a 1 Hz se responde con una
+     suscripcion.
+
+  📝 Y encaja con lo que el plan ya pide en la Fase 6: «endpoint que agregue
+     bateria, uptime, temperatura, estado de /scan y /odom de los 16».
+
+  ⚠️ NO se propone adoptar MQTT sin mas: añade un broker, un puerto y una
+     dependencia (`paho-mqtt`) a los 16 robots. **La alternativa barata es un
+     topic ROS de salud a 1 Hz** que la web agregue por rosbridge, sin
+     infraestructura nueva. La idea que se copia es **separar el canal de salud
+     del canal de operacion**, no la tecnologia.
+
+───────────────────────────────────────────────────────────────────────────────
+5. LO DEMAS QUE TIENEN Y NOSOTROS NO
+───────────────────────────────────────────────────────────────────────────────
+  · **Docker** (`.devcontainer`, `dockerfile`, `docker-compose.yaml`) para
+    desarrollo y despliegue.
+    ⚖️ Choca de frente con nuestra decision de **imagen dorada + systemd**, que
+       esta razonada: ~300 MB y 15-20 min por robot sobre una sola AP. Y Docker
+       en un Pi 4 añade capa por encima de un stack que ya consume ~89 % de un
+       nucleo. **No se adopta.**
+  · `twist_mux` — multiplexar joystick, teleoperacion web y Nav2 por prioridad.
+    📝 Relevante SI se añade mando fisico. Hoy no hay.
+  · URDF mas elaborado, con mallas `.dae`.
+    ⚠️ El nuestro tiene las **cotas medidas con cinta** (18.2 x 21.7 x 7.0 cm)
+       porque la ficha del RVR miente. Un URDF bonito con cotas de catalogo seria
+       un retroceso.
+
+───────────────────────────────────────────────────────────────────────────────
+6. CONCLUSION
+───────────────────────────────────────────────────────────────────────────────
+No hay nada que **adoptar** tal cual. Su rama ros2 esta menos avanzada que la
+nuestra en lo que a este laboratorio le importa —no tiene keepalive, ni parada de
+emergencia, ni capa de seguridad, ni la navegacion portada a Nav2— y su
+arquitectura (`ros2_control` en C++) exigiria reescribir el driver perdiendo todo
+lo caracterizado.
+
+✅ **Lo que si se llevan:** la idea de un **canal de salud de flota separado del
+   de operacion**, a ~1 Hz. Se anota para la Fase 6.
+
+📝 Y una confirmacion util: son otro equipo, con otro hardware, y llegaron a
+   `ros2_control` en vez de a un nodo monolitico. Si algun dia este driver hay
+   que reescribirlo, esa es la direccion canonica — y ellos ya tienen 836 lineas
+   de hardware interface que servirian de referencia.
