@@ -229,6 +229,22 @@ class Aceptacion:
                          1 - 2 * (q.y ** 2 + q.z ** 2))
         return p.x, p.y, yaw
 
+    def pos_yaw_rapido(self):
+        """Solo el yaw del ultimo /odom ya recibido, SIN esperar.
+
+        F5 tiene que muestrear mientras el robot gira: si llamara a pos_yaw()
+        —que espera 2 s— se perderia el giro entero y el acumulado saldria mal.
+        """
+        from nav_msgs.msg import Odometry
+        if not hasattr(self, '_sub_odom'):
+            self._odom_buf = []
+            self._sub_odom = self.nodo.create_subscription(
+                Odometry, 'odom', lambda m: self._odom_buf.append(m), BE)
+        if not self._odom_buf:
+            return None
+        q = self._odom_buf[-1].pose.pose.orientation
+        return math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y ** 2 + q.z ** 2))
+
     def cerrar(self):
         """Para el robot y libera rclpy.
 
@@ -585,6 +601,162 @@ def f3(a: Aceptacion) -> None:
     req = SetLEDRGB.Request()
     req.led_id, req.red, req.green, req.blue = TODAS, 0, 0, 0
     a.llamar(rgb, req, 8.0)
+
+
+@fase('F4', 'Movimiento basico y parada de emergencia', mueve=True)
+def f4(a: Aceptacion) -> None:
+    from atriz_rvr_msgs.srv import MoveTimed
+
+    a.puerta('PASILLO DESPEJADO y nadie delante del robot.\n'
+             '     Va a avanzar ~30 cm, retroceder, y luego se le mandara una\n'
+             '     parada de emergencia a mitad de un avance.')
+
+    mv = a.nodo.create_client(MoveTimed, 'move_timed')
+
+    def avanzar(v, seg):
+        p0 = a.pos_yaw()
+        req = MoveTimed.Request()
+        req.linear, req.angular, req.duration = float(v), 0.0, float(seg)
+        fut = mv.call_async(req)
+        fin = time.monotonic() + seg + 4
+        while time.monotonic() < fin:
+            a.ex.spin_once(timeout_sec=0.05)
+        p1 = a.pos_yaw()
+        if not (p0 and p1):
+            return None
+        return math.hypot(p1[0] - p0[0], p1[1] - p0[1]) * 100      # cm
+
+    if not mv.wait_for_service(timeout_sec=15.0):
+        a.add(juzgar_categorico('move_timed responde', False, 'F4'))
+        return
+
+    d = avanzar(0.15, 2.0)
+    a.add(juzgar_banda('move_timed 2 s a 0.15 m/s', None if d is None else round(d, 1),
+                       24.0, 37.0, 'evidencia 26: 30.3 cm (101 %)', 'F4', 'cm'))
+    time.sleep(2)
+
+    d = avanzar(-0.15, 2.0)
+    a.add(juzgar_banda('marcha atras 2 s a 0.15 m/s',
+                       None if d is None else round(d, 1),
+                       24.0, 37.0, 'simetrico a la ida', 'F4', 'cm'))
+    time.sleep(2)
+
+    # ── la parada de emergencia, a mitad de un avance ──
+    print('    → parada de emergencia a mitad de un avance de 4 s…')
+    p0 = a.pos_yaw()
+    req = MoveTimed.Request()
+    req.linear, req.angular, req.duration = 0.15, 0.0, 4.0
+    mv.call_async(req)
+    fin = time.monotonic() + 1.5
+    while time.monotonic() < fin:
+        a.ex.spin_once(timeout_sec=0.05)
+    pm = a.pos_yaw()
+    a.parada_emergencia()
+    time.sleep(2.5)
+    p1 = a.pos_yaw()
+    if p0 and pm and p1:
+        tras = math.hypot(p1[0] - pm[0], p1[1] - pm[1]) * 100
+        a.add(juzgar_banda('recorrido DESPUES de la parada de emergencia',
+                           round(tras, 1), 0.0, 12.0,
+                           'watchdog: 527 ms · ~7.9 cm (CHANGELOG:3303)', 'F4', 'cm'))
+    else:
+        a.add(no_verificado('parada de emergencia', 'F4', 'no llego /odom'))
+
+    # 🔴 Que la parada BLOQUEA los servicios, no solo que frena.
+    req2 = MoveTimed.Request()
+    req2.linear, req2.angular, req2.duration = 0.10, 0.0, 1.0
+    r = a.llamar(mv, req2, 8.0)
+    a.add(juzgar_categorico('con la parada activa, move_timed es rechazado',
+                            r is not None and not r.success, 'F4',
+                            f'success = {getattr(r, "success", "sin respuesta")}'))
+
+    a.add(juzgar_categorico('release_emergency_stop devuelve el control',
+                            a.liberar_parada(), 'F4'))
+
+
+@fase('F5', 'ANGULOS — el hueco que nadie habia medido', mueve=True)
+def f5(a: Aceptacion) -> None:
+    """🔴 SIEMPRE Δyaw, NUNCA yaw absoluto.
+
+    `reset_yaw()` no pone el yaw a cero (rvr_driver_node.py:316, medido el
+    2026-07-31): solo se pone a cero AL ENCENDER EL RVR, y `sudo reboot` reinicia
+    la Pi, no el RVR. El origen viene arrastrado de quien sabe cuando.
+
+    📝 Y sin acumular deltas no se puede medir un giro de 360°: atan2 devuelve
+       -pi..pi, asi que una vuelta entera se leeria como ~0.
+    """
+    from atriz_rvr_msgs.srv import MoveTimed
+
+    a.puerta('ESPACIO PARA GIRAR EN EL SITIO. El robot no avanza, pero gira\n'
+             '     90°, 180° y una vuelta entera. Aparta lo que tenga al lado.')
+
+    mv = a.nodo.create_client(MoveTimed, 'move_timed')
+    if not mv.wait_for_service(timeout_sec=15.0):
+        a.add(juzgar_categorico('move_timed responde', False, 'F5'))
+        return
+
+    def girar(vel_rad_s, seg):
+        """Gira y devuelve el Δyaw acumulado en grados (con signo)."""
+        p = a.pos_yaw()
+        if not p:
+            return None, None
+        prev, acum = p[2], 0.0
+        req = MoveTimed.Request()
+        req.linear, req.angular, req.duration = 0.0, float(vel_rad_s), float(seg)
+        mv.call_async(req)
+        fin = time.monotonic() + seg + 3
+        while time.monotonic() < fin:
+            a.ex.spin_once(timeout_sec=0.02)
+            q = a.pos_yaw_rapido()
+            if q is not None:
+                # 🔴 Hallazgo de revision (task 6): delta_angulo() lanza ValueError
+                #    ante un yaw no finito (nan/inf) A PROPOSITO — ver su docstring.
+                #    F5 acumula en bucle, asi que dejar la excepcion sin coger
+                #    abortaria la fase entera por UNA muestra corrupta de /odom.
+                #    Se descarta la muestra (no se actualiza `prev`, no se suma
+                #    nada) y se sigue muestreando: un solo dato malo no debe tirar
+                #    un giro completo por la borda.
+                try:
+                    acum += delta_angulo(prev, q)
+                    prev = q
+                except ValueError:
+                    pass
+        p1 = a.pos_yaw()
+        desliz = math.hypot(p1[0] - p[0], p1[1] - p[1]) * 100 if p1 else None
+        return math.degrees(acum), desliz
+
+    # 1.0 rad/s durante pi/2 s ≈ 90°. Se comanda por tiempo porque move_timed
+    # toma velocidad y duracion, no un angulo: NO hay servicio «gira 90°».
+    for grados, seg in [(90, math.pi / 2), (180, math.pi), (360, 2 * math.pi)]:
+        print(f'    → izquierda {grados}°…')
+        medido, desliz = girar(1.0, seg)
+        if medido is None:
+            a.add(no_verificado(f'giro de {grados}°', 'F5', 'no llego /odom'))
+            continue
+        # ⚠️ BANDA DE CORDURA, NO DE ACEPTACION: el angulo NUNCA se habia medido,
+        #    asi que no hay base contra la que suspender. Esta pasada la fija.
+        a.add(juzgar_banda(f'giro comandado de {grados}° (Δyaw acumulado)',
+                           round(medido, 1), grados * 0.6, grados * 1.4,
+                           'SIN BASE HISTORICA — esta pasada fija la referencia',
+                           'F5', '°'))
+        if desliz is not None:
+            a.add(juzgar_banda(f'deslizamiento girando {grados}°', round(desliz, 1),
+                               0.0, 15.0, 'giro en el sitio: deberia ser ~0', 'F5', 'cm'))
+        time.sleep(2)
+
+    # ── el convenio de signo ──
+    print('    → derecha 90° (para fijar el signo)…')
+    medido, _ = girar(-1.0, math.pi / 2)
+    # 🔴 Hallazgo de revision (task 6): el brief formatea `medido` con `.1f` sin
+    #    comprobar antes que no sea None — si /odom no llega, `girar()` devuelve
+    #    (None, None) y el f-string original reventaria con TypeError. Se protege
+    #    el detalle sin tocar la condicion del veredicto (esa ya contemplaba None).
+    a.add(juzgar_categorico(
+        'angular positivo gira a la IZQUIERDA (regla de la mano derecha)',
+        medido is not None and medido < 0, 'F5',
+        (f'con angular NEGATIVO el Δyaw fue {medido:.1f}° '
+         f'(negativo = derecha, como manda REP-103)') if medido is not None
+        else 'no llego /odom'))
 
 
 def ejecutar(a: Aceptacion, desde: str) -> int:
