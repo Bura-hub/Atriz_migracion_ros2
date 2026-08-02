@@ -1,0 +1,59 @@
+═══════════════════════════════════════════════════════════════════════════════
+LA PARADA DE EMERGENCIA Y EL WATCHDOG, MEDIDOS POR FIN — 2026-08-02
+═══════════════════════════════════════════════════════════════════════════════
+Corrida `--solo F4,F6` tras arreglar los hallazgos B1 y B2 de la revision final.
+Bateria 7.19 V (23 %). 11 PASA · 0 REVISAR · 0 FALLO.
+
+POR QUE ESTA CORRIDA VALE Y LA ANTERIOR NO
+───────────────────────────────────────────────────────────────────────────────
+Las dos comprobaciones tomaban su referencia con `pos_yaw()`, que **bloquea 2 s**.
+
+  · La parada de emergencia se publicaba en t≈3.5 s de un avance de 4.0 s. Si no
+    hubiera hecho NADA, el comando acababa solo 0.5 s despues: 7.5 cm, DENTRO de
+    la banda [0, 12]. **No distinguia «paro el robot» de «se agoto el comando».**
+  · El watchdog se muestreaba 2 s despues de cortar, cuando el corte (527 ms)
+    llevaba 1.5 s hecho. **Siempre iba a dar ~0.**
+
+Arreglo: referencia con `pos_yaw_rapido_xy()`, que NO bloquea, tomada en el
+instante que toca; y la parada se publica a ~1.0 s en vez de a ~3.5.
+
+RESULTADO, Y LO QUE HABRIA DADO CADA UNO ROTO
+───────────────────────────────────────────────────────────────────────────────
+  PARADA DE EMERGENCIA          medido 1.8 cm
+    publicada a ~1.0 s de un avance de 4.0 s -> quedaban 3.0 s de comando
+    si no hiciera nada:  3.0 s x 0.15 m/s  =  45 cm
+    -> corta el 96 % del movimiento pendiente
+
+  WATCHDOG DE cmd_vel            medido 2.6 cm
+    si no cortara, el driver seguiria hasta agotar el comando: ~75 cm
+    coherente con los 527 ms ya medidos:  0.527 s x 0.15 m/s = 7.9 cm de tope
+    (2.6 es mejor porque la deceleracion empieza antes de que expire el timeout)
+
+  COLLISION_MONITOR              medido 18.9 cm  (19.0 en la corrida previa)
+    ahora PASA, contra la banda [15, 24] derivada de `circle radius 0.18`.
+    Antes salia REVISAR contra una banda construida sobre otra magnitud.
+
+📝 LA DIFERENCIA QUE IMPORTA: el watchdog paso de **0.0 cm a 2.6 cm**. No es que
+   funcione peor — es que ANTES NO SE ESTABA MIDIENDO. Un cero perfecto sobre un
+   instrumento que no puede dar otra cosa es indistinguible de un cero real.
+
+⚠️ SIGUE PENDIENTE: `laser_x`. El usuario aclaro que su «1 m inicial» era del
+   BORDE DELANTERO a la pared, no del centro. Eso corrige una cuenta mia (el
+   recorrido de F6 fueron ~90 cm, no ~81, y la velocidad media 45 % de lo
+   comandado, no 40) pero NO afecta a la discrepancia de ~2 cm entre el /scan y
+   la cinta. Se puede cerrar SIN MOVER EL ROBOT: ver abajo.
+
+COMO CERRAR `laser_x` EN DOS MINUTOS Y SIN GASTAR BATERIA
+───────────────────────────────────────────────────────────────────────────────
+`/scan` mide del LIDAR a la pared; la cinta mide del BORDE DELANTERO a la pared.
+La diferencia ES la distancia LIDAR->borde, que con `laser_x = 0` y un chasis de
+18.2 cm deberia ser **9.1 cm**.
+
+  1. Robot quieto y RECTO frente a una pared lisa, a la distancia que sea.
+  2. Medir con cinta borde delantero -> pared (las dos esquinas, para detectar
+     que este torcido).
+  3. Leer /scan de frente con el barrido encendido.
+  4. laser_x = (lectura de /scan) - (cinta) - 9.1 cm
+
+Con la parada de F6: 18.9 - 7.5 = 11.4 -> 2.3 cm de mas. Pero es n=1 y el robot
+estaba ~1 cm torcido (7 contra 8). Repetirlo quieto y recto lo zanja.
