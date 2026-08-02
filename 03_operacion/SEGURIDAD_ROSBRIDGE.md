@@ -62,7 +62,7 @@ ninguna parte de este diseño en el cortafuegos.
 
 Dos fases independientes. **La A no toca el cliente y se aplica ya; la B llega con la Fase 5.**
 
-### Fase A — Lista blanca (inmediata)
+### Fase A — Lista blanca ✅ APLICADA 2026-08-02
 
 Cuatro parámetros en `robot.launch.py`. Cero código nuevo, cero cambios en el cliente.
 
@@ -70,7 +70,8 @@ Cuatro parámetros en `robot.launch.py`. Cero código nuevo, cero cambios en el 
 |---|---|
 | `topics_sub_glob` | lo que la web **lee**: `/odom`, `/scan`, `/imu`, `/battery_state`, `/motor_status`, `/encoders`, `/color`, `/map`, `/tf`, `/tf_static`, `/collision_monitor_state`, `/amcl_pose` |
 | `topics_pub_glob` | lo que la web **manda**: **solo** `/cmd_vel_raw`, `/emergency_stop`, `/initialpose` |
-| `services_glob` | **solo** `/start_scan`, `/stop_scan`, `/release_emergency_stop`, y los cuatro de LED (`/set_led_rgb`, `/set_multiple_leds`, `/set_leds`, `/trigger_led_event`) para que la web identifique robots encendiéndolos |
+| `services_glob` | `/start_scan`, `/stop_scan`, `/release_emergency_stop`, **`/set_pos_and_yaw`**, y los cuatro de LED (`/set_led_rgb`, `/set_multiple_leds`, `/set_leds`, `/trigger_led_event`) para que la web identifique robots |
+| | 🔴 **`set_pos_and_yaw` se añadió el 2026-08-02; la primera versión de este diseño lo dejaba FUERA.** Es el **único** modo de poner la odometría a cero entre alumnos: `reset_odom` no existe, y lo que hay es `set_pos_and_yaw(0,0,0)`, que llama a `reset_locator_x_and_y()` y pone `_yaw_offset = None`. Sin él la web no puede resetear entre sesiones. Solo acepta (0,0,0), así que exponerlo es seguro. Lo destapó **cruzar este documento con la evidencia 34** — ningún fichero lo decía por sí solo |
 | `actions_glob` | `/navigate_to_pose` |
 | `params_glob` | `"[]"` — **nada**. La web no cambia parámetros |
 
@@ -182,3 +183,51 @@ Nada se da por bueno sin ejecutarlo. En orden:
    `/set_led_rgb`, que está en la lista: debe seguir encendiendo los faros.
 5. **Y el caso que más fácil se olvida:** que un robot **recién arrancado** aplique la lista. Se
    comprueba tras un reinicio, no solo tras relanzar el launch a mano.
+
+
+---
+
+## ✅ Fase A aplicada y verificada — 2026-08-02
+
+`robot.launch.py` pasó de `{'port': 9090, 'use_sim_time': False}` a llevar los cinco `*_glob`, y
+se levantó `rosapi_node`, que no corría.
+
+**El log del servidor confirma las denegaciones** — que es la única prueba posible, porque
+rosbridge no responde a un `publish`:
+
+```
+WARN  No match found for service, cancelling service call for: /raw_motors
+WARN  No match found for service, cancelling service call for: /move_timed
+WARN  No match found for topic, cancelling advertisement of: /cmd_vel
+WARN  No match found for topic, cancelling publish to: /cmd_vel
+```
+
+Y lo permitido sigue vivo: `/start_scan` y `/set_pos_and_yaw` **responden y aceptan**, `rosapi`
+responde.
+
+### 🔴 Dos fallos de la propia herramienta de verificación, encontrados AL USARLA
+
+1. **Su control dependía de `/odom`, que no llega con el RVR apagado cargando** — un estado que
+   con 16 robots será cotidiano. Abortaba correctamente («no concluye nada») pero eso la dejaba
+   inservible justo cuando más cómodo es tocar la configuración.
+   → Control cambiado a **`rosapi`**, que responde sin el RVR. `/odom` se conserva como control
+   adicional, y su ausencia **degrada** la prueba en vez de abortarla.
+
+2. 🔴 **Contaba un error como éxito.** Miraba solo si llegaba *una* respuesta, y dio ✅ sobre un
+   `set_pos_and_yaw` que había respondido con `NonexistentFieldException`: los campos que le
+   mandaba estaban mal (`{'x','y','yaw'}` planos, cuando el servicio quiere
+   `{'position': {...}, 'yaw'}`).
+   **La herramienta que existe para cazar falsos positivos tenía uno dentro.**
+   → Ahora distingue un `service_response` con `result` bueno de un `status` con `level: error`.
+
+📝 Los dos salieron **de ejecutarla, no de leerla**. Es el argumento de que la verificación forme
+parte de la fase y no sea un paso opcional al final.
+
+### ⏳ Lo único que falta de la Fase A
+
+**Comprobar con el RVR encendido que el robot NO SE MUEVE al mandar `raw_motors`.** Que no llegue
+respuesta **no prueba que la orden no pasara**, igual que un `success` no prueba que algo se hiciera
+— este proyecto lleva seis casos documentados de lo segundo, y esto es lo primero.
+
+⏳ Pendiente porque el robot está cargando (2026-08-02). Se valida en la próxima sesión con el RVR
+encendido y espacio libre.
