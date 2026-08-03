@@ -403,18 +403,25 @@ Crear `herramientas/comprobar_contrato.mjs`:
  *
  *   node herramientas/comprobar_contrato.mjs ../Atriz_rvr
  */
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const raizRvr = process.argv[2]
-if (!raizRvr) {
-  console.log('AVISO: sin ruta a Atriz_rvr, no se puede comparar. Uso:')
+// Todas las rutas se resuelven contra la RAIZ DEL PROYECTO, no contra el
+// directorio de trabajo: npm ejecuta los guiones desde `frontend/`, asi que
+// una ruta relativa al CWD apuntaria al sitio equivocado segun quien lo llame.
+const raizProyecto = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const raizRvr = resolve(raizProyecto, process.argv[2] ?? '../Atriz_rvr')
+
+const rutaLaunch = join(raizRvr, 'atriz_rvr_bringup/launch/robot.launch.py')
+if (!existsSync(rutaLaunch)) {
+  console.log(`AVISO: no encuentro ${rutaLaunch}, no se puede comparar. Uso:`)
   console.log('  node herramientas/comprobar_contrato.mjs ../Atriz_rvr')
   process.exit(0)   // aviso, no fallo: en un clon suelto puede no estar
 }
 
-const launch = readFileSync(join(raizRvr, 'atriz_rvr_bringup/launch/robot.launch.py'), 'utf8')
-const contrato = readFileSync('frontend/src/lib/rosbridge/contrato.ts', 'utf8')
+const launch = readFileSync(rutaLaunch, 'utf8')
+const contrato = readFileSync(join(raizProyecto, 'frontend/src/lib/rosbridge/contrato.ts'), 'utf8')
 
 /** Saca las cadenas '/loquesea' de un bloque `NOMBRE = [ ... ]`. */
 function bloquePython(fuente, nombre) {
