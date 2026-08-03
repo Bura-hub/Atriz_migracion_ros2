@@ -235,9 +235,129 @@ La causa quedo AISLADA con una medida directa (no solo con que el sintoma
 desaparezca): self._ejecutor.shutdown() no espera al hilo de spin(), que
 mide tardar ~0.5 ms mas en unirse, y ese hueco es donde destroy_node()
 corria en paralelo con el hilo en el codigo original. El arreglo
-(self._hilo.join(timeout=3.0) antes de destroy_node()) elimino el SIGABRT en
-10/10 corridas, consistente con la causa aislada. No se puede afirmar con
-un backtrace nativo (no hay gdb instalado, y no se instala: paso sudo fuera
-de alcance) que sea la UNICA causa posible de un SIGABRT en esa ventana, pero
-la medida (hilo vivo -> hueco medido -> arreglo que cierra exactamente ese
-hueco -> sintoma desaparece en 10/10) es la evidencia disponible sin gdb.
+(self._hilo.join(timeout=3.0) antes de destroy_node()) hizo desaparecer el
+SIGABRT en 10/10 corridas, consistente con la causa aislada. No se puede
+afirmar con un backtrace nativo (no hay gdb instalado, y no se instala: paso
+sudo fuera de alcance) que sea la UNICA causa posible de un SIGABRT en esa
+ventana, pero la medida (hilo vivo -> hueco medido -> arreglo que cierra
+exactamente ese hueco -> sintoma desaparece en 10/10) es la evidencia
+disponible sin gdb.
+
+NOTA DE PRECISION (corregida en la ronda de arreglo 2, por observacion del
+revisor): decir "SIGABRT eliminado" es mas fuerte que la evidencia. Lo
+correcto es "SIGABRT mitigado a un caso (join expirado a los 3 s) que no se
+ha reproducido ni descartado" -- ver la ronda de arreglo 2 para la decision
+tomada sobre ese caso.
+
+=== RONDA DE ARREGLO 2 (2026-08-02, revision de codigo) ===
+
+Un revisor de codigo (agente independiente) encontro tres defectos, los tres
+heredados del brief, no introducidos por esta tarea:
+
+1. CRITICO: _encender_barrido() no esta protegido dentro de __init__. Si
+   /start_scan tiene EXITO (barrido de verdad encendido, motor a 11.8 Hz) y
+   /scan no llega en 8 s, _ultimo() lanza ErrorAtriz que sale de __init__
+   ANTES de que Python entre en el `with`: __enter__ no se llama, y por
+   tanto __exit__/cerrar() TAMPOCO. El barrido se queda girando para
+   siempre -- exactamente lo que el comentario de cerrar() dice evitar.
+
+2. IMPORTANTE: si self._hilo.join(timeout=3.0) expiraba, cerrar() imprimia
+   un AVISO y SEGUIA igual a destroy_node()/rclpy.shutdown() -- la misma
+   secuencia sin sincronizar que provocaba el SIGABRT de la ronda 1, solo
+   que menos probable (estrechar la carrera no es cerrarla).
+
+3. MENOR (heredado, misma familia que el 1): en cerrar(), _mandar(0,0,5) y
+   la llamada a /stop_scan estaban en el MISMO try. Si _mandar fallaba,
+   /stop_scan nunca se ejecutaba: el apagado del barrido no estaba
+   garantizado.
+
+--- Arreglo 1: __init__ protegido ---
+
+_encender_barrido()/_comprobar_color() ahora estan dentro de un try; si
+cualquiera de las dos lanza, se llama a self.cerrar() (que ya intenta
+parar y apagar el barrido, y ya tolera que el hilo/nodo esten a medio
+montar) y se relanza la excepcion original.
+
+--- Arreglo 2: join expirado ya NO sigue a destroy_node() ---
+
+Si self._hilo.join(timeout=3.0) expira (self._hilo.is_alive() sigue True),
+cerrar() imprime un AVISO y hace return SIN llamar a destroy_node() ni a
+rclpy.shutdown(): no se reproduce la secuencia que provocaba el abort. La
+seguridad del robot ya se intento por encima (velocidad cero + /stop_scan);
+se prefiere una fuga de recursos DDS (que el SO recupera al terminar el
+proceso) antes que arriesgar el mismo SIGABRT.
+
+--- Arreglo 3: dos try independientes en cerrar() ---
+
+_mandar(0.0, 0.0, repeticiones=5) y la llamada a /stop_scan pasan a estar en
+try separados: si el primero falla, el segundo se intenta igual.
+
+--- Prueba del fallo forzado (CRITICO), SIN tocar el robot ni el driver ---
+
+Se forzo el escenario con un script aparte que monkeypatchea
+Robot._ultimo para que, cuando se le pida '_scan', lance ErrorAtriz de
+inmediato -- SIN tocar _llamar() ni el cliente real de /start_scan, que se
+ejecuta de verdad (el barrido se enciende de verdad):
+
+$ cd ~/atriz_ws/src/Atriz_rvr/scripts/estudiantes && source /opt/ros/jazzy/setup.bash
+$ python3 forzar_fallo_arranque.py    (script en el scratchpad del agente)
+Conectando con el robot...
+ErrorAtriz esperado, capturada FUERA del with: FORZADO (prueba): simulando
+que /scan nunca llega, aunque /start_scan ya tuvo exito y el barrido esta
+encendido de verdad.
+exit -> 0
+
+Repetido 3 veces en total, las 3 con el mismo resultado.
+
+Confirmado por el LOG DEL DRIVER (no solo por la ausencia de /scan):
+
+$ journalctl -u atriz-robot --no-pager -n 15 | grep -i "lidar has"
+[2026-08-02 23:33:23][info] Lidar has started!
+[2026-08-02 23:33:24][info] Lidar has stopped!
+
+Y confirmado tambien con stdbuf -oL ros2 topic hz /scan durante 8 s tras la
+prueba: ningun mensaje, tanto tras la corrida individual como tras las 3
+repeticiones seguidas.
+
+--- Verificacion estandar repetida tras los 3 arreglos ---
+
+$ cd ~/atriz_migracion && python3 -m pytest scripts/pruebas/ -q
+..........................................                               [100%]
+42 passed in 1.75s / 1.80s (repetido dos veces)
+
+$ cd ~/atriz_ws/src/Atriz_rvr/scripts/estudiantes && for i in $(seq 1 10); do
+    timeout 60 python3 -c "from atriz import Robot
+with Robot() as r:
+    pass" > /dev/null 2>&1
+    echo "corrida $i -> $?"
+  done
+corrida 1 -> 0
+corrida 2 -> 0
+corrida 3 -> 0
+corrida 4 -> 0
+corrida 5 -> 0
+corrida 6 -> 0
+corrida 7 -> 0
+corrida 8 -> 0
+corrida 9 -> 0
+corrida 10 -> 0
+
+$ stdbuf -oL ros2 topic hz /scan   (8 s tras las 10 corridas)
+(ningun mensaje: barrido apagado)
+
+$ systemctl is-active atriz-robot
+active
+
+$ stdbuf -oL ros2 topic hz /odom
+average rate: 16.380 / 16.521
+(coincide con la referencia del proyecto: 16.59 Hz)
+
+--- Conclusion de la ronda 2 ---
+
+Los tres hallazgos quedan corregidos y el critico probado con el fallo
+REAL forzado (no solo razonado): el barrido queda apagado incluso cuando
+/start_scan tiene exito y /scan nunca llega. El join expirado ya no se
+reproduce (no se forzo esa condicion especifica -- el join real sigue
+siendo submilisegundos en todas las corridas medidas hasta ahora -- pero la
+rama de codigo que lo maneja ya no repite la secuencia que abortaba). El
+apagado del barrido en cerrar() ya no depende de que _mandar() tenga exito.
