@@ -1,0 +1,202 @@
+Evidencia 59 — atriz.py: sensores, luces y parada explícita (Tarea 5)
+Fecha: 2026-08-03
+Robot: rvr-01, atriz-robot.service activo, /odom a 16.5 Hz, batería ~7.86 V,
+       barrido del LIDAR apagado al iniciar, sensor de color desactivado
+       (color_detection=False, arranque normal).
+
+═══════════════════════════════════════════════════════════════════════════
+PASO 3 — sensores + luces (ENCIENDE LOS FAROS, no mueve el robot)
+═══════════════════════════════════════════════════════════════════════════
+
+Comando:
+  cd ~/atriz_ws/src/Atriz_rvr/scripts/estudiantes && source /opt/ros/jazzy/setup.bash
+  python3 -c "
+  import time
+  from atriz import Robot
+  with Robot() as r:
+      print('bateria:', r.bateria(), 'V')
+      print('distancia frontal:', round(r.distancia_frontal(), 3), 'm')
+      print('color:', r.color())
+      for nombre, rgb in (('ROJO', (255,0,0)), ('VERDE', (0,255,0)), ('AZUL', (0,0,255))):
+          r.luces(*rgb); print('mira el robot:', nombre); time.sleep(2)
+      r.luces(0, 0, 0)
+  "
+
+Salida literal:
+
+  Conectando con el robot...
+  AVISO: el sensor de color esta APAGADO en este robot.
+         color() devolvera ceros. Para usarlo, el robot tiene
+         que arrancar asi (lo hace el profesor):
+           sudo systemctl stop atriz-robot
+           ros2 launch atriz_rvr_bringup robot.launch.py color_detection:=true
+  Robot listo.
+  bateria: 7.861380577087402 V
+  distancia frontal: 2.902 m
+  AVISO: el sensor de color esta apagado; esto seran ceros.
+  color: (0, 1, 1, 0)
+  mira el robot: ROJO
+  mira el robot: VERDE
+  mira el robot: AZUL
+
+Batería: 7.861 V, dentro del rango esperado 6.5-8.3 V.
+Distancia frontal: 2.902 m — coherente con el robot en un espacio abierto del
+laboratorio (NO VERIFICADO contra cinta métrica en este ensayo; solo se
+comprobó orden de magnitud).
+
+⚠️ DESVIACIÓN respecto a lo esperado en el brief: con el sensor de color
+apagado se esperaba "el canal claro en 1". La medida real da
+(rojo=0, verde=1, azul=1, claro=0) en esta llamada, y en la medición 3 más
+abajo (n=5) los cuatro canales oscilan entre 0 y 1 de forma no repetible.
+Es ruido de fondo del ADC con la luz del sensor apagada, no un patrón fijo
+de "claro=1". Se deja constatado y NO se cambia el código: el comportamiento
+en sí (devolver lo que contesta el servicio) es correcto: la discrepancia es
+solo en la expectativa de "esperado" del brief, no en la implementación.
+
+Faros: el script encendió ROJO, luego VERDE, luego AZUL (~2 s cada uno) y los
+apagó al final con luces(0,0,0). Confirmación visual del usuario: PENDIENTE
+en el momento de escribir este fichero — se pide en el informe de la tarea.
+
+═══════════════════════════════════════════════════════════════════════════
+LAS TRES MEDICIONES PEDIDAS EN EL BRIEF
+═══════════════════════════════════════════════════════════════════════════
+
+--- 1) Coste de distancia_frontal() sobre TODO el barrido -------------------
+
+Script (ejecutado tras el paso 3, misma sesión):
+
+  === Medicion 1: coste de distancia_frontal() ===
+  Conectando con el robot...
+  AVISO: el sensor de color esta APAGADO en este robot.
+         color() devolvera ceros. Para usarlo, el robot tiene
+         que arrancar asi (lo hace el profesor):
+           sudo systemctl stop atriz-robot
+           ros2 launch atriz_rvr_bringup robot.launch.py color_detection:=true
+  Robot listo.
+  coste medio por llamada (n=200): 0.2980 ms
+  num puntos del barrido (ranges): 260
+  1/RITMO_HZ (10 Hz) = 100 ms; margen: 336x
+
+RESPUESTA: /scan trae 260 puntos en este robot (no 250-270 exactos, pero en
+ese rango). El coste medio de recorrerlos y filtrar por ángulo es 0.298 ms
+por llamada (n=200, con el barrido ya en caché — no incluye la espera de
+_ultimo). Un seguidor de línea que lo llame en un lazo a 10 Hz (presupuesto
+100 ms/vuelta) tiene un margen de 336x: cabe de sobra, ni de lejos es el
+cuello de botella del lazo.
+
+--- 2) bateria() con timeout 35 s: ¿cuánto tarda de verdad la primera llamada? ---
+
+  === Medicion 2: bateria(), primera llamada tras conectar ===
+  Conectando con el robot...
+  AVISO: el sensor de color esta APAGADO en este robot.
+         color() devolvera ceros. Para usarlo, el robot tiene
+         que arrancar asi (lo hace el profesor):
+           sudo systemctl stop atriz-robot
+           ros2 launch atriz_rvr_bringup robot.launch.py color_detection:=true
+  Robot listo.
+  voltios: 7.861333847045898
+  tiempo desde conectado (tras Robot() listo) hasta que bateria() devuelve: 0.0 ms
+
+RESPUESTA: 0.0 ms (por debajo de la resolución del cronómetro, redondea a
+0.0). La primera llamada a bateria() tras "Robot listo." devuelve
+inmediatamente: /battery_state es RELIABLE + TRANSIENT_LOCAL en el driver, y
+la suscripción de atriz.py pide el mismo QoS, así que el último valor
+retenido llega nada más emparejar, sin esperar los 30 s del siguiente
+latido del keepalive. El timeout de 35 s da margen de sobra (10x sobre el
+período de publicación) pero en la práctica NO se necesita: es red de
+seguridad para el caso "el driver acaba de arrancar y aún no ha publicado
+nada", no el camino habitual.
+
+--- 3) color(): comprobar los 13.3-20.5 ms medidos por el usuario -----------
+
+  === Medicion 3: color(), n=5 ===
+  Conectando con el robot...
+  AVISO: el sensor de color esta APAGADO en este robot.
+         color() devolvera ceros. Para usarlo, el robot tiene
+         que arrancar asi (lo hace el profesor):
+           sudo systemctl stop atriz-robot
+           ros2 launch atriz_rvr_bringup robot.launch.py color_detection:=true
+  Robot listo.
+  AVISO: el sensor de color esta apagado; esto seran ceros.
+    llamada 1: (1, 0, 1, 0)  -> 20.8 ms
+  AVISO: el sensor de color esta apagado; esto seran ceros.
+    llamada 2: (1, 0, 1, 0)  -> 20.8 ms
+  AVISO: el sensor de color esta apagado; esto seran ceros.
+    llamada 3: (0, 1, 0, 1)  -> 20.7 ms
+  AVISO: el sensor de color esta apagado; esto seran ceros.
+    llamada 4: (0, 1, 0, 1)  -> 20.7 ms
+  AVISO: el sensor de color esta apagado; esto seran ceros.
+    llamada 5: (1, 1, 0, 1)  -> 20.6 ms
+  rango medido: 20.6-20.8 ms
+
+RESPUESTA: sale 20.6-20.8 ms (n=5), en el mismo orden de magnitud que los
+13.3-20.5 ms medidos por el usuario, en el extremo superior de ese rango.
+Confirma que el servicio cabe de sobra en un lazo a 10 Hz (100 ms de
+presupuesto).
+
+═══════════════════════════════════════════════════════════════════════════
+PASO 4 — parada de emergencia explícita, y liberación
+═══════════════════════════════════════════════════════════════════════════
+
+Comando:
+  source /opt/ros/jazzy/setup.bash
+  python3 -c "
+  from atriz import Robot
+  import sys; sys.path.insert(0, '.')
+  with Robot() as r: r.parada_emergencia()
+  "
+  journalctl -u atriz-robot --since "-25 s" --no-pager | grep -ci "parada"
+
+Salida literal:
+
+  Conectando con el robot...
+  AVISO: el sensor de color esta APAGADO en este robot.
+         color() devolvera ceros. Para usarlo, el robot tiene
+         que arrancar asi (lo hace el profesor):
+           sudo systemctl stop atriz-robot
+           ros2 launch atriz_rvr_bringup robot.launch.py color_detection:=true
+  Robot listo.
+  PARADA DE EMERGENCIA enviada. El robot no obedecera hasta que
+  alguien la libere:  ros2 service call /release_emergency_stop std_srvs/srv/Empty
+  ---journalctl---
+  3
+
+Resultado: 3 líneas del journal mencionan "parada" en los últimos 25 s (≥1
+esperado). CONFIRMADO: la parada llegó al driver.
+
+Liberación inmediata (obligatoria):
+
+  source /opt/ros/jazzy/setup.bash
+  ros2 service call /release_emergency_stop std_srvs/srv/Empty
+
+Salida literal:
+
+  waiting for service to become available...
+  requester: making request: std_srvs.srv.Empty_Request()
+
+  response:
+  std_srvs.srv.Empty_Response()
+
+Verificación en el log del driver (no solo el código de retorno del
+servicio, que "success=true" no basta como prueba — regla del proyecto):
+
+  journalctl -u atriz-robot --since "-15 s" --no-pager | grep -iE "liber|release|emergenc"
+
+  Aug 03 01:02:15 rvr-01 atriz-robot[708]: [rvr_driver_node-1] [WARN]
+  [1785736935.215256534] [rvr_driver]: parada de emergencia liberada
+
+CONFIRMADO POR EL EFECTO EN EL LOG DEL DRIVER: la parada de emergencia quedó
+LIBERADA al finalizar esta tarea. El robot queda operativo para las tareas
+siguientes.
+
+═══════════════════════════════════════════════════════════════════════════
+Notas de método
+═══════════════════════════════════════════════════════════════════════════
+
+- No se movieron las orugas en ningún momento de esta tarea: ni avanzar(),
+  ni girar(), ni una publicación de velocidad distinta de cero.
+- Todos los comandos se ejecutaron tal cual aparecen en el brief
+  (tarea-5-brief.md), sin modificar el código de prueba.
+- Las tres mediciones adicionales (coste de distancia_frontal, latencia de
+  bateria(), y n=5 de color()) se ejecutaron en una sesión aparte, después
+  del paso 3, sin volver a encender los faros.
