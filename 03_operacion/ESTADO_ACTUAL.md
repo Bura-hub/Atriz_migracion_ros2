@@ -25,12 +25,21 @@ conservar: **no existe ningún mecanismo para que dos instancias de Claude Code 
 intento futuro por ese camino parte de una premisa falsa. Lo que sí funciona entre las dos máquinas
 es **el repositorio**: 249 commits en 7 días, mediana de 8 minutos.
 
-🔴 **Y el mismo día, ya desde el PC: la sección 1 de ese plan tiene CUATRO afirmaciones falsas.** Se
-escribió mirando la API de GitHub **sin abrir el código**. No hay Monaco integrado —es un `<textarea>`
-con Prism, y «Monaco» era la **tipografía** en una línea de CSS—, `POST /api/robots/execute/` y
-`ExecuteCommand.vue` no existen, `raspberry_config.py` da 404, y una cita entrecomillada «del código»
-no está en ningún fichero. **El veredicto («se rehace») aguanta y sale reforzado; el inventario y la
-estimación, no.** Evidencia 66.
+🔴 **Y el mismo día, ya desde el PC: la sección 1 de ese plan tiene CUATRO afirmaciones falsas.** No
+hay Monaco integrado —es un `<textarea>` con Prism, y «Monaco» era la **tipografía** en una línea de
+CSS—, `POST /api/robots/execute/` y `ExecuteCommand.vue` no existen, `raspberry_config.py` da 404, y
+una cita entrecomillada «del código» no está en ningún fichero. **El veredicto («se rehace») aguanta
+y sale reforzado; el inventario y la estimación, no.** Evidencia 66.
+
+🔴 **Y la tercera medición explica por qué las dos primeras se contradijeron: `Atriz_web_server`
+tiene TRES ramas que son códigos distintos, y ninguna auditoría dijo cuál miraba.** `master` (la que
+da un `git clone`) es del 2026-02-09 y ahí `PythonCode.vue` son 2,9 KB de `<textarea>`; **`pruebas`
+es del 2026-02-16 —siete días más nueva— y ahí son 11 KB con Monaco de verdad**. `compare` entre
+ellas devuelve 404: no comparten ancestro.
+→ **Manda `pruebas`**: es la más reciente y la que cita **toda** la documentación del proyecto
+(`INFORME_AUDITORIA.md:5`, `TRASPASO.md:1103`, `CHANGELOG.md:4560`, commit `924d659`).
+`git clone -b pruebas …`. **Las dos auditorías midieron bien; el defecto fue no fijar la rama, y es
+del plan.** Evidencia 67.
 
 📌 **Tercer repositorio en juego: `Bura-hub/atriz-lab`**, clonado en el PC el 2026-08-03. Next.js 15 +
 React 19 + Tailwind y un backend FastAPI + Celery, de 2025-10-17. Sin autenticación, telemetría de

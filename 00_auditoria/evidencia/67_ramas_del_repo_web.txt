@@ -1,0 +1,61 @@
+═══════════════════════════════════════════════════════════════════════════════
+67 · Atriz_web_server tiene TRES ramas que son códigos distintos
+     Por qué dos auditorías del mismo día se contradijeron
+═══════════════════════════════════════════════════════════════════════════════
+Fecha: 2026-08-03T18:01:17-05:00   ·   Medido desde: rvr-01
+
+── EL PROBLEMA ───────────────────────────────────────────────────────────────
+  El 2026-08-03 se auditó Atriz_web_server dos veces con resultados opuestos:
+    · por la mañana, desde el robot, por la API de GitHub
+    · por la tarde, desde el PC, leyendo los ficheros clonados
+
+  La segunda declaró CUATRO afirmaciones de la primera como falsas.
+
+── LA CAUSA, MEDIDA ──────────────────────────────────────────────────────────
+  Las dos midieron bien. Midieron RAMAS DISTINTAS, y ninguna lo dijo.
+
+                             master       pruebas      develop     
+  ──                     ────── ─────── ───────
+  fecha del HEAD             2026-02-09   2026-02-16   2026-02-10  
+  por defecto en git clone   SI           no           no          
+  PythonCode.vue             2911 B       10981 B      -           
+    -> editor                textarea+Prism MONACO       -           
+  ExecuteCommand.vue         404          200          200         
+  raspberry_config.py        404          200          200         
+  /robots/execute/           0            1            1           
+  cita «Pasos simulados»   0            1            0           
+  core/security.py           200          200          200         
+
+  Y el compare de GitHub entre ellas devuelve 404: no comparten ancestro. No
+  son versiones de lo mismo — son tres códigos.
+
+── LA CONCLUSIÓN, Y NO ES «QUIÉN TENÍA RAZÓN» ────────────────────────────────
+  🔴 UN REPOSITORIO SIN RAMA FIJADA NO ES UNA REFERENCIA.
+
+  El defecto está en el plan de la mañana, que escribió «el repositorio de la
+  web» sin decir cuál de las tres. La corrección de la tarde hizo un git clone
+  —que da 'master'— y midió otra cosa, con toda la razón.
+
+  Es la misma trampa que este proyecto ya tiene documentada: una auditoría
+  sobre un clon desincronizado dio TRES hallazgos falsos. Con otro disfraz.
+
+── QUÉ RAMA MANDA ────────────────────────────────────────────────────────────
+  'pruebas', por dos razones independientes:
+    1. Es la más reciente, por 7 días.
+    2. Es la que cita TODA la documentación del proyecto, con su commit:
+         INFORME_AUDITORIA.md:5 y :308   ·   TRASPASO.md:1103
+         CHANGELOG.md:4560 y :4697       ·   commit 924d659
+
+  Para clonarla:   git clone -b pruebas https://github.com/Bura-hub/Atriz_web_server.git
+
+── QUÉ SE SOSTIENE PASE LO QUE PASE ──────────────────────────────────────────
+  ✅ La autenticación está escrita y sin conectar (get_current_user existe,
+     cero endpoints lo usan). No depende de la rama.
+  ✅ La telemetría es falsa.
+  ✅ Las dos credenciales nuevas. core/security.py responde 200 en LAS TRES
+     ramas, así que la SECRET_KEY de firma de los JWT está en las tres.
+     🔐 Con ella cualquiera forja un token válido. Rotar antes de tocar nada.
+  ✅ El veredicto: SE REHACE. Sale reforzado, no debilitado.
+
+  Lo que NO se sostiene sin fijar la rama: el inventario y la estimación.
+═══════════════════════════════════════════════════════════════════════════════

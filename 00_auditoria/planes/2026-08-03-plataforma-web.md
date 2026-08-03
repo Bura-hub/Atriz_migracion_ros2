@@ -39,11 +39,46 @@ cierre el pendiente de seguridad que hoy bloquea la Fase 5.
 
 No estaba clonado; se inspeccionó por la API de GitHub sin descargar los 63,7 MB.
 
-> 🔴 **CORREGIDO EL 2026-08-03 POR LA TARDE, LEYENDO LOS FICHEROS.** Esta sección se escribió
-> mirando la API de GitHub **sin abrir el código**, y **cuatro de sus afirmaciones son falsas** —
-> incluida la única que declaraba un activo técnico rescatable. **El veredicto («se rehace») se
-> sostiene, y con razones más fuertes; lo que cambia es el inventario y la estimación.** Cada
-> punto va marcado abajo. Evidencia 66.
+> # 🔴 LÉASE ESTO ANTES QUE NADA: **HAY QUE FIJAR LA RAMA**
+>
+> Esta sección se escribió dos veces el 2026-08-03 con resultados contradictorios, y la tercera
+> medición explica por qué: **`Atriz_web_server` tiene tres ramas que son códigos distintos**, y
+> `compare` entre ellas devuelve 404 — no comparten ancestro.
+>
+> | | `master` | `pruebas` | `develop` |
+> |---|---|---|---|
+> | fecha | 2026-02-09 | **2026-02-16** ← la más nueva | 2026-02-10 |
+> | por defecto en `git clone` | **sí** | no | no |
+> | `PythonCode.vue` | **2,9 KB**, `<textarea>` + Prism | **11,0 KB**, Monaco de verdad | — |
+> | `ExecuteCommand.vue` | 404 | existe | existe |
+> | `raspberry_config.py` | 404 | existe | existe |
+> | `/robots/execute/` | no | sí | sí |
+> | «Pasos simulados» | no | sí | no |
+>
+> **Ninguna de las dos auditorías se equivocó al medir. Las dos midieron ramas distintas y ninguna
+> lo dijo, empezando por la primera — que es de quien escribió este plan.** La corrección de la
+> tarde midió `master` (lo que da un `git clone`); la mañana midió `pruebas`.
+>
+> **Autoridad: `pruebas`.** Es la más reciente por 7 días y es la que cita **toda** la documentación
+> del proyecto: `INFORME_AUDITORIA.md:5` y `:308`, `TRASPASO.md:1103` y `CHANGELOG.md:4560`, todos
+> con el commit `924d659`. Para clonarla: `git clone -b pruebas …`.
+>
+> ⚠️ **Lo que sigue en esta sección mezcla las dos.** Cada afirmación necesita su rama al lado. Al
+> revisarlo, ese es el primer trabajo — y hasta que esté hecho, **el inventario y la estimación no
+> son fiables**.
+>
+> ✅ **Lo que NO depende de la rama, y por tanto se sostiene entero:** que la autenticación está
+> escrita y sin conectar, que la telemetría es falsa, las dos credenciales nuevas
+> (`SECRET_KEY` de los JWT está en `core/security.py` en **las tres** ramas), y el veredicto: **se
+> rehace**. Ese aguanta, y sale reforzado.
+>
+> 📝 Y la lección para el plan, que vale más que el inventario: **un repositorio sin rama fijada no
+> es una referencia.** Este proyecto ya tiene documentada la trampa de auditar un clon
+> desincronizado —tres hallazgos falsos— y esta es la misma con otro disfraz.
+
+> 🔴 **CORREGIDO EL 2026-08-03 POR LA TARDE, LEYENDO LOS FICHEROS DE `master`.** Cuatro afirmaciones
+> de la versión de la mañana son falsas **en esa rama** —incluida la única que declaraba un activo
+> técnico rescatable— y **ciertas en `pruebas`**. Cada punto va marcado abajo. Evidencia 66.
 >
 > Y aparecieron **dos credenciales nuevas** en ese repositorio, que sigue **público**
 > (`private=False`, `forks=0`): la de PostgreSQL en un `.env` **commiteado** y duplicada en
