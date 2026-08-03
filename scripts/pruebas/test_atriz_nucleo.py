@@ -109,16 +109,37 @@ def test_los_recursos_se_sueltan_aunque_falle_el_apagado_del_barrido():
     assert pasos == ['parar', 'desmontar']
 
 
-def test_se_capturan_las_tres_senales_que_matan_un_programa():
-    """🔴 Solo con SIGINT, cerrar la terminal (SIGHUP) o `kill` (SIGTERM)
-    mataban el proceso SIN pasar por `cerrar()`, y el barrido quedaba
-    encendido. El watchdog de 0.3 s del driver para los MOTORES; del LIDAR no
-    sabe nada. Verificado provocando las dos señales sobre procesos reales.
+def test_se_capturan_TODAS_las_senales_de_fin_que_se_pueden_capturar():
+    """🔴 Solo con SIGINT, cerrar la terminal (SIGHUP), `kill` (SIGTERM) o
+    Ctrl-\\ (SIGQUIT) mataban el proceso SIN pasar por `cerrar()`, y el barrido
+    quedaba encendido. El watchdog de 0.3 s del driver para los MOTORES; del
+    LIDAR no sabe nada. Verificado provocando cada señal sobre procesos reales.
+
+    🔴 SIGQUIT es el que mas cuesta acordarse y el mas probable de todos DESPUES
+       del arreglo del segundo Ctrl-C: ahora la biblioteca ignora los Ctrl-C
+       repetidos y pide esperar, y ese es exactamente el momento en que alguien
+       prueba Ctrl-\\. Medido sin capturarla: salida 131, «core dumped»,
+       barrido ENCENDIDO.
+
+    La lista se compara contra las señales de fin capturables que existen en
+    este sistema, no contra una lista escrita a mano: si mañana hiciera falta
+    otra, este test no la echaria de menos por si solo, pero al menos no deja
+    caer ninguna de las cuatro que ya sabemos que hacen falta.
     """
     nombres = {s.name for s in SENALES_DE_CIERRE}
-    assert nombres == {'SIGINT', 'SIGTERM', 'SIGHUP'}, (
+    assert nombres == {'SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT'}, (
         f'faltan señales de cierre: {nombres}. Sin SIGHUP, perder el SSH deja '
-        f'el X2 girando a 11.8 Hz; sin SIGTERM, `systemctl stop` hace lo mismo')
+        f'el X2 girando a 11.8 Hz; sin SIGTERM, `systemctl stop` hace lo mismo; '
+        f'sin SIGQUIT, Ctrl-\\ tambien')
+
+
+def test_ninguna_senal_de_cierre_es_incapturable():
+    """SIGKILL y SIGSTOP no se pueden capturar: meterlos en la lista haria que
+    `signal.signal()` lanzara al construir el Robot, o sea que romperia el
+    arranque entero en vez de proteger nada."""
+    incapturables = {getattr(signal, n) for n in ('SIGKILL', 'SIGSTOP')
+                     if hasattr(signal, n)}
+    assert not (set(SENALES_DE_CIERRE) & incapturables)
 
 
 def _robot_sin_ros():
@@ -184,6 +205,49 @@ def test_una_senal_durante_el_cierre_no_lo_interrumpe():
     assert robot.rastro == [], (
         'una señal durante el cierre arranco un cierre nuevo en vez de '
         'dejar terminar el que estaba en marcha')
+
+
+def test_el_guardia_se_pone_ANTES_de_marcar_el_cierre_como_hecho():
+    """🔴 LA VENTANA DE DOS SENTENCIAS, que resucitaba el bug del segundo Ctrl-C.
+
+    `cerrar()` pone dos banderas. Si `_cerrado` se pusiera PRIMERO, quedaria un
+    hueco en el que `_cerrado` ya es True pero el guardia aun no esta puesto:
+    una señal que cayera justo ahi veria `_cerrando == False`, llamaria a
+    `cerrar()`, esta saldria por `if self._cerrado: return`, y el manejador
+    haria `sys.exit()`. Ni parar, ni /stop_scan, ni desmontar — la mecanica
+    exacta de A1. Reproducido entregando la señal en ese punto: rastro VACIO.
+
+    Este test no depende de acertar el instante: intercepta la asignacion y
+    comprueba la INVARIANTE — cuando `_cerrado` pasa a True, `_cerrando` ya
+    tiene que valer True. Si alguien vuelve a invertir las dos lineas, cae.
+    """
+    visto = {}
+
+    class RobotVigilado(Robot):
+        def __setattr__(self, nombre, valor):
+            if nombre == '_cerrado' and valor is True:
+                visto['cerrando_en_ese_instante'] = getattr(
+                    self, '_cerrando', False)
+            object.__setattr__(self, nombre, valor)
+
+    robot = RobotVigilado.__new__(RobotVigilado)
+    object.__setattr__(robot, '_cerrado', False)
+    object.__setattr__(robot, '_cerrando', False)
+    object.__setattr__(robot, 'rastro', [])
+    object.__setattr__(robot, '_mandar',
+                       lambda *_a, **_k: robot.rastro.append('parar'))
+    object.__setattr__(robot, '_apagar_barrido',
+                       lambda: robot.rastro.append('/stop_scan'))
+    object.__setattr__(robot, '_desmontar',
+                       lambda: robot.rastro.append('desmontar'))
+
+    robot.cerrar()
+
+    assert visto.get('cerrando_en_ese_instante') is True, (
+        'al marcar `_cerrado = True` el guardia `_cerrando` todavia valia '
+        'False: queda una ventana en la que una señal aborta el cierre entero '
+        'sin llamar a /stop_scan. `_cerrando` tiene que ponerse ANTES.')
+    assert robot.rastro == ['parar', '/stop_scan', 'desmontar']
 
 
 def test_cerrar_dos_veces_no_repite_el_trabajo():

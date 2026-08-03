@@ -118,8 +118,15 @@ def generador_rampa_real():
     Cada llamada recibe el `dt` que le pasa `simular_girar()` (no lo calcula
     por su cuenta), así que además sirve de canario: si `simular_girar()`
     tuviera el `dt` hardcodeado en vez de derivarlo de `freq_hz`, las
-    trayectorias a 10 Hz y a 20 Hz saldrían IDÉNTICAS con este generador —
-    justo lo que comprueba `test_frecuencia_20hz_reduce_el_sobregiro`.
+    trayectorias a 10 Hz y a 20 Hz saldrían IDÉNTICAS con este generador.
+    Eso lo comprueban `test_generador_recibe_dt_correcto_segun_freq_hz` (que
+    va directo al `dt`) y `test_a_partir_de_180_grados_20hz_si_reduce_el_sobregiro`
+    (que lo pilla por la física, con desigualdad estricta).
+
+    ⚠️ Ojo con el encuadre: que a 20 Hz salga MENOS sobregiro en algunos
+    ángulos NO es una propiedad general. Barriendo 1..720° la diferencia solo
+    vale 0 o 0.573°, con ~50 % de empates en todos los rangos — es aliasing de
+    retícula, no una tendencia. Aquí se usa solo como canario del `dt`.
 
     Se instancia una vez por llamada a `simular_girar()` (lleva estado propio
     en `acumulado` y en `sentido`), nunca se reutiliza entre corridas.
@@ -201,7 +208,9 @@ if __name__ == '__main__':
      este modelo (que supone una lectura fresca por iteración) es OPTIMISTA
      para 20 Hz.
   🔴 A 90° —el ángulo de las prácticas 2, 3, 4 y 10— 10 Hz y 20 Hz dan el
-     MISMO resultado: subir la frecuencia ahí no compra nada.
+     MISMO resultado: subir la frecuencia ahí no compra nada. Y la ventaja
+     NO crece con el ángulo: barriendo 1..720° solo sale 0 o 0.573°, con
+     ~50 % de empates en todos los rangos. Es aliasing de retícula.
 """)
     print("Tabla comparativa 10 Hz vs 20 Hz con tiempos y mejora:")
     print("  python3 simular_sobregiro.py")

@@ -16,10 +16,10 @@
 ## Estado, al cierre de la Tarea 13 (2026-08-03)
 
 **Implementado.** `atriz.py`, los diez guiones y los cinco documentos están escritos y
-commiteados en `Atriz_rvr` (rama `ros2`, sin `push`), y hay **87 tests** en
+commiteados en `Atriz_rvr` (rama `ros2`, sin `push`), y hay **89 tests** en
 `~/atriz_migracion/scripts/pruebas/`.
 
-**✅ VERIFICADO por ejecución:** las funciones puras (87 tests); que `Robot()` conecta, enciende
+**✅ VERIFICADO por ejecución:** las funciones puras (89 tests); que `Robot()` conecta, enciende
 el barrido y lo deja apagado al cerrar (10 corridas, código 0); que un arranque fallido no deja
 el LIDAR encendido; que la parada de emergencia llega al driver y se libera solo con un acto
 explícito; que `color()` avisa en vez de devolver ceros y que `luces()` rechaza tipos que no son

@@ -1142,7 +1142,7 @@ prueba_aceptacion.py          # ⚠️ LA PRUEBA DE ACEPTACIÓN: 10 fases, de ar
 #                               --desde F4     retoma sin repetir
 #                               Criterio y umbrales: 03_operacion/PRUEBA_ACEPTACION.md
 aceptacion_nucleo.py          # su lógica pura (bandas, veredictos, informe). 24 tests, sin ROS:
-#                               python3 -m pytest scripts/pruebas/ -q  (87 en total, 63 son de atriz.py)
+#                               python3 -m pytest scripts/pruebas/ -q  (89 en total, 65 son de atriz.py)
 probar_ctrl_c_atriz.py        # ⚠️ MUEVE EL ROBOT ~1.5 m: ¿para un Ctrl-C a mitad de avanzar()?
 #                               mide DESPLAZAMIENTO tras matarlo. El fallo es INTERMITENTE:
 #                               una sola pasada verde no basta, repite varias veces
@@ -1289,7 +1289,7 @@ lo que produce deriva entre documentación y realidad.
 | **Las unidades systemd arrancarán con el lidar PARADO** (`/stop_scan`) | si no, el X2 gira a 11.8 Hz 24/7 en los 16 robots en vez de a 2.7. Manual, cap. 8.4a |
 | **NO se mide ahora el consumo del lidar** entre 11.8 y 2.7 Hz | serían horas de robot con `/battery_state` para un número que solo decide un matiz del systemd. Se anota **NO MEDIDO**. Decisión del usuario, 2026-07-31 |
 | **NO se persigue el efecto del roll en la deriva** | medido ~1 cm sin significación (p=0.142). Cerrarlo costaría ~62 corridas y 5 h de robot, para 1 cm sobre una tolerancia de objetivo de 10. Decisión del usuario, 2026-07-31 |
-| 🔴 **El material docente corre sobre `atriz.py`, NO sobre `rclpy`** | Un script de alumno contra `rclpy` a pelo tiene que acertar siete cosas que este proyecto pagó aprendiéndolas (topic correcto, encender el barrido, republicar contra el watchdog, `SignalHandlerOptions.NO`, BEST_EFFORT, límites de velocidad/tiempo, apagar el barrido al cerrar). `atriz.py` las acierta una vez y el alumno escribe robótica, no ROS. Diseño en `03_operacion/API_LABORATORIO.md`, 2026-08-02. Código escrito y revisado (tareas 1-13 + oleada de arreglos final, **87 tests**) — **⏳ NO VERIFICADO contra el robot moviéndose**: falta la sesión física (ver `TRASPASO.md`) |
+| 🔴 **El material docente corre sobre `atriz.py`, NO sobre `rclpy`** | Un script de alumno contra `rclpy` a pelo tiene que acertar siete cosas que este proyecto pagó aprendiéndolas (topic correcto, encender el barrido, republicar contra el watchdog, `SignalHandlerOptions.NO`, BEST_EFFORT, límites de velocidad/tiempo, apagar el barrido al cerrar). `atriz.py` las acierta una vez y el alumno escribe robótica, no ROS. Diseño en `03_operacion/API_LABORATORIO.md`, 2026-08-02. Código escrito y revisado (tareas 1-13 + oleada de arreglos final, **89 tests**) — **⏳ NO VERIFICADO contra el robot moviéndose**: falta la sesión física (ver `TRASPASO.md`) |
 | **El seguidor de línea es edge-following, NO un PID de umbral único** | Un solo sensor mirando abajo no puede distinguir desviarse a la izquierda de desviarse a la derecha — el diseño original de `API_LABORATORIO.md` no podía funcionar. Rediseñado en la tarea 11 (ver trampas, arriba). NO VERIFICADO sobre una línea real |
 
 ---

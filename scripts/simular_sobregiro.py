@@ -74,6 +74,18 @@ print("""
   180°, 360°, 720° -> 0.573° menos de sobregiro, que es exactamente un paso
           de la rampa lenta (0.20 rad/s x 0.05 s).
 
+  🔴 PERO NO LEAS ESTAS CUATRO FILAS COMO UNA TENDENCIA. Barrido de 1 a 720°:
+     la ventaja solo toma DOS valores, 0 o 0.573 — nunca otra cosa — y empata
+     en la mitad de los ángulos de todos los rangos por igual:
+
+         1-90°    52 % de empates      181-360°  50 %
+        91-180°   48 % de empates      361-720°  51 %
+
+     Es ALIASING de retícula: un paso de 10 Hz vale exactamente dos de 20, así
+     que lo que se decide es la paridad del último tramo, no una tendencia con
+     el ángulo. Sobre 720°, 0.573 es el 0.08 %. Estas cuatro filas son cuatro
+     muestras de una moneda, no una curva.
+
   📝 Una versión anterior de esta tabla reportaba +0.573° de ventaja TAMBIÉN a
      90°. Era un ARTEFACTO: `simular_girar()` seguía integrando 0.20 rad/s
      después de la orden de parada, y ese paso de más vale 0.20 x dt — o sea
