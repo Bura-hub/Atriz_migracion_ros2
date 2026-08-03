@@ -330,6 +330,20 @@ if [[ $RECORDAR_REINICIO == si && $MODO != simular ]]; then
     printf '  \033[1;33m!\033[0m %s\n'   "⚠️ Eso DESPIERTA el robot: enciende sus LEDs y tarda unos 30 s."
 fi
 
+# ⚠️ En --simular NO se ha instalado nada, y el rótulo decía «Instalado.» de
+#    todas formas. Es el mismo tipo de mentira que el «se reiniciará» de arriba,
+#    solo que más barata de creer: se lee el rótulo, no los `[simular]`.
+if [[ $MODO == simular ]]; then
+    cat <<'EOF'
+
+════════════════════════════════════════════════════════════════════════════
+  ENSAYO. No se ha instalado nada: eso es todo lo que HARÍA.
+  Para aplicarlo de verdad, el mismo comando sin --simular.
+════════════════════════════════════════════════════════════════════════════
+EOF
+    exit 0
+fi
+
 cat <<'EOF'
 
 ════════════════════════════════════════════════════════════════════════════
