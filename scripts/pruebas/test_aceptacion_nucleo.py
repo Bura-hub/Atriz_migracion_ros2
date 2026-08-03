@@ -6,7 +6,7 @@ import pytest
 
 from aceptacion_nucleo import (
     PASA, REVISAR, FALLO, PENDIENTE,
-    Resultado, juzgar_banda, juzgar_categorico, no_verificado, delta_angulo,
+    juzgar_banda, juzgar_categorico, no_verificado, delta_angulo,
 )
 
 

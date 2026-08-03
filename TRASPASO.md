@@ -5,7 +5,7 @@
 > contexto desde cero.
 >
 > Última actualización: **2026-08-03** (el material docente —`atriz.py` y las diez
-> prácticas— quedó escrito, revisado y con 61 tests el 2026-08-02; falta la sesión física que lo
+> prácticas— quedó escrito, revisado y con 87 tests el 2026-08-02; falta la sesión física que lo
 > mide contra el robot, y también falta la corrida completa de la prueba de aceptación tras un
 > reinicio real — las dos, más abajo).
 
@@ -114,7 +114,7 @@ era de ~1 cm y apareció el fallo de 12–56 cm que lo entierra.
 `referenciar_posicion.py`: 0 fallos de 12 y peor caso 4.4 cm.
 
 🔴 **LO SIGUIENTE DE VERDAD, HOY: la SESIÓN FÍSICA del material docente.** El código de las diez
-prácticas y `atriz.py` está escrito, revisado y con 61 tests — pero **nada de lo que depende de
+prácticas y `atriz.py` está escrito, revisado y con 87 tests — pero **nada de lo que depende de
 mover el robot está medido**: ni los ~60 cm de `avanzar()`, ni los ángulos de `girar()` con
 transportador, ni las cinco corridas de Ctrl-C, ni que los faros enciendan, ni que
 `distancia_frontal()` apunte de verdad hacia delante, ni el seguidor de línea con edge-following
@@ -266,7 +266,7 @@ ficha, en [`03_operacion/API_LABORATORIO.md`](03_operacion/API_LABORATORIO.md).
 
 ### Lo que sí está verificado, por ejecución
 
-- **61 tests** de las funciones puras de `atriz.py` y del seguidor de línea:
+- **87 tests** de las funciones puras de `atriz.py` y del seguidor de línea:
   `cd ~/atriz_migracion && python3 -m pytest scripts/pruebas/ -q`.
 - **`Robot()` conecta, enciende el barrido y lo deja apagado al cerrar** — 10 corridas seguidas
   con código 0.

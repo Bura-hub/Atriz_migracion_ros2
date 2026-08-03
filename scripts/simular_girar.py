@@ -72,10 +72,27 @@ def simular_girar(grados_pedidos, yaw_generador, freq_hz=20.0):
         if iteracion > 10000:
             return math.degrees(acumulado), iteracion, 'max_iteraciones'
 
-    # Simular el sleep final y re-medida
+    # 🔴 AQUI `girar()` LLAMA A `parar()`: la velocidad comandada pasa a CERO.
+    #    Este simulador NO tiene modelo de inercia (integra la velocidad
+    #    comandada al instante, sin deceleracion), asi que con velocidad cero el
+    #    rumbo ya no cambia: la re-medida de despues del `sleep(0.5)` devuelve
+    #    lo mismo que la ultima del lazo, y el acumulado se queda como esta.
+    #    Por eso NO se vuelve a llamar al generador.
+    #
+    #    Antes si se le llamaba, con `restante_grados=0.0`. Y como
+    #    `velocidad_giro(0)` vale 0.20 rad/s —nunca cero—, el generador seguia
+    #    integrando 0.20 rad/s DESPUES de la orden de parada: 0.20 * dt de
+    #    sobregiro inventado, proporcional a dt. Medido antes de este arreglo:
+    #      a 10 Hz: +1.1459 grados     a 20 Hz: +0.5730 grados
+    #    O sea que el simulador fabricaba una ventaja de 20 Hz de exactamente
+    #    0.5730 grados que no venia del lazo, sino de su propio ultimo paso.
+    #    A 90 grados esa era TODA la ventaja que reportaba.
+    #
+    # ⚠️ Lo que este simulador NO modela, y conviene tenerlo escrito: cuanto
+    #    sigue rodando el robot de VERDAD tras la orden de parada. La
+    #    deceleracion angular del RVR NO LA HA MEDIDO NADIE. Asi que estas
+    #    cifras son el sobregiro del LAZO, no el del robot.
     tiempo_transcurrido += 0.5
-    actual_final = yaw_generador(iteracion, 0.0, dt)
-    acumulado = acumular(anterior, actual_final, acumulado)
 
     return math.degrees(acumulado), iteracion, 'convergencia'
 
@@ -94,7 +111,7 @@ def generador_rampa_real():
     completo.
 
     Es la ÚNICA función de este módulo que produce cifras de sobregiro. Tanto
-    la tabla que imprime este script (`__main__`) como `medir_sobregiro.py`
+    la tabla que imprime este script (`__main__`) como `simular_sobregiro.py`
     la importan de aquí: no hay una segunda copia de la física en ningún otro
     sitio, así que las dos herramientas no pueden divergir en silencio.
 
@@ -172,6 +189,20 @@ if __name__ == '__main__':
     print(f"  90° con duplicados → {resultado:.3f}° ({razon})")
 
     print("\n" + "═" * 70)
+    print("LO QUE ESTAS CIFRAS NO DICEN")
+    print("═" * 70)
+    print("""
+  ⚠️ Ninguna está MEDIDA: son un modelo integrado, sin robot.
+  ⚠️ El modelo NO tiene inercia — integra la velocidad comandada al instante.
+     Cuánto sigue rodando el RVR tras la orden de parada NO LO HA MEDIDO NADIE.
+     Esto es el sobregiro del LAZO, no el del robot.
+  ⚠️ El cuello de botella real es /odom, que llega a 16.5 Hz. Con el bucle a
+     20 Hz, quien fija el paso ya NO es el bucle sino la odometría, así que
+     este modelo (que supone una lectura fresca por iteración) es OPTIMISTA
+     para 20 Hz.
+  🔴 A 90° —el ángulo de las prácticas 2, 3, 4 y 10— 10 Hz y 20 Hz dan el
+     MISMO resultado: subir la frecuencia ahí no compra nada.
+""")
     print("Tabla comparativa 10 Hz vs 20 Hz con tiempos y mejora:")
-    print("  python3 medir_sobregiro.py")
+    print("  python3 simular_sobregiro.py")
     print("═" * 70)

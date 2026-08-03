@@ -309,7 +309,7 @@ def main():
             print('\n  Ficheros que no compilan (candidatos a parche):')
             for p in sorted(set(parches)):
                 print(f'    · {p}')
-        print(f"""
+        print("""
   SI SALE NO-GO — opciones, de menos a más invasiva:
 
   1. Parchear el SDK. Si son unos pocos ficheros con patrones asyncio

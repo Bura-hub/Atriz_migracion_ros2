@@ -8,7 +8,7 @@
 📎 Criterio y umbrales: 03_operacion/PRUEBA_ACEPTACION.md
 """
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 PASA = 'PASA'
 REVISAR = 'REVISAR'

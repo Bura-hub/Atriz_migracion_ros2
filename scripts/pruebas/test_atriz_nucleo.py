@@ -5,6 +5,7 @@
    invisible hasta que alguien pide `girar(360)` y el robot no se mueve.
 """
 import math
+import signal
 import sys
 from pathlib import Path
 
@@ -13,10 +14,183 @@ import pytest
 sys.path.insert(0, str(Path.home() / 'atriz_ws/src/Atriz_rvr/scripts/estudiantes'))
 
 from atriz import (                                          # noqa: E402
-    ErrorAtriz, GRADOS_MAX, RITMO_HZ, TIEMPO_MAX, TOPIC_MANDO, VEL_GIRO_MAX,
-    VEL_MAX, acumular, alcanzado, limitar, normalizar, validar_canal_led,
-    velocidad_giro, yaw_de_cuaternion,
+    ErrorAtriz, GRADOS_MAX, RITMO_HZ, SENALES_DE_CIERRE, TIEMPO_MAX,
+    TOPIC_MANDO, VEL_GIRO_MAX, VEL_MAX, Robot, acumular, alcanzado, limitar,
+    normalizar, secuencia_de_cierre, validar_canal_led, velocidad_giro,
+    yaw_de_cuaternion,
 )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EL BARRIDO DEL LIDAR SE APAGA PASE LO QUE PASE
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔴 Es LA garantia de esta biblioteca, y tenia dos agujeros: el segundo
+#    Ctrl-C y las señales que no eran SIGINT. Si no se apaga, el X2 se queda
+#    girando a 11.8 Hz en vez de 2.7, indefinidamente, en 16 robots.
+#    Estos tests PROVOCAN el fallo; no lo razonan.
+
+def _rastro_de_cierre(parar):
+    """Corre la secuencia real anotando que pasos se llegaron a ejecutar."""
+    rastro = []
+    secuencia_de_cierre(
+        parar=parar,
+        apagar_barrido=lambda: rastro.append('/stop_scan'),
+        desmontar=lambda: rastro.append('desmontar'),
+        avisar=lambda _m: None)
+    return rastro
+
+
+def test_el_barrido_se_apaga_aunque_el_paso_de_parar_lance_systemexit():
+    """🔴 EL SEGUNDO Ctrl-C. El manejador de señal hace `sys.exit()`, que lanza
+    `SystemExit` — y `SystemExit` NO es `Exception`. Con la estructura vieja
+    (dos `try`, un solo `finally` colgado del segundo, `except Exception`) esa
+    excepcion escapaba del cierre a medias y `/stop_scan` NO se llamaba.
+    """
+    def parar():
+        raise SystemExit(130)          # exactamente lo que hace el manejador
+
+    # 🔴 El `SystemExit` se atrapa y se convierte en un dato, NO se deja
+    #    propagar ni se relanza otra excepcion desde el `except`: las dos cosas
+    #    TERMINAN la sesion de pytest y esconden los demas tests. Medido al
+    #    reintroducir el bug: 25 tests corridos de 76.
+    rastro, escapo = [], False
+    try:
+        rastro = _rastro_de_cierre(parar)
+    except SystemExit:
+        escapo = True
+
+    assert not escapo, (
+        'el SystemExit del segundo Ctrl-C escapo del cierre: el apagado del '
+        'barrido quedo a merced de donde cayera la señal')
+    assert '/stop_scan' in rastro, (
+        'el segundo Ctrl-C se llevo por delante el apagado del barrido: el X2 '
+        'se queda girando a 11.8 Hz para siempre')
+    assert 'desmontar' in rastro
+
+
+def test_el_barrido_se_apaga_aunque_el_paso_de_parar_lance_keyboardinterrupt():
+    """`KeyboardInterrupt` tampoco es `Exception`. Mismo agujero, otra puerta.
+
+    🔴 Igual que el test de arriba, se atrapa en vez de dejarlo propagar: un
+       `KeyboardInterrupt` suelto hace que pytest ABORTE LA SESION ENTERA
+       ("session interrupted"), y entonces el fallo real queda escondido detras
+       de 50 tests que ni se ejecutan. Medido reintroduciendo el bug.
+    """
+    def parar():
+        raise KeyboardInterrupt
+
+    rastro, escapo = [], False
+    try:
+        rastro = _rastro_de_cierre(parar)
+    except KeyboardInterrupt:
+        escapo = True
+
+    assert not escapo, 'el KeyboardInterrupt escapo del cierre'
+    assert '/stop_scan' in rastro
+
+
+def test_el_barrido_se_apaga_aunque_el_paso_de_parar_lance_una_excepcion():
+    """El caso corriente: `_mandar()` revienta publicando sobre un contexto ya
+    invalido. Tambien tiene que llegarse a `/stop_scan`."""
+    def parar():
+        raise RuntimeError('publisher context is invalid')
+
+    assert '/stop_scan' in _rastro_de_cierre(parar)
+
+
+def test_los_recursos_se_sueltan_aunque_falle_el_apagado_del_barrido():
+    """El tercer paso cuelga del `finally` del segundo, no del mismo `try`."""
+    pasos = []
+    secuencia_de_cierre(
+        parar=lambda: pasos.append('parar'),
+        apagar_barrido=lambda: (_ for _ in ()).throw(RuntimeError('sin driver')),
+        desmontar=lambda: pasos.append('desmontar'),
+        avisar=lambda _m: None)
+    assert pasos == ['parar', 'desmontar']
+
+
+def test_se_capturan_las_tres_senales_que_matan_un_programa():
+    """🔴 Solo con SIGINT, cerrar la terminal (SIGHUP) o `kill` (SIGTERM)
+    mataban el proceso SIN pasar por `cerrar()`, y el barrido quedaba
+    encendido. El watchdog de 0.3 s del driver para los MOTORES; del LIDAR no
+    sabe nada. Verificado provocando las dos señales sobre procesos reales.
+    """
+    nombres = {s.name for s in SENALES_DE_CIERRE}
+    assert nombres == {'SIGINT', 'SIGTERM', 'SIGHUP'}, (
+        f'faltan señales de cierre: {nombres}. Sin SIGHUP, perder el SSH deja '
+        f'el X2 girando a 11.8 Hz; sin SIGTERM, `systemctl stop` hace lo mismo')
+
+
+def _robot_sin_ros():
+    """Un `Robot` de laboratorio SIN ROS ni robot: se salta `__init__` y se le
+    inyecta lo justo. Ejercita los metodos REALES `cerrar()` y `_al_senal()`,
+    no una copia — una copia podria quedarse atras sin que nada fallara."""
+    robot = Robot.__new__(Robot)
+    robot._cerrado = False
+    robot._cerrando = False
+    robot.rastro = []
+    robot._mandar = lambda *_a, **_k: robot.rastro.append('parar')
+    robot._apagar_barrido = lambda: robot.rastro.append('/stop_scan')
+    robot._desmontar = lambda: robot.rastro.append('desmontar')
+    return robot
+
+
+def test_el_segundo_ctrl_c_no_aborta_el_cierre_en_curso():
+    """🔴 EL AGUJERO A1, con señales de VERDAD sobre los metodos de VERDAD.
+
+    El segundo Ctrl-C se entrega con `signal.raise_signal()` desde dentro del
+    paso de parada, que es justo cuando llega en la practica. Antes,
+    `_al_ctrl_c` hacia `sys.exit(130)` incondicional: `cerrar()` reentraba,
+    salia por `if self._cerrado: return`, y el `SystemExit` escapaba del
+    cierre a medias.
+
+    📝 Y `00_LEEME_PRIMERO.md` le decia al alumno «espera un segundo y vuelve
+       a pulsar»: el manual conducia al agujero.
+    """
+    robot = _robot_sin_ros()
+
+    def parar_y_recibir_el_segundo_ctrl_c(*_a, **_k):
+        robot.rastro.append('parar')
+        signal.raise_signal(signal.SIGINT)
+
+    robot._mandar = parar_y_recibir_el_segundo_ctrl_c
+
+    anterior = signal.signal(signal.SIGINT, robot._al_senal)
+    try:
+        with pytest.raises(SystemExit):
+            robot._al_senal(signal.SIGINT, None)      # el PRIMER Ctrl-C
+    finally:
+        signal.signal(signal.SIGINT, anterior)
+
+    assert '/stop_scan' in robot.rastro, (
+        f'el segundo Ctrl-C aborto el cierre: {robot.rastro}. El barrido del '
+        f'X2 se queda encendido a 11.8 Hz')
+    assert robot.rastro == ['parar', '/stop_scan', 'desmontar']
+
+
+def test_una_senal_durante_el_cierre_no_lo_interrumpe():
+    """El guardia de reentrada de `_al_senal()`, POR SI SOLO.
+
+    🔴 Es defensa en profundidad, y por eso necesita su propio test: con
+       `except BaseException` en `secuencia_de_cierre()` el barrido ya se
+       apagaria igual, asi que un test que solo mirase `/stop_scan` NO detecta
+       que este guardia desaparezca — comprobado quitandolo: los 75 seguian en
+       verde. Lo que el guardia aporta es que el cierre TERMINE entero en vez
+       de salir por la mitad, y eso es lo que se fija aqui.
+    """
+    robot = _robot_sin_ros()
+    robot._cerrando = True                    # cierre ya en curso
+    robot._al_senal(signal.SIGTERM, None)     # no debe lanzar SystemExit
+    assert robot.rastro == [], (
+        'una señal durante el cierre arranco un cierre nuevo en vez de '
+        'dejar terminar el que estaba en marcha')
+
+
+def test_cerrar_dos_veces_no_repite_el_trabajo():
+    robot = _robot_sin_ros()
+    robot.cerrar()
+    robot.cerrar()
+    assert robot.rastro == ['parar', '/stop_scan', 'desmontar']
 
 
 # ── Las constantes, con su fuente ────────────────────────────────────────────
@@ -55,6 +229,57 @@ def test_limitar_respeta_el_signo():
     valor, aviso = limitar(-1.5, VEL_MAX, 'velocidad', 'm/s')
     assert valor == -0.40
     assert aviso is not None
+
+
+# ── limitar: lo NO finito se rechaza, no se recorta ──────────────────────────
+# 🔴 `math.copysign(tope, nan)` devuelve el TOPE. La funcion cuyo proposito
+#    documentado es «recortar a un valor seguro» convertia la entrada menos
+#    fiable de todas en la velocidad MAXIMA. Medido antes del arreglo:
+#      limitar(nan) -> 0.4   limitar(inf) -> 0.4   limitar(-inf) -> -0.4
+#    Mismo criterio que `aceptacion_nucleo.delta_angulo()`, que ya rechazaba
+#    lo no finito con una excepcion en vez de dejarlo pasar.
+
+@pytest.mark.parametrize('valor', [float('nan'), float('inf'), float('-inf')])
+def test_limitar_rechaza_lo_no_finito_en_vez_de_mapearlo_al_maximo(valor):
+    with pytest.raises(ErrorAtriz):
+        limitar(valor, VEL_MAX, 'velocidad', 'm/s')
+
+
+def test_limitar_nunca_devuelve_el_tope_para_una_entrada_no_finita():
+    """La forma general, por si alguien cambia el mensaje o el tipo de error:
+    lo que NO puede pasar es que `nan` salga de aqui convertido en 0.40."""
+    for valor in (float('nan'), float('inf'), float('-inf')):
+        try:
+            recortado, _ = limitar(valor, VEL_MAX, 'velocidad', 'm/s')
+        except ErrorAtriz:
+            continue
+        assert abs(recortado) != VEL_MAX, (
+            f'limitar({valor}) devolvio {recortado}: un valor no finito se '
+            f'convirtio en la velocidad MAXIMA del laboratorio')
+
+
+def test_avanzar_con_nan_no_puede_conducir_los_cuatro_metros():
+    """🔴 El desenlace que esto evita, con las dos llamadas que hace
+    `avanzar()`: `limitar(nan, VEL_MAX)` daba 0.40 m/s y
+    `limitar(abs(nan), TIEMPO_MAX)` daba 10.0 s — 4.0 METROS a maxima
+    velocidad, con el robot en un aula."""
+    nan = float('nan')
+    with pytest.raises(ErrorAtriz):
+        limitar(nan, VEL_MAX, 'velocidad', 'm/s')
+    with pytest.raises(ErrorAtriz):
+        limitar(abs(nan), TIEMPO_MAX, 'tiempo', 's')
+
+
+def test_limitar_rechaza_lo_que_no_es_un_numero():
+    for valor in ('0.2', None, [0.2], True):
+        with pytest.raises(ErrorAtriz):
+            limitar(valor, VEL_MAX, 'velocidad', 'm/s')
+
+
+def test_limitar_sigue_aceptando_enteros():
+    """`avanzar(0.20, 3)` pasa un `int` por el camino del tiempo."""
+    valor, aviso = limitar(3, TIEMPO_MAX, 'tiempo', 's')
+    assert valor == 3 and aviso is None
 
 
 # ── normalizar ───────────────────────────────────────────────────────────────
@@ -135,6 +360,44 @@ def test_velocidad_giro_no_depende_del_signo():
     assert velocidad_giro(math.radians(45.0)) == velocidad_giro(math.radians(-45.0))
 
 
+# 🔴 LA RAMPA, CLAVADA. Hasta ahora NINGUN test la fijaba: comprobado mutandola
+#    a mano, con los 76 en verde en las dos veces —
+#      fronteras 30°/8° -> 25°/3°          : 76 passed
+#      valores 0.80/0.40/0.20 -> 0.90/0.50/0.10 : 76 passed
+#    Los tres tests de arriba solo miran la FORMA (que baje, que no pase del
+#    tope, que ignore el signo), y esa forma sobrevive a cualquier rampa
+#    decreciente. Pero estos numeros no son libres: el ultimo tramo (0.20 rad/s)
+#    es el que fija la resolucion del lazo — 0.20 x 0.05 s = 0.573° de
+#    granularidad — y el sobregiro que reportan simular_girar.py y
+#    simular_sobregiro.py sale de ellos. Cambiarlos sin cambiar esas cifras es
+#    exactamente la deriva que este proyecto persigue.
+
+def test_las_fronteras_de_la_rampa_son_las_documentadas():
+    """30° y 8°. Se prueba a los dos lados de cada frontera."""
+    assert velocidad_giro(math.radians(30.1)) == 0.80
+    assert velocidad_giro(math.radians(29.9)) == 0.40
+    assert velocidad_giro(math.radians(8.1)) == 0.40
+    assert velocidad_giro(math.radians(7.9)) == 0.20
+
+
+def test_los_tres_valores_de_la_rampa_son_los_documentados():
+    """0.80 / 0.40 / 0.20 rad/s. El ultimo es el que fija la resolucion del
+    lazo de `girar()`, y de el sale el 0.573° de granularidad a 20 Hz."""
+    assert velocidad_giro(math.radians(180.0)) == 0.80
+    assert velocidad_giro(math.radians(20.0)) == 0.40
+    assert velocidad_giro(math.radians(3.0)) == 0.20
+    assert velocidad_giro(0.0) == 0.20
+
+
+def test_la_granularidad_del_lazo_de_girar_sale_de_la_rampa():
+    """La cifra que la documentacion tiene derecho a citar: el tramo lento de
+    la rampa a 20 Hz da 0.573° de resolucion. Si alguien toca el 0.20, esta
+    cifra deja de ser cierta y hay que reescribir lo que dice el manual."""
+    lento = velocidad_giro(0.0)
+    assert math.isclose(math.degrees(lento * 0.05), 0.5730, abs_tol=1e-4)
+    assert math.isclose(math.degrees(lento * 0.10), 1.1459, abs_tol=1e-4)
+
+
 # ── simular_girar ────────────────────────────────────────────────────────────
 def test_simulador_converge_en_caso_normal():
     """El simulador converge a los valores pedidos en caso ideal."""
@@ -181,30 +444,145 @@ def test_simulador_tolera_duplicados_ocasionales():
     assert abs(resultado - 90.0) < 2.5
 
 
-def test_frecuencia_20hz_reduce_el_sobregiro():
-    """A 20 Hz el sobregiro en grados es MENOR que a 10 Hz, con la rampa REAL
-    de velocidad_giro() (generador_rampa_real, la misma que usan
-    simular_girar.py y medir_sobregiro.py).
+def test_el_simulador_no_integra_despues_de_la_orden_de_parada():
+    """🔴 El simulador tiene que modelar el `parar()` de `girar()`.
 
-    🔴 Desigualdad ESTRICTA a propósito, no `<=`. Con el bug original
-    (`dt = 1.0/20.0` hardcodeado dentro de simular_girar(), ignorando
-    freq_hz) las dos llamadas reciben el MISMO dt por dentro, así que
-    generan la MISMA trayectoria y r20 == r10 — una igualdad que `<=`
-    dejaría pasar en silencio. Con `<` estricto, ese caso FALLA.
-    Ver la Ronda de arreglo 4 del informe: reintroducido el bug, este test
-    falla; restaurado, pasa.
+    Al salir del lazo, `girar()` llama a `parar()`: la velocidad comandada pasa
+    a CERO. El simulador seguia llamando al generador una vez mas con
+    `restante_grados=0.0`, y como `velocidad_giro(0)` vale 0.20 rad/s —nunca
+    cero— integraba 0.20 rad/s DESPUES de la orden de parada. Ese paso de mas
+    vale `0.20 * dt`, o sea que es proporcional a dt: +1.1459° a 10 Hz y
+    +0.5730° a 20 Hz. Fabricaba una ventaja de 20 Hz de exactamente 0.5730°
+    que no salia del lazo sino de su propio ultimo paso.
+
+    Se cuenta el numero de llamadas al generador en vez de mirar el resultado:
+    es la comprobacion DIRECTA del defecto. Con el bug, son `iters + 2`.
     """
     sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
     from simular_girar import generador_rampa_real, simular_girar  # noqa: E402
 
-    for grados in [90, 180, 360, 720]:
-        r10, _, _ = simular_girar(grados, generador_rampa_real(), freq_hz=10.0)
-        r20, _, _ = simular_girar(grados, generador_rampa_real(), freq_hz=20.0)
-        assert r20 < r10, (
-            f"{grados}°: 10 Hz={r10:.3f}, 20 Hz={r20:.3f}. "
-            f"A 20 Hz el sobregiro tiene que ser ESTRICTAMENTE menor. "
-            f"Si salen iguales, sospecha de un dt hardcodeado en simular_girar()."
-        )
+    real = generador_rampa_real()
+    llamadas = []
+
+    def espia(iteracion, restante_grados, dt):
+        llamadas.append(restante_grados)
+        return real(iteracion, restante_grados, dt)
+
+    resultado, iters, razon = simular_girar(90, espia, freq_hz=10.0)
+    assert razon == 'convergencia'
+    assert len(llamadas) == iters + 1, (
+        f'el generador se llamo {len(llamadas)} veces para {iters} iteraciones '
+        f'(se esperaba iters + 1, la de arranque). Una llamada de mas despues '
+        f'del lazo significa que el simulador sigue integrando velocidad tras '
+        f'la orden de parada: sobregiro inventado y proporcional a dt. '
+        f'Ultimo restante recibido: {llamadas[-1]}')
+
+
+@pytest.mark.parametrize('grados,segundos_analiticos', [
+    # Integrando la rampa a mano: t = suma de (tramo / velocidad del tramo).
+    #   0.80 rad/s mientras quedan > 30°, 0.40 mientras quedan > 8°, 0.20 luego.
+    (90, (math.radians(90 - 30) / 0.80 + math.radians(30 - 8) / 0.40
+          + math.radians(8) / 0.20)),
+    (180, (math.radians(180 - 30) / 0.80 + math.radians(30 - 8) / 0.40
+           + math.radians(8) / 0.20)),
+    (360, (math.radians(360 - 30) / 0.80 + math.radians(30 - 8) / 0.40
+           + math.radians(8) / 0.20)),
+])
+def test_el_tiempo_que_reporta_el_simulador_cuadra_con_la_rampa(
+    grados, segundos_analiticos,
+):
+    """🔴 La columna «tiempo» de `simular_sobregiro.py` no la validaba NADA:
+    podia estar mal sin que saltase un solo test. Aqui se contrasta contra la
+    integral de la rampa hecha a mano, que es una via independiente del bucle.
+
+    ⚠️ El margen es DOS pasos, no uno, y la cifra sale de MEDIRLO en vez de
+       suponerla. Mi primera version puso un paso y el caso de 360° a 10 Hz la
+       rompio. Medido el exceso (tiempo simulado - integral) en pasos de dt:
+
+           90°  10 Hz  +0.33      90°  20 Hz  +0.66
+          180°  10 Hz  +0.69     180°  20 Hz  +0.39
+          360°  10 Hz  +1.42     360°  20 Hz  +0.85
+          720°  10 Hz  +0.88     720°  20 Hz  -0.23   <- NEGATIVO
+
+       La razon es que la rampa tiene TRES tramos, y el lazo cruza cada
+       frontera con hasta un paso de error; ademas puede cruzarla tarde y
+       quedarse un paso de mas a la velocidad rapida, lo que hace que a veces
+       termine ANTES que el modelo continuo. Con ±2 dt caben los ocho casos
+       con margen, y un error de verdad en la formula (usar el dt de la otra
+       frecuencia, por ejemplo) desviaria el doble o mas.
+    """
+    sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
+    from simular_girar import generador_rampa_real, simular_girar  # noqa: E402
+
+    for freq_hz in (10.0, 20.0):
+        dt = 1.0 / freq_hz
+        _, iters, razon = simular_girar(grados, generador_rampa_real(),
+                                        freq_hz=freq_hz)
+        assert razon == 'convergencia'
+        segundos = iters * dt
+        assert abs(segundos - segundos_analiticos) <= 2 * dt, (
+            f'{grados}° a {freq_hz:.0f} Hz: el simulador dice {segundos:.3f} s '
+            f'({iters} iteraciones x {dt} s), la integral de la rampa da '
+            f'{segundos_analiticos:.3f} s. Se salen mas de dos pasos ({2 * dt} s).')
+
+
+def test_las_dos_frecuencias_tardan_practicamente_lo_mismo():
+    """Corolario que conviene tener fijado: subir a 20 Hz NO acelera el giro.
+    Lo unico que cambia es la resolucion con la que se decide parar."""
+    sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
+    from simular_girar import generador_rampa_real, simular_girar  # noqa: E402
+
+    for grados in (90, 180, 360):
+        _, i10, _ = simular_girar(grados, generador_rampa_real(), freq_hz=10.0)
+        _, i20, _ = simular_girar(grados, generador_rampa_real(), freq_hz=20.0)
+        assert abs(i10 * 0.10 - i20 * 0.05) <= 0.10, (
+            f'{grados}°: 10 Hz tarda {i10 * 0.10:.3f} s y 20 Hz '
+            f'{i20 * 0.05:.3f} s. No deberian diferir mas de un paso.')
+
+
+def test_a_90_grados_subir_a_20hz_NO_compra_nada():
+    """🔴 LA VERDAD, y no es la que decia la documentacion.
+
+    90° es el angulo de las practicas 2, 3, 4 y 10 — el unico que el curso usa
+    de verdad. Con el `parar()` bien modelado, 10 Hz y 20 Hz dan EXACTAMENTE lo
+    mismo a 90°: 90.5273 los dos. La ventaja de +0.573° que se reportaba era
+    integramente el artefacto del paso de mas tras la parada.
+
+    Este test es ademas el guardian de que ese artefacto no vuelva: si alguien
+    reintroduce la integracion posterior a la parada, los dos dejan de ser
+    iguales y esto falla.
+    """
+    sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
+    from simular_girar import generador_rampa_real, simular_girar  # noqa: E402
+
+    r10, _, _ = simular_girar(90, generador_rampa_real(), freq_hz=10.0)
+    r20, _, _ = simular_girar(90, generador_rampa_real(), freq_hz=20.0)
+    assert math.isclose(r10, r20, abs_tol=1e-9), (
+        f'a 90° salen 10 Hz={r10:.4f} y 20 Hz={r20:.4f}. Tienen que ser '
+        f'IGUALES: a este angulo el paso de la rampa cae en el mismo sitio con '
+        f'las dos frecuencias. Si difieren, el simulador ha vuelto a integrar '
+        f'despues de la orden de parada.')
+
+
+@pytest.mark.parametrize('grados', [180, 360, 720])
+def test_a_partir_de_180_grados_20hz_si_reduce_el_sobregiro(grados):
+    """Donde 20 Hz SI compra algo: 0.5730° menos de sobregiro, que es
+    justamente un paso de la rampa lenta (0.20 rad/s x 0.05 s).
+
+    Desigualdad ESTRICTA a proposito, no `<=`. Con el bug del `dt` clavado
+    (`1.0/20.0` dentro de simular_girar(), ignorando freq_hz) las dos llamadas
+    reciben el MISMO dt, generan la MISMA trayectoria y r20 == r10 — una
+    igualdad que `<=` dejaria pasar en silencio.
+    """
+    sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
+    from simular_girar import generador_rampa_real, simular_girar  # noqa: E402
+
+    r10, _, _ = simular_girar(grados, generador_rampa_real(), freq_hz=10.0)
+    r20, _, _ = simular_girar(grados, generador_rampa_real(), freq_hz=20.0)
+    assert r20 < r10, (
+        f'{grados}°: 10 Hz={r10:.4f}, 20 Hz={r20:.4f}. A 20 Hz el sobregiro '
+        f'tiene que ser ESTRICTAMENTE menor. Si salen iguales, sospecha de un '
+        f'dt clavado en simular_girar().')
 
 
 def test_generador_recibe_dt_correcto_segun_freq_hz():
