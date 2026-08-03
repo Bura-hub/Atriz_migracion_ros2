@@ -15,18 +15,20 @@ para saber por dónde vas.
 
 ## En qué estamos
 
-Cerrado hoy: la **alineación del robot con los repositorios** (0 fallos en `verificar_robot.sh`) y
-el **canal Claude↔Claude PC↔robot**, verificado de extremo a extremo dentro de la Pi.
+Cerrado hoy: la **alineación del robot con los repositorios** — 0 fallos en `verificar_robot.sh`,
+con `atriz-nav` instalado y el parser de `robot_id.txt` unificado.
+
+🔴 **Descartado hoy: el canal Claude↔Claude entre el PC y el robot.** Se diseñó, se construyó y se
+probó; el usuario lo dio por no válido y se retiró entero. La conclusión que sí vale la pena
+conservar: **no existe ningún mecanismo para que dos instancias de Claude Code compartan contexto**
+—ni federación de sesiones, ni memoria compartida, ni `--resume` entre máquinas—, así que cualquier
+intento futuro por ese camino parte de una premisa falsa. Lo que sí funciona entre las dos máquinas
+es **el repositorio**: 249 commits en 7 días, mediana de 8 minutos.
 
 ## Lo siguiente
 
-1. 👤 **Claves SSH desde el PC.** `~/.ssh/authorized_keys` está vacío: hoy entras con contraseña, y
-   con eso **ningún canal automático funciona** — se cuelga esperándola. Es el único bloqueo real
-   del canal. Ver `PC_Y_ROBOT.md` §1.
-2. **Repetir el encargo por SSH** desde el PC. Todo se ha probado *en* la Pi; falta la trampa del
-   `bash -lc`, que sin `-l` deja al delegado en el dominio DDS 0 viendo el robot muerto.
-3. **La web** (Fase 5): cerrar rosbridge y rehacerla. El transporte ya está verificado.
-4. **La imagen dorada y el robot 2** (Fase 6): ahí se comprueban por primera vez `provision.sh`
+1. **La web** (Fase 5): cerrar rosbridge y rehacerla. El transporte ya está verificado.
+2. **La imagen dorada y el robot 2** (Fase 6): ahí se comprueban por primera vez `provision.sh`
    entero y el parser de `robot_id.txt` con un ID distinto de 01.
 
 ## Lo que bloquea, y de quién es

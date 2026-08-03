@@ -246,9 +246,9 @@ ok "logs, cachés, historial y artefactos de compilación limpiados"
 #    Peso: ~/.claude 126 MB (incluido el transcripto de la sesión de trabajo,
 #    41,8 MB) + ~/.local/share/claude 260 MB = 386 MB por robot, sin función.
 #
-# ⚠️ Lo que se pierde y NO se recupera: los hilos de `--resume`, los ficheros de
-#    memory/ y los transcriptos. Lo que valga la pena tiene que estar commiteado
-#    ANTES. Ver 03_operacion/PC_Y_ROBOT.md.
+# ⚠️ Lo que se pierde y NO se recupera: los ficheros de memory/ y los
+#    transcriptos de las sesiones. Lo que valga la pena tiene que estar
+#    commiteado ANTES.
 if [[ -e "$REAL_HOME/.local/bin/claude" || -d "$REAL_HOME/.claude" ]]; then
     avis "Claude Code está instalado. Es herramienta de desarrollo: se elimina."
     avis "  🔐 ~/.claude/.credentials.json lleva los tokens OAuth de tu suscripción"
