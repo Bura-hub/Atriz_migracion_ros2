@@ -130,3 +130,49 @@ def test_velocidad_giro_nunca_pasa_del_tope():
 
 def test_velocidad_giro_no_depende_del_signo():
     assert velocidad_giro(math.radians(45.0)) == velocidad_giro(math.radians(-45.0))
+
+
+# ── simular_girar ────────────────────────────────────────────────────────────
+def test_simulador_converge_en_caso_normal():
+    """El simulador converge a los valores pedidos en caso ideal."""
+    sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
+    from simular_girar import simular_girar  # noqa: E402, F401
+
+    def yaw_ideal(iteracion, restante_grados):
+        if iteracion == 0:
+            return 0.0
+        return iteracion * (1.0 / 20.0) * 0.5
+
+    resultado, iters, razon = simular_girar(90, yaw_ideal, freq_hz=20.0)
+    assert razon == 'convergencia'
+    assert abs(resultado - 90.0) < 2.0  # margen para la simulación
+
+
+def test_simulador_detecta_odom_congelado():
+    """El simulador detecta cuando /odom no se actualiza."""
+    sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
+    from simular_girar import simular_girar  # noqa: E402
+
+    def yaw_congelado(iteracion, restante_grados):
+        if iteracion >= 50:
+            return math.radians(45.8)
+        return iteracion * (1.0 / 20.0) * 0.5
+
+    resultado, iters, razon = simular_girar(90, yaw_congelado, freq_hz=20.0)
+    assert razon == 'odom_congelado'
+    assert abs(resultado - 45.8) < 1.0
+
+
+def test_simulador_tolera_duplicados_ocasionales():
+    """El simulador permite que muestras ocasionales se repitan (normal)."""
+    sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
+    from simular_girar import simular_girar  # noqa: E402
+
+    def yaw_con_duplicados(iteracion, restante_grados):
+        if iteracion % 3 == 0:
+            return (iteracion - 1) * (1.0 / 20.0) * 0.5
+        return iteracion * (1.0 / 20.0) * 0.5
+
+    resultado, iters, razon = simular_girar(90, yaw_con_duplicados, freq_hz=20.0)
+    assert razon == 'convergencia'  # debe convergir a pesar de los duplicados
+    assert abs(resultado - 90.0) < 2.5
