@@ -1,0 +1,69 @@
+═══════════════════════════════════════════════════════════════════════════════
+PRIMERA PASADA COMPLETA F0→F9 — 2026-08-02 21:43
+═══════════════════════════════════════════════════════════════════════════════
+Guiada, con el operador confirmando cada fase fisica. Bateria 8.07 V (90 %).
+
+    62 PASA · 7 REVISAR · 0 FALLO · 4 PENDIENTE
+
+Es la primera vez que las diez fases corren de un tiron y llegan al veredicto.
+
+LOS NUMEROS, FASE A FASE
+───────────────────────────────────────────────────────────────────────────────
+F0  servicio arriba, 6 nodos, journal sin errores, verificar_robot.sh 0 fallos
+    Restart=always: PID 3324 -> 12354
+F1  /odom 16.58 Hz · /imu 16.61 · 8.07 V · temperatura NaN · deriva yaw 0.002°
+F2  arranca apagado · 11.85 Hz · 220/260 finitos · para de verdad · parche OK
+F3  LEDs confirmados a ojo por el operador
+F4  30.5 / 30.3 cm · parada de emergencia 1.9 cm · rechaza move_timed · libera
+F5  87.7° / 179.6° / 358.8° · deslizamiento 0.0-0.3 cm · signo REP-103
+F6  NO choco · paro solo a 19.6 cm · watchdog 2.5 cm
+F7  limpio 7.6 cm · regreso 7.0 cm · obstaculo 15.2 cm (REVISAR)
+    desvio 26.3 cm · sin «Failed to make progress»
+    RUMBO al llegar: 13.6° · 10.1° · 14.1°     <- REFERENCIA NUEVA
+F8  handshake 101 · /odom por WebSocket, con la lista blanca puesta
+
+✅ EL ANGULO YA TIENE n=3, Y LAS TRES TIRADAS CONCUERDAN
+───────────────────────────────────────────────────────────────────────────────
+              90°          180°          360°       bateria
+    1ª      86.6°        179.6°        358.4°         55 %
+    2ª      86.2°        179.6°        357.9°        100 %
+    3ª      87.7°        179.6°        358.8°         90 %
+    ────────────────────────────────────────────────────────
+    rango    1.5°          0.0°          0.9°
+
+El deficit NO depende de la carga —era la duda que dejaba n=1— y el de 180° sale
+IDENTICO las tres veces. Deja de ser una medida suelta.
+
+✅ Y EL ERROR DE RUMBO AL LLEGAR, QUE ES DATO NUEVO
+───────────────────────────────────────────────────────────────────────────────
+    13.6° · 10.1° · 14.1°      (banda de cordura [0, 20], sin base historica)
+
+Nav2 los da por SUCCEEDED: su `yaw_goal_tolerance` lo permite. **Pero un robot
+que llega al sitio mirando 14° a un lado importa para la web**, y hasta esta
+corrida NADIE lo estaba midiendo — la comprobacion se habia anunciado y no
+existia.
+
+⚠️ EL UNICO REVISAR QUE NO ES CONOCIDO: 15.2 cm con obstaculo
+───────────────────────────────────────────────────────────────────────────────
+15.2 contra una banda de [0, 15]: se pasa por 2 mm. Y hay una explicacion
+parcial que conviene no perder: el tercer objetivo se manda con el robot a -14°
+de rumbo, asi que se proyecta sobre una direccion distinta de la del primero.
+
+📝 Los otros seis REVISAR son CONOCIDOS y estan explicados:
+   · «subio EN EL ARRANQUE» 635.7 s y «NRestarts = 1» -> es la SEGUNDA pasada
+     sobre el mismo arranque: F0 mata el driver a proposito. La prueba contamina
+     su propia medida, y esta dicho en el propio mensaje de NRestarts... pero NO
+     en el de «subio en el arranque». ⏳ Falta añadirle la misma explicacion.
+   · los cuatro avisos de verificar_robot.sh, dos de ellos pendientes del usuario
+
+🔴 Y LOS CUATRO PENDIENTE SIGUEN BLOQUEANDO, COMO SE ACORDO
+───────────────────────────────────────────────────────────────────────────────
+El robot esta impecable —0 FALLO— y aun asi NO hay via libre. Es el
+comportamiento elegido: «robot perfecto» y «via libre» no son lo mismo mientras
+falte identidad por usuario (Fase B), el hueco de los precipicios, el fmask de
+la PSK y rotar la credencial.
+
+📝 El informe de esta corrida imprime el texto VIEJO del pendiente de rosbridge
+   («expone raw_motors...») porque el proceso ya estaba corriendo cuando se
+   corrigio. La proxima pasada dira lo que de verdad bloquea: la falta de
+   identidad por usuario.

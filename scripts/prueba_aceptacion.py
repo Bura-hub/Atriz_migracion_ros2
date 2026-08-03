@@ -384,10 +384,20 @@ def f0(a: Aceptacion) -> None:
                               timeout=10).stdout.strip()
     activo_us = _mostrar('ActiveEnterTimestampMonotonic')     # us desde el boot
     retraso = float(activo_us) / 1e6 if activo_us.isdigit() else None
+    # ⚠️ ESTA COMPROBACION SE AUTOINVALIDA IGUAL QUE `NRestarts`, Y ANTES NO LO
+    #    DECIA. F0 mata el driver para ejercitar `Restart=always`, y eso
+    #    **actualiza `ActiveEnterTimestamp`**: en una SEGUNDA pasada sobre el
+    #    mismo arranque el valor ya no son ~23 s sino los minutos que hayan
+    #    pasado. Medido el 2026-08-02: 635.7 s en la segunda pasada.
+    #    Lo predijo la revision final y ocurrio tal cual. `NRestarts` sí explicaba
+    #    sus dos lecturas; esta no, y salia como un REVISAR mudo.
     a.add(juzgar_banda(
         'el servicio subio EN EL ARRANQUE (no lo levanto nadie)',
         None if retraso is None else round(retraso, 1), 0.0, ARRANQUE_MAXIMO_S,
-        'evidencia 47: 23 s tras el boot', 'F0', 's'))
+        'evidencia 47: 23 s tras el boot. ⚠️ Si es mucho mayor: o es una SEGUNDA '
+        'pasada sobre el mismo arranque (F0 mata el driver y eso reinicia este '
+        'reloj), o alguien levanto el servicio a mano. Lo desempata el uptime',
+        'F0', 's'))
     print(f'    uptime {up / 60:.1f} min · boot {time.strftime("%H:%M:%S", time.localtime(arranque))}')
 
     n_re = _mostrar('NRestarts')
