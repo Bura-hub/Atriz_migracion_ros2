@@ -13,6 +13,11 @@ arreglar desde aquí — un paquete de revisión con un diff pegado dentro no es
 roto. Necesita `git` y correr dentro del repo; si no lo encuentra, falla alto en vez de
 mirar el disco entero en silencio.
 
+Y al revés: si `git` SÍ lo tiene trackeado pero el fichero ya no está en disco (un
+`mv`/`rm` a medias, un conflicto de merge sin resolver), no revienta — es un estado
+transitorio del árbol de trabajo, no una afirmación falsa de la documentación. Se avisa
+aparte, sin contar como problema.
+
 ═══════════════════════════════════════════════════════════════════════════════
 POR QUÉ EXISTE
 ═══════════════════════════════════════════════════════════════════════════════
@@ -91,6 +96,29 @@ def ficheros(exts=('.md',)):
             yield ruta
 
 
+#: Ficheros que `git ls-files --cached` sigue listando (están en el índice) pero ya
+#: no existen en disco: un `mv`/`rm` a medias, un borrado sin `git rm`, un conflicto
+#: de merge sin resolver. Se llena leyendo, y `main()` lo imprime como aviso aparte.
+FICHEROS_SIN_DISCO = []
+
+
+def _leer(ruta):
+    """Lee un fichero que `ficheros()` devolvió. Si `git` lo tiene trackeado pero ya
+    no está en disco, NO es una afirmación de la documentación que se pueda evaluar
+    — es un estado transitorio del árbol de trabajo (a diferencia de "no hay git",
+    que si es un problema real de esta herramienta y por eso ESE caso falla alto).
+    Se anota en FICHEROS_SIN_DISCO y se salta con None, en vez de reventar con un
+    traceback que no dice nada sobre deriva de documentación."""
+    try:
+        with open(ruta, encoding='utf-8', errors='ignore') as f:
+            return f.read()
+    except FileNotFoundError:
+        rel = os.path.relpath(ruta, RAIZ)
+        if rel not in FICHEROS_SIN_DISCO:
+            FICHEROS_SIN_DISCO.append(rel)
+        return None
+
+
 def enlaces_rotos():
     """🔴 Se resuelven RESPECTO AL FICHERO que los contiene, no a la raíz.
     Hacerlo desde la raíz da falsos positivos en cuanto hay subdirectorios, y un
@@ -98,7 +126,9 @@ def enlaces_rotos():
     malos = []
     for ruta in ficheros():
         base = os.path.dirname(ruta)
-        texto = open(ruta, encoding='utf-8', errors='ignore').read()
+        texto = _leer(ruta)
+        if texto is None:
+            continue
         for enlace in re.findall(r'\]\(([^)]+)\)', texto):
             enlace = enlace.split('#')[0].strip()
             if not enlace or enlace.startswith(('http://', 'https://', 'mailto:')):
@@ -118,7 +148,9 @@ def citas_rotas():
     secs = secciones_del_manual()
     malas = {}
     for ruta in ficheros(('.md', '.txt')):
-        texto = open(ruta, encoding='utf-8', errors='ignore').read()
+        texto = _leer(ruta)
+        if texto is None:
+            continue
         for c in set(re.findall(r'cap\.?\s*(\d+\.\d+[a-z]?)', texto)):
             if c not in secs:
                 malas.setdefault(c, []).append(os.path.relpath(ruta, RAIZ))
@@ -148,7 +180,9 @@ def frases_obsoletas():
         rel = os.path.relpath(ruta, RAIZ)
         if 'CHANGELOG' in rel or '00_auditoria/evidencia' in rel:
             continue          # son bitácoras: DEBEN conservar lo que se dijo
-        texto = open(ruta, encoding='utf-8', errors='ignore').read()
+        texto = _leer(ruta)
+        if texto is None:
+            continue
         for patron, porque in OBSOLETAS:
             for m in re.finditer(patron, texto, re.I):
                 linea = texto[:m.start()].count('\n') + 1
@@ -206,6 +240,13 @@ def main():
            lambda c: f"capítulo {c}")
     bloque("Capítulos que el índice lista y no existen", sin_cuerpo,
            lambda c: f"capítulo {c}")
+
+    if FICHEROS_SIN_DISCO:
+        print(f"\n⚠️ Ficheros trackeados por git sin archivo en disco: {len(FICHEROS_SIN_DISCO)}"
+              f" (estado transitorio del árbol de trabajo — mv/rm a medias o merge sin resolver;"
+              f" no se auditó su contenido, y NO cuenta como problema)")
+        for rel in sorted(FICHEROS_SIN_DISCO):
+            print("   " + rel)
 
     print("\n" + "=" * 74)
     if fallos:
