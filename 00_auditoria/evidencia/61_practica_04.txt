@@ -87,3 +87,43 @@ TERCERA CORRIDA — DESPUES DE ANTICIPAR LA INERCIA
    bateria MAS BAJA, y si menos carga diera menos par se esperaria lo contrario.
    La hipotesis apunta al reves que el dato. Queda **SIN EXPLICAR**, y con n=3
    no da para mas. Regla 4 del proyecto: medir antes de atribuir.
+
+═══════════════════════════════════════════════════════════════════════════════
+CIERRE — TRAS ARREGLAR LA ENVOLTURA, Y EL RESULTADO QUE IMPORTA
+═══════════════════════════════════════════════════════════════════════════════
+La practica ahora imprime las dos formas y avisa cuando discrepan:
+
+    pedido 90
+      restando a secas   :  -268.1   <- se rompe al cruzar +-180
+      restando normalizado:    91.9   <- ya vale para 90
+      🔴 MIRA: las dos de arriba NO coinciden.
+
+    Error del lazo abierto: 1.9 grados
+    Error del lazo cerrado: 0.2 grados
+
+✅ El aviso salta cuando debe, y el numero bueno sale al lado. -268.1+360 = 91.9.
+
+═══════════════════════════════════════════════════════════════════════════════
+🔴 EL RESULTADO DE TODA LA SESION, Y NO ES EL QUE SE BUSCABA
+═══════════════════════════════════════════════════════════════════════════════
+Juntando las corridas del dia, con el lazo abierto ya normalizado:
+
+  lazo ABIERTO   n=4  (87.7 · 90.4 · 90.9 · 91.9)
+      rango 4.20°   peor error 2.30°   media +0.23°
+  lazo CERRADO   n=5  (90.46 · 89.82 · 90.74 · 90.2 · 89.8)
+      rango 0.94°   peor error 0.74°   media +0.20°
+
+  → LOS DOS TIENEN LA MISMA MEDIA: +0.23 contra +0.20.
+  → EL CERRADO DISPERSA 4.5x MENOS.
+
+Eso es mas fino —y mas cierto— que «el lazo cerrado acierta mas». En este robot,
+despues de compensar la inercia, **la realimentacion no mejora la media: reduce
+la varianza**. Que es exactamente lo que hace un lazo cerrado.
+
+Y explica por que la practica parecia enseñar lo contrario antes del arreglo: el
+cerrado tenia un SESGO de +4 grados (la inercia sin compensar) que lo hundia en
+cualquier comparacion de una sola corrida. Quitado el sesgo, queda la varianza,
+que es donde el lazo cerrado siempre iba a ganar.
+
+⚠️ n=4 y n=5. Suficiente para ver 4.5x de diferencia en dispersion; no para dar
+   una cifra fina de ninguna de las dos.
