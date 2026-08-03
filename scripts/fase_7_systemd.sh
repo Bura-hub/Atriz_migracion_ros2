@@ -88,9 +88,11 @@ hacer() {
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ $MODO == quitar ]]; then
     say "Desinstalando el arranque automático"
+    systemctl disable --now atriz-nav.service 2>/dev/null || true
     systemctl disable --now atriz-robot.service 2>/dev/null || true
-    rm -f /etc/systemd/system/atriz-robot.service
+    rm -f /etc/systemd/system/atriz-robot.service /etc/systemd/system/atriz-nav.service
     rm -f /usr/local/bin/atriz-robot.sh /usr/local/bin/atriz-escaneo
+    rm -f /usr/local/bin/atriz-nav.sh
     systemctl daemon-reload
     ok "quitado. El robot ya no arranca solo."
     avis "los procesos que estuvieran corriendo NO se han tocado"
@@ -231,12 +233,28 @@ ok "/usr/local/bin/atriz-escaneo"
 hacer install -m 644 "$SCRIPTS_DIR/atriz-robot.service" /etc/systemd/system/atriz-robot.service
 ok "/etc/systemd/system/atriz-robot.service"
 
+# ── La navegación, que se instala pero NO se habilita ────────────────────────
+hacer install -m 755 "$SCRIPTS_DIR/atriz-nav.sh"      /usr/local/bin/atriz-nav.sh
+ok "/usr/local/bin/atriz-nav.sh"
+hacer install -m 644 "$SCRIPTS_DIR/atriz-nav.service" /etc/systemd/system/atriz-nav.service
+ok "/etc/systemd/system/atriz-nav.service"
+
 # ─────────────────────────────────────────────────────────────────────────────
 say "4/5 · Habilitar"
 
 hacer systemctl daemon-reload
 hacer systemctl enable atriz-robot.service
 ok "atriz-robot.service habilitado (arrancará en el próximo reinicio)"
+
+# 🔴 atriz-nav NO se habilita, y NO es un olvido. La navegación cuesta ~58 % de
+#    un núcleo, y la Pi se alimenta del USB del RVR, así que eso sale de la
+#    batería del robot — cuya autonomía (~2 h) ya no cubre una clase (2-3 h).
+#    Y aún no se sabe si la web la necesitará siempre o a demanda.
+#    Se arranca a mano:  systemctl start atriz-nav
+#    El día que haga falta que arranque sola, es un `systemctl enable`.
+#    Razonado en 03_operacion/ARRANQUE_NAVEGACION.md.
+avis "atriz-nav.service instalado pero NO habilitado (a propósito)"
+avis "  arráncalo cuando lo necesites:  sudo systemctl start atriz-nav"
 
 # ─────────────────────────────────────────────────────────────────────────────
 say "5/5 · Comprobar el efecto, no la intención"
