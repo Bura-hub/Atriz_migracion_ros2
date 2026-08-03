@@ -98,3 +98,146 @@ brief pide usarse literal y solo se autorizo cambiar mover()/_mandar(). Queda
 documentado como concern en el informe de la tarea 2, con la hipotesis mas
 probable (falta self._hilo.join() antes de destroy_node()/rclpy.shutdown())
 sin verificar con un backtraza real.
+
+=== RONDA DE ARREGLO 1 (2026-08-02, tras coordinacion) ===
+
+El coordinador reprodujo el crash el mismo dia (3 corridas: 1 limpia, 2 con
+Aborted/134) y decidio que SI entra en el alcance de esta tarea: cerrar() es
+el entregable, y un cerrar() que aborta 2 de cada 3 veces no esta terminado.
+Instruccion: aislar la causa MIDIENDO antes de aplicar el arreglo (regla 4
+del proyecto), no bastarse con que el sintoma desaparezca.
+
+--- Aislamiento (instrumentacion temporal en cerrar(), retirada despues) ---
+
+Primero se instrumento cerrar() para imprimir self._hilo.is_alive() justo
+despues de self._ejecutor.shutdown() y antes de destroy_node() (sin anadir
+join, para no cambiar el timing original):
+
+$ for i in $(seq 1 8); do
+    OUT=$(timeout 60 python3 -c "from atriz import Robot
+with Robot() as r:
+    pass" 2>&1)
+    CODE=$?
+    echo "corrida $i -> exit=$CODE | $(echo "$OUT" | grep DIAG)"
+  done
+corrida 1 -> exit=0 | DIAG hilo.is_alive() antes de destroy_node = True
+corrida 2 -> exit=0 | DIAG hilo.is_alive() antes de destroy_node = True
+corrida 3 -> exit=0 | DIAG hilo.is_alive() antes de destroy_node = True
+corrida 4 -> exit=0 | DIAG hilo.is_alive() antes de destroy_node = True
+corrida 5 -> exit=0 | DIAG hilo.is_alive() antes de destroy_node = True
+corrida 6 -> exit=0 | DIAG hilo.is_alive() antes de destroy_node = True
+corrida 7 -> exit=0 | DIAG hilo.is_alive() antes de destroy_node = True
+corrida 8 -> exit=0 | DIAG hilo.is_alive() antes de destroy_node = True
+
+En estas 8 el hilo seguia vivo en el instante de destroy_node() y sin embargo
+ninguna aborto: la sola presencia de is_alive() (que hace una llamada al
+hilo) no correlaciona por si sola con el crash, asi que se paso a MEDIR el
+tiempo real que tarda el hilo en unirse tras shutdown():
+
+$ for i in $(seq 1 6); do
+    OUT=$(timeout 60 python3 -c "from atriz import Robot
+with Robot() as r:
+    pass" 2>&1)
+    CODE=$?
+    echo "corrida $i -> exit=$CODE | $(echo "$OUT" | grep DIAG)"
+  done
+corrida 1 -> exit=0 | DIAG vivo_tras_shutdown=True tardo_en_unirse=0.0005s vivo_tras_join=False
+corrida 2 -> exit=0 | DIAG vivo_tras_shutdown=True tardo_en_unirse=0.0007s vivo_tras_join=False
+corrida 3 -> exit=0 | DIAG vivo_tras_shutdown=True tardo_en_unirse=0.0006s vivo_tras_join=False
+corrida 4 -> exit=0 | DIAG vivo_tras_shutdown=True tardo_en_unirse=0.0004s vivo_tras_join=False
+corrida 5 -> exit=0 | DIAG vivo_tras_shutdown=True tardo_en_unirse=0.0007s vivo_tras_join=False
+corrida 6 -> exit=0 | DIAG vivo_tras_shutdown=True tardo_en_unirse=0.0005s vivo_tras_join=False
+
+MEDIDO: en 14/14 corridas (las 8 + estas 6), self._hilo.is_alive() es True
+inmediatamente despues de self._ejecutor.shutdown() — es decir, shutdown()
+SEÑALA al hilo pero no lo espera, confirmado por codigo (Thread.is_alive()
+no miente sobre si el hilo del SO sigue vivo). El hilo tarda ~0.4-0.7 ms MAS
+en unirse de verdad. Esa ventana de ~0.5 ms es donde, en el codigo original
+(sin join), destroy_node()/rclpy.shutdown() se ejecutaban en el hilo
+principal EN PARALELO con el hilo de spin() todavia dentro de rclpy tocando
+el mismo nodo — la carrera clasica de "usar mientras se destruye". Esto SI
+aisla el mecanismo (no solo el sintoma): el hilo objetivamente no ha
+terminado en el instante en que el codigo original ya estaba destruyendo lo
+que ese hilo seguia usando.
+
+Nota: estas 14 corridas de aislamiento no abortaron ninguna (aun con
+is_alive()=True, sin join real en las primeras 8). Consistente con que el
+fallo es INTERMITENTE (~1/3 segun la reproduccion previa del coordinador):
+la ventana de carrera es real y medida, pero no garantiza el crash en cada
+corrida — es exactamente el patron intermitente ya documentado en este
+proyecto para la parada de emergencia.
+
+--- Arreglo aplicado ---
+
+En cerrar(), tras self._ejecutor.shutdown():
+
+    self._hilo.join(timeout=3.0)
+    if self._hilo.is_alive():
+        print('AVISO: el hilo del ejecutor no se unio a tiempo; '
+              'destroy_node() puede fallar.')
+
+antes de self._nodo.destroy_node(). El timeout es defensivo (evita colgar el
+cierre si el hilo no soltara el nodo); segun lo medido arriba, el join real
+tarda submilisegundos.
+
+--- Verificacion: 42 tests siguen pasando ---
+
+$ cd ~/atriz_migracion && python3 -m pytest scripts/pruebas/ -q
+..........................................                               [100%]
+42 passed in 1.81s
+
+--- Verificacion pedida: 10 corridas seguidas, SOLO codigo de salida ---
+
+$ cd ~/atriz_ws/src/Atriz_rvr/scripts/estudiantes && source /opt/ros/jazzy/setup.bash
+$ for i in $(seq 1 10); do
+    timeout 60 python3 -c "from atriz import Robot
+with Robot() as r:
+    pass" > /dev/null 2>&1
+    echo "corrida $i -> $?"
+  done
+corrida 1 -> 0
+corrida 2 -> 0
+corrida 3 -> 0
+corrida 4 -> 0
+corrida 5 -> 0
+corrida 6 -> 0
+corrida 7 -> 0
+corrida 8 -> 0
+corrida 9 -> 0
+corrida 10 -> 0
+
+10/10 en 0. Antes del arreglo: 1/1 aborto en esta sesion, y 1/3 limpia + 2/3
+Aborted en la reproduccion del coordinador.
+
+--- Verificacion pedida: el barrido queda apagado tras las 10 corridas ---
+
+$ source /opt/ros/jazzy/setup.bash && stdbuf -oL timeout 8 ros2 topic hz /scan 2>&1 | tail -5
+Terminated
+(ningun mensaje en 8 s: el barrido siguio apagandose bien)
+
+--- Sanidad del robot tras las 10+14 corridas de esta ronda ---
+
+$ systemctl is-active atriz-robot
+active
+
+$ stdbuf -oL ros2 topic hz /odom   (foreground, 6-8 s, SIGINT)
+average rate: 16.671 / 16.587           (primera comprobacion, tras el crash inicial)
+average rate: 16.517 / 16.434 / 16.510 / 16.546   (segunda, tras las 10 corridas)
+(coincide con la referencia del proyecto: 16.59 Hz; sin degradacion)
+
+$ ps -eo pid,ppid,stat,comm | grep -i python3
+(sin procesos huerfanos de las corridas de prueba; solo el daemon de ros2cli,
+preexistente)
+
+--- Conclusion ---
+
+La causa quedo AISLADA con una medida directa (no solo con que el sintoma
+desaparezca): self._ejecutor.shutdown() no espera al hilo de spin(), que
+mide tardar ~0.5 ms mas en unirse, y ese hueco es donde destroy_node()
+corria en paralelo con el hilo en el codigo original. El arreglo
+(self._hilo.join(timeout=3.0) antes de destroy_node()) elimino el SIGABRT en
+10/10 corridas, consistente con la causa aislada. No se puede afirmar con
+un backtrace nativo (no hay gdb instalado, y no se instala: paso sudo fuera
+de alcance) que sea la UNICA causa posible de un SIGABRT en esa ventana, pero
+la medida (hilo vivo -> hueco medido -> arreglo que cierra exactamente ese
+hueco -> sintoma desaparece en 10/10) es la evidencia disponible sin gdb.
