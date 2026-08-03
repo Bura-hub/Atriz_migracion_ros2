@@ -192,6 +192,30 @@ Un `ssh host comando` **no lee `/etc/profile.d`**. Sin `-l`, el delegado arranca
 no ve **ningún** topic y concluye que el robot está muerto — sin un solo error. Es la misma trampa
 que documenta la cabecera de `atriz-robot.sh`.
 
+##### 🔴 Y el `bash -lc` hay que entrecomillarlo ENTERO
+
+Verificado desde el PC del usuario el 2026-08-03. Estas dos formas **no son equivalentes**:
+
+```bash
+ssh rvr-01 bash -lc 'echo $ROS_DOMAIN_ID'      # 🔴 MAL — sale una línea vacía
+ssh rvr-01 "bash -lc 'echo \$ROS_DOMAIN_ID'"   # ✅ BIEN — sale 1
+```
+
+`ssh` **une sus argumentos con espacios** antes de mandarlos, así que la primera forma llega al
+shell remoto como `bash -lc echo $ROS_DOMAIN_ID`. Y `bash -c` toma **solo la palabra siguiente**
+como comando: ejecuta `echo` sin argumentos, y lo demás pasa a ser `$0` y argumentos posicionales.
+
+**El modo de fallo es lo peligroso: no da error, da una línea vacía.** Un encargo lanzado así
+devolvería «no veo ningún topic» con salida 0 — y sería indistinguible de un robot muerto. Es la
+misma trampa del `-l`, un nivel más abajo, y se detectó porque la prueba comparaba **tres** formas
+en vez de dar una por buena.
+
+En PowerShell, el `$` se escapa con acento grave:
+
+```powershell
+ssh rvr-01 "bash -lc 'echo dominio=`$ROS_DOMAIN_ID; command -v ros2'"
+```
+
 #### 🔴 `cd /home/sphero`, no `cd ~/atriz_migracion`
 
 `~/.claude/projects/` contiene **un único ámbito, `-home-sphero`**. Arrancar desde otro directorio

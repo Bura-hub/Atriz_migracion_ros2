@@ -125,4 +125,51 @@ Fecha : 2026-08-03T15:31:05-05:00   ·   Robot: rvr-01   ·   claude 2.1.220
      puede: ~/.ssh/authorized_keys esta vacio.
   📝 Coste: ~$1 por encargo. No es un canal para preguntas de un dato; para eso
      va un `ssh rvr-01 bash -lc 'ros2 topic hz /odom'` sin agente de por medio.
+
+── TERCERA PARTE · el canal, probado DESDE EL PC (2026-08-03) ────────────────
+  Windows 11 + OpenSSH, clave ed25519 sin passphrase, ~/.ssh/config con
+  HostName 192.168.1.200 fijo (no rvr-01.local) y BatchMode yes.
+
+  ✅ ACCESO POR CLAVE, VERIFICADO POR EFECTO:
+       ssh rvr-01 "hostname; id -un"   ->   rvr-01 / sphero, sin contraseña
+     Antes: authorized_keys 0 bytes y 0 accesos por clave en auth.log.
+     (La clave se envio dos veces y quedo duplicada en authorized_keys; no
+      rompe nada, pero se dedujo a una sola linea. Huella verificada contra la
+      que imprimio ssh-keygen en el PC: SHA256:CQEvXI+xAUT79OiMdbCb2x2/...)
+
+  ✅ LA TRAMPA DEL /etc/profile.d, CONFIRMADA DESDE FUERA:
+       ssh rvr-01 "echo dominio=$ROS_DOMAIN_ID; command -v ros2 || echo SIN-ros2"
+       ->  dominio=        (vacio)
+           SIN-ros2
+     Un encargo lanzado asi mira el dominio DDS 0, no ve NINGUN topic, y
+     concluiria que el robot esta muerto.
+
+── 🔴 CUARTA TRAMPA, DESCUBIERTA EN ESA MISMA PRUEBA ─────────────────────────
+  El `bash -lc` hay que entrecomillarlo ENTERO. Estas dos NO son equivalentes:
+
+     ssh rvr-01 bash -lc 'echo $ROS_DOMAIN_ID'      -> linea VACIA
+     ssh rvr-01 "bash -lc 'echo \$ROS_DOMAIN_ID'"   -> 1
+
+  Causa: ssh UNE sus argumentos con espacios antes de mandarlos, asi que la
+  primera forma llega como `bash -lc echo $ROS_DOMAIN_ID`, y `bash -c` toma
+  SOLO la palabra siguiente como comando: ejecuta `echo` sin argumentos y el
+  resto pasa a ser $0.
+
+  Reproducido en la Pi:
+     bash -lc echo dominio=1                      -> (linea vacia)
+     bash -lc 'echo dominio=$ROS_DOMAIN_ID; ...'  -> dominio=1
+                                                     /opt/ros/jazzy/bin/ros2
+
+  🔴 Y NO DA ERROR: da una linea vacia y salida 0. Un encargo asi devolveria
+     «no veo ningun topic» y seria indistinguible de un robot muerto. Es la
+     trampa del -l un nivel mas abajo, y solo se vio porque la prueba comparaba
+     TRES formas en vez de dar una por buena.
+
+── ESTADO DEL CANAL ──────────────────────────────────────────────────────────
+  ✅ acceso por clave desde el PC          verificado
+  ✅ hilo persistente (--session-id/--resume) verificado, con control
+  ✅ parte con esquema y anti-alucinacion   verificado (machine_id, uptime_s,
+                                            git_head cuadran con la maquina)
+  📝 PENDIENTE: un encargo completo por SSH desde el PC. Todo lo de arriba se
+     midio o desde la Pi, o con comandos sueltos desde el PC.
 ═══════════════════════════════════════════════════════════════════════════════
