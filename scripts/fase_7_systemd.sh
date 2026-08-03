@@ -207,6 +207,7 @@ say "2/5 · ¿Hay ya un robot.launch.py corriendo a mano?"
 # arrancado, este aviso salía señalando al hijo de systemd como si fuera un
 # lanzamiento a mano. Un aviso que asusta sin motivo se acaba ignorando igual que
 # un fallo falso. Se distingue por el cgroup, que es de dónde cuelga de verdad.
+RECORDAR_REINICIO=no
 VIVOS=""
 for P in $(ps -eo pid,comm | awk '$2=="rvr_driver_node"{print $1}'); do
     if grep -q 'atriz-robot\.service' "/proc/$P/cgroup" 2>/dev/null; then
@@ -220,7 +221,16 @@ if [[ -n "$VIVOS" ]]; then
     avis "systemd NO lo tocará, pero los dos se pelearán por /dev/rvr"
     avis "páralo antes de arrancar el servicio, o reinicia la Pi"
 elif systemctl is-active --quiet atriz-robot 2>/dev/null; then
-    ok "solo corre el driver del propio servicio (se reiniciará al aplicar esto)"
+    # 🔴 Este mensaje decía «se reiniciará al aplicar esto», y era FALSO: este
+    #    script no tiene un solo `systemctl restart`. `install` sustituye el
+    #    inodo del fichero y `daemon-reload` recarga las UNIDADES, pero ninguna
+    #    de las dos cosas toca un proceso vivo — el driver sigue ejecutando el
+    #    código viejo hasta que alguien lo reinicie.
+    #    Lo detectó el usuario al leer la salida de --simular el 2026-08-03.
+    #    Un mensaje que anuncia un efecto que no ocurre es peor que no decir
+    #    nada: se lee «ya está aplicado» y se cierra la sesión creyéndolo.
+    ok "solo corre el driver del propio servicio (systemd lo lanzó, no tú)"
+    RECORDAR_REINICIO=si
 else
     ok "nada corriendo, el puerto está libre"
 fi
@@ -307,6 +317,17 @@ else
     else
         mal "is-enabled dice que NO está habilitado"
     fi
+fi
+
+# 🔴 EL AVISO QUE FALTABA. install + daemon-reload NO tocan un proceso vivo:
+#    el driver que está corriendo sigue con el código de antes. Sin esta línea
+#    la sesión se cierra creyendo que el cambio ya está aplicado, y el fallo
+#    aparece días después, en el próximo reinicio, sin nada que lo relacione.
+if [[ $RECORDAR_REINICIO == si && $MODO != simular ]]; then
+    printf '\n  \033[1;33m!\033[0m %s\n' "atriz-robot SIGUE CORRIENDO CON EL CÓDIGO VIEJO."
+    printf '  \033[1;33m!\033[0m %s\n'   "Los ficheros están instalados, pero el proceso vivo no los ha leído."
+    printf '  \033[1;33m!\033[0m %s\n'   "Para aplicarlo de verdad:  sudo systemctl restart atriz-robot"
+    printf '  \033[1;33m!\033[0m %s\n'   "⚠️ Eso DESPIERTA el robot: enciende sus LEDs y tarda unos 30 s."
 fi
 
 cat <<'EOF'
