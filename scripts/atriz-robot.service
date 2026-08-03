@@ -75,9 +75,16 @@ TimeoutStopSec=30
 Restart=always
 RestartSec=15
 # 📝 El límite de reintentos NO va aquí: `StartLimitIntervalSec` y
-# `StartLimitBurst` viven en [Unit]. En [Service] systemd los IGNORA —lo dice
-# `systemd-analyze verify`, y solo si lo ejecutas— y el bucle de reinicio se
-# queda sin tope. Están arriba.
+# `StartLimitBurst` viven en [Unit]. Están arriba.
+# 🔴 Y NO te fíes de `systemd-analyze verify` para pillarlo. Medido en systemd
+#    255 el 2026-08-03, poniéndolos en [Service] a propósito:
+#      StartLimitIntervalSec -> «Unknown key name … in section 'Service',
+#                                ignoring»   ✅ lo dice
+#      StartLimitBurst       -> ni una línea  🔴 NO lo dice
+#    (control: una directiva inventada sí la detecta, o sea que el verificador
+#     funciona; es que `StartLimitBurst` lo acepta en [Service] sin quejarse.)
+#    Una versión anterior de esta nota decía que el verificador cogía los dos.
+#    Era falso, y es justo la clase de error que este fichero existe para evitar.
 
 StandardOutput=journal
 StandardError=journal

@@ -1,0 +1,92 @@
+# atriz-nav.service
+#
+# Levanta la NAVEGACIÓN: AMCL (localizacion.launch.py) + Nav2 (nav2.launch.py).
+#
+# 🔴 SE INSTALA PERO **NO SE HABILITA**. Tras un reinicio vuelve el driver y NO
+#    vuelve la navegación — decisión del usuario, 2026-08-03. El bloque
+#    [Install] existe para que `systemctl enable atriz-nav` funcione el día que
+#    la web lo pida, que es todo el punto del diseño:
+#    03_operacion/ARRANQUE_NAVEGACION.md
+#
+#    El porqué, en una línea: Nav2 cuesta ~58 % de un núcleo y la Pi se alimenta
+#    del USB del RVR, así que sale de la batería del robot — y la autonomía
+#    (~2 h) ya no cubre una clase (2-3 h).
+#
+# Lo instala fase_7_systemd.sh. No copiarlo a mano.
+#
+# 📝 NO VERIFICADO — escrito el 2026-08-03, sin haberse arrancado nunca bajo
+#    systemd. Lo verifica la tarea 4 del plan, que exige el mapa del aula.
+
+[Unit]
+Description=Atriz — navegación (AMCL + Nav2)
+Documentation=file:///home/sphero/atriz_migracion/03_operacion/ARRANQUE_NAVEGACION.md
+
+# 🔴 BindsTo, no solo After. Si el driver se para, la navegación se para con él:
+#    un Nav2 publicando sobre una odometría muerta es algo que parece vivo y no
+#    lo está — lo mismo que `on_exit=Shutdown()` vino a resolver en
+#    robot.launch.py.
+BindsTo=atriz-robot.service
+After=atriz-robot.service
+
+# 🔴 Van en [Unit], NO en [Service]. Y ojo, porque los dos NO se comportan
+#    igual — medido en systemd 255 el 2026-08-03:
+#      StartLimitIntervalSec en [Service] -> «Unknown key name … ignoring»
+#      StartLimitBurst       en [Service] -> systemd NO dice NADA
+#    Así que `systemd-analyze verify` coge uno y **no coge el otro**. Ya mordió
+#    una vez; poniéndolos aquí arriba no puede volver a morder.
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=sphero
+Group=sphero
+WorkingDirectory=/home/sphero
+
+# ── El barrido, ANTES de arrancar ─────────────────────────────────────────────
+# 🔴 SIN `-`, a diferencia de atriz-robot.service. Allí un fallo al APAGAR el
+#    barrido es desgaste; aquí un fallo al ENCENDERLO deja la navegación ciega:
+#    sin /scan el collision_monitor bloquea el movimiento (medido: 0.0 cm contra
+#    9.9 del control) y el robot parece averiado. Si no se puede encender, esta
+#    unidad NO debe arrancar.
+# 📝 `atriz-escaneo on` ya comprueba el EFECTO —espera a que /scan publique de
+#    verdad— y devuelve error si no. No hace falta comprobarlo otra vez aquí.
+ExecStartPre=/usr/local/bin/atriz-escaneo on
+
+ExecStart=/usr/local/bin/atriz-nav.sh
+
+# Al parar, devolver el barrido a su estado de reposo. Con `-`: si falla, no
+# bloquea el apagado.
+# ⚠️ Esto puede dejar sin /scan a un guion de alumno que esté corriendo en ese
+#    momento. Se acepta porque parar la navegación es un acto explícito de
+#    operador, no algo que ocurra solo. La dirección contraria —que el guion del
+#    alumno deje ciega a la navegación— sí se arregla, en `atriz.py`.
+ExecStopPost=-/usr/local/bin/atriz-escaneo off
+
+# Nav2 tarda en levantar sus nodos de ciclo de vida, y el arranque incluye
+# esperar a que /scan publique.
+# ⏳ Cuánto tarda exactamente es una de las cosas que la tarea 4 mide por primera
+#    vez: el proyecto NO lo tiene medido, y es el dato que hará falta el día que
+#    haya que decidir si la navegación arranca sola.
+TimeoutStartSec=120
+
+# ── Apagado ───────────────────────────────────────────────────────────────────
+# SIGINT para que los nodos de ciclo de vida de Nav2 ejecuten su apagado limpio.
+KillSignal=SIGINT
+KillMode=mixed
+TimeoutStopSec=30
+
+# ── Reinicio ──────────────────────────────────────────────────────────────────
+# ⚠️ on-failure, NO always. Con `always`, una salida limpia también reiniciaría —
+#    y aquí una salida con código 0 significa «alguien lo paró» o «no hay mapa».
+#    Reintentar eso sería un bucle sin sentido. El StartLimit de arriba corta el
+#    bucle si Nav2 se cae una y otra vez de verdad.
+Restart=on-failure
+RestartSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=atriz-nav
+
+[Install]
+WantedBy=multi-user.target
