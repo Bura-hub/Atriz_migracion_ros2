@@ -333,7 +333,8 @@ def test_signo_del_giro_depende_del_lado_no_de_la_lectura():
     assert giro_izquierda == -giro_derecha
 
 
-def test_el_signo_cambia_una_sola_vez_al_barrer_toda_la_banda():
+@pytest.mark.parametrize('lado_borde', [1, -1])
+def test_el_signo_cambia_una_sola_vez_al_barrer_toda_la_banda(lado_borde):
     """🔴 Tarea 11, Ronda de arreglo 2. Barre `claro` de 181 a 1275
     (evidencia 37) entero, no tres puntos sueltos -- los tres puntos que
     probe en la ronda 1 (181, 700, 1275) son justo los tres que el bug NO
@@ -343,8 +344,12 @@ def test_el_signo_cambia_una_sola_vez_al_barrer_toda_la_banda():
     donde el signo no ha cambiado pero la magnitud ya "quiere" el otro
     signo -- ahi el controlador empuja al robot MAS LEJOS del borde:
     realimentacion positiva, justo lo contrario de un lazo de control.
+
+    🔴 Ronda de arreglo 3: parametrizado por `lado_borde` (1 Y -1). Con
+    solo `lado_borde=1` este barrido no atrapaba un bug que ignorara el
+    lado en la zona 'negro' -- ver
+    `test_signo_correccion_respeta_lado_borde_tambien_en_la_zona_negra`.
     """
-    lado_borde = 1
     claros = list(range(181, 1276))
     giros = [decidir_giro(claro, lado_borde, PIDSeguidor()) for claro in claros]
 
@@ -353,12 +358,7 @@ def test_el_signo_cambia_una_sola_vez_al_barrer_toda_la_banda():
     cambios = sum(1 for a, b in zip(no_nulos, no_nulos[1:]) if a != b)
     assert cambios == 1, (
         f"el signo del giro cambia {cambios} veces recorriendo claro=181..1275 "
-        f"(lado_borde=1), se esperaba 1 -- cambio justo en el centro"
-    )
-
-    primero_positivo = next(i for i, s in enumerate(signos) if s > 0)
-    assert all(s >= 0 for s in signos[primero_positivo:]), (
-        "el giro vuelve a negativo despues de cruzar a positivo: no es monotono"
+        f"(lado_borde={lado_borde}), se esperaba 1 -- cambio justo en el centro"
     )
 
     # 🔴 La comprobación que de verdad atrapa el bug: el paso entre dos
@@ -374,24 +374,53 @@ def test_el_signo_cambia_una_sola_vez_al_barrer_toda_la_banda():
     assert salto_maximo < 0.05, (
         f"salto de {salto_maximo:.4f} entre claro={claros[indice_salto_maximo]} y "
         f"claro={claros[indice_salto_maximo + 1]} (giro {giros[indice_salto_maximo]:.4f} -> "
-        f"{giros[indice_salto_maximo + 1]:.4f}). Un salto grande significa que el signo "
-        f"cambió en un sitio donde la magnitud NO estaba cerca de cero: justo el bug de la "
-        f"Ronda de arreglo 2."
+        f"{giros[indice_salto_maximo + 1]:.4f}, lado_borde={lado_borde}). Un salto grande "
+        f"significa que el signo cambió en un sitio donde la magnitud NO estaba cerca de "
+        f"cero: justo el bug de la Ronda de arreglo 2."
     )
 
 
-def test_signo_correccion_cambia_en_el_centro_no_en_las_fronteras_de_clasificar():
+@pytest.mark.parametrize('lado_borde,signo_en_claro,signo_en_negro', [
+    (1, 1, -1),
+    (-1, -1, 1),
+])
+def test_signo_correccion_cambia_en_el_centro_no_en_las_fronteras_de_clasificar(
+    lado_borde, signo_en_claro, signo_en_negro,
+):
     """El signo tiene que cambiar en el CENTRO (700 = punto medio entre
     UMBRAL_NEGRO=400 y UMBRAL_CLARO=1000), no en las fronteras de
     `clasificar()` (450 y 950, con margen de histeresis) -- esas son para
     decidir cuando estamos PERDIDOS, no para fijar el signo de la
     correccion continua. 750 y 900 son la banda exacta que reprodujo el
-    coordinador: antes del arreglo daban signo -1 (incorrecto)."""
-    assert signo_correccion(699, 1) == -1
-    assert signo_correccion(701, 1) == 1
-    assert signo_correccion(750, 1) == 1
-    assert signo_correccion(900, 1) == 1
-    assert signo_correccion(949, 1) == 1
+    coordinador: antes del arreglo daban signo -1 (incorrecto) con
+    lado_borde=1.
+
+    🔴 Ronda de arreglo 3: probado con `lado_borde=1` Y `lado_borde=-1`.
+    """
+    assert signo_correccion(699, lado_borde) == signo_en_negro
+    assert signo_correccion(701, lado_borde) == signo_en_claro
+    assert signo_correccion(750, lado_borde) == signo_en_claro
+    assert signo_correccion(900, lado_borde) == signo_en_claro
+    assert signo_correccion(949, lado_borde) == signo_en_claro
+
+
+def test_signo_correccion_respeta_lado_borde_tambien_en_la_zona_negra():
+    """🔴 Tarea 11, Ronda de arreglo 3. El hueco que dejó la ronda 2: todos
+    los tests anteriores probaban `lado_borde=-1` solo en la zona 'claro'
+    (`claro=1275`, bien lejos del centro) o `lado_borde=1` en las dos
+    zonas -- ninguno probaba `lado_borde=-1` CON `claro` por debajo del
+    centro (zona 'negro').
+
+    Bug quirúrgico que esto atrapa (inyectado por el re-revisor):
+    `return lado_borde if claro >= centro else -1` -- ignora `lado_borde`
+    en la zona negra. Con `lado_borde=1` ese bug es invisible (`-1 ==
+    -lado_borde`); con `lado_borde=-1` no: el resultado correcto es `+1`
+    (`-lado_borde`) y el bug sigue devolviendo `-1`.
+    """
+    assert signo_correccion(300, -1) == 1     # zona negro, lado -1: signo +1
+    assert signo_correccion(181, -1) == 1     # el negro medido (evidencia 37)
+    assert signo_correccion(699, -1) == 1
+    assert signo_correccion(300, 1) == -1     # de control: zona negro, lado +1
 
 
 def test_clasificar_con_los_valores_de_la_evidencia_37():
