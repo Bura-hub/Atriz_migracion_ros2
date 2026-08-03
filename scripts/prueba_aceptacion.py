@@ -1157,6 +1157,20 @@ def f7(a: Aceptacion) -> None:
             a.add(juzgar_banda(f'{etiqueta}: error final', round(err, 1), 0.0, 15.0,
                                'TRASPASO § "Hecho: navegando a 0.40 m/s": 8 cm; '
                                'otra tanda 9-10', 'F7', 'cm'))
+            # 🔴🔴 Y EL ERROR DE RUMBO. `err_yaw` se calculaba arriba y NO SE
+            #    REPORTABA: quedo como variable muerta porque el parche que
+            #    añadia esta linea fallo en silencio contra un texto que ya habia
+            #    cambiado. O sea que la comprobacion que se anuncio como añadida
+            #    **no existia**, y el informe de la corrida del 2026-08-02 21:26
+            #    lo demuestra: el regreso acabo a -10° con la partida en +1° —
+            #    **11 grados** que Nav2 dio por SUCCEEDED (su `yaw_goal_tolerance`
+            #    lo permite) y que ningun numero del informe enseñaba.
+            #    📝 Un `juzgar_banda` que no se llama no falla: desaparece. Es la
+            #       misma familia que las comprobaciones que se saltan en silencio.
+            a.add(juzgar_banda(f'{etiqueta}: error de RUMBO al llegar',
+                               round(err_yaw, 1), 0.0, 20.0,
+                               'sin base historica; Nav2 lo da por bueno dentro de '
+                               'su yaw_goal_tolerance', 'F7', '°'))
             return desvio
 
         # 🔴 LA POSE DE PARTIDA, GUARDADA ANTES DE MOVER NADA. Es a esta a la que

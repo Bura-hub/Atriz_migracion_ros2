@@ -67,3 +67,46 @@ que el usuario esperaba, PERO LLEGABA, porque para Nav2 ese era el objetivo.
 La observacion fisica del usuario y el «SUCCEEDED con 40.7 cm de error» del
 informe son **el mismo fenomeno visto desde dos sitios**. Arreglado con
 `pos_mapa()`, que lee la pose por TF en `map -> base_footprint`.
+
+───────────────────────────────────────────────────────────────────────────────
+F7 COMPLETA POR FIN, Y UNA COMPROBACION QUE SE ANUNCIO Y NO EXISTIA — 2026-08-02
+───────────────────────────────────────────────────────────────────────────────
+Tras arreglar (a) que F7 encendiera el barrido —lo apagaba F6— y (b) que el
+regreso volviera a la POSE DE PARTIDA y no a «1.50 m detras de donde estes»:
+
+  pose de partida:  x=-1.97  y=-0.26  yaw=+1°
+
+  objetivo limpio a 1.50 m     SUCCEEDED    error  9.5 cm
+  regreso al origen            SUCCEEDED    error  7.6 cm
+  objetivo CON obstaculo       SUCCEEDED    error 18.4 cm   <- REVISAR
+  desvio lateral rodeando                          18.2 cm
+  sin «Failed to make progress»                    ✅
+
+  Los TRES objetivos completados. Es la primera vez que F7 llega al final.
+
+🔴 Y LA CORRIDA DESTAPA UNA COMPROBACION QUE SE ANUNCIO COMO AÑADIDA Y NO EXISTIA
+───────────────────────────────────────────────────────────────────────────────
+Se dijo que se medía el ERROR DE RUMBO al llegar. `err_yaw` SE CALCULABA, pero
+el `juzgar_banda` que lo reporta **nunca llego a añadirse**: el parche apuntaba a
+un texto que ya habia cambiado y **fallo en silencio**. Quedo una variable
+calculada y jamas usada.
+
+📝 **Un `juzgar_banda` que no se llama no falla: DESAPARECE.** Misma familia que
+   las comprobaciones que se saltan en silencio bajo un `if` sin `else`.
+
+Y la propia corrida demuestra que importaba:
+
+    partida                       yaw = +1°
+    al mandar el tercer objetivo  yaw = -10°     <- 11 GRADOS de diferencia
+
+Nav2 lo dio por SUCCEEDED —su `yaw_goal_tolerance` lo permite— y **ningun numero
+del informe lo enseñaba**. El robot llega al sitio mirando a otro lado y la
+prueba decia que todo bien.
+
+⚠️ Y explica en parte el REVISAR de 18.4 cm: el tercer objetivo se proyecta sobre
+   un rumbo 11° distinto del primero, asi que apunta a un punto que no es el
+   mismo. La comparacion limpio-vs-obstaculo mejoro mucho respecto a la corrida
+   anterior, pero **todavia no es exacta**.
+
+→ Comprobacion añadida y verificada en el fichero. Pendiente de que aparezca en
+  una corrida real.
