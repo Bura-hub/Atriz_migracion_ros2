@@ -246,6 +246,24 @@ sospecha de una excepción dentro de un manejador. El síntoma «el topic existe
 idéntico al de un RVR dormido, pero **el RVR dormido sí dispara el detector de silencio**: esa
 es la diferencia que los separa.
 
+**🔴 LA DERIVA DE YAW ES ~1000× MAYOR JUSTO TRAS ENCENDER EL RVR.** Medido el 2026-08-02 por
+casualidad, al dar REVISAR la prueba de aceptación con el robot recién encendido tras cargar:
+
+```
+21:01:36   deriva 0.97  °/30 s    motor 23.2 °C   RVR recién encendido
+21:08:18   deriva 0.001 °/30 s    motor 24.1 °C   ~7 min después     ← 970×
+```
+
+→ **Consecuencia para la web:** si un alumno empieza nada más encender el robot, la odometría
+  deriva ~1°/30 s los primeros minutos — decenas de grados sobre una práctica de 15 min. Y
+  `set_pos_and_yaw(0,0,0)` **no lo arregla**: pone el origen a cero, no corrige la deriva.
+→ ⚠️ **La causa es una hipótesis, no una medida:** el sesgo de una IMU MEMS depende de la
+  temperatura y el motor subió 0.9 °C entre las dos tomas. Cerrarlo exigiría una curva desde el
+  encendido. No se persigue: desaparece solo.
+→ 📝 Otro estado que **nadie había probado** porque las pruebas siempre se hacían con el robot
+  llevando rato en marcha — como «RVR apagado con la Pi viva», encontrado el mismo día.
+  Evidencia 54.
+
 **🔴 NO USES `percentage` PARA DECIDIR SI HAY QUE CARGAR: usa `voltage`.** Medido el
 2026-08-01: el porcentaje decía **100 %** con la batería a **8.29 V**, a 1.29 V del umbral de
 «baja» del propio firmware (7.0 V; crítica 6.5 V, histéresis 0.2). El porcentaje es una

@@ -1,0 +1,45 @@
+═══════════════════════════════════════════════════════════════════════════════
+LA DERIVA DE YAW ES ~1000x MAYOR JUSTO TRAS ENCENDER EL RVR — 2026-08-02
+═══════════════════════════════════════════════════════════════════════════════
+Encontrado por casualidad: F1 de la prueba de aceptacion dio REVISAR con el robot
+recien encendido tras cargar, y al repetirla siete minutos despues volvio a lo
+normal.
+
+MEDIDO
+───────────────────────────────────────────────────────────────────────────────
+  21:01:36   deriva 0.97  °/30 s    motor 23.2 °C   RVR recien encendido
+  21:08:18   deriva 0.001 °/30 s    motor 24.1 °C   ~7 min despues
+
+  factor: 970x
+
+  Contraste con el 2026-08-01, robot llevando horas encendido:
+      0.002 · 0.003 · 0.01 °   -> del mismo orden que los 0.001 de ahora
+
+LO QUE ESTO DEMUESTRA, Y LO QUE NO
+───────────────────────────────────────────────────────────────────────────────
+✅ DEMUESTRA que los 0.97° eran TRANSITORIOS, no una regresion. La banda de F1
+   ([0, 0.5]°) esta bien puesta: salto sobre algo real.
+
+⚠️ NO DEMUESTRA la causa. La hipotesis razonable es que el giroscopio necesita
+   asentarse tras el encendido —el sesgo de una IMU MEMS depende de la
+   temperatura, y el motor subio de 23.2 a 24.1 °C entre las dos medidas— pero
+   eso es **una explicacion plausible con n=1, no una medida**.
+
+   Para cerrarlo harian falta varias tomas seguidas desde el encendido (p. ej.
+   cada minuto durante diez) y ver la curva. No se persigue hoy: el efecto
+   desaparece solo y no impide operar.
+
+🔴 CONSECUENCIA OPERATIVA, Y ESTA SI IMPORTA PARA LA FASE 5
+───────────────────────────────────────────────────────────────────────────────
+Si un alumno empieza su sesion **nada mas encender el robot**, la odometria
+derivara ~1°/30 s durante los primeros minutos. Sobre una practica de 15 minutos
+eso son decenas de grados de error acumulado en el rumbo.
+
+  → La web deberia **esperar unos minutos tras el encendido**, o al menos avisar.
+  → Y `set_pos_and_yaw(0,0,0)` entre alumnos NO lo arregla: pone el origen a
+    cero, no corrige la deriva posterior.
+
+📝 Es ademas otro caso de la familia que este proyecto lleva coleccionando: un
+   estado del sistema —«recien encendido»— que NADIE habia probado porque las
+   pruebas siempre se hacian con el robot llevando rato en marcha. El otro fue
+   «RVR apagado con la Pi viva» (evidencia 52), encontrado el mismo dia.
