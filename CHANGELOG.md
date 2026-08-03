@@ -4,6 +4,78 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-03 (parte 3) — El arranque de la navegación, decidido y a medio implementar
+
+`ARQUITECTURA.md` arrastraba desde el 2026-08-02 una contradicción anotada: **nadie arrancaba
+Nav2 ni AMCL**. `atriz-robot.service` levanta solo `robot.launch.py`, así que para navegar había
+que entrar por SSH y lanzar dos launch a mano — y la Decisión 2, «el SSH ya no hace falta ni para
+el ciclo de vida», era cierta **solo para teleoperación**.
+
+### La decisión, y el dato que la tomó
+
+**`atriz-nav.service`: una segunda unidad, instalada pero NO habilitada.** No fusionarla en
+`robot.launch.py` con un argumento —acoplaría los ciclos de vida y reiniciar Nav2 obligaría a
+reiniciar el driver— ni un disparador desde la web, que no existe.
+
+🔴 **El dato que decidió, y que no se dio por supuesto:** *«La Pi se alimenta del puerto USB del
+RVR»* (`MANUAL_ATRIZ_ROS2.md:63`). **La carga de CPU sale de la batería del robot**, y Nav2 es la
+pieza más pesada del sistema (**~58 % de un núcleo**) sobre una autonomía (~2 h) que ya no cubre
+una clase (2-3 h).
+
+📝 Y el argumento de más peso no fue una estimación: **la sesión de hoy vio la batería caer
+7.60 → 7.28 V con el robot conduciendo unos pocos metros**. Casi todo el gasto fue estar
+encendido. En una sesión de desarrollo el robot pasa la mayor parte del tiempo quieto mientras se
+edita código — y ahí un Nav2 arrancado solo serían horas de 58 % de núcleo sin usarse.
+
+⚠️ **Cuánto cuesta eso en batería NO está medido** y se anota como tal: lo que hay es 0.74 %/min
+conduciendo, sin separar motores de Pi.
+
+### Dos conflictos del barrido, encontrados al bajar el diseño a plan
+
+Comprobado sobre el código: **ningún launch de navegación enciende el barrido**, y `slam` y
+`nav2` lo necesitan. Así que arrancar navegación la dejaría **ciega** — sin `/scan` el
+`collision_monitor` bloquea (0.0 cm contra 9.9 del control) y el robot parece averiado.
+
+Y al revés: con navegación en marcha, `cerrar()` de `atriz.py` llamaba a `/stop_scan` y **dejaba a
+Nav2 ciego en silencio**.
+
+→ La unidad lo enciende (con `ExecStartPre` **sin `-`**: si no se puede encender, mejor no
+arrancar). Y `atriz.py` ahora **deja las cosas como las encontró**: si al conectar ya llegaba
+`/scan`, avisa y no lo apaga al salir. **91 tests** (eran 89), comprobados rompiendo la función.
+
+### 🔴 Un hueco del diseño que apareció al escribir el plan
+
+`localizacion.launch.py` exige el argumento `mapa` y **no tiene valor por defecto**, y
+`atriz_rvr_bringup/maps/` **no existía**. Los mapas que hay viven en el repositorio privado, que
+no llega al robot.
+
+→ El mapa **viaja con el paquete** (lo reparten `provision.sh` y la imagen dorada, y los 16
+robots comparten el mismo `map`). Y el envoltorio **falla alto** si no está, en vez de arrancar un
+AMCL ciego.
+
+⏳ **Pero el mapa del aula no existe todavía**: las medidas de hoy se tomaron en casa. La
+verificación con el robot **no se puede cerrar fuera del laboratorio**.
+
+### Y una trampa documentada que era medio falsa
+
+`atriz-robot.service` afirmaba que `systemd-analyze verify` detecta `StartLimitIntervalSec` y
+`StartLimitBurst` mal colocados en `[Service]`. **Medido en systemd 255:**
+
+```
+StartLimitIntervalSec en [Service] -> «Unknown key name … ignoring»   ✅ lo dice
+StartLimitBurst       en [Service] -> ni una linea                    🔴 NO lo dice
+control (directiva inventada)      -> la detecta, o sea que el verificador funciona
+```
+
+Corregido. Es la clase de error que ese fichero existe para evitar.
+
+### Estado
+
+Tareas 1, 2, 3 y 5 del plan **hechas**; la 4 —verificar con el robot— **pendiente y bloqueada por
+el mapa del aula**. Nada de esto se ha arrancado nunca bajo systemd: **NO VERIFICADO**.
+
+---
+
 ## 2026-08-03 (parte 2) — La revisión final dijo NO FUSIONAR, y tenía razón
 
 Cerradas las trece tareas del plan `2026-08-02-api-laboratorio.md`, se lanzó la **revisión de toda

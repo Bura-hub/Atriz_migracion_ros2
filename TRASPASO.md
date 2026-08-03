@@ -20,6 +20,12 @@
 >    cada una**, y el **historial** de las cuatro las conserva.
 >
 > Y falta también la corrida completa de la prueba de aceptación tras un reinicio real.
+>
+> 🆕 **Y desde el 2026-08-03 hay una tercera cosa, a medias:** el arranque de la navegación.
+> `atriz-nav.service` está **escrita, instalable y sin habilitar** (tareas 1, 2, 3 y 5 del plan
+> `00_auditoria/planes/2026-08-03-arranque-navegacion.md`), pero **nunca se ha arrancado bajo
+> systemd**. La verificación exige **el mapa del aula**, que no existe: las medidas del 2026-08-03
+> se tomaron en casa. Detalle en `03_operacion/ARRANQUE_NAVEGACION.md`.
 
 ---
 

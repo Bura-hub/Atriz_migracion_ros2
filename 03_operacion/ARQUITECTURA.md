@@ -276,15 +276,26 @@ Con este contrato **no se puede programar la Fase 5 entera**. Falta:
 | **`/navigate_to_pose`** (`nav2_msgs/action/NavigateToPose`) | Es «ve a la mesa 3», el caso de uso que justifica AMCL y el marco compartido. Es una **acción**, no un topic ni un servicio: rosbridge la expone distinto |
 | **`/initialpose`** (`geometry_msgs/PoseWithCovarianceStamped`) | El RVR **no tiene rumbo absoluto** (cap. 19 y evidencia 42), así que **la pose inicial de cada robot tiene que venir de fuera**. Sin esto, AMCL no sabe dónde empieza |
 
-🔴 **Y una contradicción que hay que resolver antes de la Fase 5: NADIE ARRANCA Nav2 NI AMCL.**
-`atriz-robot.service` levanta **solo** `robot.launch.py`. `nav2.launch.py`, `slam.launch.py` y
-`localizacion.launch.py` se lanzan **a mano, por SSH, en dos terminales**. Así que la afirmación
-de la Decisión 2 —«el SSH ya no hace falta ni para el ciclo de vida»— **es cierta solo para
-conducir en teleoperación**: para navegar, hoy alguien tiene que entrar por SSH.
+✅ **RESUELTO el 2026-08-03: `atriz-nav.service`.** Hasta esa fecha nadie arrancaba Nav2 ni
+AMCL —`atriz-robot.service` levanta solo `robot.launch.py`— y para navegar había que entrar por
+SSH y lanzar dos launch a mano. O sea que la Decisión 2 («el SSH ya no hace falta ni para el
+ciclo de vida») era cierta **solo para teleoperación**.
 
-⏳ **Decisión pendiente:** ¿una segunda unidad systemd? ¿la web los arranca por un servicio ROS?
-¿se fusionan en `robot.launch.py` con un argumento? Hay que fijarlo, porque **cambia el
-contrato**.
+**La decisión, de las tres que había sobre la mesa:** una **segunda unidad systemd**, no
+fusionarlo en `robot.launch.py` con un argumento (acoplaría los ciclos de vida: reiniciar Nav2
+obligaría a reiniciar el driver) ni un disparador desde la web (que no existe).
+
+🔴 **Y se instala pero NO se habilita.** Nav2 cuesta **~58 % de un núcleo**, y la Pi se alimenta
+del USB del RVR, así que eso sale de la **batería del robot** — cuya autonomía (~2 h) ya no cubre
+una clase (2-3 h). Se arranca con `systemctl start atriz-nav`. El día que la web pida que arranque
+sola, es un `systemctl enable`.
+
+Levanta **AMCL** (`localizacion.launch.py` + `nav2.launch.py`), no SLAM: no por CPU —AMCL cuesta
+más— sino por el **marco compartido**, que es lo que permite decir «ve a la mesa 3».
+
+📄 Razonado entero en [`ARRANQUE_NAVEGACION.md`](ARRANQUE_NAVEGACION.md).
+⏳ **NO VERIFICADO todavía**: falta arrancarla contra el robot, y eso exige **el mapa del aula**,
+que aún no existe.
 
 ---
 
