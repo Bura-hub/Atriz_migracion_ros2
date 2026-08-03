@@ -158,6 +158,29 @@ nada que entrecomillar, y funciona igual desde PowerShell, cmd o bash.
 se niega a empezar si `ROS_DOMAIN_ID` sale vacío — probado rompiéndolo. Mantiene el hilo en
 `~/.atriz-encargo-hilo`, de modo que los encargos sucesivos recuerdan los anteriores.
 
+##### El delegado arranca EN FRÍO, y es una decisión medida
+
+Existe la posibilidad de que cada encargo **bifurque de la sesión de trabajo**, heredando toda la
+conversación. Se implementó, se midió y **se descartó**:
+
+| Modo | Coste por encargo | Tokens de caché |
+|---|---|---|
+| En frío (`CLAUDE.md` + `ESTADO_ACTUAL.md`) | **$0,95** | ~30.000 |
+| Bifurcando la sesión de trabajo (42 MB) | **$8,52** | **2.793.122** |
+
+Nueve veces más caro, sobre un encargo trivial. Y el hilo bifurcado nace con 3,9 MB y crece.
+
+El razonamiento: lo que el delegado necesita no es *la conversación* —22.286 turnos, casi todo ruido
+de depuración— sino **qué se ha hecho y por qué**, que está en `ESTADO_ACTUAL.md` y `CLAUDE.md` y se
+carga gratis. **Esa es la razón de que `ESTADO_ACTUAL.md` exista.**
+
+Para activarlo puntualmente, si algún encargo necesitara de verdad el hilo completo:
+
+```bash
+echo <uuid-de-la-sesion> > ~/.atriz-encargo-base    # bifurca
+rm ~/.atriz-encargo-base                            # vuelve a frío
+```
+
 Lo que sigue explica **por qué** el script hace lo que hace. Si solo quieres usarlo, con lo de arriba
 basta.
 

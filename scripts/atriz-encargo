@@ -63,15 +63,70 @@ else
 fi
 [[ -n "${ENCARGO// /}" ]] || morir "encargo vacío. Uso:  echo 'mide los Hz de /odom' | ssh rvr-01 atriz-encargo"
 
+# ── El ámbito del proyecto ───────────────────────────────────────────────────
+# 🔴 `cd` OBLIGATORIO. El ámbito de Claude Code sale del directorio de trabajo,
+#    y ~/.claude/projects/ solo tiene uno: `-home-sphero`. Arrancar desde otro
+#    sitio crea un ámbito NUEVO, vacío, sin la memoria del proyecto y SIN AVISAR.
+#    Un `ssh host comando` normalmente arranca en $HOME, pero eso depende del
+#    servidor: aquí no se deja al azar.
+cd "$HOME" || morir "no puedo entrar en $HOME"
+
 # ── El hilo, que da memoria entre encargos ───────────────────────────────────
 # --resume no cruza máquinas, pero no necesita cruzarla: la sesión vive aquí y
 # se direcciona por UUID. Verificado con control el 2026-08-03 (evidencia 66).
 # 📝 Es EFÍMERO: se pierde al desinstalar Claude Code. Lo que valga, se commitea.
+#
+# 🔴 SE COMPRUEBA QUE EL HILO EXISTE DE VERDAD, no que el fichero tenga texto.
+#    La primera versión escribía el UUID ANTES de saber si la sesión llegó a
+#    crearse. Una prueba interrumpida dejó un UUID cuya sesión nunca existió, y
+#    a partir de ahí TODOS los encargos morían con «No conversation found with
+#    session ID: …» — un canal roto para siempre por un fichero de 36 bytes.
+#    Medido el 2026-08-03 desde el PC del usuario.
+PROY="$HOME/.claude/projects/-home-sphero"
+BASE_FILE="$HOME/.atriz-encargo-base"
+HILO=""
+
 if [[ -s "$HILO_FILE" ]]; then
-    HILO="$(cat "$HILO_FILE")"; MODO_HILO=(--resume "$HILO")
-else
-    HILO="$(python3 -c 'import uuid;print(uuid.uuid4())')"
-    printf '%s' "$HILO" > "$HILO_FILE"; MODO_HILO=(--session-id "$HILO")
+    CAND="$(cat "$HILO_FILE")"
+    if [[ -f "$PROY/$CAND.jsonl" ]]; then
+        HILO="$CAND"; MODO_HILO=(--resume "$HILO")
+    else
+        # El hilo apuntaba a una sesión inexistente. No es un error del usuario
+        # ni algo que deba bloquear: se empieza uno nuevo y se dice por qué.
+        echo "[atriz-encargo] el hilo $CAND ya no existe; empiezo uno nuevo" >&2
+        rm -f "$HILO_FILE"
+    fi
+fi
+
+if [[ -z "$HILO" ]]; then
+    # 🔴 EL PRIMER ENCARGO BIFURCA DE LA SESIÓN DE TRABAJO, no arranca en frío.
+    #    Decisión del usuario, 2026-08-03: «debe apuntar exactamente a esta
+    #    misma sesión». Así el delegado hereda TODO el contexto de lo que se ha
+    #    hecho y por qué, no solo el CLAUDE.md.
+    #
+    #    Se bifurca (--fork-session) y no se reanuda a secas porque la sesión de
+    #    trabajo puede estar VIVA, y sobre una sesión en uso Claude Code responde
+    #    «Session ID … is already in use» — medido. Bifurcar crea un id nuevo y
+    #    deja intacta la original.
+    #
+    # ⚠️ COSTE: la sesión de trabajo puede ser enorme (42 MB y 22.286 turnos el
+    #    2026-08-03). Bifurcar de ahí es lento y caro. Si no hace falta ese
+    #    contexto, borra ~/.atriz-encargo-base y el canal arranca en frío con
+    #    solo el CLAUDE.md.
+    if [[ -s "$BASE_FILE" ]]; then
+        BASE="$(cat "$BASE_FILE")"
+        if [[ -f "$PROY/$BASE.jsonl" ]]; then
+            MODO_HILO=(--resume "$BASE" --fork-session)
+            echo "[atriz-encargo] bifurcando de la sesión de trabajo $BASE ($(du -h "$PROY/$BASE.jsonl" | cut -f1))" >&2
+        else
+            echo "[atriz-encargo] la sesión base $BASE no existe; arranco en frío" >&2
+            BASE=""
+        fi
+    fi
+    if [[ -z "${BASE:-}" ]]; then
+        HILO="$(python3 -c 'import uuid;print(uuid.uuid4())')"
+        MODO_HILO=(--session-id "$HILO")
+    fi
 fi
 
 # ── Lista BLANCA de herramientas ─────────────────────────────────────────────
@@ -84,7 +139,8 @@ PERMITIDO=(
     Read Grep Glob
     "Bash(ros2 topic hz:*)" "Bash(ros2 topic list:*)" "Bash(ros2 topic info:*)"
     "Bash(ros2 topic echo:*)" "Bash(ros2 node list:*)" "Bash(ros2 service list:*)"
-    "Bash(timeout:*)" "Bash(stdbuf:*)" "Bash(printenv:*)"
+    "Bash(timeout:*)" "Bash(stdbuf:*)" "Bash(printenv:*)" "Bash(date:*)"
+    "Bash(hostname:*)" "Bash(uptime:*)" "Bash(uname:*)"
     "Bash(cat /etc/machine-id)" "Bash(cat /proc/uptime)"
     "Bash(git -C $REPO status:*)" "Bash(git -C $REPO rev-parse:*)" "Bash(git -C $REPO log:*)"
     "Bash(systemctl is-active:*)" "Bash(systemctl is-enabled:*)" "Bash(systemctl status:*)"
@@ -92,10 +148,49 @@ PERMITIDO=(
     "Bash(/usr/local/bin/atriz-escaneo estado)"
 )
 
-exec timeout 900 "$CLAUDE" -p "${MODO_HILO[@]}" \
+# ── Ejecutar ─────────────────────────────────────────────────────────────────
+# 🔴 NO se usa `exec`: hay que mirar el resultado ANTES de anotar el hilo.
+#    Escribir el UUID antes de saber si la sesión existe fue lo que dejó el
+#    canal roto para siempre el 2026-08-03: un encargo interrumpido dejó
+#    apuntado un hilo inexistente y todos los siguientes morían con
+#    «No conversation found with session ID: …».
+# 📝 mktemp y no una ruta fija de /tmp: con fs.protected_regular=2 ni root puede
+#    sobrescribir un fichero de /tmp que no es suyo, y el script leería
+#    contenido rancio creyendo que es el de ahora. Ya costó un diagnóstico.
+SALIDA="$(mktemp -t atriz-encargo.XXXXXX)"
+trap 'rm -f "$SALIDA"' EXIT
+
+timeout 900 "$CLAUDE" -p "${MODO_HILO[@]}" \
     --output-format json \
     --json-schema "$(cat "$REPO/03_operacion/esquema_parte.json")" \
     --add-dir "$REPO" \
     --append-system-prompt "$(cat "$REPO/03_operacion/CONTRATO_ENCARGO.md")" \
     --allowedTools "${PERMITIDO[@]}" \
-    -- "$ENCARGO" < /dev/null
+    -- "$ENCARGO" < /dev/null > "$SALIDA" 2>&1
+COD=$?
+
+# ── Anotar el hilo, solo si de verdad hay sesión ─────────────────────────────
+# Se comprueba el EFECTO —que el transcripto existe en el disco— y no que el
+# comando devolviera 0: `claude -p` devuelve 0 hasta cuando dice «Not logged
+# in» o «Session ID already in use». Medido dos veces el 2026-08-03.
+NUEVO_HILO="$(python3 - "$SALIDA" <<'PY' 2>/dev/null
+import json,sys
+try:
+    d = json.load(open(sys.argv[1]))
+    print(d.get("session_id","") if not d.get("is_error") else "")
+except Exception:
+    print("")
+PY
+)"
+if [[ -n "$NUEVO_HILO" && -f "$PROY/$NUEVO_HILO.jsonl" ]]; then
+    printf '%s' "$NUEVO_HILO" > "$HILO_FILE"
+else
+    # Sin sesión utilizable no se anota nada: el siguiente encargo volverá a
+    # bifurcar de la base. Es preferible repetir el coste que dejar el canal
+    # apuntando a algo que no existe.
+    rm -f "$HILO_FILE"
+    [[ $COD -ne 0 ]] && echo "[atriz-encargo] el encargo falló (código $COD); el hilo no se anota" >&2
+fi
+
+cat "$SALIDA"
+exit $COD
