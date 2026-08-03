@@ -1,0 +1,45 @@
+═══════════════════════════════════════════════════════════════════════════════
+EVIDENCIA 60 — ¿para el robot un Ctrl-C a mitad de un avance?
+2026-08-03 · sesion fisica · n=5 · bateria ~7.4 V
+═══════════════════════════════════════════════════════════════════════════════
+
+COMANDO
+    cd ~/atriz_migracion && source /opt/ros/jazzy/setup.bash
+    python3 scripts/probar_ctrl_c_atriz.py        (x5)
+
+RESULTADO
+    ✅ **5 de 5 pararon.** Observado por el usuario: «lo ejecute 5 veces, y es
+       instantaneo presiono y el robot para».
+
+    Y el manejador anuncia lo que hace:
+        SIGINT: parando el robot y apagando el barrido...
+
+═══════════════════════════════════════════════════════════════════════════════
+POR QUE 5 Y NO 1, Y POR QUE ESTE RESULTADO VALE
+═══════════════════════════════════════════════════════════════════════════════
+`rclpy.init()` sin `SignalHandlerOptions.NO` instala su propio manejador de
+SIGINT e invalida su contexto: el codigo que intenta parar el robot muere con
+«publisher's context is invalid». Y el fallo es **INTERMITENTE** — segun donde
+caiga el Ctrl-C, a veces la parada si salia. Por eso la verificacion del
+2026-08-01 de otra herramienta **paso con el fallo dentro**.
+
+5 de 5 sobre un fallo intermitente es lo que hacia falta. Con 1 de 1 no se podia
+distinguir «arreglado» de «esta vez toco».
+
+═══════════════════════════════════════════════════════════════════════════════
+🔴 LO QUE ESTA EVIDENCIA **NO** MIDE
+═══════════════════════════════════════════════════════════════════════════════
+NO HAY DISTANCIA CON CINTA. El usuario reporta la parada como «instantanea»,
+que es una **observacion**, no una medida en centimetros. El guion pide medir el
+desplazamiento POSTERIOR al Ctrl-C y ese numero no se tomo.
+
+  → Lo que queda establecido: **el mecanismo funciona, 5 de 5**.
+  → Lo que NO: cuantos centimetros recorre despues. Queda **NO VERIFICADO**.
+  📝 Como referencia, la parada del `collision_monitor` esta medida en 9.9 cm a
+     0.25 m/s; esta prueba va a 0.15, asi que «instantaneo» a ojo es coherente
+     con unos pocos centimetros — pero eso es un argumento, no la medida.
+
+📝 Y una de las cinco corridas, la que quedo pegada, tuvo el Ctrl-C **en el
+   `input()`**, antes de que el robot arrancara. El manejador corrio igual y
+   apago el barrido, que es el camino arreglado el 2026-08-03 (las cuatro
+   señales). No cuenta como prueba de parada en movimiento, y por eso se dice.
