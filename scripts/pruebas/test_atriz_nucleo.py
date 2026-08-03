@@ -333,12 +333,65 @@ def test_signo_del_giro_depende_del_lado_no_de_la_lectura():
     assert giro_izquierda == -giro_derecha
 
 
-def test_signo_correccion_es_contrario_en_negro_y_en_claro():
-    """Para el MISMO lado del borde, 'negro' y 'claro' piden giros
-    contrarios: si nos pasamos hacia la linea hay que girar hacia el
-    suelo, y viceversa."""
-    assert signo_correccion('claro', 1) == -signo_correccion('negro', 1)
-    assert signo_correccion('claro', -1) == -signo_correccion('negro', -1)
+def test_el_signo_cambia_una_sola_vez_al_barrer_toda_la_banda():
+    """🔴 Tarea 11, Ronda de arreglo 2. Barre `claro` de 181 a 1275
+    (evidencia 37) entero, no tres puntos sueltos -- los tres puntos que
+    probe en la ronda 1 (181, 700, 1275) son justo los tres que el bug NO
+    tocaba. El signo del giro tiene que cambiar UNA SOLA VEZ, y exactamente
+    donde la magnitud pasa por cero (el centro). Si `signo_correccion()`
+    usa una frontera distinta a `magnitud_correccion()`, aparece una banda
+    donde el signo no ha cambiado pero la magnitud ya "quiere" el otro
+    signo -- ahi el controlador empuja al robot MAS LEJOS del borde:
+    realimentacion positiva, justo lo contrario de un lazo de control.
+    """
+    lado_borde = 1
+    claros = list(range(181, 1276))
+    giros = [decidir_giro(claro, lado_borde, PIDSeguidor()) for claro in claros]
+
+    signos = [1 if g > 0 else (-1 if g < 0 else 0) for g in giros]
+    no_nulos = [s for s in signos if s != 0]
+    cambios = sum(1 for a, b in zip(no_nulos, no_nulos[1:]) if a != b)
+    assert cambios == 1, (
+        f"el signo del giro cambia {cambios} veces recorriendo claro=181..1275 "
+        f"(lado_borde=1), se esperaba 1 -- cambio justo en el centro"
+    )
+
+    primero_positivo = next(i for i, s in enumerate(signos) if s > 0)
+    assert all(s >= 0 for s in signos[primero_positivo:]), (
+        "el giro vuelve a negativo despues de cruzar a positivo: no es monotono"
+    )
+
+    # 🔴 La comprobación que de verdad atrapa el bug: el paso entre dos
+    # `claro` consecutivos (diferencia de 1) tiene que ser CHICO en todo
+    # el barrido -- si el signo cambia en un sitio distinto al de la
+    # magnitud, el salto en el cruce es GRANDE (en la ronda 1: de -1.245 a
+    # +1.25, un salto de 2.5, porque ahí la magnitud NO estaba cerca de
+    # cero). Con las dos funciones usando el mismo centro, el salto
+    # máximo tiene que ser una fracción de la pendiente normal.
+    saltos = [abs(b - a) for a, b in zip(giros, giros[1:])]
+    salto_maximo = max(saltos)
+    indice_salto_maximo = saltos.index(salto_maximo)
+    assert salto_maximo < 0.05, (
+        f"salto de {salto_maximo:.4f} entre claro={claros[indice_salto_maximo]} y "
+        f"claro={claros[indice_salto_maximo + 1]} (giro {giros[indice_salto_maximo]:.4f} -> "
+        f"{giros[indice_salto_maximo + 1]:.4f}). Un salto grande significa que el signo "
+        f"cambió en un sitio donde la magnitud NO estaba cerca de cero: justo el bug de la "
+        f"Ronda de arreglo 2."
+    )
+
+
+def test_signo_correccion_cambia_en_el_centro_no_en_las_fronteras_de_clasificar():
+    """El signo tiene que cambiar en el CENTRO (700 = punto medio entre
+    UMBRAL_NEGRO=400 y UMBRAL_CLARO=1000), no en las fronteras de
+    `clasificar()` (450 y 950, con margen de histeresis) -- esas son para
+    decidir cuando estamos PERDIDOS, no para fijar el signo de la
+    correccion continua. 750 y 900 son la banda exacta que reprodujo el
+    coordinador: antes del arreglo daban signo -1 (incorrecto)."""
+    assert signo_correccion(699, 1) == -1
+    assert signo_correccion(701, 1) == 1
+    assert signo_correccion(750, 1) == 1
+    assert signo_correccion(900, 1) == 1
+    assert signo_correccion(949, 1) == 1
 
 
 def test_clasificar_con_los_valores_de_la_evidencia_37():
