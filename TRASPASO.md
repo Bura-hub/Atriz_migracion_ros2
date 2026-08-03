@@ -9,8 +9,11 @@
 > **89 tests**, y **empujado a los dos repositorios**.
 >
 > 🔴 **Lo que falta es de dos clases, y las dos son del usuario:**
-> 1. **La sesión física.** *Nada* se ha medido con el robot moviéndose: ni distancias, ni ángulos,
->    ni las corridas de Ctrl-C, ni los faros, ni el seguidor sobre una línea real. Va más abajo.
+> 1. **La sesión física, a medias.** El **2026-08-03 se midieron cinco de las siete evidencias**
+>    (57, 58, 59, 60, 61) y salió un fallo real: `girar()` sobregiraba **+4.01° constantes** por
+>    no compensar la inercia — arreglado y remedido en la misma sesión (**+0.19°**). Faltan las
+>    dos que necesitan `sudo` y rearrancar el robot con `color_detection:=true`: **la 62 (las dos
+>    prácticas de color) y la 63 (el seguidor de línea)**. Va más abajo.
 > 2. **Rotar la PSK del WiFi y la contraseña de `sphero`**, que es lo único que cierra la
 >    exposición del repositorio público. Medido tras el push: la **punta** de `ros2` ya está
 >    limpia (**0**), pero `main`, `migracion-ros2` y `wip/scripts-estudiantes` siguen con **11
