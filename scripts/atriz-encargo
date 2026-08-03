@@ -99,20 +99,30 @@ if [[ -s "$HILO_FILE" ]]; then
 fi
 
 if [[ -z "$HILO" ]]; then
-    # 🔴 EL PRIMER ENCARGO BIFURCA DE LA SESIÓN DE TRABAJO, no arranca en frío.
-    #    Decisión del usuario, 2026-08-03: «debe apuntar exactamente a esta
-    #    misma sesión». Así el delegado hereda TODO el contexto de lo que se ha
-    #    hecho y por qué, no solo el CLAUDE.md.
+    # ── En frío, salvo que exista ~/.atriz-encargo-base ──────────────────────
     #
-    #    Se bifurca (--fork-session) y no se reanuda a secas porque la sesión de
-    #    trabajo puede estar VIVA, y sobre una sesión en uso Claude Code responde
+    # 🔴 EL DEFECTO ES ARRANCAR EN FRÍO, y es una decisión con número detrás.
+    #    Se implementó que el encargo bifurcara de la sesión de trabajo, que era
+    #    lo que el usuario pidió («debe apuntar exactamente a esta misma
+    #    sesión»). Se midió el 2026-08-03 y se descartó:
+    #
+    #       en frío (CLAUDE.md + ESTADO_ACTUAL.md)   $0.95   ~30.000 tokens
+    #       bifurcando la sesión de trabajo (42 MB)  $8.52   2.793.122 tokens
+    #
+    #    Nueve veces más caro sobre un encargo trivial, y el hilo bifurcado nace
+    #    con 3.9 MB y crece. Lo que el delegado necesita no es la conversación
+    #    —22.286 turnos, casi todo ruido de depuración— sino qué se ha hecho y
+    #    por qué, que está en ESTADO_ACTUAL.md y se carga gratis. Esa es la
+    #    razón de que ESTADO_ACTUAL.md exista.
+    #
+    #    Para activarlo puntualmente:
+    #       echo <uuid> > ~/.atriz-encargo-base    # bifurca
+    #       rm ~/.atriz-encargo-base               # vuelve a frío
+    #
+    #    Si se activa, se usa --fork-session y no --resume a secas: la sesión de
+    #    trabajo puede estar VIVA, y sobre una en uso Claude Code responde
     #    «Session ID … is already in use» — medido. Bifurcar crea un id nuevo y
     #    deja intacta la original.
-    #
-    # ⚠️ COSTE: la sesión de trabajo puede ser enorme (42 MB y 22.286 turnos el
-    #    2026-08-03). Bifurcar de ahí es lento y caro. Si no hace falta ese
-    #    contexto, borra ~/.atriz-encargo-base y el canal arranca en frío con
-    #    solo el CLAUDE.md.
     if [[ -s "$BASE_FILE" ]]; then
         BASE="$(cat "$BASE_FILE")"
         if [[ -f "$PROY/$BASE.jsonl" ]]; then
