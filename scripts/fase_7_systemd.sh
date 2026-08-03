@@ -119,6 +119,11 @@ comprobar "ROS 2 Jazzy está instalado" "[[ -f /opt/ros/jazzy/setup.bash ]]"
 comprobar "existe el envoltorio en el repo" "[[ -f $SCRIPTS_DIR/atriz-robot.sh ]]"
 comprobar "existe la unidad en el repo"     "[[ -f $SCRIPTS_DIR/atriz-robot.service ]]"
 comprobar "existe atriz-escaneo en el repo" "[[ -f $SCRIPTS_DIR/atriz-escaneo.sh ]]"
+# Los de la navegación y el entorno: si faltan, `install` fallaría a mitad de la
+# instalación y dejaría el robot a medias. Mejor negarse antes de tocar nada.
+comprobar "existe atriz-nav.sh en el repo"     "[[ -f $SCRIPTS_DIR/atriz-nav.sh ]]"
+comprobar "existe atriz-nav.service en el repo" "[[ -f $SCRIPTS_DIR/atriz-nav.service ]]"
+comprobar "existe sistema/atriz-ros.sh en el repo" "[[ -f $SCRIPTS_DIR/sistema/atriz-ros.sh ]]"
 
 # ── La identidad ROS, que es lo único que systemd no puede heredar ───────────
 # 🔴 En el ROBOT DE REFERENCIA esto NO existe: ROS_DOMAIN_ID sale del ~/.bashrc,
