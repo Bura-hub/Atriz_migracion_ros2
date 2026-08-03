@@ -4,6 +4,72 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-03 — Tarea 13: cierre del material docente — documentación al día, sesión física pendiente
+
+Última tarea del plan `2026-08-02-api-laboratorio.md`. Alcance recortado por instrucción: **sin
+tocar el robot, sin `sudo`, sin ejecutar los diez guiones** (eso es del usuario) y **sin `git
+push`** en ningún repositorio.
+
+### Qué se hizo
+
+- Corridos los dos verificadores que no tocan hardware (ver abajo).
+- `grep -rn "cmd_vel" *.py | grep -v cmd_vel_raw` sobre
+  `~/atriz_ws/src/Atriz_rvr/scripts/estudiantes/`, revisado línea a línea.
+- Actualizados `CLAUDE.md`, `TRASPASO.md` y `03_operacion/API_LABORATORIO.md` para que reflejen
+  el trabajo de las tareas 1-12 (que hasta ahora no aparecía en ninguno de los tres): el diseño
+  de `atriz.py`, las credenciales encontradas en `Atriz_rvr`, y el rediseño del seguidor de línea
+  a edge-following. Se buscaron **todas** las menciones relacionadas, no la primera — en
+  particular en `03_operacion/API_LABORATORIO.md`, que describía el PID de umbral único como
+  diseño final en varios sitios (la sección de decisión, la tabla del alcance de la reescritura y
+  el punto 3 de verificación) y había que corregir los tres, no solo el titular.
+
+### Qué se verificó, con la salida literal
+
+```
+$ cd ~/atriz_migracion && source /opt/ros/jazzy/setup.bash
+$ python3 -m pytest scripts/pruebas/ -q
+.............................................................            [100%]
+61 passed in 2.05s
+
+$ cd ~/atriz_ws/src/Atriz_rvr/scripts/estudiantes && grep -rn "cmd_vel" *.py | grep -v "cmd_vel_raw"
+atriz.py:44:# 🔴 EL TOPIC. `/cmd_vel` es la SALIDA del collision_monitor: publicar ahí
+atriz.py:54:# 🔴 El watchdog del driver corta a los 0.3 s sin `cmd_vel`. Un `sleep(3)` entre
+```
+
+Las dos coincidencias son comentarios en `atriz.py` que **explican por qué NO se usa**
+`/cmd_vel`, no un uso real — revisadas una a una, no solo contadas (este proyecto ya contó dos
+veces un comentario *sobre* un ajuste como si fuera el ajuste).
+
+`scripts/auditar_documentacion.py` marca **12 problemas**, los doce enlaces markdown dentro de un
+bloque de diff pegado en `.superpowers/sdd/2026-08-02-api-laboratorio/tarea-12-paquete.md` (un
+fichero de trabajo de la tarea 12, no documentación del proyecto), que apuntan a ficheros del
+**otro** repositorio (`Atriz_rvr/scripts/estudiantes/`). Es un falso positivo del script — no
+distingue un enlace real de uno dentro de una cita de diff — preexistente a esta tarea (no se
+tocó ese fichero) y ajeno a los cuatro documentos que sí modifiqué. Los otros cinco bloques de la
+auditoría (capítulos citados, secciones fuera de orden, frases obsoletas, índice del manual)
+salen en **0**.
+
+### Qué queda pendiente, sin suavizarlo
+
+- 🔴 **La sesión física.** Nada de lo que depende de mover el robot está medido: los ~60 cm de
+  `avanzar()`, los ángulos de `girar()` con transportador, las cinco corridas de Ctrl-C, que los
+  faros enciendan, que `distancia_frontal()` apunte de verdad hacia delante, el seguidor de línea
+  sobre una línea real, y ninguna de las diez prácticas de principio a fin. Comando exacto en
+  `TRASPASO.md`, sección «Material docente».
+- 🔴 **Rotar la PSK del WiFi y la contraseña de `sphero`.** Medido sobre las cuatro ramas remotas
+  de `Atriz_rvr` (`main`, `ros2`, `migracion-ros2`, `wip/scripts-estudiantes`): 11 coincidencias
+  cada una, ningún tag afectado, 2 commits tocan el valor. Las credenciales salieron del
+  **contenido** (tarea 12), no del **historial** — rotarlas es lo único que cierra la exposición
+  de verdad, y es acción del usuario. Purgar el historial después es higiene y es incompleta (no
+  llega a los forks que ya existan); al revés no sirve de nada.
+- 📌 **La decisión del arranque automático de Nav2/SLAM**, siguiente punto del orden acordado del
+  proyecto tras la sesión física.
+- **`git push`**: no se hizo en ninguno de los dos repositorios, por instrucción explícita de
+  esta tarea. `atriz_migracion` queda `[ahead 19]` antes de este commit sobre `origin/main`;
+  `Atriz_rvr` (`ros2`) queda `[ahead 21]` sobre `origin/ros2`. Es decisión del usuario.
+
+---
+
 ## 2026-08-02 (parte 3) — el material docente está muerto, y además tiene credenciales en público
 
 ### Comprobado por ejecución, no deducido

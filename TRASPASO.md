@@ -4,12 +4,30 @@
 > Raspberry Pi ya se reflasheó. Está escrito para que no haga falta reconstruir el
 > contexto desde cero.
 >
-> Última actualización: **2026-08-02** (las diez fases de la prueba de aceptación escritas;
-> falta una corrida completa tras un reinicio real — ver más abajo).
+> Última actualización: **2026-08-03** (el material docente —`atriz.py` y las diez
+> prácticas— quedó escrito, revisado y con 61 tests el 2026-08-02; falta la sesión física que lo
+> mide contra el robot, y también falta la corrida completa de la prueba de aceptación tras un
+> reinicio real — las dos, más abajo).
 
 ---
 
 ## En una frase
+
+🔴 **El material docente estaba MUERTO, y además con credenciales en un repositorio público —
+reescrito sobre una biblioteca propia y pendiente de UNA corrida contra el robot (2026-08-02).**
+Los diez guiones y cinco documentos del curso venían en ROS 1: `import rospy` →
+`ModuleNotFoundError` en la primera línea, 0 de 10 arrancaban, y 15 publicaciones a `/cmd_vel` en
+8 ficheros — la **salida** del `collision_monitor`, así que si hubieran arrancado habrían saltado
+la capa de seguridad entera. Y `00_LEEME_PRIMERO.md` / `GUIA_PASO_A_PASO.md` llevaban en texto
+plano la **PSK del WiFi del laboratorio** y la contraseña del usuario `sphero`, empujadas al
+remoto **público** `Atriz_rvr` en cuatro ramas (`main`, `ros2`, `migracion-ros2`,
+`wip/scripts-estudiantes`). Reescritos los diez guiones y los cinco documentos sobre `atriz.py`
+—diseño en [`03_operacion/API_LABORATORIO.md`](03_operacion/API_LABORATORIO.md)—, con **61
+tests** de las funciones puras y verificado que ningún guion importa `rospy` ni escribe en
+`/cmd_vel`. **Nada se ha medido con el robot moviéndose todavía** — ver más abajo, «Material
+docente: `atriz.py` y las diez prácticas», que es el siguiente paso exacto. Y las credenciales se
+sacaron del **contenido** actual, no del historial: **rotarlas sigue siendo acción del usuario**,
+y es lo único que cierra la exposición de verdad.
 
 ✅ **Y la RED DE LA FLOTA está resuelta y verificada de extremo a extremo (2026-08-01).** Un
 navegador del PC abre `ws://rvr-01.local:9090`, recibe telemetría y **enciende los faros** —
@@ -95,10 +113,26 @@ era de ~1 cm y apareció el fallo de 12–56 cm que lo entierra.
 ✅ ~~Lo siguiente es el fallo bimodal a 2.3 m~~ — **cerrado el 2026-07-31** con
 `referenciar_posicion.py`: 0 fallos de 12 y peor caso 4.4 cm.
 
-🔴 **LO SIGUIENTE DE VERDAD, HOY: migrar el robot 2** →
+🔴 **LO SIGUIENTE DE VERDAD, HOY: la SESIÓN FÍSICA del material docente.** El código de las diez
+prácticas y `atriz.py` está escrito, revisado y con 61 tests — pero **nada de lo que depende de
+mover el robot está medido**: ni los ~60 cm de `avanzar()`, ni los ángulos de `girar()` con
+transportador, ni las cinco corridas de Ctrl-C, ni que los faros enciendan, ni que
+`distancia_frontal()` apunte de verdad hacia delante, ni el seguidor de línea con edge-following
+sobre una línea real, ni ninguna de las diez prácticas ejecutada de principio a fin. Detalle y
+comando exacto en «Material docente: `atriz.py` y las diez prácticas», más abajo.
+
+📌 **Y después de la sesión física, según el orden acordado del proyecto: decidir el arranque
+automático de Nav2/SLAM.** Es el punto que queda abierto en
+[`03_operacion/API_LABORATORIO.md`](03_operacion/API_LABORATORIO.md) (última línea, «Lo que este
+trabajo NO cierra») y que el diseño de la Fase 5 (`Atriz_web_server`) va a necesitar tener
+decidido antes de arrancar.
+
+⏳ **Y sigue pendiente, sin fecha fija: migrar el robot 2** →
 [`03_operacion/FLOTA.md`, «Robot 2: instalación LIMPIA»](03_operacion/FLOTA.md). Levanta la
 única suposición peligrosa que queda (`provision.sh` nunca se ha ejecutado entero), da el
-segundo robot para el IR, y valida la imagen dorada antes de replicarla catorce veces.
+segundo robot para el IR, y valida la imagen dorada antes de replicarla catorce veces. Se
+pospuso por la aparición de las credenciales expuestas en `Atriz_rvr` (2026-08-02), que subió
+de prioridad al material docente.
 
 ---
 
@@ -218,6 +252,94 @@ python3 -u scripts/prueba_aceptacion.py            # entera, o --desde F4
 🔴 **El siguiente paso exacto: `sudo reboot` y correr las diez fases de un tirón** (paso 2 del
 diseño). Es lo único que falta para el informe definitivo de esta prueba — todo lo demás ya está
 escrito, ejecutado por partes y con sus arreglos commiteados.
+
+---
+
+## 🔴 Material docente: `atriz.py` y las diez prácticas — escrito, pendiente de la sesión física (2026-08-02)
+
+Las diez prácticas y los cinco documentos del curso estaban en **ROS 1** y no arrancaban
+(`import rospy` → `ModuleNotFoundError` en la primera línea, 0 de 10), y hacían **15
+publicaciones a `/cmd_vel`** en 8 ficheros — la **salida** del `collision_monitor`: si hubieran
+arrancado, habrían saltado la capa de seguridad entera. Reescritos sobre una biblioteca del
+laboratorio, `atriz.py`. Diseño completo, con lo verificado y lo NO VERIFICADO marcado ficha a
+ficha, en [`03_operacion/API_LABORATORIO.md`](03_operacion/API_LABORATORIO.md).
+
+### Lo que sí está verificado, por ejecución
+
+- **61 tests** de las funciones puras de `atriz.py` y del seguidor de línea:
+  `cd ~/atriz_migracion && python3 -m pytest scripts/pruebas/ -q`.
+- **`Robot()` conecta, enciende el barrido y lo deja apagado al cerrar** — 10 corridas seguidas
+  con código 0.
+- **Un arranque fallido no deja el LIDAR encendido** — forzando el fallo de verdad, no simulado.
+- **La parada de emergencia llega al driver y se libera con un acto explícito**, nunca sola.
+- **`color()` avisa en vez de devolver ceros** si el robot no arrancó con
+  `color_detection:=true`, y **`luces()` rechaza tipos que no son enteros**.
+- **Ningún guion importa `rospy` ni escribe en `/cmd_vel`**:
+  `grep -rn "cmd_vel" *.py | grep -v cmd_vel_raw` sobre `scripts/estudiantes/` da solo dos
+  líneas, y las dos son comentarios de `atriz.py` que **explican** por qué no se usa, no un uso
+  real.
+- **Las credenciales salieron del contenido** de los cinco documentos reescritos (tarea 12,
+  commit `d543cdd` en `Atriz_rvr`).
+
+### 🔴 Lo que NO está verificado — nada se ha medido con el robot moviéndose
+
+- Los **~60 cm** que debería recorrer `avanzar()`, con cinta.
+- Los **ángulos** de `girar()` en lazo cerrado, con transportador (n≥3 a 90°, 180° y 360° —
+  contra los mismos ángulos por tiempo, que es el argumento pedagógico central del documento: si
+  el lazo cerrado no le gana a la constante calibrada, el argumento es falso).
+- Las **cinco corridas de Ctrl-C** con el desplazamiento posterior medido con cinta — el fallo de
+  `rclpy.init()` sin `SignalHandlerOptions.NO` es **intermitente** (medido: 0 líneas de parada
+  contra 5 con la opción puesta, pero no siempre), así que una sola pasada verde no basta.
+- Que **los faros se enciendan** de verdad (`robot.luces()`).
+- **Ninguna de las diez prácticas ejecutada de principio a fin.**
+- Que **`distancia_frontal()` apunte de verdad hacia delante**: el ángulo 0 de `/scan` nunca se
+  contrastó con cinta.
+- El **seguidor de línea con edge-following**, que nunca se ha probado sobre una línea real (ver
+  abajo).
+- La rama del `join` expirado en `cerrar()`: escrita, nunca ejercitada.
+
+### 🔴 El diseño original del seguidor de línea estaba mal, y se corrigió durante la implementación
+
+`API_LABORATORIO.md` especificaba un **PID de umbral único** sobre el canal `claro`. **No puede
+funcionar**: con un solo sensor mirando hacia abajo, desviarse a la izquierda de la línea y
+desviarse a la derecha dan **la misma lectura** — el signo del error no lleva información sobre
+el lado, así que el PID acierta el giro la mitad de las veces y aleja al robot de la línea la
+otra mitad. No se detectó al diseñar, sino al implementar (tarea 11): estaba ya escrito en
+`SEGUIDOR_LINEA_EXPLICACION.md` de la versión ROS 1 que se reemplazó, y nadie lo había cruzado
+contra el diseño nuevo. **Rediseñado a edge-following** por decisión del usuario: el PID (sin
+tocar) decide la **magnitud** del giro; un estado que se arrastra entre vueltas del bucle
+(`lado_borde`, no una lectura instantánea) decide el **signo**, y se invierte si el robot lleva
+más de `tiempo_perdido_max` segundos sin reencontrar el borde. Costó además una segunda ronda: el
+signo y la magnitud medían desde fronteras distintas y había un tramo (`claro` 701-949) con
+**realimentación positiva** — arreglado midiendo las dos desde el mismo centro.
+`API_LABORATORIO.md` está corregido para contar esto, no para esconderlo. Ver también
+`CLAUDE.md`, trampas, y `.superpowers/sdd/2026-08-02-api-laboratorio/tarea-11-report.md` para el
+detalle completo de las tres rondas.
+
+### El siguiente paso exacto: la sesión física
+
+```bash
+# el usuario: reinicia el robot primero — es la única forma de comprobar que el material
+# funciona sobre el estado real con el que un alumno se lo encuentra (barrido apagado, nada
+# tocado). Esperar ~40 s tras el reinicio.
+#   sudo reboot
+
+cd ~/atriz_ws/src/Atriz_rvr/scripts/estudiantes && source /opt/ros/jazzy/setup.bash
+for f in 01_avanzar.py 02_girar.py 03_cuadrado.py 04_giro_preciso.py \
+         10_movimiento_completo.py 90_template.py 99_test_ctrl_c.py; do
+  read -p "Coloca el robot y pulsa Enter para $f..." _
+  python3 "$f" && echo "OK $f" || echo "FALLO $f"
+done
+# 05_sensor_color.py, 11_sensor_avanzado.py y seguidor_linea_pid_demo.py van aparte:
+# necesitan arrancar el driver con color_detection:=true (ver API_LABORATORIO.md)
+```
+
+🔴 **Un script que «no da error» y no mueve el robot NO cuenta como verificado.** Hay que
+mirarlo, no solo leer el código de salida.
+
+📌 **Y después de esta sesión, según el orden acordado del proyecto: decidir el arranque
+automático de Nav2/SLAM** — el punto que queda abierto al cierre de `API_LABORATORIO.md` y que
+la Fase 5 (`Atriz_web_server`) va a necesitar tener resuelto.
 
 ---
 
@@ -936,7 +1058,7 @@ a ✅ con la fecha. **En el repositorio, no en un mensaje de chat.**
 |---|---|---|---|
 | `Atriz_migracion_ros2` | `main` | — | Este repositorio: auditoría, plan, manual, scripts |
 | `Atriz_rvr` | `main` | `6f48ae1` | Original + **el arreglo del UART** (cherry-pick de `67c8776`) |
-| `Atriz_rvr` | **`ros2`** ← rama de trabajo actual | `1b1239a` | `atriz_rvr_msgs` portado a ament+rosidl |
+| `Atriz_rvr` | **`ros2`** ← rama de trabajo actual | `1b1239a` (histórico) → **`d543cdd`** (2026-08-02, local, sin `push`) | `atriz_rvr_msgs` portado a ament+rosidl, y desde el 2026-08-02 el material docente reescrito sobre `atriz.py` — ver «Material docente», arriba |
 | `Atriz_rvr` | `migracion-ros2` | `24c7749` | UART → `/dev/rvr` · `interval` 250→60 ms |
 | `Atriz_rvr` | `wip/scripts-estudiantes` | `62e0313` | Stash rescatado. **No mezclar** — ver decisión pendiente arriba |
 | `Atriz_web_server` | `pruebas` | `924d659` | Sin tocar — se aborda al final |

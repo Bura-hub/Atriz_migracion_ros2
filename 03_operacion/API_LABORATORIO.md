@@ -13,6 +13,34 @@
 
 ---
 
+## Estado, al cierre de la Tarea 13 (2026-08-03)
+
+**Implementado.** `atriz.py`, los diez guiones y los cinco documentos están escritos y
+commiteados en `Atriz_rvr` (rama `ros2`, sin `push`), y hay **61 tests** en
+`~/atriz_migracion/scripts/pruebas/`.
+
+**✅ VERIFICADO por ejecución:** las funciones puras (61 tests); que `Robot()` conecta, enciende
+el barrido y lo deja apagado al cerrar (10 corridas, código 0); que un arranque fallido no deja
+el LIDAR encendido; que la parada de emergencia llega al driver y se libera solo con un acto
+explícito; que `color()` avisa en vez de devolver ceros y que `luces()` rechaza tipos que no son
+enteros; que ningún guion importa `rospy` ni publica en `/cmd_vel`; y que las credenciales
+salieron del **contenido** de los cinco documentos.
+
+**🔴 NO VERIFICADO — nada se ha medido con el robot moviéndose:** los ~60 cm de `avanzar()`, los
+ángulos de `girar()` con transportador, las cinco corridas de Ctrl-C, que los faros enciendan,
+que `distancia_frontal()` apunte de verdad hacia delante (el ángulo 0 de `/scan` nunca se
+contrastó con cinta), el seguidor de línea con edge-following sobre una línea real (ver más
+abajo, corregido durante la implementación), la rama del `join` expirado en `cerrar()`, y
+ninguna de las diez prácticas ejecutada de principio a fin. El siguiente paso exacto —la sesión
+física— está en `TRASPASO.md`.
+
+**Y esto no lo arregla ningún trabajo de documentación:** las credenciales encontradas en
+`Atriz_rvr` (PSK del WiFi del laboratorio y contraseña de `sphero`) siguen en el **historial** de
+las cuatro ramas remotas — 11 coincidencias cada una, medido, ningún tag afectado. Rotarlas es
+acción del usuario y es lo único que cierra la exposición.
+
+---
+
 ## Lo que se comprobó antes de diseñar nada
 
 Ejecutado sobre `~/atriz_ws/src/Atriz_rvr/scripts/estudiantes/`, no deducido:
@@ -154,6 +182,63 @@ encadene diez movimientos sí. Va escrito en la guía, no escondido.
 
 ---
 
+## 🔴 El seguidor de línea: el diseño original NO podía funcionar, y se corrigió al implementarlo
+
+**Este documento especificaba, en su primera versión, un PID de umbral único sobre el canal
+`claro`.** Es un error de diseño, no una simplificación aceptable, y se descubrió en la tarea 11
+—al implementarlo—, no aquí. Se deja escrito para que quien retome este documento no repita el
+error, y porque esconder una corrección de diseño es exactamente lo que este proyecto se ha
+prohibido hacer.
+
+**Por qué no puede funcionar.** El sensor de color mira hacia abajo y entrega un solo escalar,
+`claro`. Si el robot deriva a la **izquierda** del centro de la línea, el sensor deja de ver
+negro y ve suelo claro. Si deriva a la **derecha**, pasa exactamente lo mismo: deja de ver negro
+y ve suelo claro. La lectura es **idéntica** en los dos casos, así que
+`error = (claro − umbral) / umbral` tiene el mismo signo esté el robot desviado al lado que sea
+— y un PID solo puede sacar **una** salida de giro para un signo de error dado. La corrección es
+la correcta la mitad de las veces y empuja al robot **más lejos** de la línea la otra mitad.
+
+No era un hallazgo nuevo: ya estaba escrito en el propio repositorio, en
+`SEGUIDOR_LINEA_EXPLICACION.md` de la versión ROS 1 que este material reemplaza (sección 3):
+*«con un solo sensor no es fiable estimar el desalineamiento lateral clásico»*. Esa versión
+antigua ya implementaba **edge-following** por esta misma razón, y el diseño de este documento
+no lo cruzó contra ella antes de especificar un PID de umbral único.
+
+**La corrección, decidida por el usuario: edge-following.** El seguidor ya no intenta centrarse
+sobre la línea; sigue siempre el **mismo borde**:
+
+- El **PID no se toca** (es contenido docente) y decide la **magnitud** del giro, a partir de
+  cuánto se aleja `claro` del centro entre `UMBRAL_NEGRO` y `UMBRAL_CLARO`.
+- El **signo** lo decide `lado_borde` — un estado que se arrastra entre vueltas del bucle, no una
+  lectura instantánea — y se invierte si el robot lleva más de `tiempo_perdido_max` segundos sin
+  reencontrar el borde.
+
+**Y costó una segunda corrección.** La primera versión del edge-following medía el signo con las
+fronteras de histéresis de `clasificar()` (en `umbral ± margen`) y la magnitud con el centro real
+— dos referencias distintas. Entre ambas fronteras (`claro` 701–949 con los umbrales medidos)
+discrepaban: el estado seguía siendo `'negro'` (signo hacia un lado) mientras la magnitud ya
+crecía hacia el otro, produciendo **realimentación positiva** — el controlador alejaba al robot
+del borde en vez de traerlo, justo lo contrario de lo que el edge-following existe para hacer.
+Cinco tests que solo probaban los extremos y el punto de equilibrio (181, 700, 1275) no lo
+atraparon: la banda intermedia no la miraba nadie. El arreglo fue hacer que el signo y la
+magnitud midan desde el mismo centro. Detalle completo, con las tablas de antes/después, en
+`.superpowers/sdd/2026-08-02-api-laboratorio/tarea-11-report.md`, «Ronda de arreglo 1» y «Ronda
+de arreglo 2».
+
+**Lo que se simplificó respecto a la versión ROS 1, a propósito, y sin verificar.** La versión
+antigua recuperaba el borde perdido en **dos fases discretas**: retroceder con giro contrario y
+luego escanear en el sitio. El material nuevo **no** reproduce esa máquina de estados — solo
+invierte `lado_borde` tras `tiempo_perdido_max` segundos sostenido en `'claro'`, sin fase de
+retroceso ni de escaneo. Es una simplificación deliberada, no una réplica, y **NO VERIFICADA
+sobre el robot**: si al moverlo se pierde el borde de forma persistente, es el primer sitio donde
+mirar.
+
+🔴 **NO VERIFICADO, en conjunto: el seguidor de línea nunca se ha probado sobre una línea real.**
+Las nueve funciones puras nuevas tienen tests (52 → 61 en `scripts/pruebas/`, tres rondas), pero
+eso comprueba la aritmética del signo y la magnitud, no que el robot siga una línea de verdad.
+
+---
+
 ## Lo que la API NO puede hacer, y hay que decirlo
 
 Dos límites reales. Escribirlos aquí es más barato que descubrirlos en clase.
@@ -206,7 +291,7 @@ sustrato. `05` y `11` cambian además de fondo, porque usan un servicio que no e
 | `10_movimiento_completo` | clase con `rospy` | la misma clase, sobre la API |
 | `90_template` | plantilla `rospy` | plantilla de la API — es lo que copia el alumno |
 | `99_test_ctrl_c` | prueba que Ctrl-C para | **sigue existiendo y gana valor**: ahora comprueba la protección 4, que ha fallado de verdad |
-| `seguidor_linea_pid_demo` | PID sobre `rospy` + `/cmd_vel` | PID sobre la API. El PID es lo que se enseña y no se toca |
+| `seguidor_linea_pid_demo` | PID de umbral único sobre `rospy` + `/cmd_vel` | 🔴 **No** «PID sobre la API» tal cual: un umbral único no puede funcionar con un solo sensor (ver sección dedicada, arriba). Rediseñado a **edge-following** sobre la API — el PID (sin tocar) decide la magnitud, `lado_borde` decide el signo |
 
 **Los 5 documentos.** `00_LEEME_PRIMERO.md`, `GUIA_PASO_A_PASO.md`, `README.md`, `REFERENCIAS.md`
 y `SEGUIDOR_LINEA_EXPLICACION.md`. Fuera de ellos:
@@ -226,24 +311,37 @@ precaución frena al 40 % **aunque el robot se aleje**: 30 cm comandados → 14 
 
 La regla del proyecto: se comprueba **el efecto**, no el código de salida.
 
-1. **Los 10 scripts se ejecutan contra el robot**, uno a uno, con el pasillo despejado. Un script
-   que «no da error» pero no mueve el robot **no cuenta como verificado**.
+**Estado de cada punto al cierre de la Tarea 13 (2026-08-03):**
+
+1. 🔴 **NO VERIFICADO. Los 10 scripts se ejecutan contra el robot**, uno a uno, con el pasillo
+   despejado. Un script que «no da error» pero no mueve el robot **no cuenta como verificado**.
+   Ninguno de los diez se ha ejecutado todavía — es la sesión física, ver `TRASPASO.md`.
 2. **Las siete protecciones, cada una con su comprobación de efecto.** Las tres que se pueden
    falsear a propósito:
-   - **`/start_scan`**: script sobre un robot recién reiniciado, sin tocar `atriz-escaneo`. Debe
-     moverse. Es el caso que hoy parece un robot averiado.
-   - **Ctrl-C**: matar un script a mitad de un avance y medir el **desplazamiento posterior con
-     cinta**, más las líneas de parada en el journal del driver. Repetido, porque el fallo es
-     **intermitente**: una sola pasada verde no distingue «arreglado» de «esta vez tocó».
-   - **Watchdog**: un `avanzar(0.20, 3)` debe recorrer ~60 cm, no ~6.
-3. **`girar()` medido con transportador**, n≥3 a 90°, 180° y 360°, contra los mismos ángulos por
-   tiempo. Si el lazo cerrado no bate a la constante, el argumento de este documento es falso y hay
-   que cambiarlo.
-4. **Que un alumno no pueda saltarse la seguridad sin querer**: un script que publique en
-   `/cmd_vel` a mano —el error que cometen los 10 actuales— tiene que ser visiblemente incorrecto
-   en el material, y `atriz.py` no debe ofrecer ningún camino que lleve ahí.
-5. **`grep` de credenciales sobre los 5 documentos reescritos**, y anotar que **rotarlas sigue
-   pendiente** y es del usuario.
+   - **`/start_scan`**: ⚠️ **PARCIAL.** ✅ Verificado en banco que `Robot()` enciende el barrido y
+     lo deja apagado al cerrar (10 corridas, código 0) y que un arranque fallido no deja el LIDAR
+     encendido. 🔴 **NO VERIFICADO** el caso que de verdad importa: un script sobre un robot
+     **recién reiniciado de verdad** (`sudo reboot`), que es el estado con el que se encuentra un
+     alumno y hoy parece un robot averiado.
+   - **Ctrl-C**: 🔴 **NO VERIFICADO.** No se ha matado ningún script a mitad de un avance ni
+     medido el desplazamiento posterior con cinta. Y el fallo que esto protege es
+     **intermitente**: una sola pasada verde no distinguirá «arreglado» de «esta vez tocó» — hacen
+     falta varias corridas, no una.
+   - **Watchdog**: 🔴 **NO VERIFICADO.** No se ha medido cuánto recorre de verdad
+     `avanzar(0.20, 3)`.
+3. 🔴 **NO VERIFICADO. `girar()` medido con transportador**, n≥3 a 90°, 180° y 360°, contra los
+   mismos ángulos por tiempo. El código implementa el lazo cerrado descrito arriba, pero **nadie
+   ha medido con transportador si de verdad le gana a la constante**. Si no lo hace, el argumento
+   pedagógico de este documento es falso y hay que cambiarlo.
+4. ✅ **VERIFICADO. Que un alumno no pueda saltarse la seguridad sin querer**:
+   `grep -rn "cmd_vel" *.py | grep -v cmd_vel_raw` sobre los diez scripts y `atriz.py` da solo dos
+   líneas, y las dos son comentarios que explican por qué NO se usa `/cmd_vel` — ningún guion lo
+   publica, y `atriz.py` no ofrece ningún camino que lleve ahí.
+5. ✅ **VERIFICADO el `grep`; 🔴 NO VERIFICADO (ni verificable por este trabajo) que la exposición
+   esté cerrada.** Las credenciales salieron del contenido de los cinco documentos (tarea 12).
+   Pero siguen en el **historial** de las cuatro ramas remotas de `Atriz_rvr` — medido: 11
+   coincidencias cada una, ningún tag afectado. **Rotarlas sigue pendiente y es del usuario**; es
+   lo único que cierra la exposición de verdad.
 
 ---
 
@@ -255,3 +353,8 @@ La regla del proyecto: se comprueba **el efecto**, no el código de salida.
   Que la web ofrezca esta misma API es la Fase C, y llega después.
 - **No arregla la deriva de yaw del arranque en frío.** Se documenta; desaparece sola.
 - **No decide el arranque automático de Nav2/SLAM**, que es el punto siguiente del orden acordado.
+- 🔴 **No mueve el robot.** La Tarea 13 (cierre de este plan, 2026-08-03) implementó, revisó y
+  documentó el diseño y su corrección (ver «El seguidor de línea», arriba), pero por instrucción
+  explícita no ejecutó ningún guion contra el robot ni movió las orugas. Los cinco puntos de
+  «Verificación» quedan, en su mayoría, sin ejecutar — ver el estado marcado punto a punto ahí
+  arriba, y el siguiente paso exacto en `TRASPASO.md`.

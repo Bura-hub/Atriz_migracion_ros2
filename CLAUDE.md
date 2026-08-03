@@ -74,6 +74,17 @@ Ni contraseñas, ni claves, ni la PSK del WiFi. La credencial del usuario `spher
 expuesta** en `Atriz_web_server` público y debe rotarse. `MANUAL_SPHERO_original.docx` la
 contiene: por eso este repositorio es **privado**.
 
+🔴 **Y el 2026-08-02 apareció un SEGUNDO caso, en `Atriz_rvr` (público, rama `ros2`), otro
+fichero y otras dos credenciales:** la PSK del WiFi del laboratorio y la contraseña del usuario
+`sphero`, en texto plano en `scripts/estudiantes/00_LEEME_PRIMERO.md` y
+`GUIA_PASO_A_PASO.md`. Las once líneas se **sacaron del contenido actual** al reescribir esos
+documentos (tarea 12, commit `d543cdd`), pero **siguen en el historial** de `main`, `ros2`,
+`migracion-ros2` y `wip/scripts-estudiantes` — medido sobre las cuatro ramas remotas, 11
+coincidencias en cada una, ningún tag afectado, 2 commits tocan el valor. Reescribir el
+contenido no cierra la exposición: **rotar la PSK y la contraseña es lo único que lo hace**, y
+es acción del usuario. Purgar el historial después es higiene y es incompleta — no llega a los
+forks que ya existan. Al revés (purgar sin rotar) no sirve de nada.
+
 ### 6. Commitea al cerrar cada fase, y actualiza el `CHANGELOG.md`
 
 Aunque sea una línea. Es lo que permite retomar el hilo semanas después.
@@ -1045,6 +1056,36 @@ y «tasa de datos», no el tipo.
 ráfagas del buffer USB. Ahora cuenta vueltas y da 11.48 Hz. La lección que queda:
 **un timestamp tomado al leer de un buffer no mide cuándo ocurrió el evento.**
 
+**🔴 UN SOLO SENSOR MIRANDO HACIA ABAJO NO PUEDE SABER HACIA QUÉ LADO SE DESVIÓ EL ROBOT.** El
+diseño original de `03_operacion/API_LABORATORIO.md` (2026-08-02) especificaba un seguidor de
+línea con **PID de umbral único** sobre el canal `claro`. No puede funcionar: si el robot deriva
+a la izquierda de la línea el sensor deja de ver negro y ve suelo claro, y si deriva a la
+derecha pasa **exactamente lo mismo** — la lectura es idéntica en los dos casos, así que
+`error = (claro − umbral) / umbral` tiene el mismo signo esté el robot desviado al lado que sea,
+y el PID solo puede sacar una salida para ese signo: acierta la mitad de las veces y empuja al
+robot lejos de la línea la otra mitad. Estaba, además, ya escrito en el propio repositorio
+(`SEGUIDOR_LINEA_EXPLICACION.md` de la versión ROS 1, sección 3: *"con un solo sensor no es
+fiable estimar el desalineamiento lateral clásico"*) y nadie lo cruzó contra el diseño nuevo
+hasta implementarlo (tarea 11). **Rediseñado a edge-following** por decisión del usuario: el PID
+(sin tocar) decide la **magnitud** del giro; un estado que se arrastra entre vueltas del bucle
+(`lado_borde`, no una lectura instantánea) decide el **signo**, y se invierte tras
+`tiempo_perdido_max` segundos sin reencontrar el borde. **NO VERIFICADO sobre una línea real**:
+las funciones puras suman 9 tests nuevos entre las tres rondas (52 → 61 en
+`scripts/pruebas/`), pero el robot nunca ha seguido una línea físicamente.
+
+**🔴🔴 Y EL SIGNO Y LA MAGNITUD DE UNA CORRECCIÓN TIENEN QUE MEDIR DESDE EL MISMO CENTRO, O HAY
+REALIMENTACIÓN POSITIVA.** Al implementar el edge-following de arriba, `signo_correccion()`
+decidía el signo con las fronteras de histéresis de `clasificar()` (en 450/950) mientras
+`magnitud_correccion()` medía la distancia al centro real (700). Entre 701 y 949 discrepan: el
+estado seguía siendo `'negro'` (signo hacia un lado) mientras la magnitud ya crecía hacia el
+otro — el controlador empujaba al robot **más lejos** del borde en vez de traerlo, justo lo
+contrario de lo que el edge-following existe para hacer. Y **cinco tests que solo probaban los
+extremos y el punto de equilibrio (181, 700, 1275) no lo atraparon**: la banda intermedia no la
+miraba nadie. El arreglo fue hacer que las dos funciones calculen el mismo `centro` y comparen
+contra él directamente. La lección: un test que barre tres puntos «representativos» de un rango
+continuo puede dejar sin cubrir justo el tramo donde vive el bug — barre el rango entero, no los
+extremos.
+
 ---
 
 ## Herramientas de diagnóstico — úsalas antes de teorizar
@@ -1101,7 +1142,14 @@ prueba_aceptacion.py          # ⚠️ LA PRUEBA DE ACEPTACIÓN: 10 fases, de ar
 #                               --desde F4     retoma sin repetir
 #                               Criterio y umbrales: 03_operacion/PRUEBA_ACEPTACION.md
 aceptacion_nucleo.py          # su lógica pura (bandas, veredictos, informe). 24 tests, sin ROS:
-#                               python3 -m pytest scripts/pruebas/ -q
+#                               python3 -m pytest scripts/pruebas/ -q  (61 en total, 37 son de atriz.py)
+probar_ctrl_c_atriz.py        # ⚠️ MUEVE EL ROBOT ~1.5 m: ¿para un Ctrl-C a mitad de avanzar()?
+#                               mide DESPLAZAMIENTO tras matarlo. El fallo es INTERMITENTE:
+#                               una sola pasada verde no basta, repite varias veces
+simular_girar.py              # simulador de girar() SIN robot: funciones puras de atriz.py,
+#                               sobregiro con odometría sintética (congelada, con jitter) · sin ROS
+medir_sobregiro.py            # tabla comparativa de sobregiro a 10 Hz vs 20 Hz, misma física
+#                               que simular_girar.py (comparten generador_rampa_real()) · sin ROS
 first-boot.sh --solo-red      # regenera /etc/netplan/60-atriz.yaml desde red.txt (sudo)
 #                               NO aplica: eso es `netplan try`, que revierte solo
 diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
@@ -1240,6 +1288,8 @@ lo que produce deriva entre documentación y realidad.
 | **Las unidades systemd arrancarán con el lidar PARADO** (`/stop_scan`) | si no, el X2 gira a 11.8 Hz 24/7 en los 16 robots en vez de a 2.7. Manual, cap. 8.4a |
 | **NO se mide ahora el consumo del lidar** entre 11.8 y 2.7 Hz | serían horas de robot con `/battery_state` para un número que solo decide un matiz del systemd. Se anota **NO MEDIDO**. Decisión del usuario, 2026-07-31 |
 | **NO se persigue el efecto del roll en la deriva** | medido ~1 cm sin significación (p=0.142). Cerrarlo costaría ~62 corridas y 5 h de robot, para 1 cm sobre una tolerancia de objetivo de 10. Decisión del usuario, 2026-07-31 |
+| 🔴 **El material docente corre sobre `atriz.py`, NO sobre `rclpy`** | Un script de alumno contra `rclpy` a pelo tiene que acertar siete cosas que este proyecto pagó aprendiéndolas (topic correcto, encender el barrido, republicar contra el watchdog, `SignalHandlerOptions.NO`, BEST_EFFORT, límites de velocidad/tiempo, apagar el barrido al cerrar). `atriz.py` las acierta una vez y el alumno escribe robótica, no ROS. Diseño en `03_operacion/API_LABORATORIO.md`, 2026-08-02. Código escrito y revisado (tareas 1-12, 61 tests) — **⏳ NO VERIFICADO contra el robot moviéndose**: falta la sesión física (ver `TRASPASO.md`) |
+| **El seguidor de línea es edge-following, NO un PID de umbral único** | Un solo sensor mirando abajo no puede distinguir desviarse a la izquierda de desviarse a la derecha — el diseño original de `API_LABORATORIO.md` no podía funcionar. Rediseñado en la tarea 11 (ver trampas, arriba). NO VERIFICADO sobre una línea real |
 
 ---
 
