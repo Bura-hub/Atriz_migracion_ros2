@@ -62,3 +62,28 @@ La practica 4 no se puede dar por buena tal como esta. Las salidas razonables:
       REPETIBILIDAD, no en acierto, y que un lazo sin compensar el retardo del
       actuador sobregira siempre.
 Es contenido docente: lo decide el usuario.
+
+═══════════════════════════════════════════════════════════════════════════════
+TERCERA CORRIDA — DESPUES DE ANTICIPAR LA INERCIA
+═══════════════════════════════════════════════════════════════════════════════
+    Error del lazo abierto: 0.9 grados
+    Error del lazo cerrado: 0.2 grados      <- AHORA GANA EL CERRADO
+
+✅ La practica vuelve a enseñar lo que dice enseñar, y por el motivo bueno.
+
+🔴 PERO EL DATO MAS INTERESANTE ES OTRO: LA REPETIBILIDAD DEL LAZO ABIERTO.
+   Tres corridas del MISMO comando (`girar_por_tiempo(0.8, 1.9635)`), que NO se
+   toco en todo el dia:
+
+       87.9  ·  87.7  ·  90.9        rango 3.2 grados
+   contra el cerrado tras el arreglo:
+       90.46 · 89.82 · 90.74 · 90.2  rango 0.92 grados
+
+   El lazo abierto varia **3.5x mas**. Esa es la leccion de la practica 4, y
+   ahora esta MEDIDA en el robot en vez de afirmada.
+
+⚠️ Y NO SE ATRIBUYE LA VARIACION A LA BATERIA. Es tentador: bajo de 7.60 V a
+   7.37 durante la sesion. Pero el 90.9 —el valor MAS ALTO— se midio con la
+   bateria MAS BAJA, y si menos carga diera menos par se esperaria lo contrario.
+   La hipotesis apunta al reves que el dato. Queda **SIN EXPLICAR**, y con n=3
+   no da para mas. Regla 4 del proyecto: medir antes de atribuir.

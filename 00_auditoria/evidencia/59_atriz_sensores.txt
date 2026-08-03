@@ -200,3 +200,15 @@ Notas de método
 - Las tres mediciones adicionales (coste de distancia_frontal, latencia de
   bateria(), y n=5 de color()) se ejecutaron en una sesión aparte, después
   del paso 3, sin volver a encender los faros.
+
+═══════════════════════════════════════════════════════════════════════════════
+2026-08-03 — FAROS CONFIRMADOS POR EL USUARIO (lo que faltaba)
+═══════════════════════════════════════════════════════════════════════════════
+    mira el robot: ROJO
+    mira el robot: VERDE
+    mira el robot: AZUL
+    y ahora APAGADOS
+
+✅ El usuario confirma: «vi los tres colores y se apagaron».
+   Es el unico modo de comprobarlo — no hay forma de leer los LEDs por software,
+   y por eso quedaba pendiente desde la tarea 5.
