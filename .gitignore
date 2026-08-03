@@ -23,3 +23,6 @@ __pycache__/
 .DS_Store
 *~
 *.swp
+
+# Espacio de trabajo de subagentes (no es documentacion: el registro es git)
+.superpowers/
