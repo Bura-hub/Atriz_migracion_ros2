@@ -1,0 +1,64 @@
+═══════════════════════════════════════════════════════════════════════════════
+EVIDENCIA 61 — practica 4: el lazo ABIERTO gana al CERRADO
+2026-08-03 · sesion fisica · n=1, misma corrida, mismo camino
+═══════════════════════════════════════════════════════════════════════════════
+
+SALIDA LITERAL DE `python3 04_giro_preciso.py`
+
+    [1/2] LAZO ABIERTO
+          pedido 90, /odom dice 87.9
+    [2/2] LAZO CERRADO
+          pedido 90, logrado 94.7
+
+    Error del lazo abierto: 2.1 grados
+    Error del lazo cerrado: 4.7 grados
+
+🔴 LA PRACTICA IMPRIME LO CONTRARIO DE LO QUE ENSEÑA.
+   Su seccion «LA IDEA» dice que el lazo cerrado gana porque mide y corrige. Con
+   estos numeros pierde por MAS DEL DOBLE de error.
+
+═══════════════════════════════════════════════════════════════════════════════
+POR QUE, Y ES UN RESULTADO COHERENTE — NO UN FALLO DE MEDIDA
+═══════════════════════════════════════════════════════════════════════════════
+El lazo cerrado conduce hasta que /odom dice 90 y **DESPUES** el robot sigue
+girando por inercia. La evidencia 58 lo midio aislado: **+4.01° constante**
+(n=9), que son 0.350 s de coasting a 0.20 rad/s. El lazo no lo anticipa.
+
+El lazo abierto NO tiene esa penalizacion porque no espera a llegar: manda
+durante un tiempo calculado que se queda corto, y **el coasting le rellena parte
+del deficit**. Se queda a -2.1 en vez de a los ~-6 que tendria sin inercia.
+
+    lazo abierto:  deficit de comando  −6ish  +  coasting  +4  =  −2.1  ✅ medido
+    lazo cerrado:  para al llegar       0     +  coasting  +4  =  +4.7  ✅ medido
+
+O sea: **el lazo abierto gana por accidente**, porque dos errores de signo
+contrario se cancelan. No porque sea mejor control.
+
+📝 COMPROBACION CRUZADA QUE DA CONFIANZA: el 94.7 de esta corrida coincide con el
+   94.70 de la primera corrida de la evidencia 58, tomada por separado.
+
+═══════════════════════════════════════════════════════════════════════════════
+LO QUE ESTO SI Y NO ESTABLECE
+═══════════════════════════════════════════════════════════════════════════════
+SI:  `girar_por_tiempo()` a 0.8 rad/s por /cmd_vel_raw da **87.9** pidiendo 90.
+     Es el numero que llevaba toda la migracion sin medirse, y que se citaba mal
+     (los 86.6/86.2/87.7 eran de `move_timed` a 1.0 rad/s, otro camino).
+SI:  el lazo cerrado, tal como esta, es MENOS preciso que el abierto a 90°.
+
+NO:  n=1. Una sola corrida de cada lazo. La repetibilidad del cerrado si esta
+     medida (evidencia 58, rango 0.5-1.2°); la del abierto, NO.
+NO:  sin transportador. /odom es el unico testigo, y el lazo cerrado cierra
+     sobre el. El angulo FISICO sigue **NO VERIFICADO**.
+
+═══════════════════════════════════════════════════════════════════════════════
+DECISION PENDIENTE — NO SE ARREGLA SOLO
+═══════════════════════════════════════════════════════════════════════════════
+La practica 4 no se puede dar por buena tal como esta. Las salidas razonables:
+  (a) que el lazo cerrado ANTICIPE el coasting (compensacion feedforward de un
+      retardo medido: es control de verdad, no una constante calibrada);
+  (b) bajar la velocidad final de la rampa para que el coasting encoja — a
+      0.05 rad/s el sesgo caeria a ~1°;
+  (c) cambiar lo que la practica enseña: que el lazo cerrado gana en
+      REPETIBILIDAD, no en acierto, y que un lazo sin compensar el retardo del
+      actuador sobregira siempre.
+Es contenido docente: lo decide el usuario.
