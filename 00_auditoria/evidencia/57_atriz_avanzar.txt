@@ -1,0 +1,46 @@
+═══════════════════════════════════════════════════════════════════════════════
+EVIDENCIA 57 — avanzar() medido con cinta metrica
+2026-08-03 · sesion fisica · medido por el usuario, robot en el suelo
+═══════════════════════════════════════════════════════════════════════════════
+
+COMANDO
+    cd ~/atriz_ws/src/Atriz_rvr/scripts/estudiantes && source /opt/ros/jazzy/setup.bash
+    python3 -c "
+    from atriz import Robot
+    with Robot() as r:
+        input('Marca la posicion y pulsa Enter...')
+        r.avanzar(0.20, 3)
+        input('Mide cuanto avanzo y pulsa Enter...')
+    "
+
+ESTADO DEL ROBOT
+    servicio activo desde 2026-08-02 22:23, 0 reinicios
+    /odom a 16.68 Hz · bateria 7.60 V (55 %)
+    deriva de yaw en 30 s: 0.009 grados  (termicamente asentado, no recien encendido)
+    sensor de color APAGADO (arranque normal) — el aviso salio como debe
+
+RESULTADO
+    comandado : 0.20 m/s x 3 s = 60 cm
+    MEDIDO    : 60 cm
+    error     : 0 cm
+
+QUE SIGNIFICA
+    ✅ El watchdog NO esta cortando. El sintoma de que cortara serian ~6 cm, y
+       salieron 60: la republicacion a 10 Hz de avanzar() bate a los 0.3 s del
+       driver, que es justo para lo que existe.
+
+    📝 Y CORRIGE UNA ESTIMACION MIA. Yo esperaba 55-65 con ~55 como valor mas
+       probable, razonando que la rampa de aceleracion de ~0.5 s se comeria unos
+       5 cm. NO se los come. Dos explicaciones posibles, y NO estan aisladas:
+         (a) la rampa cuesta menos de lo estimado;
+         (b) el bucle sobregira — el ultimo `_mandar()` publica y DESPUES duerme
+             0.1 s, asi que el robot conduce un tramo extra que compensa.
+       Distinguirlas exigiria medir el perfil en el tiempo. No se persigue: el
+       numero que importa para el material docente es el que sale, y sale bien.
+
+    ✅ Y ZANJA UN PENDIENTE MENOR: `03_cuadrado.py:12` promete «unos 60 cm» por
+       lado. Estaba anotado como posible correccion a ~55. Es CORRECTO tal cual.
+
+LO QUE ESTO NO MIDE
+    Un solo tiro (n=1). No dice nada sobre repetibilidad ni sobre el perfil de
+    velocidad, solo sobre la distancia total de esta corrida.
