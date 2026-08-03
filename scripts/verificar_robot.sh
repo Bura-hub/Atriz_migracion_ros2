@@ -788,8 +788,16 @@ URDF="$WS/atriz_rvr_description/urdf/rvr.urdf.xacro"
 if [[ -f "$URDF" ]]; then
     # 🔴 Estas tres estuvieron MAL hasta el 2026-07-31: largo y ancho CRUZADOS y
     # el alto de la ficha, que hacía que laser_z estuviera 2 cm arriba.
-    grep -q 'base_length" value="0.182' "$URDF" && grep -q 'base_width"  value="0.217' "$URDF" \
-        && _ok "URDF: 0.182 × 0.217 m (medido, no la ficha)" \
+    # 🔴 0.190 desde el 2026-08-02, no 0.182. El usuario volvio a medir con cinta
+    #    (19.0 cm de frente a atras con orugas) al cerrar `laser_x`, y el URDF se
+    #    actualizo — pero ESTA comprobacion se quedo con el valor viejo y empezo a
+    #    dar FALLO sobre un modelo CORRECTO. Lo cazo la prueba de aceptacion.
+    #    📝 Van dos veces que este verificador falla justo despues de arreglar lo
+    #       que comprueba. Si cambias una cota del URDF, cambia esta linea.
+    #    ⚠️ El conflicto 18.2 vs 19.0 sigue ABIERTO: dos medidas con cinta que
+    #       difieren 0.8 cm. Ver MEDIDAS_ROBOT.md.
+    grep -q 'base_length" value="0.190' "$URDF" && grep -q 'base_width"  value="0.217' "$URDF" \
+        && _ok "URDF: 0.190 × 0.217 m (medido 2026-08-02, no la ficha)" \
         || _mal "el URDF no tiene las cotas MEDIDAS" "manual, cap. 12.10 y MEDIDAS_ROBOT.md"
     grep -q 'laser_z"   value="0.155' "$URDF" \
         && _ok "URDF: laser_z 0.155 m (medido con regla)" \

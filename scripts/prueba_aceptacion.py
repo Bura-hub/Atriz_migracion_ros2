@@ -1022,6 +1022,21 @@ def f7(a: Aceptacion) -> None:
     procs, registros = [], []
     cli = ActionClient(a.nodo, NavigateToPose, 'navigate_to_pose')
     try:
+        # 🔴🔴 F7 TIENE QUE ENCENDER EL BARRIDO, Y NO LO HACIA. F6 lo apaga al
+        #    terminar —se añadio el 2026-08-02 para no dejar el X2 a 11.8 Hz—, y
+        #    esta fase se quedo sin `/scan`: `slam_toolbox` no tenia nada que
+        #    procesar, no publicaba `map -> odom`, y los TRES objetivos salieron
+        #    NO VERIFICADO con «sin TF map->base_footprint».
+        #    📝 Un arreglo que rompio otra cosa, y es el patron que este proyecto
+        #       ya tiene escrito: **al cambiar el estado por defecto de un
+        #       componente, comprueba que hacen todos los que dependian de el.**
+        #       Aqui lo cazo la propia prueba de aceptacion, que es para lo que
+        #       existe.
+        from std_srvs.srv import Empty as E7
+        print('    encendiendo el barrido (SLAM lo necesita)…')
+        a.llamar(a.nodo.create_client(E7, 'start_scan'), E7.Request(), 20.0)
+        time.sleep(3)
+
         for paquete, fichero in [('atriz_rvr_bringup', 'slam.launch.py'),
                                  ('atriz_rvr_bringup', 'nav2.launch.py')]:
             print(f'    lanzando {fichero}…')
