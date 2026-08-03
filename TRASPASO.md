@@ -228,7 +228,7 @@ cosas están **hechas y sin validar contra hardware**. Es lo primero al volver.
 
 | Qué | Cómo se valida | Por qué no basta lo hecho |
 |---|---|---|
-| 🔴 **La lista blanca de rosbridge** | Con el RVR encendido y espacio libre, mandar `raw_motors` por WebSocket **con velocidad real** y **mirar el robot** | Que rosbridge no responda **no prueba que la orden no pasara**. Es el recíproco de la trampa que este proyecto lleva seis veces documentada |
+| ✅ **La lista blanca de rosbridge** | **YA VALIDADO** el 2026-08-02: `raw_motors` al 30 % por WebSocket → **0.00 cm** de desplazamiento, y el log con las dos denegaciones. Evidencia 53 | **Cerrado.** Era el recíproco de la trampa de siempre: que no llegue respuesta no prueba que la orden no pasara |
 | 🔴 **B1 y B2 de la prueba de aceptación** | `python3 -u scripts/prueba_aceptacion.py --solo F4,F6` | ✅ Ya validado el 2026-08-02: parada **1.8 cm** (rota daría 45) y watchdog **2.6 cm** (rota daría 75). **Esto ya está cerrado** |
 | ⏳ **`base_length` 18.2 vs 19.0 cm** | Con escuadra, el robot quieto | Dos medidas con cinta que difieren 0.8 cm, y las dos anotadas como medidas. `laser_x = −0.005` **sí** quedó cerrado |
 

@@ -556,11 +556,17 @@ cinta el 2026-08-02: un retroceso comandado de 2 s a 0.15 m/s (30 cm esperados) 
   retroceso puede tardar más del doble de lo esperado si hay algo delante. No es que no obedezca.
 → Y explica por qué al robot «le cuesta» salir de un rincón. Evidencia 49.
 
-**⚠️ `laser_x = 0` ESTÁ SUPUESTO, NO MEDIDO — y hay ~2 cm que no cuadran.** Con el LIDAR
-centrado y 18.2 cm de chasis, el borde delantero debería quedar a `18.9 − 9.1 = 9.8 cm` de la
-pared cuando `/scan` lee 18.9. El usuario midió **7–8 cm**. Este proyecto ya descubrió que la
-ficha del RVR mentía en las tres dimensiones y que `laser_z` estaba 2 cm mal. ⏳ **Pendiente de
-medir con cinta**; afecta a dónde cree Nav2 que está un obstáculo. `MEDIDAS_ROBOT.md`.
+**✅ `laser_x` MEDIDO: el LIDAR estaba 0.5 cm POR DETRÁS del centro, no en él.** Cerrado el
+2026-08-02 con cinta: chasis **19.0 cm** de frente a atrás → centro geométrico en 9.5; centro del
+tambor a **9.0 cm del borde trasero** → **`laser_x = −0.005 m`**. El modelo decía `0`, anotado el
+2026-07-30 como «centrado» **sin cinta detrás** — igual que `laser_z`, que al medirse resultó estar
+2 cm mal. Y `laser_y = 0` deja de ser suposición.
+→ Lo destapó una discrepancia de ~2 cm entre lo que leía `/scan` tras una parada del
+  `collision_monitor` (18.9 cm) y lo que el usuario medía en el suelo (7–8 cm): con `laser_x = 0`
+  el residuo era 2.3 cm —fuera del ruido—; con −0.005 baja a 1.4, que **ya no se distingue del
+  error de la propia cinta** (sus dos esquinas difieren 1.0 cm). Evidencia 51.
+→ ⏳ **Queda abierto el LARGO**: la ficha dice 18.2 cm y el usuario mide 19.0. Difieren 0.8 cm y
+  **las dos están anotadas como medidas con cinta**. El URDF usa ya 0.190. `MEDIDAS_ROBOT.md`.
 
 **Una capa de seguridad hace abortar a Nav2 por «no progresar».** El `SimpleProgressChecker`
 de fábrica exige 0.5 m en 10 s; el `collision_monitor` frena al 40 % y `approach` baja más la
@@ -1138,7 +1144,8 @@ de verdad. Dos consecuencias que cambian el día a día:
 | Nav2 a 0.40 m/s | meseta **0.407 m/s** en 0.9 s · error de objetivo **8 cm** | 2026-07-31 |
 | Rodeando un obstáculo | desvío **26–32 cm**, error **8–9 cm**, 4 de 4 SUCCEEDED | 2026-07-31 |
 | **Ancho de banda por rosbridge** (JSON) | **80.7 kB/s** navegando (`/scan` es el **83 %**) · **13.6 kB/s** en reposo · ×16 = **10.3 / 1.7 Mbit/s** | 2026-08-01, medido en el robot Y en el navegador |
-| **Tamaño del robot** | **18.2 cm** frente-atrás × **21.7 cm** lado-lado, con orugas | 2026-07-31 |
+| **Tamaño del robot** | ⚠️ **CONFLICTO ABIERTO**: **18.2** cm (2026-07-31) contra **19.0** (2026-08-02), las dos con cinta y con orugas. Ancho **21.7 cm**, sin discusión. El URDF usa **0.190**. `MEDIDAS_ROBOT.md` | 2026-08-02 |
+| **`laser_x` / `laser_y`** | ✅ **−0.005 / 0 m MEDIDOS** — el LIDAR está 0.5 cm por detrás del centro, centrado en Y | 2026-08-02, evidencia 51 |
 | **Plano de barrido del LIDAR** | **15.5 cm** del suelo ✅ MEDIDO (antes 17.45, derivado) | 2026-07-31 |
 | Alto del RVR (suelo → tapa) | **7.0 cm** — la ficha decía 11.4 | 2026-07-31 |
 | Radio circunscrito | **0.142 m** → `robot_radius: 0.145` | derivado de lo anterior |
@@ -1207,7 +1214,8 @@ lo que produce deriva entre documentación y realidad.
 | La imagen dorada se **construye ejecutando `provision.sh`**, no a mano | Una imagen irreproducible es una caja negra. `FLOTA.md` |
 | **`provision.sh` instala `navigation2`** desde el 2026-07-31 | Antes no lo instalaba: un robot aprovisionado con el script no podía navegar, ni tenía capa de seguridad, ni localización |
 | ✅ **Estática y DHCP CONVIVEN en `wlan0`** (verificado 2026-08-01) | 3 direcciones IPv4 a la vez (`10.14.7.7`, `192.168.1.200`, DHCP) y la ruta por defecto la pone el DHCP. Era **la suposición que sostenía todo el diseño de red**. Un robot se muda de red **sin tocar un comando**. Manual, cap. 19 |
-| 🔴 **PENDIENTE Y BLOQUEANTE: rosbridge está ABIERTO** | Puerto 9090 **sin autenticación ni TLS**, en todas las interfaces, y expone los 18 servicios — incluido `raw_motors`, que se salta el `collision_monitor` y **no tiene corte automático**. Cualquiera en la red del aula puede mover un robot. Hay que decidirlo **antes** de escribir el cliente: cambia su arquitectura. `ARQUITECTURA.md` |
+| ✅ **Fase A de seguridad APLICADA (2026-08-02): `raw_motors` ya NO es alcanzable** | Lista blanca en `robot.launch.py` (`topics_sub_glob`, `topics_pub_glob`, `services_glob`, `actions_glob`, `params_glob`) + `rosapi_node`. Cierra `raw_motors`, `move_timed`, `move_to_pose`, los IR y **publicar en `/cmd_vel`**, que era el agujero más silencioso. ✅ Verificado con el **efecto físico**: `raw_motors` al 30 % por WebSocket → **0.00 cm** de desplazamiento (evidencia 53). `SEGURIDAD_ROSBRIDGE.md` |
+| 🔴 **PERO SIGUE BLOQUEANDO LA FASE 5: no hay identidad por usuario** | La Fase A **no** levanta el pendiente. **rosbridge 2.7.0 en Jazzy NO TIENE AUTENTICACIÓN** —no existe: `rosauth` no es dependencia, no hay parámetro `authenticate`, y `check_origin()` devuelve `True` incondicionalmente—, así que **cualquiera en el aula sigue pudiendo teleoperar cualquier robot** por `cmd_vel_raw`. Se cierra en la **Fase B**: proxy que valida el JWT en cada robot, con rosbridge atado a `127.0.0.1`. ⚠️ «Token en el WebSocket» quedó **descartado por imposible** |
 | ✅ **El camino web ↔ robot está verificado de extremo a extremo** | Navegador del PC → `ws://rvr-01.local:9090` → topics **y** servicios. `03_operacion/probar_conexion_web.html`, sin librerías ni CDN. La web **no necesita SSH para nada operativo**. Evidencia 39 |
 | ✅ **La web localiza a los robots por `rvr-NN.local` (mDNS)**, con la IP como override | Es lo que hace que el mismo código funcione en casa y en el laboratorio sin tocar nada. Verificado el 2026-08-01 desde el PC del usuario: avahi publica **A=192.168.1.58 y AAAA link-local**, y rosbridge escucha en **las dos familias**. Evidencia 39 |
 | 🔴 **NO se reflashea rvr-01 para probar `provision.sh` entero** | Es el único robot montado. Decisión del usuario el 2026-07-31: se **asume** que funciona hasta tener una tarjeta de repuesto. **Es una suposición, no un hecho** — ver abajo |

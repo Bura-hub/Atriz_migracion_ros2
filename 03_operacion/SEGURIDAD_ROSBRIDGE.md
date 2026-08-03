@@ -223,11 +223,21 @@ responde.
 📝 Los dos salieron **de ejecutarla, no de leerla**. Es el argumento de que la verificación forme
 parte de la fase y no sea un paso opcional al final.
 
-### ⏳ Lo único que falta de la Fase A
+### ✅ La Fase A queda CERRADA — comprobado con el efecto físico
 
-**Comprobar con el RVR encendido que el robot NO SE MUEVE al mandar `raw_motors`.** Que no llegue
-respuesta **no prueba que la orden no pasara**, igual que un `success` no prueba que algo se hiciera
-— este proyecto lleva seis casos documentados de lo segundo, y esto es lo primero.
+Se mandó `raw_motors` **al 30 % (speed 77, modo 1)** por WebSocket, igual que lo haría alguien en la
+red del aula, con el RVR encendido y espacio despejado:
 
-⏳ Pendiente porque el robot está cargando (2026-08-02). Se valida en la próxima sesión con el RVR
-encendido y espacio libre.
+```
+antes:   x=-0.0620  y=-0.0057
+después: x=-0.0620  y=-0.0057
+DESPLAZAMIENTO: 0.00 cm
+```
+
+Y el log registró las dos denegaciones. **Evidencia 53.**
+
+📝 **Por qué esta prueba hacía falta:** todo lo demás se apoyaba en que rosbridge **no responde**, y
+**que no llegue respuesta NO prueba que la orden no pasara** — el recíproco de la trampa que este
+proyecto lleva seis veces documentada. `raw_motors` no publica en ningún topic: habla al RVR **por
+el puerto serie**, así que la única prueba concluyente es el robot quieto. Y es el peor caso
+posible: se salta el `collision_monitor` **y** el watchdog, y **no tiene corte automático**.

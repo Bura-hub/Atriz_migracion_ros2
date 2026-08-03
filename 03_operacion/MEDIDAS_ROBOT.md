@@ -141,7 +141,7 @@ afecta a nada**: la IMU no se fusiona con la odometría. Se deja como está y se
 
 | Cota | Valor | Cuándo |
 |---|---|---|
-| `base_length` (frente-atrás) | **0.182 m** | 2026-07-31, con orugas |
+| `base_length` (frente-atrás) | ⚠️ **NO CERRADA — ver el conflicto de más abajo.** El URDF usa **0.190 m** desde el 2026-08-02; esta fila conserva **0.182** porque **las dos se tomaron con cinta y con orugas**, y nadie ha arbitrado | 2026-07-31 / 2026-08-02 |
 | `base_width` (lado-lado) | **0.217 m** | 2026-07-31, con orugas |
 | `base_height` (suelo → tapa) | **0.070 m** | 2026-07-31 |
 | `laser_z` (suelo → centro del disco) | **0.155 m** | 2026-07-31 |

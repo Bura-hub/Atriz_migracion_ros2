@@ -229,9 +229,23 @@ laboratorio, eso no es teórico.
 ⚠️ Las cuatro defensas de la Decisión 3 **no cubren esto**: paran al robot, no impiden la orden.
 Y el JWT de la Decisión 2 está en FastAPI, **explícitamente fuera de la ruta de datos**.
 
-⏳ **DECISIÓN PENDIENTE, y hay que tomarla antes de escribir el cliente porque cambia su
-arquitectura:** ¿token en el propio WebSocket? ¿rosbridge en `localhost` y FastAPI como proxy?
-¿lista blanca de servicios en rosbridge? Encontrado en auditoría el 2026-08-01.
+✅ **DECIDIDO Y APLICADO EL 2026-08-02.** Ver `03_operacion/SEGURIDAD_ROSBRIDGE.md`.
+
+- **Fase A, ya en el robot:** lista blanca en `robot.launch.py`. **`raw_motors` ya NO es
+  alcanzable**, ni `move_timed`, ni los servicios IR, ni **publicar en `/cmd_vel`** — que era el
+  agujero más silencioso, porque salta el `collision_monitor` entero. ✅ Verificado con el **efecto
+  físico**, no solo con el log: `raw_motors` al 30 % por WebSocket → **0.00 cm** (evidencia 53).
+- **Fase B, con la Fase 5:** proxy que valida el **JWT de FastAPI en cada robot**, con rosbridge
+  atado a `127.0.0.1`. Va en el robot y no en el centro para que los 10.3 Mbit/s **no atraviesen
+  FastAPI** y la Decisión 2 se mantenga.
+
+🔴 **De las tres opciones que planteaba este párrafo, «token en el propio WebSocket» quedó
+DESCARTADA POR IMPOSIBLE:** rosbridge 2.7.0 en Jazzy **no tiene autenticación** — `rosauth` no es
+dependencia, no hay parámetro `authenticate`, la capacidad `Authentication` no está en el
+protocolo, y `check_origin()` devuelve `True` incondicionalmente.
+
+⚠️ **Y esto NO levanta el pendiente de la Fase 5.** Sin identidad por usuario, **cualquiera en el
+aula sigue pudiendo teleoperar cualquier robot** por `cmd_vel_raw`. Eso lo cierra la Fase B.
 
 ---
 
