@@ -212,3 +212,38 @@ Notas de método
 ✅ El usuario confirma: «vi los tres colores y se apagaron».
    Es el unico modo de comprobarlo — no hay forma de leer los LEDs por software,
    y por eso quedaba pendiente desde la tarea 5.
+
+═══════════════════════════════════════════════════════════════════════════════
+2026-08-03 — distancia_frontal() CONTRA CINTA (primera vez que se contrasta)
+═══════════════════════════════════════════════════════════════════════════════
+    el robot dice: 0.576 m
+    la cinta dice: 56.8 cm
+
+    diferencia: 0.8 cm  (1.4 %)
+
+✅ QUE SI ESTABLECE
+   El cono de ±10 grados de `distancia_frontal()` **contiene la direccion frontal
+   real**, y devuelve la distancia perpendicular a la pared con 0.8 cm de error
+   — dentro del error de la propia cinta. La practica 10 (la patrulla) decide
+   cuando girar con este numero, y el numero es bueno.
+
+🔴 QUE **NO** ESTABLECE, Y ES LA PARTE SUTIL
+   NO verifica que el angulo 0 de `/scan` apunte exactamente adelante.
+
+   `distancia_frontal()` toma el **MINIMO** sobre el cono. Contra una pared
+   plana, el minimo sobre un cono que contiene la perpendicular **es** la
+   perpendicular — da igual si el cono esta centrado o ladeado, mientras siga
+   conteniendo el frente real. Asi que esta medida es **insensible** a un offset
+   de montaje de hasta ~10 grados: saldria igual de buena con el angulo 0
+   desviado 8 grados.
+
+   📝 La cuenta ingenua enganaria: 56.8/cos(θ) = 57.6 da θ = 9.6°, que podria
+      leerse como «el angulo 0 esta 9.6 grados desviado». **Es falso** — con el
+      minimo sobre el cono esa relacion no aplica. Se anota para que nadie la
+      haga.
+
+   → El offset de montaje del LIDAR sigue **NO VERIFICADO**. Cerrarlo exigiria
+     otra prueba: por ejemplo, poner un objeto estrecho en una direccion conocida
+     y ver en que indice del barrido aparece.
+   → No bloquea nada hoy: lo que la API usa es el minimo sobre el cono, y eso
+     esta verificado. Importaria si algo llegara a usar el angulo crudo.
