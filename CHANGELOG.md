@@ -87,16 +87,61 @@ lo son.
 Y `LAB_BASE`/`LAB_OCTETO` en `red.txt.ejemplo` resultaron **no ser** una divergencia: son una
 derivación opcional que `first-boot.sh:156` ya trata como tal, y el `.ejemplo` ya lo explicaba.
 
+### Bloque B — ejecutado por el usuario, y medido (evidencia 63b)
+
+`fase_7_systemd.sh` instaló los seis ficheros y se movieron los `.bak` de `/etc`. **Comprobado por
+efecto, no por los `✓` del script:**
+
+| | ANTES | AHORA |
+|---|---|---|
+| Pares repo↔sistema | 2 `DIVERGE`, 2 `AUSENTE` | **los 8 obligatorios `IGUAL`** |
+| `atriz-nav` | `not-found` | `disabled` ← **el estado correcto**, no un fallo |
+| `atriz-robot` | PID 699, `active` | **PID 699**, `active` — no se cayó al reinstalar encima |
+| Verificador | 108 ✓ · 6 avisos · **7 FALLOS** | **120 ✓ · 5 avisos · 0 fallos** |
+
+### 🔴 Dos mensajes falsos que destapó el ensayo del usuario
+
+`--simular` existe para ver qué haría antes de hacerlo, y sirvió para exactamente eso:
+
+- **«solo corre el driver del propio servicio (se reiniciará al aplicar esto)»** — **falso**.
+  `fase_7` no tiene un solo `systemctl restart`. `install` cambia el inodo del fichero y
+  `daemon-reload` recarga las unidades, pero **ninguna toca un proceso vivo**: el driver siguió con
+  el código anterior (mismo PID 699). El mensaje hacía cerrar la sesión creyendo que el cambio
+  estaba aplicado, y el fallo habría aparecido en el próximo reinicio sin nada que lo relacionara.
+  Ahora avisa de que hay que reiniciar a mano, y de que eso despierta el robot.
+- **«Instalado.»** aparecía también en `--simular`. Más barato de creer todavía: se lee el rótulo,
+  no las líneas `[simular]`.
+
+### Y una aserción mía que no podía fallar
+
+La comprobación del puente del `~/.bashrc` hacía `bash -ic 'command -v ros2'`. El shell hijo
+**hereda el PATH del padre**, y el verificador se lanza desde un shell con ROS cargado: pasaba con
+el puente puesto **y sin él**. Se descubrió quitando el puente a propósito, no leyendo el código.
+Corregida con `env -i`, y reprobada en los dos estados: ✓ con puente, ✗ sin él. **Quinto caso de
+este tipo en el proyecto.**
+
+### El `~/.bashrc`, cerrado del todo
+
+El entorno de ROS pasó a `/etc/profile.d/atriz-ros.sh` (categoría A, versionado). En el `.bashrc`
+queda **una línea** —el puente para `tmux`/`su`, que no leen `/etc/profile.d`— y la añade `fase_7`
+de forma idempotente. El `.bashrc` **no se versiona**: pertenece a la distribución, así que por el
+criterio del propio `scripts/sistema/README.md` es categoría B — se versiona el generador y se
+asevera el efecto.
+
+Con eso desaparece la trampa del «el `.bashrc` se lee después y gana», que estaba documentada en
+cuatro sitios distintos.
+
 ### Pendiente
 
-- 👤 **El bloque B, que necesita `sudo`**: re-ejecutar `fase_7_systemd.sh` (instala `atriz-nav` y
-  `atriz-ros.sh`) y mover los `.bak` de `/etc`.
-- **El shim del `~/.bashrc`** va DESPUÉS del bloque B: hasta que `/etc/profile.d/atriz-ros.sh`
-  exista, quitar las líneas dejaría los shells sin `ros2`.
+- 👤 **`red.txt` en 755**: la PSK del WiFi es legible por cualquier usuario. `chmod` no sirve (es
+  FAT); van `fmask=0177,dmask=0077` en `/etc/fstab`. Es el único aviso del verificador que es una
+  decisión tuya.
+- 👤 **Rotar la PSK del WiFi y la contraseña de `sphero`** (sigue de antes).
 - 📝 **NO VERIFICADO** — `provision.sh` no se ha recorrido de extremo a extremo en ningún robot: el
   SDK de rvr-01 se compiló a mano desde `src_externos` (md5 idéntico, y `~/YDLidar-SDK` no existe).
-  Y el parser arreglado no se puede probar aquí: con `ROBOT_ID=01` los dos parsers coinciden. Las
-  dos cosas se comprueban en el robot 2.
+  El parser arreglado no se puede probar aquí: con `ROBOT_ID=01` los dos parsers coinciden. Y el
+  puente del `.bashrc` se probó con `bash -lc`, no con un **`ssh` desde otra máquina**. Las tres
+  cosas se comprueban en el robot 2.
 
 ---
 

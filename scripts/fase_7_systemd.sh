@@ -268,6 +268,36 @@ fi
 hacer install -m 644 "$SCRIPTS_DIR/sistema/atriz-ros.sh" /etc/profile.d/atriz-ros.sh
 ok "/etc/profile.d/atriz-ros.sh (entorno de ROS, sin identidad)"
 
+# ── Y el puente para los shells que NO son de login ──────────────────────────
+# /etc/profile.d lo leen los shells de LOGIN. Un `tmux`, un `su` o un `bash`
+# suelto son interactivos y NO de login: no pasan por ahí y se quedarían sin
+# `ros2`. Una línea en el ~/.bashrc lo resuelve.
+#
+# 📝 Categoría B (scripts/sistema/README.md): el ~/.bashrc pertenece a la
+#    distribución, así que NO se versiona una copia — se versiona el generador,
+#    que es esto, y el efecto lo comprueba verificar_robot.sh.
+#    Se AÑADE, nunca se reescribe el fichero: dentro hay ajustes del usuario.
+BRC="/home/$REAL_USER/.bashrc"
+if [[ ! -f "$BRC" ]]; then
+    avis "no hay $BRC: los shells no-login de $REAL_USER no tendrán ros2"
+elif grep -qF '/etc/profile.d/atriz-ros.sh' "$BRC"; then
+    ok "~/.bashrc ya llama a /etc/profile.d/atriz-ros.sh"
+elif [[ $MODO == simular ]]; then
+    printf '  \033[0;36m[simular]\033[0m %s\n' "añadir el puente a $BRC"
+else
+    cat >> "$BRC" <<'EOF'
+
+# ── ROS 2, para los shells interactivos que NO son de login ───────────────────
+# Lo añade fase_7_systemd.sh. El entorno vive en /etc/profile.d/atriz-ros.sh,
+# que solo leen los shells de LOGIN; esto cubre tmux, su y un bash suelto.
+# Con guarda, para que un robot al que aún no se le ha pasado fase_7 no dé un
+# error en cada shell.
+[ -f /etc/profile.d/atriz-ros.sh ] && . /etc/profile.d/atriz-ros.sh
+EOF
+    chown "$REAL_USER:$REAL_USER" "$BRC" 2>/dev/null || true
+    ok "~/.bashrc: añadido el puente a /etc/profile.d/atriz-ros.sh"
+fi
+
 hacer install -m 755 "$SCRIPTS_DIR/atriz-robot.sh"   /usr/local/bin/atriz-robot.sh
 ok "/usr/local/bin/atriz-robot.sh"
 hacer install -m 755 "$SCRIPTS_DIR/atriz-escaneo.sh" /usr/local/bin/atriz-escaneo

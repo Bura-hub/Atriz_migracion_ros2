@@ -22,7 +22,7 @@
 > Y falta también la corrida completa de la prueba de aceptación tras un reinicio real.
 >
 > 🆕 **Y desde el 2026-08-03 hay una tercera cosa, a medias:** el arranque de la navegación.
-> `atriz-nav.service` está **escrita, instalable y sin habilitar** (tareas 1, 2, 3 y 5 del plan
+> `atriz-nav.service` está **escrita, INSTALADA y sin habilitar** (tareas 1, 2, 3 y 5 del plan
 > `00_auditoria/planes/2026-08-03-arranque-navegacion.md`), pero **nunca se ha arrancado bajo
 > systemd**. La verificación exige **un mapa válido** — y puede ser cualquiera, apuntado con
 > `ATRIZ_MAPA`: comprueba el mecanismo, no el contenido. El `aula.yaml` de verdad sí espera al
@@ -996,10 +996,23 @@ el puerto ya es `/dev/rvr`. Ambos verificados hoy en el SDK.
 `base_link` por otro) y sin un árbol conectado SLAM es imposible por bien que funcione el
 driver.
 
-⚠️ **Y antes de crear la imagen dorada:** quitar `ROS_DOMAIN_ID` de `~/.bashrc`. Está puesto
-ahí a mano porque `atriz-first-boot` no está instalado todavía, pero el `.bashrc` se lee
-**después** de `/etc/profile.d/`, así que clonar tal cual dejaría **los 16 robots en el dominio
-1** sin que nada avise. `verificar_robot.sh` ya comprueba esa colisión.
+✅ **El `~/.bashrc` ya no es un problema (2026-08-03).** Lo era por dos motivos y los dos están
+cerrados:
+
+- `ROS_DOMAIN_ID` salió de ahí el 2026-07-31 y lo pone `/etc/profile.d/atriz-robot.sh`.
+- El **entorno de ROS** (los dos `source`) vivía solo en el `.bashrc` y **ningún script lo
+  escribía**, así que un robot montado desde cero con los repositorios habría tenido shells sin
+  `ros2`. Ahora está en `scripts/sistema/atriz-ros.sh` → `/etc/profile.d/atriz-ros.sh`, **sin
+  identidad dentro**, y lo instala `fase_7_systemd.sh`.
+
+En el `.bashrc` queda **una línea**, que `fase_7` añade de forma idempotente: el puente para los
+shells interactivos que **no** son de login (`tmux`, `su`, un `bash` suelto), que no leen
+`/etc/profile.d`. `verificar_robot.sh` lo comprueba **lanzando un shell limpio con `env -i`**, no
+con un `grep`: la primera versión de esa aserción heredaba el PATH del padre y pasaba con el
+puente y sin él.
+
+Con eso desaparece la trampa del «el `.bashrc` se lee después y gana», que el proyecto
+documentaba en cuatro sitios distintos.
 
 ### Ya hecho, no lo repitas
 

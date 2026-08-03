@@ -1299,6 +1299,26 @@ else
         fi
     done < "$MANIF"
 
+    # ── El puente del ~/.bashrc: categoría B, así que se comprueba el EFECTO ──
+    # No hay copia versionada del .bashrc contra la que hacer `cmp` — pertenece
+    # a la distribución. Lo que importa es si un shell interactivo NO de login
+    # (tmux, su, un bash suelto) encuentra `ros2`, porque esos no leen
+    # /etc/profile.d. Se comprueba lanzando uno de verdad, no leyendo el fichero:
+    # un `grep` diría que la línea está aunque no funcionara.
+    #
+    # 🔴 `env -i`, Y NO ES OPCIONAL. La primera versión hacía `bash -ic …` a
+    #    secas, y el shell hijo HEREDA el PATH del padre — que ya tiene ros2
+    #    porque este verificador se lanza desde un shell con ROS cargado. La
+    #    comprobación pasaba con el puente puesto Y sin él: era una prueba que
+    #    no podía fallar. Se descubrió quitando el puente a propósito, no
+    #    leyendo el código. Es el quinto caso de este tipo en el proyecto.
+    if [[ -n "$(env -i HOME="$HOME" TERM=dumb /bin/bash -ic 'command -v ros2' 2>/dev/null | tail -1)" ]]; then
+        _ok "un shell interactivo no-login encuentra ros2"
+    else
+        _mal "un shell interactivo (tmux, su) NO encuentra ros2" \
+             "falta el puente en ~/.bashrc: sudo bash $REPO/scripts/fase_7_systemd.sh"
+    fi
+
     # Y el repositorio contra sí mismo: un fichero corregido y sin commitear se
     # pierde al reflashear, y uno sin empujar se pierde con la microSD.
     # @{u}..HEAD es LOCAL: no toca la red, compara contra la última referencia

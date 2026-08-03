@@ -1,0 +1,74 @@
+═══════════════════════════════════════════════════════════════════════════════
+63b · El robot contra sus repositorios — ESTADO DESPUÉS DE ALINEAR
+═══════════════════════════════════════════════════════════════════════════════
+Fecha    : 2026-08-03T14:30:29-05:00
+Robot    : rvr-01  ·  RVR ENCENDIDO (el usuario lo conectó para estas pruebas)
+Pareja de: 63_alineacion_ANTES.txt
+
+── 1 · Los pares repositorio ↔ sistema, recorriendo el MANIFIESTO ────────────
+  IGUAL     /usr/local/bin/atriz-robot.sh
+  IGUAL     /usr/local/bin/atriz-escaneo
+  IGUAL     /etc/systemd/system/atriz-robot.service
+  IGUAL     /usr/local/bin/atriz-nav.sh
+  IGUAL     /etc/systemd/system/atriz-nav.service
+  IGUAL     /etc/profile.d/atriz-ros.sh
+  IGUAL     /etc/udev/rules.d/99-rvr.rules
+  IGUAL     /etc/systemd/system/cpu-performance.service
+  AUSENTE   /usr/local/sbin/atriz-first-boot.sh   (opcional: esperado)
+  AUSENTE   /etc/systemd/system/atriz-first-boot.service   (opcional: esperado)
+
+  ANTES: DIVERGE atriz-robot.sh (9 líneas) · DIVERGE atriz-robot.service (21)
+         AUSENTE atriz-nav.sh · AUSENTE atriz-nav.service
+  AHORA: los 8 obligatorios IGUAL. Los 2 'opcional' siguen ausentes a
+         propósito: solo los pone fase_6 al preparar la imagen.
+
+── 2 · Estado de las unidades ────────────────────────────────────────────────
+  atriz-robot          enabled=enabled     active=active
+  atriz-nav            enabled=disabled    active=inactive
+  cpu-performance      enabled=enabled     active=active
+  wifi-no-powersave    enabled=enabled     active=active
+
+  🔴 atriz-nav = 'disabled' ES EL ESTADO CORRECTO, no un fallo. Se instala
+     para que esté disponible; no arranca sola. ARRANQUE_NAVEGACION.md.
+  ✓ systemd-analyze verify /etc/systemd/system/atriz-nav.service: sin quejas
+
+── 3 · ¿Se cayó el driver al reinstalar por encima? ──────────────────────────
+  MainPID antes de instalar : 699
+  MainPID ahora             : 699
+  ActiveEnterTimestamp      : Mon 2026-08-03 12:33:01 -05
+
+  ✅ MISMO PID. 'install' sustituye el inodo del fichero y el proceso vivo
+     conserva el suyo, así que el servicio no se interrumpió al reinstalar.
+  ⚠️ Y por eso mismo SIGUE EJECUTANDO EL CÓDIGO ANTERIOR hasta un
+     'systemctl restart atriz-robot'. El script decía «se reiniciará al
+     aplicar esto» y era FALSO: no tiene un solo restart. Lo detectó el
+     usuario leyendo la salida de --simular. Corregido, y ahora avisa.
+
+── 4 · Los tres tipos de shell tras mover el entorno a /etc/profile.d ────────
+  login     (bash -lc)  ros2=/opt/ros/jazzy/bin/ros2  ROS_DOMAIN_ID=1
+  interact. (bash -ic)  ros2=/opt/ros/jazzy/bin/ros2  ROS_DOMAIN_ID=1
+  📝 El ssh real a localhost NO se pudo probar: pide autenticación por clave
+     y no hay uno para el propio robot. 'bash -lc' recorre la misma ruta
+     (/etc/profile -> /etc/profile.d) que usa ssh, pero no es lo mismo.
+     NO VERIFICADO: un ssh desde otra máquina.
+
+── 5 · El verificador completo ───────────────────────────────────────────────
+  ANTES : 108 correctas · 6 avisos · 7 FALLOS   (salida 1)
+  AHORA : 120 correctas · 5 avisos · 0 fallos   (salida 2 = solo avisos)
+
+  Los 4 fallos de alineación desaparecieron. Los otros 3 (odom, encoders,
+  ambient_light) eran el RVR dormido, y con el robot encendido ya no salen.
+  El aviso de apt desapareció al mover los .bak.
+
+  Los 5 avisos que quedan, y de quién son:
+    · mDNS en wlan0            pendiente conocido (manual 19.5)
+    · regdom CO pedido, US real  ← ASERCIÓN NUEVA: funciona y dice la verdad
+    · red.txt en 755           👤 pendiente del usuario: fmask en /etc/fstab
+    · 60-atriz.yaml no legible  necesita root; el verificador no lo pide
+    · commits sin empujar      se resuelve en el push de cierre
+
+── 6 · Los .bak de /etc ──────────────────────────────────────────────────────
+  quedan en /etc: 0   (movidos a /root/respaldos-atriz, NO borrados)
+  intactos (correcto): 18 .dtb.bak de flash-kernel + el .resolv.conf de Ubuntu
+
+═══════════════════════════════════════════════════════════════════════════════
