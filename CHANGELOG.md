@@ -4,6 +4,76 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-03 (parte 5) — Los repositorios web, leídos de primera mano
+
+Primera sesión **desde el PC de desarrollo**, no desde el robot. Se pusieron al día los dos clones
+(`atriz_migracion` iba 9 commits por detrás; `Atriz_rvr` ya estaba en el head de `ros2`) y apareció
+un **tercer repositorio** que el plan de la Fase 5 no conocía: `Bura-hub/atriz-lab`.
+
+Al arrancar la Fase 5, lo primero era releer lo que el plan dice del repositorio de la web. El plan
+declara en su propia sección 1 que se inspeccionó **«por la API de GitHub, sin clonarlo»**. Se
+leyeron los ficheros.
+
+### 🔴 Lo que se encontró leyendo (evidencia 66)
+
+**Cuatro afirmaciones de la sección 1 del plan son falsas**, y una es la que más pesaba:
+
+- **No hay Monaco.** `PythonCode.vue` son 2895 bytes y es un `<textarea>` con Prism.js. La única
+  aparición de «Monaco» en el fichero es `font-family: "Fira Code", "Consolas", "Monaco"…` — **la
+  tipografía de macOS**. `monaco-editor` está en `package.json` y no se importa nunca. Era **el
+  único activo técnico que el plan daba por rescatable**: la Fase C sí parte de cero.
+- **`POST /api/robots/execute/` no existe.** `robots.py` tiene dos rutas y ninguna es esa. El
+  agujero real es `POST /scripts/upload/`, sin autenticación, y con tres defectos que el plan no
+  vio: **inyección de argumentos** por `robot_ip` (un valor que empiece por `-o` lo interpretan
+  scp/ssh como opción → código **en el servidor**), ruta fija `/tmp/user_script.py` en las **dos**
+  máquinas, y `rosrun`, que es ROS 1.
+- **`raspberry_config.py` da HTTP 404**, no el 200 que el plan afirma. No ha existido nunca.
+- **Una cita entrecomillada «del código» no está en ningún fichero**: `simulad|desarrollo.tex` → 0
+  coincidencias. La conclusión que sostenía —que el flujo de subida es teatro— **es cierta por otra
+  evidencia**: `uploadScript()` no hace ni una llamada HTTP.
+
+**🔐 Y dos credenciales NUEVAS en ese repositorio, que sigue público** (`private=False`,
+`forks=0`): la de PostgreSQL en un **`.env` commiteado** y duplicada en `core/config.py`, y la
+**`SECRET_KEY` de firma de los JWT** en `core/security.py`. La primera apunta a `localhost` y es de
+desarrollo (limpieza); **la segunda importa: con ella cualquiera forja un token válido.** No estaban
+en la lista de rotación, que solo vigilaba la PSK del WiFi y la contraseña de `sphero`.
+
+### El hecho que unifica a los tres repositorios
+
+**Ninguno ha hablado jamás con rosbridge.** Ni una línea de cliente: `atriz-lab` tiene **cero**
+llamadas de red en todo `frontend/src`, y el viejo tiene **una**, el login. El único camino
+web↔robot verificado del proyecto sigue siendo `03_operacion/probar_conexion_web.html`, escrito a
+mano. → **La elección de repositorio pesa menos de lo que parecía**, porque el trabajo central no
+está hecho en ninguno de los tres.
+
+### Qué se hizo
+
+- **Evidencia 66**, con el método (lecturas anónimas por `raw.githubusercontent.com`: la respuesta
+  es a la vez el dato y la prueba de que el repositorio es público) y sin transcribir ningún valor
+  de credencial, por la regla 5.
+- **Sección 1 del plan corregida**, con el texto original conservado y marcado, para que no vuelva
+  por la puerta de atrás.
+- **`ESTADO_ACTUAL.md`**: fila nueva en los bloqueos y el aviso de la deriva.
+
+### 📝 La lección, que ya estaba escrita en `CLAUDE.md` y volvió a morder
+
+Un `grep` de una cadena suelta encuentra el ajuste **y lo que solo habla del ajuste**. Aquí cruzó
+una dependencia declarada-y-nunca-importada con una `font-family` de CSS, y de ahí salió un activo
+técnico inexistente. Es la tercera vez en el proyecto. **Y el correctivo es concreto: auditar un
+repositorio por la API sin abrir los ficheros produce un inventario, no una medida.**
+
+### Pendiente
+
+- 👤 **Rotar** la credencial de PostgreSQL y sustituir la `SECRET_KEY`; borrar `.env` del
+  repositorio. Con `forks=0`, purgar el historial aquí sí sería efectivo — **después** de rotar.
+- 📝 **NO VERIFICADO dónde está la credencial de `sphero`** que `CLAUDE.md` da por expuesta en
+  `Atriz_web_server`: no está en el código fuente propio (~33 KB), pero quedan 111 MB de
+  `swarm_lab_env/` sin revisar. **No desmiente la exposición**: dice que no está donde se buscaría.
+- El análisis de arquitectura de la Fase 5 (cuatro lentes independientes y sus escépticos) quedó
+  **en marcha**, no cerrado.
+
+---
+
 ## 2026-08-03 (parte 4) — Alinear el robot con el repositorio (bloque A)
 
 Antes de replicar rvr-01 a los otros 15 hay que garantizar que **otro robot se pueda montar desde

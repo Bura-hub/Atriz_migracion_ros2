@@ -39,6 +39,21 @@ cierre el pendiente de seguridad que hoy bloquea la Fase 5.
 
 No estaba clonado; se inspeccionó por la API de GitHub sin descargar los 63,7 MB.
 
+> 🔴 **CORREGIDO EL 2026-08-03 POR LA TARDE, LEYENDO LOS FICHEROS.** Esta sección se escribió
+> mirando la API de GitHub **sin abrir el código**, y **cuatro de sus afirmaciones son falsas** —
+> incluida la única que declaraba un activo técnico rescatable. **El veredicto («se rehace») se
+> sostiene, y con razones más fuertes; lo que cambia es el inventario y la estimación.** Cada
+> punto va marcado abajo. Evidencia 66.
+>
+> Y aparecieron **dos credenciales nuevas** en ese repositorio, que sigue **público**
+> (`private=False`, `forks=0`): la de PostgreSQL en un `.env` **commiteado** y duplicada en
+> `core/config.py`, y la `SECRET_KEY` de firma de los JWT, un literal de plantilla en
+> `core/security.py`. 👤 **Rotar antes de tocar el repositorio.**
+>
+> 📝 **La causa es una trampa que este proyecto ya tiene documentada dos veces:** un `grep` de una
+> cadena suelta encuentra el ajuste **y lo que solo habla del ajuste**. Aquí cruzó una dependencia
+> declarada-y-nunca-importada con una `font-family` de CSS.
+
 ### 🔴 La autenticación está escrita y no se conectó a nada
 
 `app/dependencies.py` tiene un `get_current_user` correcto: `OAuth2PasswordBearer`, `jwt.decode` con
@@ -51,11 +66,33 @@ robots.py  0      files.py        0
 scripts.py 0      experiments.py  0
 ```
 
-En `main.py` los seis `include_router(...)` van **sin `dependencies=`**. Hay una `LoginPage.vue` de
-7,8 KB, se emite un JWT, existe la función que lo valida, **y nadie la llama**.
+En `main.py` los ~~seis~~ **cinco** `include_router(...)` van **sin `dependencies=`**. Hay una
+`LoginPage.vue`, se emite un JWT, existe la función que lo valida, **y nadie la llama**.
+✅ **Verificado leyendo `main.py` y `dependencies.py` enteros: esto es cierto.**
 
-→ **`POST /api/robots/execute/`** acepta un `command` arbitrario y lo ejecuta por SSH en el robot
-indicado, **sin autenticación efectiva**. Igual `POST /api/scripts/upload/` y todo el CRUD.
+🔴 **RETRACTADO: `POST /api/robots/execute/` NO EXISTE, ni existió nunca.** `robots.py` tiene
+exactamente dos rutas, `GET /robots/{id}` y `POST /robots/`. **El agujero es real, pero está en
+otro sitio y es peor:**
+
+```python
+@router.post("/scripts/upload/")                          # app/api/scripts.py
+async def upload_new_script(file: UploadFile = File(...),  robot_ip: str = Form(...)):
+```
+
+Sin autenticación, recibe **un programa Python entero** y lo ejecuta en el robot. Y `ros_bridge.py`
+añade **tres defectos que este plan no vio**:
+
+| | |
+|---|---|
+| **Inyección de argumentos** | `robot_ip` llega del formulario sin validar y va a `["scp", …, f"{robot_ip}:/tmp/…"]` y `["ssh", robot_ip, …]`. No es inyección de shell (usa listas), es peor de lo que parece igual: un valor que empiece por `-o` lo interpretan scp/ssh como **opción**, y `-oProxyCommand=…` ejecuta código **en el servidor** |
+| **Ruta fija `/tmp/user_script.py`** | en las **dos** máquinas: dos alumnos a la vez se pisan el fichero. Y es la trampa `fs.protected_regular=2` que ya costó un netplan borrado |
+| **`rosrun`** | ROS 1. No existe en este sistema |
+
+📝 Y el detalle que lo resume: el comentario que encabeza los cinco routers en `main.py` dice
+literalmente **«# Rutas que pueden ser públicas»**, y `scripts.router` está debajo.
+
+**Texto original, conservado:** → **`POST /api/robots/execute/`** acepta un `command` arbitrario y
+lo ejecuta por SSH en el robot indicado, **sin autenticación efectiva**.
 
 📝 Corrige el plan que se traía: «portar el login JWT» daba por hecho un sistema funcionando. Lo que
 hay son **piezas sueltas sin conectar**, que es un estado más engañoso: parece completo y no protege.
@@ -65,31 +102,69 @@ hay son **piezas sueltas sin conectar**, que es un estado más engañoso: parece
 
 ### La Fase C no parte de cero, y el intento previo era la postura C
 
-Ya existe `PythonCode.vue` (11 KB) con **Monaco de verdad** (`monaco-editor ^0.51.0`), y `scripts.py`
-con `/scripts/upload/`, `/execute-script` y `/list-scripts` sobre `ssh_utils` y `subprocess`.
+🔴🔴 **RETRACTADO ENTERO. NO HAY MONACO, Y ERA EL ÚNICO ACTIVO TÉCNICO QUE ESTE PLAN DABA POR
+RESCATABLE.** `PythonCode.vue` son **2895 bytes** (no 11 KB) y es un **`<textarea>` con Prism.js**.
+La **única** aparición de «Monaco» en el fichero entero es una línea de CSS:
 
-🔴 **Pero el flujo es teatro.** `PythonCode.vue` lo dice en su propio código: *«Pasos **simulados**
-según desarrollo.tex: recepción → almacenamiento → SCP → SSH»*.
+```css
+font-family: "Fira Code", "Consolas", "Monaco", "Ubuntu Mono", monospace !important;
+```
 
-📝 Los nombres que el `CHANGELOG` citaba sin detalle **eran reales**: `ExecuteCommand.vue`,
-`BatterySensorData.vue`, `RobotDashboard.vue` (39,6 KB), `VideoStream.vue`. Detalle recuperado.
+Es **la tipografía de macOS**. `monaco-editor ^0.51.0` está en `package.json` y **no se importa en
+ningún fichero**. → **El editor hay que integrarlo desde cero**, y la Fase C **sí parte de cero**.
+
+🔴 **Y la cita entre comillas de abajo NO EXISTE.** `simulad|simulat|desarrollo.tex` dan **0
+coincidencias** en el fichero entero. Este plan citó como prueba una frase inventada. La conclusión
+—que el flujo es teatro— **es cierta, por otra evidencia**: `uploadScript()` abre un selector de
+ficheros, lee el `.py` con `FileReader` y lo vuelca en el textarea. **No hay ni una llamada HTTP**;
+el frontend nunca llegó a llamar a `/scripts/upload/`.
+
+🔴 **`ExecuteCommand.vue` no existe** (HTTP 404, y 0 apariciones en los 8 commits). Y los tamaños
+están inflados entre **4× y 32×**: `RobotDashboard.vue` son **1220 bytes**, no 39,6 KB. No hay 39 KB
+de panel que portar: hay 1,2 KB de maqueta con tres robots fijos.
+
+**Texto original, conservado:** *«Ya existe `PythonCode.vue` (11 KB) con Monaco de verdad
+(`monaco-editor ^0.51.0`) […] `PythonCode.vue` lo dice en su propio código: "Pasos simulados según
+desarrollo.tex: recepción → almacenamiento → SCP → SSH" […] los nombres que el CHANGELOG citaba eran
+reales: `ExecuteCommand.vue`, `BatterySensorData.vue`, `RobotDashboard.vue` (39,6 KB),
+`VideoStream.vue`.»*
 
 ### ¿Hay algo rescatable?
 
-**Sirve:** Monaco (integrado de verdad), la pila (Vue 3.2.13 + Router 4 + Tailwind 3), el diseño
-visual como referencia.
+**Sirve:** ~~Monaco (integrado de verdad)~~ **← falso, ver arriba**. Queda: `app/dependencies.py`
+entero (el `get_current_user` está bien escrito y solo hay que cablearlo), `core/security.py` salvo
+su clave, el interceptor de axios que inyecta el `Bearer`, y el diseño visual como referencia.
+
+🆕 **Y hay un TERCER repositorio que este plan no conocía: `Bura-hub/atriz-lab`** (Next.js 15 +
+React 19 + TypeScript + Tailwind 3.4, FastAPI + Celery, 5 commits del 2025-10-17). No tiene
+autenticación (`jwt`/`oauth` → 0 ficheros), su telemetría son constantes literales y **su frontend
+no hace ni una llamada de red**. Lo que sí aporta y no está en el viejo: **`globals.css`, 582 líneas
+de tokens claro/oscuro mapeados en `tailwind.config.ts`** con `rgb(var(--x) / <alpha-value>)`.
+
+🔴 **El hecho que unifica a los tres: NINGUNO ha hablado jamás con rosbridge.** Ni una línea de
+cliente. El único camino web↔robot verificado del proyecto es `03_operacion/probar_conexion_web.html`,
+escrito a mano. → **La elección de repositorio pesa menos de lo que parecía**, porque el trabajo
+central no está hecho en ninguno.
 
 **Muere:** el transporte (SSH bloqueante, hasta 64 s con 16 robots), la autenticación (escrita y sin
 conectar), la telemetría (**`Math.random()`** con retardos para parecer real), el flujo de subida
-(**simulado**), `ExecuteCommand.vue` + `/robots/execute/` (shell sin autenticar), `VideoStream.vue`
-(no hay cámaras), y 63,7 MB commiteados: `swarm_lab_env/` (5418 ficheros), `node_modules/`, `build/`,
-`devel/`, `swarm_lab.db`.
+(**simulado**), ~~`ExecuteCommand.vue` + `/robots/execute/`~~ **← ninguno de los dos existe**; el
+camino que sí hay que tirar es `scripts.py` + `ros_bridge.py`, `VideoStream.vue` (no hay cámaras), y
+los artefactos commiteados. **Medido en el árbol de `master`: 6977 entradas, de las que
+`swarm_lab_env/` son 5578, `build/` 1175 y `devel/` 93 — el 98,1 %.** ~~`node_modules/`~~ **no está
+commiteado: 0 entradas.** Los «63,7 MB» son el `size` de la API de GitHub, o sea el repositorio
+**comprimido**; descomprimido son ~138 MB. Las dos cifras son correctas midiendo cosas distintas.
 
 🔴 **Las tres piezas centrales —transporte, autenticación y telemetría— están las tres ausentes o
 fingidas.** Lo que queda es «usar Vue 3 + Tailwind + Monaco», que es una decisión, no código.
 **Se rehace**, y ahora apoyado en medidas.
 
-🔐 `app/core/raspberry_config.py` **sigue público ahora mismo** (HTTP 200).
+🔴 **RETRACTADO: `app/core/raspberry_config.py` da HTTP 404 — no ha existido nunca.** Lo que **sí**
+está público ahora mismo, y es peor porque son credenciales de verdad: **`.env` commiteado en la
+raíz** (HTTP 200, cadena de PostgreSQL con usuario y contraseña en claro), la **misma credencial
+duplicada** en `core/config.py`, y la **`SECRET_KEY` de firma de los JWT** en `core/security.py`.
+👤 **Rotar y borrar `.env` antes de abrir la rama nueva.** Evidencia 66.
+**Texto original, conservado:** *«`app/core/raspberry_config.py` sigue público ahora mismo (HTTP 200).»*
 📝 Dato para tu decisión sobre el historial, sin cambiarla: el repositorio tiene **0 forks**, así que
 purgar sería más efectivo de lo que el proyecto asumía.
 

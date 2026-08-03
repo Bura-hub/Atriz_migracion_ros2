@@ -1,0 +1,159 @@
+═══════════════════════════════════════════════════════════════════════════════
+66 · Los dos repositorios web, leídos de primera mano
+═══════════════════════════════════════════════════════════════════════════════
+Fecha: 2026-08-03T17:50-05:00   ·   Máquina: PC de desarrollo (no el robot)
+
+PREGUNTA: el plan de la Fase 5 (`00_auditoria/planes/2026-08-03-plataforma-web.md`)
+describe el repositorio de la web en su sección 1 y declara ahí mismo que se
+inspeccionó «por la API de GitHub el 2026-08-03, SIN CLONARLO». Al reanudar la
+Fase 5 desde el PC apareció además un TERCER repositorio que el plan no conocía,
+`Bura-hub/atriz-lab`. ¿Qué hay realmente en los dos?
+
+── 1 · Método ────────────────────────────────────────────────────────────────
+  Se leyó el contenido de los ficheros por raw.githubusercontent.com, ANÓNIMO
+  y sin token. Que responda HTTP 200 es a la vez la lectura y la prueba de que
+  el repositorio es público:
+
+    GET api.github.com/repos/Bura-hub/Atriz_web_server
+      -> private=False  visibility=public  forks=0  default_branch=master
+
+  `atriz-lab` se clonó entero (5 commits, 51 ficheros, todos del 2025-10-17).
+
+── 2 · 🔴 DOS CREDENCIALES NUEVAS EN UN REPOSITORIO PÚBLICO ──────────────────
+  No estaban en la lista de rotación del proyecto, que solo vigilaba la PSK del
+  WiFi y la contraseña de `sphero`. Los valores NO se transcriben aquí (regla 5:
+  sin secretos en el repositorio); se dan las rutas.
+
+    Atriz_web_server/.env                        HTTP 200 · 68 bytes
+      -> cadena de conexión de PostgreSQL con usuario y contraseña en claro.
+         COMMITEADA en la raíz, pese a que el README dice «no versionar».
+    Atriz_web_server/swarm_lab_api/app/core/config.py
+      -> la MISMA credencial, duplicada como valor por defecto.
+    Atriz_web_server/swarm_lab_api/app/core/security.py
+      -> SECRET_KEY de firma de los JWT: un literal de plantilla.
+
+  SEVERIDAD, sin inflarla:
+    · La de PostgreSQL apunta a `localhost` y es de desarrollo. Probablemente
+      nunca se desplegó: es material a limpiar, no una puerta abierta hoy.
+    · La SECRET_KEY sí importa. Mientras siga ahí, cualquiera puede FORJAR un
+      token válido para ese backend. Si ese código se revive sin cambiarla, la
+      autenticación no vale nada desde el primer minuto.
+    · forks=0 → purgar el historial aquí SÍ sería efectivo. Pero rotar va antes:
+      purgar sin rotar no cierra nada.
+
+── 3 · El agujero real: NO es el que dice el plan ────────────────────────────
+  El plan señala `POST /api/robots/execute/`. Ese endpoint NO EXISTE: `robots.py`
+  tiene exactamente dos rutas (`GET /robots/{id}` y `POST /robots/`), leídas
+  enteras.
+
+  El agujero está en `app/api/scripts.py`:
+
+    @router.post("/scripts/upload/")
+    async def upload_new_script(file: UploadFile = File(...),
+                                robot_ip: str = Form(...)):
+
+  Sin autenticación, recibe un PROGRAMA PYTHON ENTERO y lo ejecuta en el robot.
+  Y `app/ros_bridge.py` añade tres defectos más, ninguno de ellos en el plan:
+
+    a) INYECCIÓN DE ARGUMENTOS. `robot_ip` llega del formulario sin validar y
+       se coloca en posición de host:
+         ["scp", local, f"{robot_ip}:/tmp/user_script.py"]
+         ["ssh", robot_ip, "rosrun sphero_rvr_pkg script_executor.py ..."]
+       No es inyección de shell (usa listas, sin shell=True). Es peor de lo que
+       parece igualmente: un valor que empiece por `-o` lo interpretan scp/ssh
+       como OPCIÓN, y `-oProxyCommand=...` es ejecución de código EN EL SERVIDOR,
+       no en el robot.
+       → Regla: un identificador de robot que venga del cliente se resuelve
+         contra una lista fija en el servidor. Nunca se pasa a un proceso.
+    b) RUTA FIJA `/tmp/user_script.py`, en las DOS máquinas. Dos alumnos a la vez
+       se pisan el fichero. Es además la trampa `fs.protected_regular=2` que este
+       proyecto ya pagó una vez con un netplan borrado.
+    c) `rosrun` — ROS 1. No existe en este sistema desde la migración.
+
+  📝 Y el detalle que lo resume: en `main.py`, el comentario que encabeza los
+     cinco `include_router(...)` dice literalmente «# Rutas que pueden ser
+     públicas», y `scripts.router` está debajo de ese comentario.
+
+── 4 · Cuatro afirmaciones de la sección 1 del plan que son FALSAS ────────────
+  Comprobadas leyendo los ficheros, no la API.
+
+  ┌ El plan dice ─────────────────┬ Lo verificado ──────────────────────────────┐
+  │ «PythonCode.vue (11 KB) con   │ Es un <textarea> con Prism.js, 95 líneas.   │
+  │  Monaco de verdad»            │ La ÚNICA aparición de «Monaco» en el fichero│
+  │                               │ es la línea CSS                             │
+  │                               │   font-family: "Fira Code","Consolas",      │
+  │                               │                "Monaco","Ubuntu Mono"       │
+  │                               │ — la TIPOGRAFÍA de macOS. `monaco-editor`   │
+  │                               │ está en package.json y no se importa nunca. │
+  ├───────────────────────────────┼─────────────────────────────────────────────┤
+  │ «POST /api/robots/execute/    │ No existe. robots.py tiene 2 rutas y        │
+  │  acepta un command arbitrario»│ ninguna es esa. (Ver punto 3.)              │
+  ├───────────────────────────────┼─────────────────────────────────────────────┤
+  │ «app/core/raspberry_config.py │ HTTP 404. No ha existido nunca.             │
+  │  sigue público (HTTP 200)»    │                                             │
+  ├───────────────────────────────┼─────────────────────────────────────────────┤
+  │ «send_code_to_ros(script_path,│ La firma real tiene DOS argumentos:         │
+  │  robot_ip, user)»             │ send_code_to_ros(code, robot_ip). Recibe el │
+  │                               │ CÓDIGO, no una ruta, y no hay `user`.       │
+  └───────────────────────────────┴─────────────────────────────────────────────┘
+
+  Menor: el plan dice «los seis include_router». Son CINCO.
+
+  🔴 CAUSA, y es una que este proyecto ya tiene documentada dos veces: un `grep`
+     de una cadena suelta encuentra el ajuste Y lo que solo HABLA del ajuste.
+     Aquí cruzó una dependencia declarada-y-nunca-importada con una `font-family`
+     de CSS, y de ahí salió el único activo técnico que el plan daba por
+     rescatable.
+
+── 5 · Lo que el plan ACIERTA, y sale reforzado ──────────────────────────────
+  · `get_current_user` (`app/dependencies.py`) está BIEN escrito —
+    OAuth2PasswordBearer, jwt.decode, credentials_exception con WWW-Authenticate —
+    y NO lo usa ningún endpoint. En `main.py` se importa y no se llama; los cinco
+    include_router van sin `dependencies=`. Leído entero: confirmado.
+  · Hay ejecución remota de código sin autenticación efectiva. Confirmado, por
+    otra vía y con tres defectos más.
+  · El veredicto «SE REHACE» se sostiene, y por razones MÁS fuertes que las del
+    plan. Lo que cambia es la ESTIMACIÓN: no hay editor que portar.
+
+── 6 · atriz-lab, el tercer repositorio ──────────────────────────────────────
+  Next.js 15.5.6 + React 19 + TypeScript + Tailwind 3.4 · FastAPI + PostgreSQL +
+  Redis + Celery + asyncssh. Cinco commits, todos del 2025-10-17.
+
+  · Autenticación: NINGUNA. `jwt` y `oauth` dan 0 ficheros; python-jose y passlib
+    están COMENTADAS en requirements.txt.
+  · Telemetría: constantes literales en cada componente (mockRobots,
+    mockExperiments, mockMetrics). La latencia del vídeo se genera con
+    Math.random() cada 2 s.
+  · Red: CERO llamadas — `fetch|axios|WebSocket|roslib|NEXT_PUBLIC` no aparecen
+    en todo `frontend/src`. `axios` está declarado y no se importa.
+  · Asume ROS Noetic / Ubuntu 20.04 y cámaras cenitales: las dos, falsas hoy.
+  · El botón STOP ALL no tiene manejador. Es un `<button>` sin `onClick`.
+
+  🔴 EL HECHO QUE UNIFICA A LOS TRES REPOSITORIOS: NINGUNO ha hablado jamás con
+     rosbridge. Ni una línea de cliente. El único camino web→robot verificado de
+     este proyecto es `03_operacion/probar_conexion_web.html`, escrito a mano.
+     → Consecuencia para la Fase 5: la elección de repositorio pesa MENOS de lo
+       que parecía, porque el trabajo central no está hecho en ninguno.
+
+  Lo aprovechable, y es desigual:
+    de atriz-lab  → la capa visual: `globals.css` (582 líneas de tokens claro/
+                    oscuro) y `tailwind.config.ts`, que los mapea con
+                    rgb(var(--x) / <alpha-value>). Es tematizado bien hecho.
+    del viejo     → `dependencies.py` entero y `security.py` salvo su clave.
+
+── 7 · Lo que queda NO VERIFICADO ────────────────────────────────────────────
+  · DÓNDE está la credencial de `sphero` que CLAUDE.md da por expuesta en
+    Atriz_web_server. NO aparece en el código fuente propio (~33 KB). Puede estar
+    en `swarm_lab_env/` (111 MB) o `build/`, que no se revisaron fichero a
+    fichero. Esto NO desmiente la exposición: dice que no está donde se buscaría.
+  · El inventario completo de `atriz-lab` viene de un agente auditor; se
+    verificaron a mano la ausencia de autenticación, de llamadas de red y la
+    pila. El resto de sus cifras no se recontó.
+
+── 8 · Acciones ──────────────────────────────────────────────────────────────
+  👤 ROTAR la credencial de PostgreSQL y sustituir la SECRET_KEY. Y borrar `.env`
+     del repositorio, que es lo que hay que hacer de todas formas antes de abrir
+     una rama nueva ahí.
+  📝 CORREGIR la sección 1 del plan: cuatro afirmaciones y una cifra. El veredicto
+     no cambia; el inventario y la estimación, sí.
+═══════════════════════════════════════════════════════════════════════════════

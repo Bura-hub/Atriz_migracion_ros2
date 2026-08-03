@@ -25,6 +25,18 @@ conservar: **no existe ningún mecanismo para que dos instancias de Claude Code 
 intento futuro por ese camino parte de una premisa falsa. Lo que sí funciona entre las dos máquinas
 es **el repositorio**: 249 commits en 7 días, mediana de 8 minutos.
 
+🔴 **Y el mismo día, ya desde el PC: la sección 1 de ese plan tiene CUATRO afirmaciones falsas.** Se
+escribió mirando la API de GitHub **sin abrir el código**. No hay Monaco integrado —es un `<textarea>`
+con Prism, y «Monaco» era la **tipografía** en una línea de CSS—, `POST /api/robots/execute/` y
+`ExecuteCommand.vue` no existen, `raspberry_config.py` da 404, y una cita entrecomillada «del código»
+no está en ningún fichero. **El veredicto («se rehace») aguanta y sale reforzado; el inventario y la
+estimación, no.** Evidencia 66.
+
+📌 **Tercer repositorio en juego: `Bura-hub/atriz-lab`**, clonado en el PC el 2026-08-03. Next.js 15 +
+React 19 + Tailwind y un backend FastAPI + Celery, de 2025-10-17. Sin autenticación, telemetría de
+mentira y **cero llamadas de red en el frontend**. Aporta una cosa que el viejo no tiene: `globals.css`
+con 582 líneas de tokens claro/oscuro. → **Ninguno de los tres ha hablado nunca con rosbridge.**
+
 ## Lo siguiente
 
 **La Fase 5 está planificada y el plan está en el repositorio:**
@@ -49,6 +61,7 @@ Después: **la imagen dorada y el robot 2** (Fase 6), donde se comprueban por pr
 | | |
 |---|---|
 | 🔐 **Rotar la PSK del WiFi y la contraseña de `sphero`** | 👤 tuyo. La credencial está en el historial de un repositorio público |
+| 🔐 **DOS credenciales NUEVAS, encontradas el 2026-08-03 por la tarde** | 👤 tuyo. En `Atriz_web_server`, que sigue **público**: la de PostgreSQL en un **`.env` commiteado** y duplicada en `core/config.py`, y la **`SECRET_KEY` de los JWT** en `core/security.py`. La de PostgreSQL es de desarrollo y apunta a `localhost` (limpieza); la `SECRET_KEY` sí importa: con ella cualquiera **forja un token válido**. `forks=0`, así que purgar el historial aquí sí serviría — después de rotar. Evidencia 66 |
 | **`red.txt` en 755** | 👤 tuyo. La PSK es legible por cualquier usuario; `chmod` no sirve, va `fmask=0177` en `/etc/fstab` |
 | **El mapa del aula** | 👤 tuyo, en el laboratorio. Bloquea la tarea 4 del plan de navegación |
 | **`~/.ssh/authorized_keys` vacío** | 👤 tuyo, desde el PC |
