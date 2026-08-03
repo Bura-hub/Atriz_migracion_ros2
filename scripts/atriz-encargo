@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════════════════════
+# atriz-encargo — recibe un encargo del PC y devuelve un parte con pruebas
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+#   Desde el PC (PowerShell, cmd, bash — da igual):
+#
+#       "Dime a qué Hz publica /odom" | ssh rvr-01 atriz-encargo
+#
+#   El encargo entra por STDIN. Eso NO es un capricho: el 2026-08-03 se intentó
+#   pasarlo como argumento y PowerShell expandió el `$(cat …)` en el Windows del
+#   usuario y se comió el paréntesis de `Bash(ros2 …)`. El entrecomillado anidado
+#   PowerShell → ssh → bash → claude es infumable, y falla de formas distintas en
+#   cada shell. Por stdin no hay nada que entrecomillar.
+#
+# POR QUÉ ESTE SCRIPT EXISTE, SI EL PLAN DECÍA «CERO CÓDIGO EN EL ROBOT»
+#
+#   Porque la alternativa —el comando desnudo desde el PC— se midió y no es
+#   usable. Esto no es el envoltorio de confinamiento que el plan descartó (ese
+#   llevaba `command=` en authorized_keys y tres anillos para mover el robot):
+#   es una línea de comandos larga metida en un fichero. No abre nada, no
+#   instala nada y **se va con Claude Code** cuando fase_6 lo desinstale.
+#
+# 🔴 NO MUEVE EL ROBOT. Lee, mide, diagnostica e informa. El movimiento va por
+#    una sesión con un humano delante (`claude --remote-control`).
+#    Ver 03_operacion/PC_Y_ROBOT.md.
+# ═══════════════════════════════════════════════════════════════════════════════
+set -uo pipefail
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CLAUDE="$HOME/.local/bin/claude"
+HILO_FILE="$HOME/.atriz-encargo-hilo"
+
+morir() { printf '{"hecho":false,"resumen":%s,"evidencia":[],"comandos_ejecutados":[],"no_verificado":["el encargo no llegó a ejecutarse"],"requiere_usuario":[],"machine_id":null,"uptime_s":null,"git_head":null,"git_sucio":null,"ros_domain_id":null}\n' \
+          "$(printf '%s' "$1" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))')"; exit 1; }
+
+# ── El entorno de ROS ────────────────────────────────────────────────────────
+# 🔴 ESTE BLOQUE SUSTITUYE AL `bash -lc`, y por eso el script se invoca a pelo.
+#    Un `ssh host comando` NO lee /etc/profile.d: sin esto, ROS_DOMAIN_ID sale
+#    vacío, el delegado mira el dominio DDS 0, no ve NINGÚN topic y concluye que
+#    el robot está muerto — sin un solo error. Medido el 2026-08-03 desde el PC:
+#      ssh rvr-01 "echo $ROS_DOMAIN_ID; command -v ros2"  ->  vacío · SIN-ros2
+#    Y el `bash -lc` como argumento de ssh tiene su propia trampa (ssh une los
+#    argumentos con espacios y `bash -c` solo coge la palabra siguiente), así
+#    que se evita el problema entero cargando el entorno aquí dentro.
+set +u
+[[ -f /etc/profile.d/atriz-robot.sh ]] && . /etc/profile.d/atriz-robot.sh
+[[ -f /etc/profile.d/atriz-ros.sh   ]] && . /etc/profile.d/atriz-ros.sh
+set -u
+
+# Se comprueba el EFECTO de haber cargado el entorno, no que los ficheros
+# existan: si el dominio no es el del robot, cualquier conclusión sobre topics
+# sería inválida, y es mejor no empezar que devolver un parte que miente.
+[[ -n "${ROS_DOMAIN_ID:-}" ]] || morir "ROS_DOMAIN_ID vacío tras cargar /etc/profile.d: el delegado miraría el dominio DDS 0 y no vería ningún topic. Ejecuta: sudo bash $REPO/scripts/fase_7_systemd.sh"
+command -v ros2 >/dev/null || morir "ros2 no está en el PATH tras cargar /etc/profile.d/atriz-ros.sh"
+[[ -x "$CLAUDE" ]] || morir "no está $CLAUDE (¿se desinstaló Claude Code? este canal es de desarrollo)"
+
+# ── El encargo ───────────────────────────────────────────────────────────────
+if [[ $# -gt 0 ]]; then
+    ENCARGO="$*"
+else
+    ENCARGO="$(cat)"
+fi
+[[ -n "${ENCARGO// /}" ]] || morir "encargo vacío. Uso:  echo 'mide los Hz de /odom' | ssh rvr-01 atriz-encargo"
+
+# ── El hilo, que da memoria entre encargos ───────────────────────────────────
+# --resume no cruza máquinas, pero no necesita cruzarla: la sesión vive aquí y
+# se direcciona por UUID. Verificado con control el 2026-08-03 (evidencia 66).
+# 📝 Es EFÍMERO: se pierde al desinstalar Claude Code. Lo que valga, se commitea.
+if [[ -s "$HILO_FILE" ]]; then
+    HILO="$(cat "$HILO_FILE")"; MODO_HILO=(--resume "$HILO")
+else
+    HILO="$(python3 -c 'import uuid;print(uuid.uuid4())')"
+    printf '%s' "$HILO" > "$HILO_FILE"; MODO_HILO=(--session-id "$HILO")
+fi
+
+# ── Lista BLANCA de herramientas ─────────────────────────────────────────────
+# 🔴 Blanca y no negra. Con --disallowedTools el delegado no pudo ejecutar NADA
+#    (en modo -p se deniega todo lo que pide aprobación): 20 comandos, 20
+#    denegados. Es el mismo patrón que la lista blanca de rosbridge — enumerar
+#    lo permitido, no adivinar lo prohibido.
+# ⚠️ Aquí NO entra nada que mueva el robot, ni sudo, ni escritura fuera del repo.
+PERMITIDO=(
+    Read Grep Glob
+    "Bash(ros2 topic hz:*)" "Bash(ros2 topic list:*)" "Bash(ros2 topic info:*)"
+    "Bash(ros2 topic echo:*)" "Bash(ros2 node list:*)" "Bash(ros2 service list:*)"
+    "Bash(timeout:*)" "Bash(stdbuf:*)" "Bash(printenv:*)"
+    "Bash(cat /etc/machine-id)" "Bash(cat /proc/uptime)"
+    "Bash(git -C $REPO status:*)" "Bash(git -C $REPO rev-parse:*)" "Bash(git -C $REPO log:*)"
+    "Bash(systemctl is-active:*)" "Bash(systemctl is-enabled:*)" "Bash(systemctl status:*)"
+    "Bash(journalctl --user:*)" "Bash(ps:*)" "Bash(free:*)" "Bash(df:*)"
+    "Bash(/usr/local/bin/atriz-escaneo estado)"
+)
+
+exec timeout 900 "$CLAUDE" -p "${MODO_HILO[@]}" \
+    --output-format json \
+    --json-schema "$(cat "$REPO/03_operacion/esquema_parte.json")" \
+    --add-dir "$REPO" \
+    --append-system-prompt "$(cat "$REPO/03_operacion/CONTRATO_ENCARGO.md")" \
+    --allowedTools "${PERMITIDO[@]}" \
+    -- "$ENCARGO" < /dev/null

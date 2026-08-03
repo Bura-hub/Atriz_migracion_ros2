@@ -137,6 +137,30 @@ solo si hace falta el detalle — son 107 KB ≈ 26.800 tokens.
 
 ### 2.3 El encargo por SSH — dos Claude hablándose
 
+**Desde el PC, así de simple:**
+
+```powershell
+"Dime a qué Hz publica /odom. Mide 10 segundos." | ssh rvr-01 /home/sphero/atriz_migracion/scripts/atriz-encargo
+```
+
+**El encargo entra por STDIN, y no es un capricho.** Se intentó pasarlo como argumento y el
+entrecomillado anidado PowerShell → ssh → bash → claude reventó: PowerShell expandió el
+`$(cat …)` en el Windows del usuario y se comió el paréntesis de `Bash(ros2 …)`. Por stdin no hay
+nada que entrecomillar, y funciona igual desde PowerShell, cmd o bash.
+
+> 📝 **Esto se desvía del plan aprobado, que decía «cero código nuevo en el robot».** La desviación
+> está justificada por una medición: el comando desnudo desde el PC **no es usable**. Pero no es el
+> envoltorio de confinamiento que el plan descartó —aquel llevaba `command=` en `authorized_keys` y
+> tres anillos para mover el robot—: esto es una línea de comandos larga metida en un fichero. No
+> abre nada, no instala nada, y **se va con Claude Code** cuando `fase_6` lo desinstale.
+
+`atriz-encargo` carga `/etc/profile.d` él mismo, así que **evita la trampa del `bash -lc` entera**, y
+se niega a empezar si `ROS_DOMAIN_ID` sale vacío — probado rompiéndolo. Mantiene el hilo en
+`~/.atriz-encargo-hilo`, de modo que los encargos sucesivos recuerdan los anteriores.
+
+Lo que sigue explica **por qué** el script hace lo que hace. Si solo quieres usarlo, con lo de arriba
+basta.
+
 ```bash
 ssh rvr-01 bash -lc '
   cd /home/sphero &&
