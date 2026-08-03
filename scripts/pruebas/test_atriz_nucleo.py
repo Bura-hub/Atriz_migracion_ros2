@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path.home() / 'atriz_ws/src/Atriz_rvr/scripts/estudiantes
 
 from atriz import (                                          # noqa: E402
     ErrorAtriz, GRADOS_MAX, RITMO_HZ, SENALES_DE_CIERRE, TIEMPO_MAX,
-    TOPIC_MANDO, VEL_GIRO_MAX, VEL_MAX, Robot, acumular, alcanzado, limitar,
+    TOPIC_MANDO, VEL_GIRO_MAX, VEL_MAX, Robot, acumular, debe_apagar_barrido, alcanzado, limitar,
     normalizar, secuencia_de_cierre, validar_canal_led, velocidad_giro,
     yaw_de_cuaternion,
 )
@@ -886,3 +886,17 @@ def test_magnitud_correccion_crece_lejos_del_borde():
     cerca = magnitud_correccion(750, PIDSeguidor())    # justo pasado el centro (700)
     lejos = magnitud_correccion(1275, PIDSeguidor())   # el suelo real
     assert lejos > cerca
+
+
+# ── El barrido compartido ────────────────────────────────────────────────────
+def test_no_apaga_el_barrido_si_ya_estaba_encendido():
+    """🔴 Con la navegacion corriendo, un guion de alumno que apagara el barrido
+    al cerrar dejaria a Nav2 CIEGO en silencio: sin /scan el collision_monitor
+    bloquea el movimiento (medido: 0.0 cm contra 9.9 del control) y el robot
+    parece averiado."""
+    assert debe_apagar_barrido(lo_encendi=False) is False
+
+
+def test_apaga_el_barrido_si_lo_encendio_el():
+    """El caso normal: nadie mas lo usaba, asi que se deja como estaba."""
+    assert debe_apagar_barrido(lo_encendi=True) is True
