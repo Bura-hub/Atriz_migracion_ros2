@@ -1,0 +1,51 @@
+═══════════════════════════════════════════════════════════════════════════════
+EVIDENCIA 62 — practica 5, el sensor de color con color_detection:=true
+2026-08-03 · sesion fisica · bateria 7.28 V
+═══════════════════════════════════════════════════════════════════════════════
+
+ARRANQUE ESPECIAL, VERIFICADO POR EFECTO
+    ros2 param get /rvr_driver color_detection  ->  Boolean value is: True
+    Y el aviso de «sensor apagado» YA NO SALE en la practica. Correcto.
+
+LECTURAS (canal claro y los dos cocientes)
+
+    superficie        claro    R/G    B/G     esperado (evidencia 37)
+    suelo (inicio)      985   0.55   0.41     suelo 1275
+    oscuro / negro       59   0.54   0.51     negro   181
+    BLANCO             2100   0.48   0.49     blanco 2288
+    gris medio          237   0.50   0.47     —
+    ROJO (pico)         550   2.76   0.35     R/G 2.74   ✅ CLAVADO
+    AZUL (pico)         321   0.44   1.03     B/G 0.86   (sale mas alto)
+
+    recorrido del claro: 59 -> 2100 = **35.6x**   (documentado: 12.6x)
+
+✅ EL SENSOR FUNCIONA, Y MEJOR QUE LO DOCUMENTADO. Casi el triple de recorrido
+   entre lo mas oscuro y lo mas claro. El rojo coincide al centesimo con la
+   caracterizacion de la evidencia 37 (2.76 contra 2.74), lo que da confianza en
+   que las dos medidas hablan del mismo sensor y la misma escala.
+
+📝 El negro sale mas oscuro que lo documentado (59 contra 181) y el azul mas
+   distinguible (B/G 1.03 contra 0.86). Superficies distintas, no un cambio del
+   sensor: R/G del suelo coincide (0.48-0.55 contra 0.48).
+
+═══════════════════════════════════════════════════════════════════════════════
+🔴 DOS AVISOS PARA EL SEGUIDOR DE LINEA, ANTES DE EJECUTARLO
+═══════════════════════════════════════════════════════════════════════════════
+Los umbrales del seguidor son UMBRAL_NEGRO=400 y UMBRAL_CLARO=1000, elegidos
+sobre la evidencia 37 (negro 181, suelo 1275). Contra las lecturas de HOY:
+
+1. **EL AZUL SE CLASIFICA COMO LINEA.** claro=321 < 400. Estaba anotado como
+   riesgo desde la tarea 9 con el dato de la evidencia 37 (azul=396). Hoy sale
+   **321**, o sea todavia mas dentro de la zona «negro». Confirmado con dato
+   independiente: si algo azulado cruza la pista, el seguidor lo lee como linea.
+
+2. 🔴 **EL SUELO DE ESTE LABORATORIO LEE 985, Y UMBRAL_CLARO ES 1000.** Quince
+   unidades de margen, sobre una escala que llega a 2100. La caracterizacion
+   original decia suelo=1275; hoy da 985. Con el margen de histeresis el suelo
+   cae justo dentro de «claro», pero cualquier variacion —otra baldosa, otra
+   luz, el robot un milimetro mas alto— lo tira a «borde».
+
+   → Los umbrales del seguidor **NO estan calibrados para este suelo**. Ejecutar
+     el seguidor asi seria depurar un controlador cuyos umbrales no
+     corresponden a la superficie. Hay que medir la cinta negra y el suelo EN EL
+     SITIO donde vaya a correr, y fijarlos con esos numeros.
