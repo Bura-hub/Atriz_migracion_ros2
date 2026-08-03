@@ -171,7 +171,36 @@ rm -rf /var/log/*.gz /var/log/*.[0-9] /var/log/journal/* 2>/dev/null
 : > /var/log/lastlog 2>/dev/null || true
 apt-get clean
 rm -f  "$REAL_HOME/.bash_history" /root/.bash_history
-rm -rf "$REAL_HOME/.cache/pip" "$REAL_HOME/.ros/log"
+rm -rf "$REAL_HOME/.cache/pip"
+
+# 🔴 ~/.ros/log NO SE BORRA CON EL DRIVER CORRIENDO.
+#
+#    El 2026-08-03 se hizo `rm -rf ~/.ros/log/*` con atriz-robot activo. Al
+#    pararlo después, el sistema de launch de ROS 2 REABRE su fichero de log
+#    para cerrarlo, no lo encontró, y reventó:
+#
+#      FileNotFoundError: '.../.ros/log/2026-08-03-12-30-38-…-699/launch.log'
+#      State 'stop-sigterm' timed out. Killing.  ->  SIGKILL a los 8 procesos
+#
+#    El apagado limpio nunca terminó y el servicio quedó en `failed`. Aquí eso
+#    sería peor: pasa justo antes del `dd`, así que la imagen saldría de un
+#    robot medio matado, y el fallo se repartiría a los 16.
+#    Evidencia: 00_auditoria/evidencia/63_alineacion_DESPUES.txt
+if systemctl is-active --quiet atriz-robot 2>/dev/null; then
+    avis "atriz-robot está ACTIVO. No se toca ~/.ros/log con el driver vivo."
+    avis "Párala primero y comprueba que paró LIMPIA (no basta con que pare):"
+    avis "    sudo systemctl stop atriz-robot"
+    avis "    systemctl is-failed atriz-robot     # debe decir 'inactive', no 'failed'"
+    PROBLEMAS_LIMPIEZA=1
+else
+    # Y aunque esté parada: si quedó en `failed`, el apagado no fue limpio y hay
+    # que saberlo antes de clonar, no después.
+    if systemctl is-failed --quiet atriz-robot 2>/dev/null; then
+        avis "atriz-robot está en 'failed': su último apagado NO fue limpio."
+        avis "    sudo systemctl reset-failed atriz-robot"
+    fi
+    rm -rf "$REAL_HOME/.ros/log"
+fi
 
 # 📝 Medido en rvr-01 el 2026-08-03, antes de limpiar: ~/.ros/log 246 dirs y
 #    43 MB, ~/atriz_ws/log 84 dirs y 13 MB. Se multiplicaba por 16 sin aportar
@@ -194,7 +223,54 @@ mkdir -p /root/respaldos-atriz
 mv /etc/fstab.bak-* /etc/systemd/journald.conf.bak-* \
    /etc/apt/sources.list.d/*.bak-* /root/respaldos-atriz/ 2>/dev/null || true
 
+if [[ "${PROBLEMAS_LIMPIEZA:-0}" -eq 1 ]]; then
+    echo >&2
+    echo "  ✗ NO se prepara la imagen con el driver corriendo." >&2
+    echo "    Párala, comprueba que quedó 'inactive' y no 'failed', y repite." >&2
+    exit 1
+fi
+
 ok "logs, cachés, historial y artefactos de compilación limpiados"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🔐 CLAUDE CODE FUERA. Es herramienta de desarrollo del robot de referencia,
+#    no del producto — decisión del usuario, 2026-08-03.
+#
+#    Y no es solo peso muerto. Medido en rvr-01:
+#      ~/.claude/.credentials.json  ->  claudeAiOauth.accessToken
+#                                       claudeAiOauth.refreshToken
+#    Son las credenciales de la suscripción de Claude del usuario. El modo 600
+#    no protege NADA frente a un `dd`: una imagen de disco lo copia todo. Sin
+#    esto, los 16 clones saldrían con sus tokens dentro.
+#
+#    Peso: ~/.claude 126 MB (incluido el transcripto de la sesión de trabajo,
+#    41,8 MB) + ~/.local/share/claude 260 MB = 386 MB por robot, sin función.
+#
+# ⚠️ Lo que se pierde y NO se recupera: los hilos de `--resume`, los ficheros de
+#    memory/ y los transcriptos. Lo que valga la pena tiene que estar commiteado
+#    ANTES. Ver 03_operacion/PC_Y_ROBOT.md.
+if [[ -e "$REAL_HOME/.local/bin/claude" || -d "$REAL_HOME/.claude" ]]; then
+    avis "Claude Code está instalado. Es herramienta de desarrollo: se elimina."
+    avis "  🔐 ~/.claude/.credentials.json lleva los tokens OAuth de tu suscripción"
+    avis "  ⚠️ se perderán los hilos, memory/ y los transcriptos. ¿Está todo commiteado?"
+    read -rp "  Escribe 'si' para eliminarlo, cualquier otra cosa para abortar: " CC
+    if [[ "$CC" != "si" ]]; then
+        echo "  Cancelado. Commitea lo que necesites y vuelve." >&2
+        exit 1
+    fi
+    rm -f  "$REAL_HOME/.local/bin/claude" "$REAL_HOME/.claude.json"
+    rm -rf "$REAL_HOME/.local/share/claude" "$REAL_HOME/.claude"
+    # Se comprueba el EFECTO, no que el rm devolviera 0.
+    RESTOS="$(find "$REAL_HOME" -maxdepth 4 \( -name '.credentials.json' -o -name 'claude' \) \
+              -path '*claude*' 2>/dev/null | head -5)"
+    if [[ -z "$RESTOS" ]]; then
+        ok "Claude Code eliminado (binario, datos y credenciales)"
+    else
+        avis "quedan restos de Claude Code:"; echo "$RESTOS" | sed 's/^/      /'
+    fi
+else
+    ok "Claude Code no está instalado (correcto para un robot de la flota)"
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 say "5/6 · Comprobar que no queda nada personal ni secreto"
@@ -211,9 +287,15 @@ say "5/6 · Comprobar que no queda nada personal ni secreto"
 #    un secreto, y avisar de él cada vez entrena a la gente a ignorar el aviso
 #    —que es como se pierde un control de verdad—.
 PROB=0
+# 🔐 `.credentials.json` está en la lista porque el 2026-08-03 se comprobó que
+#    la búsqueda anterior NO lo veía: es donde Claude Code guarda los tokens
+#    OAuth de la suscripción (`claudeAiOauth.accessToken` / `refreshToken`).
+#    El paso 4 ya debería haberlo borrado; esto es el cinturón por si alguien
+#    reinstala Claude Code después de limpiar.
 ENCONTRADOS="$(find "$REAL_HOME" -xdev \
         \( -name '.git-credentials' -o -name 'id_rsa' -o -name 'id_ed25519' \
-           -o -name 'id_ecdsa' -o -name '.netrc' -o -name '*.pem' -o -name '*.key' \) \
+           -o -name 'id_ecdsa' -o -name '.netrc' -o -name '.credentials.json' \
+           -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' \) \
         -type f 2>/dev/null)"
 if [[ -n "$ENCONTRADOS" ]]; then
     while IFS= read -r f; do

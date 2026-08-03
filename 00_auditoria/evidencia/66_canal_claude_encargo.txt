@@ -1,0 +1,70 @@
+═══════════════════════════════════════════════════════════════════════════════
+66 · ¿Conserva contexto un encargo 'claude -p' entre invocaciones?
+     La medición que decide la Capa 3 del canal PC↔robot
+═══════════════════════════════════════════════════════════════════════════════
+Fecha : 2026-08-03T15:31:05-05:00   ·   Robot: rvr-01   ·   claude 2.1.220
+
+── LA PREGUNTA ───────────────────────────────────────────────────────────────
+  El diseño del canal PC↔robot depende de si el Claude de la Pi RECUERDA lo que
+  se le encargó antes. La documentación dice que '--resume no cruza máquinas',
+  pero no necesita cruzarla: la sesión vive en la Pi y el PC la direcciona por
+  un UUID que él elige. Había que comprobar si eso funciona de verdad.
+
+── RESULTADO ─────────────────────────────────────────────────────────────────
+  ✅ SÍ. --session-id <uuid> + --resume <uuid> conservan la conversación entre
+     procesos 'claude -p' distintos en la misma máquina.
+
+    encargo 1  --session-id <uuid>                 el modelo dice 7413
+    encargo 2  --resume <uuid>  (proceso nuevo)    7413   ← lo recuerda
+    CONTROL    --session-id <uuid NUEVO>           NO_LO_SE  ← no lo sabe
+
+  El hilo vive en ~/.claude/projects/-home-sphero/<uuid>.jsonl (24 KB tras dos
+  turnos). Es local a la Pi: se pierde entero al desinstalar Claude Code.
+
+── 🔴 EL PRIMER INTENTO NO PODÍA FALLAR, Y CASI LO DOY POR BUENO ─────────────
+  La primera versión de la prueba daba un dato inventado ('el número de serie
+  del banco es ATRIZ-7734-QX') y preguntaba por él después.
+
+    encargo 2 con --resume        -> ATRIZ-7734-QX   ✅ parecía funcionar
+    CONTROL con hilo nuevo        -> ATRIZ-7734-QX   🔴 ¡también lo sabía!
+
+  Causa: el delegado decidió que era un dato del laboratorio y lo ESCRIBIÓ EN
+  LA MEMORIA PERSISTENTE — creó memory/atriz-banco-pruebas-serie.md y añadió
+  una línea a MEMORY.md. El hilo nuevo lo leyó de ahí, no de la sesión.
+
+  O sea que la prueba medía la memoria de ficheros, no el hilo, y habría dado
+  verde igual si --resume no funcionara. Es el quinto caso documentado en este
+  proyecto de una prueba que no puede fallar, y SOLO se detectó por el CONTROL.
+  (Los ficheros de memoria creados por la prueba se borraron; memory/ vuelve a
+   tener sus 6 ficheros originales y no queda rastro del dato.)
+
+  Prueba corregida: un número efímero, con prohibición explícita de escribirlo
+  en ningún sitio, y verificando con grep que NO llegó a memory/.
+
+── OTROS DOS HALLAZGOS DEL MISMO EXPERIMENTO ─────────────────────────────────
+
+  1) 🔴 'claude -p' DEVUELVE 0 CUANDO FALLA.
+     Medido dos veces:
+       'Not logged in · Please run /login'                 -> salida 0
+       'Error: Session ID <uuid> is already in use.'       -> salida 0
+     Confirma por qué el canal NO puede usar $? como veredicto. El parte tiene
+     que ir en JSON con esquema, y se comprueba con 'jq -e', nunca con $?.
+
+  2) ⚠️ '--bare' ROMPE LA AUTENTICACIÓN.
+     Con --bare: 'Not logged in'. Sin --bare, con las mismas credenciales
+     (~/.claude/.credentials.json, suscripción max, token vigente): funciona.
+     No usar --bare en los encargos. Y de paso: --bare tampoco cargaría
+     CLAUDE.md, o sea que el delegado perdería las reglas duras del proyecto.
+
+── CÓMO SE REPRODUCE ─────────────────────────────────────────────────────────
+  Las variables CLAUDE_* del proceso padre se limpian con 'env -u', porque un
+  encargo real llega por SSH y no las tendría:
+
+    env -u CLAUDECODE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CODE_CHILD_SESSION \
+        -u CLAUDE_CODE_BRIDGE_SESSION_ID -u CLAUDE_CODE_ENTRYPOINT \
+        claude -p --session-id $UUID '...'
+
+  📝 NO VERIFICADO: la prueba se hizo EN la Pi, no por SSH desde el PC. Falta
+     comprobarlo con 'ssh rvr-01 bash -lc' cuando existan las claves — hoy
+     ~/.ssh/authorized_keys está vacío y el SSH pide contraseña.
+═══════════════════════════════════════════════════════════════════════════════
