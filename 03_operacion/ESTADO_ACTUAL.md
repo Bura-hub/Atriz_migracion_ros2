@@ -27,9 +27,22 @@ es **el repositorio**: 249 commits en 7 días, mediana de 8 minutos.
 
 ## Lo siguiente
 
-1. **La web** (Fase 5): cerrar rosbridge y rehacerla. El transporte ya está verificado.
-2. **La imagen dorada y el robot 2** (Fase 6): ahí se comprueban por primera vez `provision.sh`
-   entero y el parser de `robot_id.txt` con un ID distinto de 01.
+**La Fase 5 está planificada y el plan está en el repositorio:**
+[`00_auditoria/planes/2026-08-03-plataforma-web.md`](../00_auditoria/planes/2026-08-03-plataforma-web.md).
+Se ejecuta **desde el PC de desarrollo**. Decidido: se rehace la web entera —el transporte, la
+autenticación y la telemetría de la actual están las tres ausentes o fingidas—, la web sustituye al
+SSH para el alumno, y el proxy de la Fase B pasa a ser el **agente de sesión** de cada robot.
+
+🔴 **No se empieza por código: se empieza por dos mediciones.**
+
+1. **El aislamiento de clientes del AP del aula.** Si está activado rompe mDNS y la comunicación
+   navegador↔robot. Necesita estar en el laboratorio. **Sin comprobar.**
+2. **`send_action_goals_in_new_thread`**: si en la práctica fuera `False`, una meta larga bloquearía
+   la cola de entrada de esa conexión **incluido el `publish` de `/emergency_stop`**. Y afecta **hoy**
+   a `/navigate_to_pose`, que está en la lista blanca desde el 2026-08-02.
+
+Después: **la imagen dorada y el robot 2** (Fase 6), donde se comprueban por primera vez
+`provision.sh` entero y el parser de `robot_id.txt` con un ID distinto de 01.
 
 ## Lo que bloquea, y de quién es
 
