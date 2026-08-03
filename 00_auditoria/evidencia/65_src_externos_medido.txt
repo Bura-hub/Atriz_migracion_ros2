@@ -1,0 +1,59 @@
+═══════════════════════════════════════════════════════════════════════════════
+65 · ~/src_externos/ — qué era, y por qué se borra
+═══════════════════════════════════════════════════════════════════════════════
+Fecha: 2026-08-03T14:00:54-05:00   ·   Robot: rvr-01
+
+PREGUNTA: ~/src_externos/ contiene dos clones git que NINGÚN script del
+repositorio produce en esa ruta. ¿Es sobrante, o hay ahí un cambio en
+producción que no está versionado?
+
+── 1 · ¿Difiere el driver del que está en el workspace? ──────────────────────
+  SÍ, en src/ydlidar_ros2_driver_node.cpp.
+
+── 2 · ¿Esa diferencia está versionada? ──────────────────────────────────────
+  Medido aplicando el parche del repositorio sobre una copia del clon de
+  src_externos y comparando con el workspace:
+
+    patch -p1 < atriz_rvr_bringup/patches/ydlidar-no-inundar-journal.patch
+    diff -rq  <pristino+parche>  ~/atriz_ws/src/ydlidar_ros2_driver
+    -> sin diferencias
+
+  ✅ src_externos/ydlidar_ros2_driver es el UPSTREAM LIMPIO. La única
+     diferencia con producción es el parche, que YA está en git. No hay
+     ningún cambio sin versionar: es sobrante.
+
+── 3 · Lo que sí aporta, y que se pierde al borrarlo ─────────────────────────
+  provision.sh borra el .git del driver a propósito (línea 408), así que el
+  workspace NO sabe de qué commit viene. Estos clones sí lo saben, y es la
+  única copia de ese dato en la máquina. Por eso se registra aquí antes:
+
+    YDLidar-SDK              01cdda4f2b36dff2a706d0535c64228d863c7411  (2026-07-01T20:09:20+08:00)
+    ydlidar_ros2_driver      4ef70d3f32a85704ade0be54b214f3763b1ab3e8  (2025-06-20T20:21:01+08:00, rama humble)
+
+  Los dos quedan fijados en provision.sh (SDK_COMMIT y DRV_COMMIT).
+  Antes clonaba sin fijar nada: dos robots aprovisionados con un mes de
+  diferencia habrían traído versiones distintas, y el parche del driver se
+  aplica con 'patch -p1' — si upstream mueve esas líneas, falla o aplica
+  con fuzz en el sitio equivocado.
+
+── 4 · Hallazgo: rvr-01 NO se montó por el camino que describe provision.sh ───
+  provision.sh:390 clona y compila el SDK en $HOME/YDLidar-SDK. Medido:
+
+    ~/YDLidar-SDK                                    NO EXISTE
+    único clon del SDK en el disco                   ~/src_externos/YDLidar-SDK
+    md5 de ~/src_externos/YDLidar-SDK/build/libydlidar_sdk.a   0539936f412642d71b480a2013c58b98
+    md5 de /usr/local/lib/libydlidar_sdk.a                     0539936f412642d71b480a2013c58b98
+
+  Los md5 coinciden y la ruta del script no existe: el SDK en producción se
+  compiló DESDE src_externos, a mano. (Las fechas por sí solas no lo probaban
+  —la mtime de un directorio cambia al añadirle ficheros—, por eso se comparan
+  los ficheros.)
+
+  El script gana, porque es lo reproducible. Pero conviene tenerlo escrito:
+  📝 NO VERIFICADO — provision.sh no se ha recorrido de extremo a extremo en
+     ningún robot. Se comprobará por primera vez en el robot 2.
+
+── 5 · Decisión ──────────────────────────────────────────────────────────────
+  Se borra ~/src_externos/ (31 MB). Nada se pierde: el upstream se vuelve a
+  clonar con provision.sh, ahora en el commit exacto, y el delta está en git.
+═══════════════════════════════════════════════════════════════════════════════

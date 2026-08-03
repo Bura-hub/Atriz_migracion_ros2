@@ -625,7 +625,10 @@ _nota "rosbridge en :9090, y el keepalive del driver (manual cap. 9.8)."
 
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ $HARDWARE -eq 1 ]]; then
-    sec "9 · Hablar con el hardware de verdad"
+    # 📝 «9-H», no «9»: había DOS secciones numeradas 9 (esta y la de Nav2, más
+    #    abajo). Se le pone sufijo en vez de renumerar de la 9 a la 12, porque
+    #    esos números están citados en el manual y en el RUNBOOK.
+    sec "9-H · Hablar con el hardware de verdad (solo con --hardware)"
     # _nota, no _avi: es información, no un problema del robot. Con _avi el
     # script salía SIEMPRE con código 2 al usar --hardware, y eso convierte el
     # código de salida en inútil para automatizar "¿pasó este robot?".
@@ -1047,6 +1050,27 @@ if command -v resolvectl >/dev/null 2>&1; then
     fi
 fi
 
+# --- Dominio regulatorio del WiFi: el parámetro llega y NO surte efecto -------
+# 🔴 cmdline.txt pide cfg80211.ieee80211_regdom=CO y el módulo lo recibe —
+#    /sys/module/cfg80211/parameters/ieee80211_regdom dice CO— pero el firmware
+#    del brcmfmac es *self-managed* y lo pisa. Medido en rvr-01 el 2026-08-03:
+#      /sys/…/ieee80211_regdom  ->  CO
+#      iw reg get               ->  global country US · phy#0 country 99
+#    Se comprueba el EFECTO (iw), no el parámetro, porque el parámetro miente.
+#    Aviso y no fallo: la banda que usa el laboratorio (2.4 GHz) está permitida
+#    en los dos dominios, así que hoy no rompe nada. Queda escrito para que
+#    nadie vuelva a leer el cmdline.txt y dé por hecho que está aplicado.
+if command -v iw >/dev/null 2>&1 && grep -q 'ieee80211_regdom' /boot/firmware/cmdline.txt 2>/dev/null; then
+    REG_PEDIDO="$(grep -o 'ieee80211_regdom=[A-Z][A-Z]' /boot/firmware/cmdline.txt | cut -d= -f2)"
+    REG_REAL="$(iw reg get 2>/dev/null | sed -n 's/^country \([A-Z0-9]*\):.*/\1/p' | head -1)"
+    if [[ "$REG_PEDIDO" == "$REG_REAL" ]]; then
+        _ok "dominio regulatorio WiFi: pedido $REG_PEDIDO, efectivo $REG_REAL"
+    else
+        _avi "regdom: cmdline.txt pide $REG_PEDIDO y el efectivo es ${REG_REAL:-desconocido}" \
+             "el firmware brcmfmac es self-managed y lo ignora — no es un fallo, pero el cmdline miente"
+    fi
+fi
+
 # --- La identidad y el perfil de red, en la partición FAT --------------------
 # 🔴 Viven en la FAT a propósito: una IP estática mal puesta deja al robot sin
 #    dirección en esa LAN, y la FAT se corrige metiendo la microSD en un PC.
@@ -1060,6 +1084,26 @@ if [[ -f /boot/firmware/robot_id.txt ]]; then
         [[ "$(hostname)" == "$ESP" ]] && _ok "hostname coincide con robot_id ($ESP)" \
             || _mal "hostname '$(hostname)' no coincide con robot_id ($ESP)" \
                     "sudo bash first-boot.sh   (regenera identidad)"
+
+        # 🔴 Y EL DOMINIO DDS, que es el que falla EN SILENCIO.
+        #    El hostname equivocado se ve enseguida: no puedes entrar por ssh.
+        #    Un ROS_DOMAIN_ID equivocado no da ni un error — solo robots que no
+        #    se ven, o que se ven de más. Y el 2026-08-03 se midió que dos de
+        #    los cuatro parsers de robot_id.txt leían los dos primeros dígitos
+        #    del fichero (comentarios incluidos), así que con la plantilla de
+        #    fase_6 los 16 robots habrían salido en el dominio 1.
+        #    Los parsers están arreglados; esta aserción es la red que lo habría
+        #    cazado, y la que lo cazará la próxima vez.
+        DOM_P="$(sed -n 's/^export ROS_DOMAIN_ID=\([0-9]*\).*/\1/p' \
+                 /etc/profile.d/atriz-robot.sh 2>/dev/null | head -1)"
+        if [[ -z "$DOM_P" ]]; then
+            _nota "no hay ROS_DOMAIN_ID en /etc/profile.d/atriz-robot.sh (aún sin identidad)"
+        elif [[ "$((10#$DOM_P))" -eq "$((10#$RID))" ]]; then
+            _ok "ROS_DOMAIN_ID=$DOM_P coincide con robot_id.txt"
+        else
+            _mal "ROS_DOMAIN_ID=$DOM_P y robot_id.txt dice $RID: este robot está en el dominio equivocado" \
+                 "sudo rm /var/lib/atriz-first-boot.done && sudo bash first-boot.sh"
+        fi
     else
         _mal "robot_id.txt existe pero no tiene ROBOT_ID=NN" \
              "echo ROBOT_ID=01 | sudo tee /boot/firmware/robot_id.txt"
@@ -1201,6 +1245,79 @@ FIJAS="$(grep -lE '>[[:space:]]*/tmp/[a-zA-Z]|=/tmp/[a-zA-Z]' "$(dirname "${BASH
 [[ -z "$FIJAS" ]] && _ok "ningún script escribe en una ruta fija de /tmp" \
     || _avi "escriben en rutas fijas de /tmp: $(echo "$FIJAS" | xargs -n1 basename | tr '\n' ' ')" \
             "usa mktemp: con fs.protected_regular=2 root no puede sobrescribirlas"
+
+# ─────────────────────────────────────────────────────────────────────────────
+sec "13 · El robot contra el repositorio (¿ha vuelto a divergir?)"
+
+# 🔴 POR QUÉ EXISTE ESTA SECCIÓN
+#
+#    El 2026-08-03 se midió que fase_7_systemd.sh llevaba tres días sin
+#    ejecutarse: /usr/local/bin/atriz-robot.sh instalado era VIEJO, y
+#    atriz-nav.{sh,service} NO ESTABAN INSTALADOS — mientras el CHANGELOG
+#    afirmaba «instalada pero NO habilitada». Una imagen dorada hecha ese día
+#    habría salido sin navegación, en los 16 robots.
+#    Evidencia: 00_auditoria/evidencia/63_alineacion_ANTES.txt
+#
+#    No se compara el fuente con el fuente: se compara lo INSTALADO con el repo.
+#    Un «existe el fichero en scripts/» habría dado verde con el sistema vacío.
+#
+# 📝 La lista NO se escribe aquí. Vive en scripts/sistema/MANIFIESTO.tsv, que es
+#    lo mismo que leen los instaladores. Una lista a mano en este fichero se
+#    quedaría rancia igual que se quedó rancio fase_7 — el mismo fallo con otro
+#    disfraz. Añadir una línea al manifiesto cubre las dos cosas a la vez.
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || true)"
+MANIF="$REPO/scripts/sistema/MANIFIESTO.tsv"
+
+if [[ -z "$REPO" || ! -f "$MANIF" ]]; then
+    # En un clon el repositorio puede no estar (fase_6 ya avisa de ello). Sin
+    # repositorio no hay divergencia que medir: es un aviso, NO un fallo. Si
+    # fuera _mal, los 15 clones saldrían en rojo por no tener el repo clonado.
+    _avi "no encuentro el repositorio: no puedo comprobar la deriva robot↔repo" \
+         "git clone …/atriz_migracion en \$HOME · manual, cap. 17"
+else
+    while IFS=$'\t' read -r ORIG DEST MODO INST FLAGS; do
+        [[ -z "${ORIG:-}" || "${ORIG:0:1}" == "#" ]] && continue
+        SRC="$REPO/$ORIG"
+        BASE="$(basename "$DEST")"
+        if [[ ! -f "$SRC" ]]; then
+            _mal "el manifiesto cita $ORIG y no existe en el repositorio" \
+                 "corrige scripts/sistema/MANIFIESTO.tsv"
+        elif [[ ! -e "$DEST" ]]; then
+            # 🔴 ESTE es el caso que se escapó con atriz-nav: en git, en el
+            #    instalador, y NO en el sistema.
+            if [[ "${FLAGS:-}" == "opcional" ]]; then
+                _nota "$BASE no instalado (solo lo pone $INST, al preparar la imagen)"
+            else
+                _mal "$DEST NO está instalado, y sí está en el repositorio" \
+                     "sudo bash $REPO/scripts/$INST"
+            fi
+        elif cmp -s "$SRC" "$DEST"; then
+            _ok "$BASE coincide con el repositorio"
+        else
+            _mal "$DEST DIVERGE de $ORIG ($(diff "$SRC" "$DEST" 2>/dev/null | grep -c '^[<>]') líneas)" \
+                 "diff $ORIG $DEST  ·  luego reinstálalo:  sudo bash scripts/$INST"
+        fi
+    done < "$MANIF"
+
+    # Y el repositorio contra sí mismo: un fichero corregido y sin commitear se
+    # pierde al reflashear, y uno sin empujar se pierde con la microSD.
+    # @{u}..HEAD es LOCAL: no toca la red, compara contra la última referencia
+    # conocida. Un `git fetch` aquí colgaría el verificador sin WiFi.
+    SUCIO="$(git -C "$REPO" status --porcelain 2>/dev/null | wc -l)"
+    if [[ "$SUCIO" -eq 0 ]]; then
+        _ok "atriz_migracion: sin cambios sin commitear"
+    else
+        _avi "atriz_migracion: $SUCIO fichero(s) sin commitear" "git -C $REPO status"
+    fi
+    SINSUBIR="$(git -C "$REPO" rev-list --count '@{u}..HEAD' 2>/dev/null || echo '?')"
+    if [[ "$SINSUBIR" == "0" ]]; then
+        _ok "atriz_migracion: nada sin empujar"
+    elif [[ "$SINSUBIR" == "?" ]]; then
+        _nota "atriz_migracion: sin rama remota configurada"
+    else
+        _avi "atriz_migracion: $SINSUBIR commit(s) sin empujar" "git -C $REPO push"
+    fi
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 printf '\n%s' "$AZUL"

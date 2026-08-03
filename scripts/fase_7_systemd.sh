@@ -93,6 +93,11 @@ if [[ $MODO == quitar ]]; then
     rm -f /etc/systemd/system/atriz-robot.service /etc/systemd/system/atriz-nav.service
     rm -f /usr/local/bin/atriz-robot.sh /usr/local/bin/atriz-escaneo
     rm -f /usr/local/bin/atriz-nav.sh
+    # El entorno de ROS de los shells. Se quita también, o quedaría un fichero
+    # huérfano que `verificar_robot.sh` sección 13 no sabría de dónde viene.
+    # ⚠️ NO se toca /etc/profile.d/atriz-robot.sh: ese lleva la IDENTIDAD del
+    #    robot y lo genera atriz-first-boot, no este script.
+    rm -f /etc/profile.d/atriz-ros.sh
     systemctl daemon-reload
     ok "quitado. El robot ya no arranca solo."
     avis "los procesos que estuvieran corriendo NO se han tocado"
@@ -131,7 +136,18 @@ if [[ -f /etc/profile.d/atriz-robot.sh ]]; then
 else
     ID_NUM="$ID_FORZADO"
     if [[ -z "$ID_NUM" && -f /boot/firmware/robot_id.txt ]]; then
-        ID_NUM=$(tr -dc '0-9' < /boot/firmware/robot_id.txt | head -c2)
+        # 🔴 ANCLADO al principio de línea y a la sintaxis exacta, igual que en
+        #    first-boot.sh:56. La versión anterior era:
+        #        tr -dc '0-9' < robot_id.txt | head -c2
+        #    que coge los DOS PRIMEROS DÍGITOS DEL FICHERO, comentarios
+        #    incluidos. Medido el 2026-08-03 contra la plantilla que escribe
+        #    fase_6 —cuyo comentario dice «Rango válido: 01 a 16»—: con
+        #    ROBOT_ID=07 devolvía 01. Los 16 robots habrían salido con
+        #    ROS_DOMAIN_ID=1, viéndose todos entre sí, que es exactamente lo que
+        #    la Decisión 1 de ARQUITECTURA.md existe para evitar.
+        #    Y sin dar ningún error: solo robots que se ven de más.
+        #    Evidencia: 00_auditoria/evidencia/64_parser_robot_id.txt
+        ID_NUM=$(grep -oP '^\s*ROBOT_ID\s*=\s*\K[0-9]+' /boot/firmware/robot_id.txt | head -1)
         [[ -n "$ID_NUM" ]] && avis "id tomado de /boot/firmware/robot_id.txt: $ID_NUM"
     fi
     if [[ -z "$ID_NUM" ]]; then
@@ -225,6 +241,17 @@ EOF
         ok "/etc/profile.d/atriz-robot.sh  (ROS_DOMAIN_ID=$ID_NUM)"
     fi
 fi
+
+# ── El entorno de ROS de los shells ──────────────────────────────────────────
+# 🔴 Sin esto, un robot montado desde cero solo con los repositorios tendría
+#    shells interactivos SIN `ros2`: en rvr-01 esas líneas vivían en el
+#    ~/.bashrc y NINGÚN script las escribía (medido el 2026-08-03).
+#    Va en /etc/profile.d y NO en el .bashrc a propósito: se lee ANTES, así que
+#    desaparece la trampa del «.bashrc gana» que este script avisa más arriba.
+#    No lleva identidad dentro — el ROS_DOMAIN_ID sigue saliendo de
+#    atriz-robot.sh, que por orden alfabético se lee justo antes.
+hacer install -m 644 "$SCRIPTS_DIR/sistema/atriz-ros.sh" /etc/profile.d/atriz-ros.sh
+ok "/etc/profile.d/atriz-ros.sh (entorno de ROS, sin identidad)"
 
 hacer install -m 755 "$SCRIPTS_DIR/atriz-robot.sh"   /usr/local/bin/atriz-robot.sh
 ok "/usr/local/bin/atriz-robot.sh"

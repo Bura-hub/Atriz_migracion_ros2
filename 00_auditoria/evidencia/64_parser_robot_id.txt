@@ -1,0 +1,117 @@
+═══════════════════════════════════════════════════════════════════════════════
+64 · Los dos parsers de robot_id.txt — por qué los 16 robots habrían salido
+     en el mismo dominio DDS
+═══════════════════════════════════════════════════════════════════════════════
+Fecha: 2026-08-03T14:05:47-05:00   ·   Robot: rvr-01
+
+── El problema ───────────────────────────────────────────────────────────────
+  Había DOS formas de leer /boot/firmware/robot_id.txt en el repositorio:
+
+    débil   tr -dc '0-9' < robot_id.txt | head -c2
+            usada por provision.sh y fase_7_systemd.sh
+            -> coge los DOS PRIMEROS DÍGITOS DEL FICHERO, comentarios incluidos
+
+    fuerte  grep -oP '^\s*ROBOT_ID\s*=\s*\K[0-9]+' | head -1
+            usada por first-boot.sh y verificar_robot.sh
+            -> anclada al principio de línea y a la sintaxis exacta
+
+  De ahí sale el ROS_DOMAIN_ID, y un dominio equivocado NO da ningún error:
+  solo robots que no se ven, o que se ven de más.
+
+── La medición ───────────────────────────────────────────────────────────────
+  Las plantillas NO se han reescrito a mano: se extraen de los scripts, para
+  que la prueba mida lo que el repositorio escribe de verdad.
+
+  ── plantilla de fase_6_preparar_imagen_dorada.sh, ANTES del arreglo ──
+      # Identidad de este robot. Editable desde Windows, macOS o Linux sin arrancar la Pi.
+      # Cambia el número y nada más. Rango válido: 01 a 16.
+      ROBOT_ID=01
+
+      ID     | parser débil  | parser fuerte  | ¿coinciden?
+      -------|----------------|----------------|-------------
+      01     | 01             | 01             | sí
+      05     | 01             | 05             | 🔴 NO
+      07     | 01             | 07             | 🔴 NO
+      12     | 01             | 12             | 🔴 NO
+      16     | 01             | 16             | 🔴 NO
+
+      🔴 El comentario decía «Rango válido: 01 a 16». Los dos primeros
+         dígitos del fichero son los del comentario, no los del ROBOT_ID.
+         CUALQUIER robot habría salido con ROS_DOMAIN_ID=1.
+
+  ── plantilla de preparar_tarjeta.sh (sin cambios) ──
+      # Identidad de este robot. Editable desde Windows, macOS o Linux sin arrancar la Pi.
+      # Lo lee atriz-first-boot.service en el primer arranque, y de aquí salen:
+      #     hostname        rvr-$ID2
+      #     ROS_DOMAIN_ID   $ID_NUM      (un dominio por robot: ARQUITECTURA.md, Decisión 1)
+      #     namespace       /rvr_$ID2
+      #
+      # Para reasignar este robot: cambia el número, borra
+      # /var/lib/atriz-first-boot.done desde el sistema arrancado, y reinicia.
+      ROBOT_ID=$ID2
+
+      ID     | parser débil  | parser fuerte  | ¿coinciden?
+      -------|----------------|----------------|-------------
+      01     | 01             | 01             | sí
+      05     | 05             | 05             | sí
+      07     | 07             | 07             | sí
+      12     | 12             | 12             | sí
+      16     | 16             | 16             | sí
+
+      📝 Esta plantilla SÍ sobrevivía a los dos parsers, por casualidad: no
+         tiene dígitos antes del ROBOT_ID. O sea que el fallo dependía de
+         QUÉ script hubiera escrito la tarjeta — un fallo intermitente por
+         diseño, del peor tipo: el que no se reproduce cuando lo buscas.
+
+── El arreglo, medido ────────────────────────────────────────────────────────
+  1) Los cuatro sitios usan ya el parser anclado:
+
+      scripts/first-boot.sh:56:ROBOT_ID="$(grep -oP '^\s*ROBOT_ID\s*=\s*\K[0-9]+' "$ID_FILE" | head -1 || true)"
+      scripts/fase_7_systemd.sh:145:        ID_NUM=$(grep -oP '^\s*ROBOT_ID\s*=\s*\K[0-9]+' /boot/firmware/robot_id.txt | head -1)
+      scripts/provision.sh:517:    ID_TXT="$(grep -oP '^\s*ROBOT_ID\s*=\s*\K[0-9]+' /boot/firmware/robot_id.txt | head -1)"
+      scripts/verificar_robot.sh:1078:    RID="$(grep -oP '^\s*ROBOT_ID\s*=\s*\K[0-9]+' /boot/firmware/robot_id.txt 2>/dev/null | head -1 || true)"
+
+     y no queda ninguna LLAMADA al débil:
+      ✅ 0 llamadas a `tr -dc '0-9'` sobre robot_id.txt
+
+      ⚠️ Ojo con cómo se comprueba esto. Un `grep` suelto devuelve UNA línea:
+         scripts/fase_7_systemd.sh:136, que es el COMENTARIO que explica por qué
+         el parser viejo ya no está. Contarla como llamada es exactamente el
+         error de «contar un comentario como si fuera un ajuste» que este
+         proyecto ya cometió dos veces en el propio verificador. Hay que excluir
+         las líneas de comentario:
+             grep -n "tr -dc '0-9'" scripts/*.sh | grep robot_id | grep -v ':[[:space:]]*#'
+
+  2) La plantilla de fase_6, ya sin dígitos en los comentarios:
+      # Identidad de este robot. Editable desde Windows, macOS o Linux sin arrancar la Pi.
+      # Cambia el número de la última línea y nada más.
+      # Cada robot del laboratorio tiene el suyo, de uno a dieciséis.
+      ROBOT_ID=01
+
+      ID     | parser débil  | parser fuerte  | ¿coinciden?
+      -------|----------------|----------------|-------------
+      01     | 01             | 01             | sí
+      05     | 05             | 05             | sí
+      07     | 07             | 07             | sí
+      12     | 12             | 12             | sí
+      16     | 16             | 16             | sí
+
+      📝 Ahora coinciden hasta con el parser viejo. Se ha arreglado el
+         parser Y la plantilla: una plantilla que arma el fallo si alguien
+         copia el parser antiguo es una trampa esperando a que alguien caiga.
+
+  3) Aserción nueva en verificar_robot.sh sección 12, que es la que habría
+     cazado esto. Compara el ROS_DOMAIN_ID efectivo con robot_id.txt:
+
+        ✓ ROS_DOMAIN_ID: 1
+        ✓ /etc/profile.d/atriz-robot.sh (ROS_DOMAIN_ID=1)
+        ✓ robot_id.txt → ROBOT_ID=01
+        ✓ hostname coincide con robot_id (rvr-01)
+        ✓ ROS_DOMAIN_ID=1 coincide con robot_id.txt
+
+── Lo que este arreglo NO demuestra ──────────────────────────────────────────
+  📝 NO VERIFICADO en un robot con ROBOT_ID distinto de 01. En rvr-01 los dos
+     parsers coinciden por casualidad, así que la aserción nueva pasa aquí
+     tanto si el arreglo funciona como si no. La comprobación de verdad es
+     el robot 2, y pertenece a la auditoría de la flota.
+═══════════════════════════════════════════════════════════════════════════════

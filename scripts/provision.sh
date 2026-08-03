@@ -387,9 +387,21 @@ else
     if [[ -f /usr/local/lib/libydlidar_sdk.a ]]; then
         salta "YDLidar-SDK ya está en /usr/local"
     else
+        # 🔴 COMMIT FIJO, no la punta de la rama.
+        #    Sin esto, dos robots aprovisionados con un mes de diferencia traen
+        #    versiones distintas del SDK, y el segundo no es una copia del
+        #    primero por mucho que el script sea el mismo — que es justo lo que
+        #    la imagen dorada viene a garantizar.
+        #    Este es el commit que corre en rvr-01, medido el 2026-08-03 sobre
+        #    el clon del que salió /usr/local/lib/libydlidar_sdk.a.
+        SDK_COMMIT=01cdda4f2b36dff2a706d0535c64228d863c7411   # 2026-07-01
         SDKDIR="$HOME_USUARIO/YDLidar-SDK"
         [[ -d "$SDKDIR/.git" ]] || correr sudo -u "$USUARIO" git clone -q \
             https://github.com/YDLIDAR/YDLidar-SDK.git "$SDKDIR"
+        if ! correr sudo -u "$USUARIO" git -C "$SDKDIR" checkout -q "$SDK_COMMIT"; then
+            avi "no pude fijar el SDK en $SDK_COMMIT: se compila la punta de la rama"
+            avi "este robot podría no ser idéntico a rvr-01"
+        fi
         correr sudo -u "$USUARIO" mkdir -p "$SDKDIR/build"
         if correr sudo -u "$USUARIO" bash -c "cd '$SDKDIR/build' && cmake .. >/dev/null && make -j2 >/dev/null" \
            && correr bash -c "cd '$SDKDIR/build' && make install >/dev/null"; then
@@ -401,12 +413,21 @@ else
 
     # El driver ROS 2: rama `humble`, compila en Jazzy sin cambios. Se le quita
     # el .git porque es codigo de terceros y no se mezcla con Atriz_rvr.
+    # 🔴 COMMIT FIJO, igual que el SDK. `-b humble` es una RAMA: apunta a donde
+    #    esté la punta el día que se ejecute. Y aquí muerde el doble, porque
+    #    justo debajo se aplica un parche con `patch -p1`: si upstream mueve
+    #    esas líneas, el parche falla — o peor, aplica con `fuzz` en el sitio
+    #    equivocado. Medido en rvr-01 el 2026-08-03.
+    DRV_COMMIT=4ef70d3f32a85704ade0be54b214f3763b1ab3e8   # rama humble, 2025-06-20
     if [[ -d "$WS/ydlidar_ros2_driver" ]]; then
         salta "ydlidar_ros2_driver ya está en $WS"
     elif correr sudo -u "$USUARIO" git clone -q -b humble \
             https://github.com/YDLIDAR/ydlidar_ros2_driver.git "$WS/ydlidar_ros2_driver"; then
+        # El checkout va ANTES de borrar el .git, que es lo único que lo permite.
+        correr sudo -u "$USUARIO" git -C "$WS/ydlidar_ros2_driver" checkout -q "$DRV_COMMIT" \
+            || avi "no pude fijar el driver en $DRV_COMMIT: el parche de abajo podría no aplicar"
         correr rm -rf "$WS/ydlidar_ros2_driver/.git"
-        ok "ydlidar_ros2_driver clonado (rama humble, sin .git)"
+        ok "ydlidar_ros2_driver clonado (rama humble, commit ${DRV_COMMIT:0:7}, sin .git)"
     else
         mal "fallo al clonar ydlidar_ros2_driver"; FALLOS+=("ydlidar_ros2_driver")
     fi
@@ -489,7 +510,11 @@ say "8/9 · Arranque automático  (delega en fase_7_systemd.sh)"
 # sin ROS_DOMAIN_ID propio acaba en el dominio 0 con los otros 15.
 ARG_ID=()
 if [[ ! -f /etc/profile.d/atriz-robot.sh && -f /boot/firmware/robot_id.txt ]]; then
-    ID_TXT="$(tr -dc '0-9' < /boot/firmware/robot_id.txt | head -c2)"
+    # 🔴 ANCLADO, igual que en first-boot.sh:56 y fase_7_systemd.sh. El parser
+    #    de antes (`tr -dc '0-9' | head -c2`) leía los dos primeros dígitos del
+    #    FICHERO, comentarios incluidos: con la plantilla de fase_6 devolvía 01
+    #    para cualquier robot. Ver 00_auditoria/evidencia/64_parser_robot_id.txt
+    ID_TXT="$(grep -oP '^\s*ROBOT_ID\s*=\s*\K[0-9]+' /boot/firmware/robot_id.txt | head -1)"
     [[ -n "$ID_TXT" ]] && ARG_ID=(--id "$((10#$ID_TXT))")
 fi
 

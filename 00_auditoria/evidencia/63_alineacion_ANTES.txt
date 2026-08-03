@@ -1,0 +1,101 @@
+═══════════════════════════════════════════════════════════════════════════════
+63 · El robot contra sus repositorios — ESTADO ANTES DE ALINEAR
+═══════════════════════════════════════════════════════════════════════════════
+Fecha    : 2026-08-03T13:44:47-05:00
+Robot    : rvr-01  ·  Linux 6.8.0-1060-raspi aarch64
+Motivo   : fase_7_systemd.sh no se re-ejecuta desde el 2026-07-31 y las fuentes
+           se editaron el 2026-08-03. Antes de arreglarlo hay que dejar escrito
+           QUÉ estaba mal, o «se arregló» no es comprobable.
+
+── 1 · Los pares repositorio ↔ sistema ───────────────────────────────────────
+   Se compara lo INSTALADO con el repo, no el fuente con el fuente.
+   Ojo: el nombre en el repo y en el destino NO siempre coinciden (first-boot).
+
+  DIVERGE   /usr/local/bin/atriz-robot.sh   (9 líneas de diferencia)
+  IGUAL     /usr/local/bin/atriz-escaneo
+  DIVERGE   /etc/systemd/system/atriz-robot.service   (21 líneas de diferencia)
+  AUSENTE   /usr/local/bin/atriz-nav.sh
+  AUSENTE   /etc/systemd/system/atriz-nav.service
+  AUSENTE   /usr/local/sbin/atriz-first-boot.sh   (solo tras fase_6: esperado)
+  AUSENTE   /etc/systemd/system/atriz-first-boot.service   (solo tras fase_6: esperado)
+
+  🔴 atriz-nav.{sh,service} están en git y fase_7_systemd.sh:237-240 los instala,
+     pero NO existen en el sistema. CHANGELOG.md:16 dice «instalada pero NO
+     habilitada»: hoy es falso. Una imagen dorada hecha ahora saldría sin
+     navegación, en los 16 robots.
+  📝 Las diferencias de atriz-robot.{sh,service} son de comentarios: el fuente
+     se editó y nadie volvió a ejecutar fase_7.
+
+── 2 · Estado de las unidades de systemd ─────────────────────────────────────
+  atriz-robot          fichero=SI   enabled=enabled     active=active
+  atriz-nav            fichero=NO   enabled=not-found   active=inactive
+  atriz-first-boot     fichero=NO   enabled=not-found   active=inactive
+  cpu-performance      fichero=SI   enabled=enabled     active=active
+  wifi-no-powersave    fichero=SI   enabled=enabled     active=active
+
+  ⚠️ cpu-performance y wifi-no-powersave NO se llaman atriz-*: un inventario
+     que busque 'atriz-*' los pierde, y los dos están enabled+active.
+
+── 3 · Ficheros de sistema sin copia versionada que diffear ──────────────────
+  /etc/udev/rules.d/99-rvr.rules                       presente (320 B)
+  /etc/udev/rules.d/99-ydlidar.rules                   presente (1318 B)
+  /etc/systemd/system/cpu-performance.service          presente (304 B)
+  /etc/systemd/system/wifi-no-powersave.service        presente (432 B)
+  /etc/profile.d/atriz-robot.sh                        presente (262 B)
+  📝 Solo 99-ydlidar.rules tiene copia en el repo. Los otros cuatro los genera
+     un heredoc y no hay referencia contra la que comparar.
+
+── 4 · El dominio regulatorio del WiFi: parámetro ≠ efecto ───────────────────
+  cmdline.txt pide cfg80211.ieee80211_regdom=CO
+  /sys/module/cfg80211/parameters/ieee80211_regdom = CO   <- el parámetro SÍ llegó
+  iw reg get (solo las cabeceras):
+    global
+    country US: DFS-FCC
+    phy#0
+    country 99: DFS-UNSET
+
+  🔴 El firmware brcmfmac es self-managed y pisa el parámetro. El dominio
+     regulatorio REAL es US, no CO. Otro «parece aplicado y no lo está».
+
+── 5 · Los dos parsers de /boot/firmware/robot_id.txt ────────────────────────
+  fichero real de este robot:
+    ROBOT_ID=01
+  parser débil  (tr -dc '0-9' | head -c2)                  -> 01
+  parser fuerte (grep -oP '^\s*ROBOT_ID\s*=\s*\K[0-9]+')      -> 01
+  ROS_DOMAIN_ID efectivo en /etc/profile.d/atriz-robot.sh  -> ROS_DOMAIN_ID=1
+
+  📝 Coinciden POR CASUALIDAD: ROBOT_ID=01 y los dos primeros dígitos del
+     fichero también son 01. La medición sobre otras plantillas va en la 64.
+
+── 6 · Estado de git ─────────────────────────────────────────────────────────
+  atriz_migracion      rama=main     sucios=1   sin-empujar=0
+  Atriz_rvr            rama=ros2     sucios=0   sin-empujar=0
+  (el único fichero sucio es esta misma evidencia)
+  🔴 'log/' está commiteado en atriz_migracion: 4 entradas.
+     Es un workspace parásito de 'colcon version-check' dentro de git.
+
+── 7 · Lo que existe solo en esta máquina ────────────────────────────────────
+  ~/src_externos/                                31M   (ningún script lo produce en esa ruta)
+  workspace parásito bajo src/                  1 directorio(s)
+      /home/sphero/atriz_ws/src/Atriz_rvr/atriz_rvr_driver/scripts/atriz_rvr_driver/build
+  ~/respaldo_pre_migracion/.git-credentials      PRESENTE 🔐 duplicado del PAT de GitHub
+  ~/.ros/log/                                    246 dirs, 43M
+  ~/atriz_ws/log/                                84 dirs, 13M
+
+  ⚠️ compilar.sh:76 tiene una guarda contra el workspace parásito, y NO lo ve:
+     usa 'ls -d $WS/src/*/build', un solo nivel, y el parásito está a cuatro.
+  ⚠️ fase_6:122 busca credenciales solo en $REAL_HOME/.git-credentials, así que
+     el duplicado de respaldo_pre_migracion/ pasa el control y viaja en la imagen.
+
+── 8 · Las tres copias del ~/.bashrc ─────────────────────────────────────────
+  /home/sphero/.bashrc                            4986 B   jazzy=1  noetic=0  en-git=NO
+  /home/sphero/respaldo_pre_migracion/bashrc      4986 B   jazzy=1  noetic=0  en-git=NO
+  04_respaldo/configs/home_bashrc                 3839 B   jazzy=0  noetic=1  en-git=SI
+  📝 ~/.bashrc y respaldo_pre_migracion/bashrc son IDÉNTICOS: pese al nombre
+     del directorio, ese respaldo es POST-migración.
+  🔴 Las líneas de ROS 2 del .bashrc vivo no están versionadas en ningún sitio.
+     Un robot montado desde cero solo con los repos tendría shells sin ros2.
+  ✅ 04_respaldo/configs/home_bashrc es el de Noetic, y eso es CORRECTO: es la
+     línea de retorno de RECUPERACION.md:214-221. NO se toca.
+
+═══════════════════════════════════════════════════════════════════════════════

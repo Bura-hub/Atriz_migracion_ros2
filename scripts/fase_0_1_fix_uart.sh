@@ -40,6 +40,10 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 CONFIG=/boot/firmware/config.txt
 UDEV=/etc/udev/rules.d/99-rvr.rules
 
+# De dónde salen los ficheros que este script instala. Con `sudo bash …` el
+# BASH_SOURCE sigue apuntando al script, no al shell del usuario.
+SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 say() { printf '\n\033[1;34m▶ %s\033[0m\n' "$1"; }
 ok()  { printf '  \033[1;32m✓\033[0m %s\n' "$1"; }
 warn(){ printf '  \033[1;33m!\033[0m %s\n' "$1"; }
@@ -135,13 +139,19 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 say "2/4 · Crear el nombre estable /dev/rvr (${UDEV})"
 
-cat > "$UDEV" <<'EOF'
-# /dev/rvr → el UART de los pines GPIO14/15, donde está cableado el Sphero RVR.
-# Con dtoverlay=disable-bt ese puerto es el PL011, que el kernel llama ttyAMA0.
-# El código debe usar /dev/rvr y nunca el nombre del kernel directamente.
-SUBSYSTEM=="tty", KERNEL=="ttyAMA0", SYMLINK+="rvr", MODE="0660", GROUP="dialout"
-EOF
-ok "regla udev escrita"
+# 📝 La regla vive en scripts/sistema/99-rvr.rules, NO en un heredoc aquí.
+#    Motivo: un heredoc no deja nada contra lo que comparar, así que su deriva
+#    respecto al repositorio es invisible. Con el fichero versionado,
+#    verificar_robot.sh sección 13 la detecta con un `cmp`. El criterio completo
+#    está en scripts/sistema/README.md.
+UDEV_SRC="$SCRIPTS_DIR/sistema/99-rvr.rules"
+if [[ ! -f "$UDEV_SRC" ]]; then
+    bad "no encuentro $UDEV_SRC"
+    bad "ejecuta este script desde su sitio en el repositorio, no una copia suelta"
+    exit 1
+fi
+install -m 644 "$UDEV_SRC" "$UDEV"
+ok "regla udev instalada desde el repositorio"
 udevadm control --reload-rules && udevadm trigger --subsystem-match=tty
 ok "reglas de udev recargadas"
 

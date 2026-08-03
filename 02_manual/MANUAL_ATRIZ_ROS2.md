@@ -815,6 +815,32 @@ de parámetros.
 
 Es el único acierto importante del manual original, y hay que repetirlo en cada instalación.
 
+> 🔴 **`cfg80211.ieee80211_regdom=CO` está puesto y NO surte efecto.** Medido en rvr-01 el
+> 2026-08-03:
+>
+> ```
+> /sys/module/cfg80211/parameters/ieee80211_regdom   ->  CO          # el parámetro SÍ llegó
+> iw reg get                                         ->  global country US: DFS-FCC
+>                                                        phy#0  country 99: DFS-UNSET
+> ```
+>
+> El firmware del `brcmfmac` es *self-managed*: fija su propio dominio y **pisa** el parámetro del
+> kernel. El dominio regulatorio real de este robot es **US**, no CO. Leer el `cmdline.txt` y dar
+> por hecho que está aplicado es el mismo error que este proyecto lleva toda la migración
+> encontrando — el parámetro se aplica, el efecto no.
+>
+> **Hoy no rompe nada**, porque los canales de 2.4 GHz que usa el laboratorio están permitidos en
+> los dos dominios. Se anota para que nadie lo dé por resuelto si algún día hace falta un canal
+> que dependa del país. `verificar_robot.sh` sección 12 lo comprueba comparando el `iw reg get`
+> con lo que pide el `cmdline.txt`, y avisa si no coinciden.
+>
+> ⚠️ **De dónde salió: no se sabe.** `grep -rn regdom scripts/` no encuentra nada, así que **no
+> lo pone ningún script del repositorio**; se escribió a mano en algún momento de la instalación
+> y no quedó registrado. Eso significa que una tarjeta grabada siguiendo este manual **no lo
+> tendría**, y las 16 saldrían distintas según quién las prepare. Por eso `preparar_tarjeta.sh`
+> lo fija ahora de forma idempotente: no porque el parámetro sirva —no sirve—, sino para que las
+> 16 tarjetas sean iguales y el `cmdline.txt` de un robot no dependa de quién lo grabó.
+
 ### 3.4 ✅ Configuración de arranque en 24.04 — **verificado 2026-07-30**
 
 **En 24.04 hay un único `/boot/firmware/config.txt`, editable, y `usercfg.txt` NO existe.**

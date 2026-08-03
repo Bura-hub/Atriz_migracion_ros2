@@ -4,6 +4,102 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-03 (parte 4) — Alinear el robot con el repositorio (bloque A)
+
+Antes de replicar rvr-01 a los otros 15 hay que garantizar que **otro robot se pueda montar desde
+cero solo con los repositorios**. Lo que exista únicamente en esta máquina se multiplicaría por 16.
+
+Git estaba limpio: cero divergencia, cero sin commitear, cero sin empujar. El problema no estaba
+en git — estaba en el hueco entre lo que el repositorio afirma y lo que hay instalado.
+
+### 🔴 Lo que se encontró midiendo (evidencia 63)
+
+**`atriz-nav.{sh,service}` NO estaban instalados.** Están en git, `fase_7_systemd.sh:237` los
+instala, y `systemctl is-enabled atriz-nav` decía `not-found`. `atriz-robot.{sh,service}`
+instalados divergían del repositorio (9 y 21 líneas, solo comentarios). Causa: `fase_7` no se
+volvía a ejecutar desde el 2026-07-31 y las fuentes se editaron el 2026-08-03.
+**Una imagen dorada hecha ese día habría salido sin navegación, en los 16 robots.**
+
+**Y una anterior a esta ni siquiera habría tenido el dominio DDS bien.** Había **dos parsers** de
+`robot_id.txt`: el de `first-boot.sh`/`verificar_robot.sh` anclado, y el de
+`provision.sh`/`fase_7_systemd.sh` con `tr -dc '0-9' | head -c2`, que lee los dos primeros dígitos
+del **fichero**, comentarios incluidos. La plantilla que escribe `fase_6` lleva «Rango válido:
+01 a 16», así que el parser débil devolvía **`01` para cualquier `ROBOT_ID`**: los 16 robots en
+`ROS_DOMAIN_ID=1`, viéndose todos entre sí, sin un solo error. Medido con las dos plantillas
+extraídas de sus scripts (evidencia 64). En rvr-01 no mordía **por casualidad**: su ID es 01.
+
+### Qué se hizo
+
+- **`scripts/sistema/` + `MANIFIESTO.tsv`**, con un criterio sintáctico (A/B/C) para decidir qué
+  se versiona: el repo tiene el **fichero** si el heredoc va entrecomillado y el contenido es
+  igual en los 16; tiene solo el **generador** si interpola estado de la máquina. Los heredocs de
+  `99-rvr.rules` y `cpu-performance.service` **se movieron, no se copiaron** — duplicarlos habría
+  creado el mismo problema que esto viene a resolver. `wifi-no-powersave.service` NO se versiona:
+  interpola `wlan0`, y una copia mentiría en el primer robot con la interfaz en `wlan1`.
+- **`verificar_robot.sh` sección 13**, que compara **lo instalado** con el repositorio recorriendo
+  el manifiesto. Probada rompiéndola: detecta `DIVERGE` ante una letra cambiada, `AUSENTE` con un
+  fichero sin instalar, y **degrada a aviso** si no encuentra el repositorio (en un clon puede no
+  estar). Y se le dio sufijo a la sección `9-H`: había **dos** numeradas 9.
+- **Parser único** en los cuatro sitios, más la plantilla de `fase_6` sin dígitos en los
+  comentarios — una plantilla que arma el fallo si alguien copia el parser viejo es una trampa.
+  Y una aserción nueva: `ROS_DOMAIN_ID` efectivo **contra** `robot_id.txt`.
+- **Puerta en `fase_6`**: si `verificar_robot.sh` falla, **no se prepara la imagen**. Probada con
+  los tres códigos de salida. El 2 (solo avisos) **pregunta** en vez de bloquear: una puerta que
+  siempre bloquea se acaba desactivando, y así es como muere un control.
+- **Tres guardas que no guardaban**, arregladas y probadas *antes* de limpiar lo que no veían:
+  `compilar.sh:76` miraba `src/*/build` —un nivel— y el parásito real estaba a cuatro;
+  `fase_6:122` buscaba credenciales en tres rutas fijas y se le escapaba una **copia del token de
+  GitHub** en `respaldo_pre_migracion/`; y `fase_6` paso 4 no limpiaba `~/.ros/log` (44 MB),
+  `~/atriz_ws/log` (13 MB) ni los `build/` bajo `src/`.
+- **Commits fijados** para el YDLidar-SDK y su driver ROS 2 en `provision.sh`: clonaba sin anclar
+  nada, y el parche del driver se aplica con `patch -p1` — si upstream mueve esas líneas, falla o
+  aplica con *fuzz* en el sitio equivocado.
+- **`log/` estaba COMMITEADO** en este repositorio: 4 entradas de un `colcon version-check`.
+  Fuera del índice y al `.gitignore`.
+- **`~/src_externos/` (31 MB) borrado**, tras medir que era el upstream limpio y que la única
+  diferencia con producción es el parche ya versionado (evidencia 65).
+
+### Lo que se corrigió porque era falso
+
+- `CHANGELOG.md` decía de `atriz-nav` «instalada pero NO habilitada». **No lo estaba.** Se deja la
+  línea con una nota de corrección en vez de reescribirla: la bitácora registra lo que se creyó, y
+  borrarlo perdería el aviso de que **escribir el instalador no es haberlo ejecutado**.
+- 🔴 **`cfg80211.ieee80211_regdom=CO` está puesto y NO surte efecto.** El módulo lo recibe
+  (`/sys/module/cfg80211/parameters/ieee80211_regdom` → `CO`) pero el firmware `brcmfmac` es
+  *self-managed* y lo pisa: `iw reg get` dice **US**. Y **no lo escribe ningún script**, así que
+  cada tarjeta saldría distinta. `preparar_tarjeta.sh` lo fija ahora de forma idempotente —no
+  porque sirva, sino para que las 16 sean iguales— y el verificador compara el efecto con lo
+  pedido. Hoy no rompe nada: 2.4 GHz está permitido en los dos dominios.
+- **`~/.bashrc`**: sus líneas de ROS 2 no estaban versionadas en ningún sitio, así que un robot
+  montado solo con los repositorios tendría shells **sin `ros2`**. Se creó
+  `scripts/sistema/atriz-ros.sh` → `/etc/profile.d/atriz-ros.sh`, sin identidad dentro. De paso
+  desaparece la trampa del «el `.bashrc` se lee después y gana», que el proyecto documentaba en
+  cuatro sitios.
+
+### Lo que NO se tocó, y por qué
+
+`04_respaldo/configs/` **no es una copia desactualizada**: es la línea de retorno a Noetic de
+`RECUPERACION.md:214-221`, y `README.md:120` ya la etiqueta «(del sistema viejo)». Sobrescribirla
+con los ficheros actuales habría destruido el rollback. Tampoco se tocaron los `.bak` de Ubuntu y
+de `flash-kernel`, ni los 16 binarios del YDLidar-SDK en `/usr/local/bin`, que parecen basura y no
+lo son.
+
+Y `LAB_BASE`/`LAB_OCTETO` en `red.txt.ejemplo` resultaron **no ser** una divergencia: son una
+derivación opcional que `first-boot.sh:156` ya trata como tal, y el `.ejemplo` ya lo explicaba.
+
+### Pendiente
+
+- 👤 **El bloque B, que necesita `sudo`**: re-ejecutar `fase_7_systemd.sh` (instala `atriz-nav` y
+  `atriz-ros.sh`) y mover los `.bak` de `/etc`.
+- **El shim del `~/.bashrc`** va DESPUÉS del bloque B: hasta que `/etc/profile.d/atriz-ros.sh`
+  exista, quitar las líneas dejaría los shells sin `ros2`.
+- 📝 **NO VERIFICADO** — `provision.sh` no se ha recorrido de extremo a extremo en ningún robot: el
+  SDK de rvr-01 se compiló a mano desde `src_externos` (md5 idéntico, y `~/YDLidar-SDK` no existe).
+  Y el parser arreglado no se puede probar aquí: con `ROBOT_ID=01` los dos parsers coinciden. Las
+  dos cosas se comprueban en el robot 2.
+
+---
+
 ## 2026-08-03 (parte 3) — El arranque de la navegación, decidido y a medio implementar
 
 `ARQUITECTURA.md` arrastraba desde el 2026-08-02 una contradicción anotada: **nadie arrancaba
@@ -14,6 +110,18 @@ el ciclo de vida», era cierta **solo para teleoperación**.
 ### La decisión, y el dato que la tomó
 
 **`atriz-nav.service`: una segunda unidad, instalada pero NO habilitada.** No fusionarla en
+
+> 🔴 **CORRECCIÓN, 2026-08-03 (parte 4).** «Instalada» era **falso** cuando se escribió esta
+> línea: `fase_7_systemd.sh` instala `atriz-nav.{sh,service}` pero **nadie volvió a ejecutarlo**,
+> así que los dos ficheros estaban en git y **no en el sistema** —
+> `systemctl is-enabled atriz-nav` decía `not-found`. Se midió al día siguiente:
+> `00_auditoria/evidencia/63_alineacion_ANTES.txt`. Una imagen dorada hecha ese día habría salido
+> sin navegación, en los 16 robots. Se deja la línea en su sitio con esta nota en vez de
+> reescribirla: la bitácora registra lo que se creyó, y borrarlo perdería el aviso de que
+> **escribir el instalador no es haberlo ejecutado**. Lo instalado de verdad se anota en la
+> entrada de la parte 4. (`TRASPASO.md:25` decía «escrita, instalable y sin habilitar», que sí
+> era correcto.)
+
 `robot.launch.py` con un argumento —acoplaría los ciclos de vida y reiniciar Nav2 obligaría a
 reiniciar el driver— ni un disparador desde la web, que no existe.
 

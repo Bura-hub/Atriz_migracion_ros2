@@ -38,6 +38,10 @@ set -uo pipefail        # sin -e: queremos continuar aunque un paso opcional fal
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
+# De dónde salen los ficheros que este script instala. Con `sudo bash …` el
+# BASH_SOURCE sigue apuntando al script, no al shell del usuario.
+SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Pasos que NO se pudieron aplicar. Se imprimen al final y cambian el codigo de
 # salida. Sin esto el script terminaba en verde aunque un paso no hubiera hecho
 # nada — y eso ya paso con el power-save del WiFi (ver paso 4).
@@ -64,19 +68,21 @@ done
 # ─────────────────────────────────────────────────────────────────────────────
 say "2/9 · Governor de CPU a 'performance'"
 # Unidad propia: 'ondemand.service' lo revierte en cada arranque
-cat > /etc/systemd/system/cpu-performance.service <<'EOF'
-[Unit]
-Description=Fijar el governor de CPU a performance (lazo de control ROS)
-After=multi-user.target
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/bin/sh -c 'for g in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo performance > $g; done'
-
-[Install]
-WantedBy=multi-user.target
-EOF
+#
+# 📝 La unidad vive en scripts/sistema/cpu-performance.service, NO en un heredoc
+#    aquí. Motivo: un heredoc no deja nada contra lo que comparar, así que su
+#    deriva respecto al repositorio es invisible. Con el fichero versionado,
+#    verificar_robot.sh sección 13 la detecta con un `cmp`.
+#    ⚠️ Y esta unidad NO se llama atriz-*, así que un inventario que busque
+#       'atriz-*' la pierde. Está en el manifiesto justo por eso.
+CPU_SRC="$SCRIPTS_DIR/sistema/cpu-performance.service"
+if [[ -f "$CPU_SRC" ]]; then
+    install -m 644 "$CPU_SRC" /etc/systemd/system/cpu-performance.service
+else
+    avis "no encuentro $CPU_SRC: no se instala cpu-performance.service"
+    avis "ejecuta este script desde su sitio en el repositorio, no una copia suelta"
+    NO_APLICADO+=("cpu-performance.service (falta $CPU_SRC)")
+fi
 systemctl daemon-reload
 systemctl enable --now cpu-performance.service 2>/dev/null && ok "cpu-performance.service activo"
 systemctl disable --now ondemand 2>/dev/null && ok "ondemand.service deshabilitado" || true

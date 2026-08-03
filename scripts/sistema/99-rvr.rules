@@ -1,0 +1,4 @@
+# /dev/rvr → el UART de los pines GPIO14/15, donde está cableado el Sphero RVR.
+# Con dtoverlay=disable-bt ese puerto es el PL011, que el kernel llama ttyAMA0.
+# El código debe usar /dev/rvr y nunca el nombre del kernel directamente.
+SUBSYSTEM=="tty", KERNEL=="ttyAMA0", SYMLINK+="rvr", MODE="0660", GROUP="dialout"

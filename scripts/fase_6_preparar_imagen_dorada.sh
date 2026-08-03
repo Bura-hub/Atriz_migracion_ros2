@@ -50,6 +50,55 @@ read -rp "  ¿Continuar? Escribe 'si' para confirmar: " C
 [[ "$C" != "si" ]] && { echo "  Cancelado."; exit 0; }
 
 # ─────────────────────────────────────────────────────────────────────────────
+say "0/6 · Puerta: ¿este robot está de verdad como dice el repositorio?"
+
+# 🔴 ESTO BLOQUEA, no avisa. Y es la diferencia entre este script y el de antes.
+#
+#    Hasta el 2026-08-03 esta fase avisaba mucho y no impedía nada. Ese día se
+#    midió que fase_7_systemd.sh llevaba tres días sin ejecutarse: atriz-nav
+#    estaba en git, estaba en el instalador, y NO estaba en el sistema. Una
+#    imagen hecha en ese momento habría salido sin navegación — en los 16
+#    robots, y sin que nadie lo notara hasta necesitarla.
+#    Evidencia: 00_auditoria/evidencia/63_alineacion_ANTES.txt
+#
+#    Un robot divergido no se clona: se arregla y se vuelve a intentar. Una
+#    divergencia aquí se multiplica por 16 y se descubre semanas después.
+#
+# 📝 Se ejecuta como el usuario real, no como root: el verificador comprueba
+#    cosas del $HOME del usuario, y con root miraría /root.
+VERIF="$SCRIPTS_DIR/verificar_robot.sh"
+if [[ ! -f "$VERIF" ]]; then
+    echo "  ✗ no encuentro $VERIF. Sin él no se puede saber si este robot" >&2
+    echo "    coincide con el repositorio, y no se prepara la imagen." >&2
+    exit 1
+fi
+# ⚠️ Los TRES códigos de salida del verificador significan cosas distintas, y
+#    tratarlos igual rompería la puerta de una de dos maneras:
+#      0  todo bien
+#      1  hay FALLOS        -> se bloquea. No es negociable.
+#      2  solo AVISOS       -> se pregunta. Si bloqueara, la puerta sería
+#                             inusable —siempre hay algún aviso— y acabaría
+#                             desactivada, que es como muere un control.
+#    Pero tampoco se pasan de largo: un aviso multiplicado por 16 deja de ser
+#    un aviso (los permisos de red.txt, por ejemplo, exponen la PSK del WiFi).
+sudo -u "$REAL_USER" bash "$VERIF" --breve
+SALIDA_VERIF=$?
+case $SALIDA_VERIF in
+    0)  ok "el verificador pasa sin avisos: el robot coincide con el repositorio" ;;
+    2)  avis "el verificador pasa PERO con avisos (ver arriba)."
+        avis "Un aviso en el robot de referencia se copia a los 16. Míralos ahora,"
+        avis "no cuando estén repartidos."
+        read -rp "  ¿Seguir de todas formas? Escribe 'si': " CA
+        [[ "$CA" != "si" ]] && { echo "  Cancelado. Arregla los avisos y vuelve."; exit 0; } ;;
+    *)  echo >&2
+        echo "  ✗ EL VERIFICADOR FALLA (salida $SALIDA_VERIF). NO se prepara la imagen." >&2
+        echo "    Arregla lo de arriba y vuelve a ejecutar este script." >&2
+        echo "    Si algún fallo es del RVR apagado, enciéndelo: la imagen se hace" >&2
+        echo "    de un robot que funciona, no de uno que casi funciona." >&2
+        exit 1 ;;
+esac
+
+# ─────────────────────────────────────────────────────────────────────────────
 say "1/6 · Instalar el servicio de personalización de primer arranque"
 
 install -m 755 "$SCRIPTS_DIR/first-boot.sh"       /usr/local/sbin/atriz-first-boot.sh
@@ -60,9 +109,18 @@ ok "atriz-first-boot.service habilitado"
 
 # Plantilla del fichero de identidad, en la partición FAT (editable desde cualquier PC)
 if [[ ! -f /boot/firmware/robot_id.txt ]]; then
+    # ⚠️ NINGÚN DÍGITO EN LOS COMENTARIOS, y no es cosmético.
+    #    El comentario decía «Rango válido: 01 a 16», y el parser que usaban
+    #    provision.sh y fase_7 (`tr -dc '0-9' | head -c2`) leía los dos primeros
+    #    dígitos del FICHERO ENTERO: devolvía 01 con cualquier ROBOT_ID.
+    #    El parser ya está anclado en los cuatro sitios, pero la plantilla se
+    #    deja limpia igualmente: una plantilla que arma un fallo si alguien
+    #    copia el parser viejo es una trampa esperando a que alguien caiga.
+    #    Medido el 2026-08-03: 00_auditoria/evidencia/64_parser_robot_id.txt
     cat > /boot/firmware/robot_id.txt <<'EOF'
 # Identidad de este robot. Editable desde Windows, macOS o Linux sin arrancar la Pi.
-# Cambia el número y nada más. Rango válido: 01 a 16.
+# Cambia el número de la última línea y nada más.
+# Cada robot del laboratorio tiene el suyo, de uno a dieciséis.
 ROBOT_ID=01
 EOF
     ok "/boot/firmware/robot_id.txt creado (ROBOT_ID=01)"
@@ -114,20 +172,66 @@ rm -rf /var/log/*.gz /var/log/*.[0-9] /var/log/journal/* 2>/dev/null
 apt-get clean
 rm -f  "$REAL_HOME/.bash_history" /root/.bash_history
 rm -rf "$REAL_HOME/.cache/pip" "$REAL_HOME/.ros/log"
-ok "logs, cachés e historial limpiados"
+
+# 📝 Medido en rvr-01 el 2026-08-03, antes de limpiar: ~/.ros/log 246 dirs y
+#    43 MB, ~/atriz_ws/log 84 dirs y 13 MB. Se multiplicaba por 16 sin aportar
+#    nada, y encima falsea el «este robot está recién hecho».
+rm -rf "$REAL_HOME/atriz_ws/log" "$REAL_HOME/nav_logs"
+rm -f  "$REAL_HOME/atriz_ws"/frames_*.gv "$REAL_HOME/atriz_ws"/frames_*.pdf
+
+# 🔴 Los workspaces parásitos bajo src/: colcon compila ahí y el cambio nunca
+#    llega al sistema. Clonarlos reparte el fallo a los 16.
+#    A cualquier profundidad — el que había en rvr-01 estaba cuatro niveles
+#    abajo y la guarda de compilar.sh, que solo miraba uno, no lo veía.
+find "$REAL_HOME/atriz_ws/src" -type d \( -name build -o -name install -o -name log \) \
+     -prune -exec rm -rf {} + 2>/dev/null
+
+# Los .bak-* de /etc: son el rollback de fase_1, así que se MUEVEN, no se
+# borran. Y el de apt hace que apt avise en cada ejecución (verificar_robot.sh).
+# ⚠️ NO se tocan /etc/.resolv.conf.systemd-resolved.bak ni /boot/firmware/*.dtb.bak:
+#    esos son de Ubuntu y de flash-kernel, no de Atriz.
+mkdir -p /root/respaldos-atriz
+mv /etc/fstab.bak-* /etc/systemd/journald.conf.bak-* \
+   /etc/apt/sources.list.d/*.bak-* /root/respaldos-atriz/ 2>/dev/null || true
+
+ok "logs, cachés, historial y artefactos de compilación limpiados"
 
 # ─────────────────────────────────────────────────────────────────────────────
 say "5/6 · Comprobar que no queda nada personal ni secreto"
+
+# 🔴 BÚSQUEDA RECURSIVA, no una lista de tres rutas fijas.
+#    La versión anterior miraba solo $REAL_HOME/.ssh/id_* y
+#    $REAL_HOME/.git-credentials. El 2026-08-03 se encontró una COPIA del token
+#    de GitHub en $REAL_HOME/respaldo_pre_migracion/.git-credentials: pasaba el
+#    control sin decir nada y habría viajado en los 16 clones.
+#    Un respaldo hecho a mano no tiene por qué estar donde el script espera —
+#    ese es justo el motivo por el que hay que buscarlo, no listarlo.
+# ⚠️ Y por NOMBRE solo para los ficheros que son un secreto por definición. Un
+#    '*.pem' se descarta o no según su CONTENIDO: un certificado público no es
+#    un secreto, y avisar de él cada vez entrena a la gente a ignorar el aviso
+#    —que es como se pierde un control de verdad—.
 PROB=0
-for f in "$REAL_HOME/.ssh/id_rsa" "$REAL_HOME/.ssh/id_ed25519" "$REAL_HOME/.git-credentials"; do
-    [[ -f "$f" ]] && { avis "PRESENTE: $f  <- se clonará en los 16 robots"; PROB=1; }
-done
+ENCONTRADOS="$(find "$REAL_HOME" -xdev \
+        \( -name '.git-credentials' -o -name 'id_rsa' -o -name 'id_ed25519' \
+           -o -name 'id_ecdsa' -o -name '.netrc' -o -name '*.pem' -o -name '*.key' \) \
+        -type f 2>/dev/null)"
+if [[ -n "$ENCONTRADOS" ]]; then
+    while IFS= read -r f; do
+        case "$f" in
+            *.pem|*.key)
+                # Solo cuenta si de verdad lleva una clave privada dentro.
+                grep -qs 'PRIVATE KEY' "$f" || continue ;;
+        esac
+        avis "PRESENTE: $f  <- se clonará en los 16 robots"
+        PROB=1
+    done <<<"$ENCONTRADOS"
+fi
 if [[ $PROB -eq 1 ]]; then
     avis "Decide: si la clave/token es compartida a propósito, adelante."
-    avis "Si es TU credencial personal, bórrala antes del dd:"
-    avis "    rm -f $REAL_HOME/.git-credentials $REAL_HOME/.ssh/id_*"
+    avis "Si es TU credencial personal, bórrala antes del dd. Para un token,"
+    avis "'shred -u' en vez de 'rm': con rm el contenido sigue en la microSD."
 else
-    ok "sin claves privadas ni tokens en el home"
+    ok "sin claves privadas ni tokens en el home (búsqueda recursiva)"
 fi
 avis "netplan (con la PSK del WiFi) SÍ se clona: es lo deseable si todos usan la misma red"
 

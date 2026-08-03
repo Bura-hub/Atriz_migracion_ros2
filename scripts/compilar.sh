@@ -73,9 +73,21 @@ fi
 
 # 🔴 Un `build/` dentro de src/ es un workspace parásito: colcon compila ahí y
 #    el cambio nunca llega al sistema que se está ejecutando.
-if ls -d "$WS"/src/*/build >/dev/null 2>&1; then
+#
+# 🔴 A CUALQUIER PROFUNDIDAD, no solo un nivel. La versión anterior usaba
+#    `ls -d "$WS"/src/*/build`, que solo mira los hijos directos de src/. El
+#    2026-08-03 se encontró un parásito real cuatro niveles más abajo:
+#      src/Atriz_rvr/atriz_rvr_driver/scripts/atriz_rvr_driver/build
+#    La guarda existía, llevaba días sin ver nada, y decía que todo estaba bien.
+#    Una guarda que no puede fallar es peor que no tener guarda.
+#
+#    `-prune` para no recorrer lo de dentro de un build/ ya encontrado, que
+#    tiene miles de ficheros y no aporta nada.
+PARASITOS="$(find "$WS/src" -type d \( -name build -o -name install \) -prune -print 2>/dev/null)"
+if [[ -n "$PARASITOS" ]]; then
     echo "🔴 HAY UN WORKSPACE PARÁSITO en src/. Bórralo:" >&2
-    ls -d "$WS"/src/*/build >&2
+    echo "$PARASITOS" | sed 's/^/     /' >&2
+    echo "     rm -rf $(echo "$PARASITOS" | tr '\n' ' ')" >&2
     exit 1
 fi
 

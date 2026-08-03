@@ -26,3 +26,11 @@ __pycache__/
 
 # Espacio de trabajo de subagentes (no es documentacion: el registro es git)
 .superpowers/
+
+# Artefactos de colcon si se lanza desde aqui por error. Un `log/` dentro del
+# repo de documentacion es un workspace parasito, y el 2026-08-03 estaba
+# COMMITEADO: 4 entradas de un `colcon version-check` del 2026-07-29.
+log/
+build/
+install/
+.pytest_cache/

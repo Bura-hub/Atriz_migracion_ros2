@@ -140,6 +140,35 @@ else
     ok "cmdline.txt ya estaba bien: no reserva el puerto serie"
 fi
 grep -q 'console=tty1' "$CMD" || avi "no hay console=tty1: no verás mensajes en un monitor HDMI"
+
+# ── Dominio regulatorio del WiFi ─────────────────────────────────────────────
+# 🔴 Este parámetro NO SURTE EFECTO, y se pone igualmente. Medido en rvr-01 el
+#    2026-08-03: el módulo lo recibe (/sys/module/cfg80211/parameters/
+#    ieee80211_regdom -> CO) pero el firmware del brcmfmac es *self-managed* y
+#    fija el suyo — `iw reg get` sigue diciendo US. Manual, cap. 3.3.
+#
+#    Entonces, ¿por qué ponerlo? Porque rvr-01 lo tiene y NINGÚN script lo
+#    escribía: se puso a mano y no quedó registrado. O sea que cada tarjeta
+#    saldría distinta según quién la grabe, y «los 16 robots son iguales» sería
+#    falso en un detalle que nadie miraría. Se fija aquí para que sean iguales,
+#    no porque sirva. Si algún día el firmware deja de pisarlo, además servirá.
+REGDOM="${ATRIZ_REGDOM:-CO}"
+if grep -q 'cfg80211.ieee80211_regdom=' "$CMD"; then
+    ACTUAL="$(grep -o 'cfg80211.ieee80211_regdom=[A-Za-z0-9]*' "$CMD" | cut -d= -f2)"
+    if [[ "$ACTUAL" == "$REGDOM" ]]; then
+        ok "cmdline.txt ya pide regdom=$REGDOM"
+    else
+        avi "cmdline.txt pide regdom=$ACTUAL y este script pone $REGDOM: se deja el existente"
+    fi
+else
+    if [[ $SIMULAR -eq 0 ]]; then
+        # Igual que arriba: una sola línea, sin '\n' final.
+        NUEVO="$(tr -d '\n' < "$CMD") cfg80211.ieee80211_regdom=$REGDOM"
+        printf '%s' "$NUEVO" > "$CMD"
+    fi
+    ok "añadido cfg80211.ieee80211_regdom=$REGDOM (para que las 16 tarjetas sean iguales)"
+fi
+
 printf '  contenido: %s\n' "$(cat "$CMD")"
 # Una sola línea: si hay más de una, el arranque falla de formas confusas.
 LINEAS=$(wc -l < "$CMD")
