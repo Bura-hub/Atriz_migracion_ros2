@@ -3,7 +3,8 @@
 
     python3 probar_ctrl_c_atriz.py
 
-⚠️ MUEVE EL ROBOT. Necesita 1 m despejado por delante.
+⚠️ MUEVE EL ROBOT. Necesita ~1.5 m despejado por delante (0.15 m/s × 10 s).
+   ⚠️ El LIDAR barre a 15.5 cm del suelo: una caja baja no lo ve.
 
 🔴 Por que se repite: `rclpy.init()` sin `SignalHandlerOptions.NO` invalida su
    propio contexto en el SIGINT, y el fallo es INTERMITENTE — segun donde caiga
