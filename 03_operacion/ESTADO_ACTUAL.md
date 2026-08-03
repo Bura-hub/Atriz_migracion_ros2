@@ -54,6 +54,15 @@ Se ejecuta **desde el PC de desarrollo**. Decidido: se rehace la web entera —e
 autenticación y la telemetría de la actual están las tres ausentes o fingidas—, la web sustituye al
 SSH para el alumno, y el proxy de la Fase B pasa a ser el **agente de sesión** de cada robot.
 
+📌 **Y hay una REVISIÓN del plan**, del mismo día por la tarde:
+[`00_auditoria/planes/2026-08-03-plataforma-web-revision.md`](../00_auditoria/planes/2026-08-03-plataforma-web-revision.md).
+Sometió la arquitectura a cuatro lentes opuestas con un escéptico cada una. **El agente de sesión
+gana: 4 de 4 dijeron «sirve con cambios» y ninguna propuso otra cosa.** Pero le encontró **cinco
+huecos** —no hay profesor, no hay política de desconexión, **el driver no publica su bandera de
+parada**, nadie sirve el NTP, y **el alumno con `rclpy` nativo tiene más autoridad que la web**—,
+**reabrió la decisión de repositorio** (recomendación: uno nuevo y privado) y amplió la F0 de 2
+puntos a 20.
+
 🔴 **No se empieza por código: se empieza por dos mediciones.**
 
 1. **El aislamiento de clientes del AP del aula.** Si está activado rompe mDNS y la comunicación

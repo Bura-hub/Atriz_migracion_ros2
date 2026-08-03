@@ -1,5 +1,13 @@
 # Fase 5 — La plataforma web del laboratorio
 
+> 📌 **HAY UNA REVISIÓN DE ESTE PLAN, Y SE LEE DESPUÉS:**
+> [`2026-08-03-plataforma-web-revision.md`](2026-08-03-plataforma-web-revision.md). Sometió esta
+> arquitectura a cuatro lentes opuestas con un escéptico cada una. **Conclusión: el agente de sesión
+> es la mejor opción y ninguna lente propuso otra** — pero le encontró **cinco huecos** (no hay
+> profesor, no hay política de desconexión, el driver no publica su bandera de parada, nadie sirve
+> el NTP, y el alumno tiene más autoridad que la web), **reabrió la decisión de repositorio** y
+> amplió la F0 a 20 puntos.
+
 > **Para quien lo ejecute:** este plan se escribió el 2026-08-03 en el robot de referencia y está
 > pensado para ejecutarse **desde el PC de desarrollo**, con los dos repositorios clonados. Casi
 > todo se puede hacer sin el robot delante; lo que no, va marcado.
