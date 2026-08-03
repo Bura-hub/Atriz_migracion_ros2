@@ -4,6 +4,103 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-03 (parte 2) — La revisión final dijo NO FUSIONAR, y tenía razón
+
+Cerradas las trece tareas del plan `2026-08-02-api-laboratorio.md`, se lanzó la **revisión de toda
+la rama**. Encontró **26 hallazgos**, dos de ellos de seguridad, y **ninguno lo había visto ninguna
+de las trece revisiones por separado**: solo se ven mirando el conjunto.
+
+### 🔴 La garantía central de `atriz.py` tenía CUATRO agujeros, y el manual conducía a dos
+
+La biblioteca promete que **el barrido del LIDAR se apaga pase lo que pase**. No lo cumplía en:
+
+| Camino de salida | Qué pasaba |
+|---|---|
+| **Segundo Ctrl-C** | `cerrar()` tenía **dos `try` y un solo `finally`**, y `except Exception` no ve `SystemExit`. Al reentrar salía por el guardia y el `SystemExit` escapaba: **`/stop_scan` no se llamaba** |
+| **Cerrar la terminal / perder el SSH** | Solo se manejaba `SIGINT`. Ni `SIGHUP` ni `SIGTERM` |
+| **Ctrl-\ (`SIGQUIT`)** | Tampoco, y **sí se puede capturar** |
+| **Ventana entre dos banderas** | `_cerrado = True` se ponía **antes** que `_cerrando = True`: una señal en ese hueco de dos sentencias reproducía el primer caso |
+
+Medido sobre procesos reales, antes y después:
+
+```
+antes   + SIGQUIT -> BARRIDO ENCENDIDO      despues + SIGQUIT -> BARRIDO APAGADO
+antes   + SIGTERM -> BARRIDO ENCENDIDO      despues + SIGTERM -> BARRIDO APAGADO
+antes   + SIGHUP  -> BARRIDO ENCENDIDO      despues + SIGHUP  -> BARRIDO APAGADO
+ventana entre banderas: rastro []          ->  ['parar', '/stop_scan', 'desmontar']
+```
+
+🔴 **El código de salida es idéntico en los cuatro casos, antes y después.** Solo el efecto los
+distingue — la regla del proyecto («comprueba el efecto, no el código de salida») apareciendo
+dentro de su propia verificación.
+
+📝 **Y el primer arreglo hizo el tercer agujero más probable:** al pedir «espera, ya estoy
+cerrando» en el segundo Ctrl-C, empuja al alumno justo hacia probar Ctrl-\. Lo reconoció el propio
+implementador. Arreglar un problema creó el camino hacia otro.
+
+En un laboratorio remoto, **perder el SSH es rutina**. El coste no lo paga el alumno: lo pagan 16
+X2 girando a 11.8 Hz en vez de 2.7 sin que nadie lo note.
+
+→ Ahora se manejan las **cuatro señales** y además hay `atexit`, que cubre la salida normal sin
+`with` y la excepción sin capturar. **Y está escrito lo que `atexit` NO cubre** —`os._exit()`,
+`SIGKILL`, `SIGABRT`, caída dura— en vez de venderlo como garantía entera.
+
+### 🔴 `limitar()` mapeaba las entradas menos fiables al máximo
+
+```
+limitar(nan) -> 0.4        limitar(inf) -> 0.4
+=> avanzar(nan, nan) habria conducido 0.4 m/s x 10 s = 4 METROS
+```
+
+La función cuyo propósito documentado es «recortar a un valor seguro» convertía `NaN` en la
+**velocidad máxima**, y con el tope de tiempo daba la **distancia máxima**. Ahora lanza
+`ErrorAtriz`. 📝 Este repositorio ya lo resolvía bien en `aceptacion_nucleo.delta_angulo()`: la
+disciplina existía y no se había aplicado.
+
+### 🔴 El `NO VERIFICADO` estaba en el diseño y no llegó al alumno
+
+`03_operacion/API_LABORATORIO.md` mantenía una lista honesta y exhaustiva de lo no medido. De esa
+lista, **cero elementos** habían cruzado a los cinco documentos del curso. Las **ocho** secciones
+«qué debería verse» de la guía describían un robot que **nunca ejecutó esos guiones**.
+
+📝 **El proyecto fue riguroso consigo mismo y optimista con el estudiante**, que es exactamente al
+revés de como debe ser. Corregido.
+
+### Y una atribución falsa que llevaba cinco sitios
+
+Los **86.6 / 86.2 / 87.7°** de la práctica 4 se citaban como «lo que da esta práctica». La
+evidencia 48 dice que se midieron con **`move_timed`** —un servicio del driver— **a 1.0 rad/s**, y
+la práctica usa `girar_por_tiempo()` **a 0.8 rad/s** publicando en `/cmd_vel_raw`: otro mecanismo,
+otra velocidad, otro camino. Estaba en `atriz.py` (×2), `04_giro_preciso.py`, `REFERENCIAS.md` y
+`GUIA_PASO_A_PASO.md`.
+
+🔴 La ironía que hubo que deshacer: `atriz.py` **invocaba por escrito la regla «mide antes de
+atribuir» ocho líneas después de incumplirla**.
+
+### Lo que se verificó al cerrar
+
+```
+89 tests · auditar_documentacion.py exit 0 · pyflakes exit 0 · arboles limpios
+publicaciones a /cmd_vel: 0 · rospy en los diez guiones: 0
+/release_emergency_stop: 3 menciones, las TRES texto explicativo, ninguna es llamada
+secretos: 1 coincidencia, y es la linea que dice que NO estan
+```
+
+### Lo que sigue abierto
+
+- 🔴 **Rotar la PSK del WiFi y la contraseña de `sphero`.** Es lo único que cierra la exposición.
+  Medido: **11 coincidencias en cada una de las cuatro ramas** de `Atriz_rvr`, que es público.
+  ⚠️ Una re-revisión afirmó **56** en `origin/ros2`; **no se reproduce** — la medición propia da 11
+  en las cuatro. Anotado como dato no confirmado.
+- 🔴 **La sesión física entera.** Nada se ha medido con el robot moviéndose: ni distancias, ni
+  ángulos, ni las corridas de Ctrl-C, ni los faros, ni el seguidor sobre una línea real.
+- La rama del `join` expirado de `cerrar()` sigue **escrita y no ejercitada**.
+- Decisión del usuario, tomada el 2026-08-03: **empujar los commits tal cual**, sabiendo que unos
+  20 de ellos llevan las credenciales en texto plano. No crea exposición nueva —ya están en el
+  historial público— pero añade sitios a cualquier limpieza futura.
+
+---
+
 ## 2026-08-03 — Tarea 13: cierre del material docente — documentación al día, sesión física pendiente
 
 Última tarea del plan `2026-08-02-api-laboratorio.md`. Alcance recortado por instrucción: **sin

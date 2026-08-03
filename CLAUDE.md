@@ -131,6 +131,37 @@ reproduce el fallo a propósito.
   **ritmo**, no si el nodo o el topic existen — las dos cosas eran ciertas mientras estaba
   mudo. Y un `systemd` con `Restart=always` no habría arreglado nada: el proceso no muere.
 
+**🔴🔴 UN PROGRAMA TIENE MÁS CAMINOS DE SALIDA DE LOS QUE SE TE OCURREN, Y CADA UNO PUEDE
+DEJAR EL LIDAR ENCENDIDO.** `atriz.py` prometía apagar el barrido «pase lo que pase» y fallaba en
+**cuatro** caminos. Ninguno lo vio ninguna de las trece revisiones por separado: solo aparecen al
+hacer **la tabla de TODOS los caminos de salida contra la promesa**.
+
+| Camino | Por qué fallaba |
+|---|---|
+| **Segundo Ctrl-C** | dos `try` y **un solo `finally`**, y `except Exception` **no ve `SystemExit`** |
+| **Cerrar la terminal / perder el SSH** | solo se manejaba `SIGINT`, ni `SIGHUP` ni `SIGTERM` |
+| **Ctrl-\ (`SIGQUIT`)** | tampoco, y **sí se puede capturar** |
+| **Ventana de dos sentencias** | poner la bandera de «ya cerrado» **antes** que la de «cerrando» |
+
+```
+antes + SIGQUIT/SIGTERM/SIGHUP -> BARRIDO ENCENDIDO     despues -> APAGADO
+```
+🔴 **El código de salida es idéntico en los cuatro casos, antes y después.** Solo el efecto los
+distingue: es la regla «comprueba el efecto, no el código de salida» apareciendo dentro de su
+propia verificación.
+→ **`atexit` NO es una garantía entera:** no corre con `os._exit()`, `SIGKILL`, `SIGABRT` ni caída
+  dura. Sirve para la salida normal sin `with` y la excepción sin capturar; lo demás hay que
+  capturarlo por señal, y lo que no se pueda **se escribe**, no se calla.
+→ 📝 **Y arreglar un camino puede abrir otro:** al hacer que la biblioteca pidiera «espera, ya
+  estoy cerrando» en el segundo Ctrl-C, se empujaba al alumno justo hacia probar Ctrl-\.
+
+**🔴 UNA FUNCIÓN QUE «RECORTA A UN VALOR SEGURO» PUEDE MAPEAR LO PEOR AL MÁXIMO.** `limitar(nan)`
+devolvía **0.40 m/s** —el tope— porque `abs(nan) <= tope` es `False` y caía en la rama de recorte.
+Con el tope de tiempo, `avanzar(nan, nan)` habría conducido **4 metros**.
+→ Comprueba `math.isfinite` **antes** de comparar. `aceptacion_nucleo.delta_angulo()` ya lo hacía
+  bien: la disciplina estaba en el repo y no se aplicó al escribir la biblioteca nueva.
+
+
 **🔴 CON EL RVR APAGADO, EL DRIVER DICE «streaming reanudado» PARA SIEMPRE.** Medido el
 2026-08-02 apagando el robot para cargarlo con la Pi encendida —un estado **cotidiano** en el
 laboratorio y que nadie había probado—: **`/odom` a 0 mensajes en 15 s** mientras el log escribía

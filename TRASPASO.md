@@ -4,10 +4,17 @@
 > Raspberry Pi ya se reflasheó. Está escrito para que no haga falta reconstruir el
 > contexto desde cero.
 >
-> Última actualización: **2026-08-03** (el material docente —`atriz.py` y las diez
-> prácticas— quedó escrito, revisado y con 89 tests el 2026-08-02; falta la sesión física que lo
-> mide contra el robot, y también falta la corrida completa de la prueba de aceptación tras un
-> reinicio real — las dos, más abajo).
+> Última actualización: **2026-08-03**, tras la **revisión final de rama** y su oleada de
+> arreglos. El material docente —`atriz.py` y las diez prácticas— está escrito, revisado y con
+> **89 tests**, y **empujado a los dos repositorios**.
+>
+> 🔴 **Lo que falta es de dos clases, y las dos son del usuario:**
+> 1. **La sesión física.** *Nada* se ha medido con el robot moviéndose: ni distancias, ni ángulos,
+>    ni las corridas de Ctrl-C, ni los faros, ni el seguidor sobre una línea real. Va más abajo.
+> 2. **Rotar la PSK del WiFi y la contraseña de `sphero`**, que es lo único que cierra la
+>    exposición del repositorio público (11 coincidencias en cada una de sus cuatro ramas).
+>
+> Y falta también la corrida completa de la prueba de aceptación tras un reinicio real.
 
 ---
 
