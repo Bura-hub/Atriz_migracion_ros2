@@ -298,3 +298,67 @@ def test_validar_canal_led_rechaza_float_aunque_trunque_a_un_valor_valido():
         validar_canal_led(-0.5, 'rojo')
     with pytest.raises(ErrorAtriz):
         validar_canal_led(128.0, 'rojo')
+
+
+# ── seguidor_linea_pid_demo: el signo del giro depende del LADO ────────────
+# 🔴 Tarea 11, Ronda de arreglo 1. Un solo sensor mirando hacia abajo no
+# puede saber si el robot se desvio a la izquierda o a la derecha de la
+# linea: `claro` sale igual de alto en los dos casos. Por eso el diseno
+# separa el PID (decide CUANTO corregir) de `lado_borde` (decide HACIA
+# DONDE). Este test es la prueba de que esa separacion es real: con el
+# MISMO `claro`, el UNICO cambio es el lado, y el giro tiene que salir con
+# signo contrario. Si no se pudiera escribir este test, el diseno seguiria
+# teniendo el problema original (ver tarea-11-report.md).
+sys.path.insert(0, str(Path.home() / 'atriz_ws/src/Atriz_rvr/scripts/estudiantes'))
+from seguidor_linea_pid_demo import (                        # noqa: E402
+    PID as PIDSeguidor, clasificar, decidir_giro, magnitud_correccion,
+    signo_correccion,
+)
+
+
+def test_signo_del_giro_depende_del_lado_no_de_la_lectura():
+    """Mismo `claro`, lado del borde contrario -> giros de signo contrario.
+
+    `claro=1275` es el suelo real medido (evidencia 37): bien lejos de
+    cualquier umbral, para que la magnitud no sea cero.
+    """
+    claro = 1275
+    pid_derecha = PIDSeguidor()
+    pid_izquierda = PIDSeguidor()
+
+    giro_derecha = decidir_giro(claro, +1, pid_derecha)
+    giro_izquierda = decidir_giro(claro, -1, pid_izquierda)
+
+    assert giro_derecha != 0.0
+    assert giro_izquierda == -giro_derecha
+
+
+def test_signo_correccion_es_contrario_en_negro_y_en_claro():
+    """Para el MISMO lado del borde, 'negro' y 'claro' piden giros
+    contrarios: si nos pasamos hacia la linea hay que girar hacia el
+    suelo, y viceversa."""
+    assert signo_correccion('claro', 1) == -signo_correccion('negro', 1)
+    assert signo_correccion('claro', -1) == -signo_correccion('negro', -1)
+
+
+def test_clasificar_con_los_valores_de_la_evidencia_37():
+    """negro=181 y suelo real=1275 (evidencia 37, 2026-08-01) tienen que
+    clasificar sin ambiguedad con los umbrales por defecto del script."""
+    assert clasificar(181) == 'negro'
+    assert clasificar(1275) == 'claro'
+    assert clasificar(700) == 'borde'  # el punto medio de UMBRAL_NEGRO/UMBRAL_CLARO
+
+
+def test_magnitud_correccion_nunca_es_negativa():
+    """El PID controla la magnitud, no el signo: pase lo que pase, tiene
+    que ser >= 0."""
+    pid = PIDSeguidor()
+    for claro in (100, 181, 400, 700, 1000, 1275, 2288):
+        assert magnitud_correccion(claro, pid) >= 0.0
+
+
+def test_magnitud_correccion_crece_lejos_del_borde():
+    """Cerca del punto medio (borde) la correccion es chica; lejos, mayor."""
+    cerca = magnitud_correccion(750, PIDSeguidor())    # justo pasado el centro (700)
+    lejos = magnitud_correccion(1275, PIDSeguidor())   # el suelo real
+    assert lejos > cerca
