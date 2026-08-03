@@ -178,29 +178,56 @@ def test_simulador_tolera_duplicados_ocasionales():
     assert abs(resultado - 90.0) < 2.5
 
 
-def test_frecuencia_20hz_mejora_o_iguala_10hz():
-    """A 20 Hz el sobregiro NO PUEDE SER MAYOR que a 10 Hz.
+def test_frecuencia_20hz_reduce_el_sobregiro():
+    """A 20 Hz el sobregiro en grados es MENOR que a 10 Hz, con la rampa REAL
+    de velocidad_giro() (generador_rampa_real, la misma que usan
+    simular_girar.py y medir_sobregiro.py).
 
-    Este test DEBE FALLAR si el dt del generador está hardcodeado.
-    Arreglalo en simular_girar.py, no aquí.
+    🔴 Desigualdad ESTRICTA a propósito, no `<=`. Con el bug original
+    (`dt = 1.0/20.0` hardcodeado dentro de simular_girar(), ignorando
+    freq_hz) las dos llamadas reciben el MISMO dt por dentro, así que
+    generan la MISMA trayectoria y r20 == r10 — una igualdad que `<=`
+    dejaría pasar en silencio. Con `<` estricto, ese caso FALLA.
+    Ver la Ronda de arreglo 4 del informe: reintroducido el bug, este test
+    falla; restaurado, pasa.
+    """
+    sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
+    from simular_girar import generador_rampa_real, simular_girar  # noqa: E402
+
+    for grados in [90, 180, 360, 720]:
+        r10, _, _ = simular_girar(grados, generador_rampa_real(), freq_hz=10.0)
+        r20, _, _ = simular_girar(grados, generador_rampa_real(), freq_hz=20.0)
+        assert r20 < r10, (
+            f"{grados}°: 10 Hz={r10:.3f}, 20 Hz={r20:.3f}. "
+            f"A 20 Hz el sobregiro tiene que ser ESTRICTAMENTE menor. "
+            f"Si salen iguales, sospecha de un dt hardcodeado en simular_girar()."
+        )
+
+
+def test_generador_recibe_dt_correcto_segun_freq_hz():
+    """simular_girar() tiene que pasarle al generador dt = 1.0 / freq_hz.
+
+    Éste es el test dirigido al bug real (Ronda de arreglo 3): un dt
+    hardcodeado a 1.0/20.0 dentro de simular_girar(), ignorando el parámetro
+    freq_hz, hace que para freq_hz=10.0 el generador reciba 0.05 en vez de
+    0.1 — esta aserción lo atrapa directamente, sin pasar por la física de
+    velocidad_giro().
     """
     sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
     from simular_girar import simular_girar  # noqa: E402
 
-    def make_yaw_gen(freq_hz):
-        """Generador que captura la frecuencia correctamente."""
-        def yaw_gen(iteracion, restante_grados, dt):
-            if iteracion == 0:
-                return 0.0
-            # Usa dt recibido, NO hardcodeado
-            return iteracion * dt * 0.5
-        return yaw_gen
+    for freq_hz in (10.0, 20.0):
+        dts_recibidos = []
 
-    for grados in [90, 180, 360, 720]:
-        r10, _, _ = simular_girar(grados, make_yaw_gen(10.0), freq_hz=10.0)
-        r20, _, _ = simular_girar(grados, make_yaw_gen(20.0), freq_hz=20.0)
-        assert r20 <= r10, (
-            f"{grados}°: 10 Hz={r10:.3f}, 20 Hz={r20:.3f}. "
-            f"A mayor frecuencia NO PUEDE HABER MÁS SOBREGIRO. "
-            f"Arregla simular_girar.py: el dt está hardcodeado."
+        def yaw_gen(iteracion, restante_grados, dt, _dts=dts_recibidos):
+            _dts.append(dt)
+            return 0.0 if iteracion == 0 else iteracion * dt * 0.5
+
+        simular_girar(90, yaw_gen, freq_hz=freq_hz)
+
+        assert dts_recibidos, "el generador nunca fue llamado"
+        esperado = 1.0 / freq_hz
+        assert all(math.isclose(dt, esperado) for dt in dts_recibidos), (
+            f"freq_hz={freq_hz}: el generador recibió dt={dts_recibidos[0]}, "
+            f"se esperaba {esperado}. El dt está hardcodeado en simular_girar()."
         )
