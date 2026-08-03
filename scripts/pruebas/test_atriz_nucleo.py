@@ -138,10 +138,10 @@ def test_simulador_converge_en_caso_normal():
     sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
     from simular_girar import simular_girar  # noqa: E402, F401
 
-    def yaw_ideal(iteracion, restante_grados):
+    def yaw_ideal(iteracion, restante_grados, dt):
         if iteracion == 0:
             return 0.0
-        return iteracion * (1.0 / 20.0) * 0.5
+        return iteracion * dt * 0.5
 
     resultado, iters, razon = simular_girar(90, yaw_ideal, freq_hz=20.0)
     assert razon == 'convergencia'
@@ -153,10 +153,10 @@ def test_simulador_detecta_odom_congelado():
     sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
     from simular_girar import simular_girar  # noqa: E402
 
-    def yaw_congelado(iteracion, restante_grados):
+    def yaw_congelado(iteracion, restante_grados, dt):
         if iteracion >= 50:
             return math.radians(45.8)
-        return iteracion * (1.0 / 20.0) * 0.5
+        return iteracion * dt * 0.5
 
     resultado, iters, razon = simular_girar(90, yaw_congelado, freq_hz=20.0)
     assert razon == 'odom_congelado'
@@ -168,11 +168,39 @@ def test_simulador_tolera_duplicados_ocasionales():
     sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
     from simular_girar import simular_girar  # noqa: E402
 
-    def yaw_con_duplicados(iteracion, restante_grados):
+    def yaw_con_duplicados(iteracion, restante_grados, dt):
         if iteracion % 3 == 0:
-            return (iteracion - 1) * (1.0 / 20.0) * 0.5
-        return iteracion * (1.0 / 20.0) * 0.5
+            return (iteracion - 1) * dt * 0.5
+        return iteracion * dt * 0.5
 
     resultado, iters, razon = simular_girar(90, yaw_con_duplicados, freq_hz=20.0)
     assert razon == 'convergencia'  # debe convergir a pesar de los duplicados
     assert abs(resultado - 90.0) < 2.5
+
+
+def test_frecuencia_20hz_mejora_o_iguala_10hz():
+    """A 20 Hz el sobregiro NO PUEDE SER MAYOR que a 10 Hz.
+
+    Este test DEBE FALLAR si el dt del generador está hardcodeado.
+    Arreglalo en simular_girar.py, no aquí.
+    """
+    sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
+    from simular_girar import simular_girar  # noqa: E402
+
+    def make_yaw_gen(freq_hz):
+        """Generador que captura la frecuencia correctamente."""
+        def yaw_gen(iteracion, restante_grados, dt):
+            if iteracion == 0:
+                return 0.0
+            # Usa dt recibido, NO hardcodeado
+            return iteracion * dt * 0.5
+        return yaw_gen
+
+    for grados in [90, 180, 360, 720]:
+        r10, _, _ = simular_girar(grados, make_yaw_gen(10.0), freq_hz=10.0)
+        r20, _, _ = simular_girar(grados, make_yaw_gen(20.0), freq_hz=20.0)
+        assert r20 <= r10, (
+            f"{grados}°: 10 Hz={r10:.3f}, 20 Hz={r20:.3f}. "
+            f"A mayor frecuencia NO PUEDE HABER MÁS SOBREGIRO. "
+            f"Arregla simular_girar.py: el dt está hardcodeado."
+        )

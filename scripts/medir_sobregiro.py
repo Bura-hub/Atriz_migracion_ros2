@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Medición del sobregiro en girar() - modelo realista de la dinámica.
+"""Medición del sobregiro en girar() - usando el simulador con rampa real.
 
-Integra correctamente la velocidad angular según la rampa de velocidad_giro()
-y la frecuencia de publicación.
+Llama a simular_girar() con un generador que integra velocidad_giro() REAL.
+Esto asegura que el modelo es correcto y reproducible.
 """
 
 import sys
@@ -12,133 +12,76 @@ import math
 sys.path.insert(0, str(Path.home() / 'atriz_ws/src/Atriz_rvr/scripts/estudiantes'))
 sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
 
-from atriz import acumular, alcanzado, normalizar, velocidad_giro, yaw_de_cuaternion
+from atriz import velocidad_giro
 from simular_girar import simular_girar
 
 
-def yaw_dinamico_real(dt, velocidad_angular_cmd):
-    """Generador que simula integración real de velocidad angular.
+def make_yaw_con_rampa_real(freq_hz):
+    """Generador que integra velocidad_giro() REAL.
 
-    Mantiene estado entre llamadas.
+    Mantiene estado y respeta dt para integrar correctamente.
     """
     acumulado = 0.0
 
-    def generador(iteracion, restante_grados):
+    def gen(iteracion, restante_grados, dt):
         nonlocal acumulado
-        # Integrar: y(t) = y0 + ∫v(τ) dτ
-        # Aquí v es el comando de velocidad_giro()
-        acumulado += velocidad_angular_cmd * dt
-        # Normalizar para que atan2 no nos engañe
-        return normalizar(acumulado)
+        if iteracion == 0:
+            return 0.0
+        # Calcular velocidad según la rampa REAL
+        objetivo_rad = math.radians(restante_grados)
+        v_cmd = velocidad_giro(objetivo_rad)
+        # Integrar: delta = velocidad * dt
+        delta = v_cmd * dt
+        acumulado += delta
+        return acumulado
 
-    return generador
+    return gen
 
 
 print("═" * 70)
-print("MEDICIÓN DE SOBREGIRO — Modelo de integración realista")
+print("MEDICIÓN DE SOBREGIRO — Modelo con rampa REAL")
 print("═" * 70)
 
 # Caso 1: A 10 Hz con rampa realista
 print("\n[MODELO REALISTA — 10 Hz]")
-dt_10hz = 1.0 / 10.0
-
 for grados_pedidos in [90, 180, 360, 720]:
-    # Crear generador que integra velocidad angular
-    objetivo_rad = math.radians(grados_pedidos)
-    acumulado = 0.0
-    dt = dt_10hz
-    iteracion = 0
-
-    anterior = 0.0
-
-    # Simular el lazo
-    while not alcanzado(acumulado, objetivo_rad):
-        # Calcular velocidad según rampa
-        restante = abs(objetivo_rad - acumulado)
-        v_cmd = velocidad_giro(restante)  # rad/s
-
-        # Integrar: delta_yaw = velocidad * dt
-        delta_yaw = v_cmd * dt
-        acumulado = acumular(anterior, anterior + delta_yaw, acumulado)
-        anterior = anterior + delta_yaw
-
-        iteracion += 1
-        if iteracion > 10000:
-            break
-
-    resultado_grados = math.degrees(acumulado)
-    sobregiro = resultado_grados - grados_pedidos
-    print(f"  {grados_pedidos:3d}° → {resultado_grados:7.3f}° (sobregiro {sobregiro:+.3f}°)")
+    generador = make_yaw_con_rampa_real(10.0)
+    resultado, iters, razon = simular_girar(grados_pedidos, generador, freq_hz=10.0)
+    sobregiro = resultado - grados_pedidos
+    print(f"  {grados_pedidos:3d}° → {resultado:7.3f}° (sobregiro {sobregiro:+.3f}°)")
 
 # Caso 2: A 20 Hz
 print("\n[MODELO REALISTA — 20 Hz]")
-dt_20hz = 1.0 / 20.0
-
 for grados_pedidos in [90, 180, 360, 720]:
-    objetivo_rad = math.radians(grados_pedidos)
-    acumulado = 0.0
-    dt = dt_20hz
-    iteracion = 0
-
-    anterior = 0.0
-
-    # Simular el lazo
-    while not alcanzado(acumulado, objetivo_rad):
-        # Calcular velocidad según rampa
-        restante = abs(objetivo_rad - acumulado)
-        v_cmd = velocidad_giro(restante)  # rad/s
-
-        # Integrar: delta_yaw = velocidad * dt
-        delta_yaw = v_cmd * dt
-        acumulado = acumular(anterior, anterior + delta_yaw, acumulado)
-        anterior = anterior + delta_yaw
-
-        iteracion += 1
-        if iteracion > 10000:
-            break
-
-    resultado_grados = math.degrees(acumulado)
-    sobregiro = resultado_grados - grados_pedidos
-    print(f"  {grados_pedidos:3d}° → {resultado_grados:7.3f}° (sobregiro {sobregiro:+.3f}°)")
+    generador = make_yaw_con_rampa_real(20.0)
+    resultado, iters, razon = simular_girar(grados_pedidos, generador, freq_hz=20.0)
+    sobregiro = resultado - grados_pedidos
+    print(f"  {grados_pedidos:3d}° → {resultado:7.3f}° (sobregiro {sobregiro:+.3f}°)")
 
 print("\n" + "═" * 70)
 print("COMPARACIÓN: 10 Hz vs 20 Hz")
 print("═" * 70)
-print("\nGrados  | 10 Hz (ms)  | 20 Hz (ms)  | Diferencia")
-print("--------|-------------|-------------|----------")
+print("\nGrados  | 10 Hz (s)   | 20 Hz (s)   | Sobregiro mejora")
+print("--------|-------------|-------------|------------------")
 
 for grados_pedidos in [90, 180, 360, 720]:
-    objetivo_rad = math.radians(grados_pedidos)
+    gen10 = make_yaw_con_rampa_real(10.0)
+    r10, iters10, _ = simular_girar(grados_pedidos, gen10, freq_hz=10.0)
+    sg10 = r10 - grados_pedidos
 
-    # 10 Hz
-    acumulado_10 = 0.0
-    dt = 1.0 / 10.0
-    anterior = 0.0
-    iteracion = 0
-    while not alcanzado(acumulado_10, objetivo_rad) and iteracion < 10000:
-        restante = abs(objetivo_rad - acumulado_10)
-        v_cmd = velocidad_giro(restante)
-        delta_yaw = v_cmd * dt
-        acumulado_10 = acumular(anterior, anterior + delta_yaw, acumulado_10)
-        anterior = anterior + delta_yaw
-        iteracion += 1
-    tiempo_10 = iteracion * dt
+    gen20 = make_yaw_con_rampa_real(20.0)
+    r20, iters20, _ = simular_girar(grados_pedidos, gen20, freq_hz=20.0)
+    sg20 = r20 - grados_pedidos
 
-    # 20 Hz
-    acumulado_20 = 0.0
-    dt = 1.0 / 20.0
-    anterior = 0.0
-    iteracion = 0
-    while not alcanzado(acumulado_20, objetivo_rad) and iteracion < 10000:
-        restante = abs(objetivo_rad - acumulado_20)
-        v_cmd = velocidad_giro(restante)
-        delta_yaw = v_cmd * dt
-        acumulado_20 = acumular(anterior, anterior + delta_yaw, acumulado_20)
-        anterior = anterior + delta_yaw
-        iteracion += 1
-    tiempo_20 = iteracion * dt
+    tiempo_10 = iters10 * (1.0 / 10.0)
+    tiempo_20 = iters20 * (1.0 / 20.0)
+    mejora = sg10 - sg20
 
-    diff = tiempo_10 - tiempo_20
-    print(f"  {grados_pedidos:3d}° |   {tiempo_10:6.3f}   |   {tiempo_20:6.3f}   |  {diff:+6.3f}")
+    print(f"  {grados_pedidos:3d}° |   {tiempo_10:6.3f}   |   {tiempo_20:6.3f}   |  {mejora:+6.3f}°")
 
 print("\n" + "═" * 70)
+print("\nNOTA IMPORTANTE: Este modelo usa velocidad_giro() REAL del código.")
+print("A 20 Hz: /odom llega cada ~60 ms; el bucle pide cada 50 ms.")
+print("El cuello de botella ES /odom (16.5 Hz), no el bucle.")
+print("Por eso el beneficio de 20 Hz es limitado: el paso máximo lo fija /odom.")
+print("═" * 70)
