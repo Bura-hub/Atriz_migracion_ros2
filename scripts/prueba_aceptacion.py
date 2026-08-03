@@ -1055,7 +1055,7 @@ def f7(a: Aceptacion) -> None:
         if not listo:
             return
 
-        def objetivo(dx, etiqueta):
+        def objetivo(dx, etiqueta, absoluta=None):
             """Objetivo a `dx` metros POR DELANTE DEL ROBOT (dx<0 = hacia atras).
 
             🔴🔴 ANTES ERA `position.x = p0[0] + dx` CON `orientation.w = 1.0`, y
@@ -1076,15 +1076,34 @@ def f7(a: Aceptacion) -> None:
                                     'sin TF map->base_footprint: ¿arranco SLAM?'))
                 return
             yaw = p0[2]
+            # 🔴🔴 `absoluta` EXISTE PORQUE «VOLVER AL ORIGEN» NO VOLVIA AL ORIGEN.
+            #    La version anterior calculaba el regreso desde la pose ACTUAL:
+            #    si el robot llegaba al primer objetivo con unos grados de error,
+            #    el regreso **heredaba** ese error Y ADEMAS proyectaba los -1.50 m
+            #    sobre el rumbo ya torcido. Los errores se acumulaban en vez de
+            #    cancelarse, y el robot volvia girado respecto a donde empezo.
+            #    Consecuencia real, y es la que importa: el TERCER objetivo —el
+            #    del obstaculo— apuntaba a un sitio distinto del primero, asi que
+            #    **la comparacion limpio-vs-obstaculo dejaba de ser valida**, que
+            #    es lo unico que hace interpretable el desvio.
+            #    Lo destapo el usuario mirando el robot: «quedo torcido respecto a
+            #    su angulo inicial».
+            #    → Con `absoluta` se manda la pose de partida TAL CUAL, guardada
+            #      antes del primer objetivo. Volver es volver.
+            if absoluta is not None:
+                destino = absoluta
+            else:
+                destino = (p0[0] + dx * math.cos(yaw),
+                           p0[1] + dx * math.sin(yaw), yaw)
             g = NavigateToPose.Goal()
             g.pose.header.frame_id = 'map'
             g.pose.header.stamp = a.nodo.get_clock().now().to_msg()
             # proyectado sobre el rumbo ACTUAL: «delante» quiere decir delante
-            g.pose.pose.position.x = p0[0] + dx * math.cos(yaw)
-            g.pose.pose.position.y = p0[1] + dx * math.sin(yaw)
-            # y llega mirando hacia donde ya miraba, no hacia +X del mapa
-            g.pose.pose.orientation.z = math.sin(yaw / 2.0)
-            g.pose.pose.orientation.w = math.cos(yaw / 2.0)
+            g.pose.pose.position.x = destino[0]
+            g.pose.pose.position.y = destino[1]
+            # llega mirando al rumbo del DESTINO, no al que tenga ahora
+            g.pose.pose.orientation.z = math.sin(destino[2] / 2.0)
+            g.pose.pose.orientation.w = math.cos(destino[2] / 2.0)
             print(f'    objetivo {dx:+.2f} m sobre el rumbo actual '
                   f'({math.degrees(yaw):+.0f}°)')
 
@@ -1128,8 +1147,10 @@ def f7(a: Aceptacion) -> None:
             if not ok:
                 print('    ⚠️ el error de abajo NO es de precision: no llego.')
             p1 = a.pos_mapa() or p0
-            err = math.hypot(p1[0] - (p0[0] + dx * math.cos(yaw)),
-                             p1[1] - (p0[1] + dx * math.sin(yaw))) * 100
+            err = math.hypot(p1[0] - destino[0], p1[1] - destino[1]) * 100
+            # 🔴 Y el error de RUMBO, que antes no se media y es el que destapo
+            #    todo esto: el robot puede llegar al sitio mirando a otro lado.
+            err_yaw = abs(math.degrees(delta_angulo(destino[2], p1[2])))
             # 🔴 Hallazgo de revisión (B5): «TRASPASO:289» no tiene los 8 cm —
             #    estan en las lineas 346-347. Se cita la seccion, no el numero
             #    de linea: un documento vivo mueve las lineas con cada entrada.
@@ -1138,6 +1159,15 @@ def f7(a: Aceptacion) -> None:
                                'otra tanda 9-10', 'F7', 'cm'))
             return desvio
 
+        # 🔴 LA POSE DE PARTIDA, GUARDADA ANTES DE MOVER NADA. Es a esta a la que
+        #    se vuelve, no a «1.50 m hacia atras de donde estes ahora».
+        partida = a.pos_mapa()
+        if partida is None:
+            a.add(no_verificado('pose de partida de F7', 'F7',
+                                'sin TF map->base_footprint: ¿arranco SLAM?'))
+            return
+        print(f'    pose de partida: x={partida[0]:+.2f} y={partida[1]:+.2f} '
+              f'yaw={math.degrees(partida[2]):+.0f}°')
         objetivo(1.50, 'objetivo limpio a 1.50 m')
 
         # 🔴🔴 EL ROBOT VUELVE SOLO, NO A MANO. La version anterior pedia
@@ -1149,7 +1179,7 @@ def f7(a: Aceptacion) -> None:
         #    📝 Este proyecto ya tiene documentado que no se reinicia el driver
         #       por debajo de un slam_toolbox vivo. Moverlo a mano es peor.
         print('    volviendo al origen con Nav2 (sin tocarlo)…')
-        objetivo(-1.50, 'regreso al origen')
+        objetivo(-1.50, 'regreso al origen', absoluta=partida)
         time.sleep(3)
         a.puerta('COLOCA EL OBSTACULO a ~0.75 m por delante del robot, escorado\n'
                  '     ~6 cm a la IZQUIERDA del eje. Algo de ~16 cm de ancho.\n'

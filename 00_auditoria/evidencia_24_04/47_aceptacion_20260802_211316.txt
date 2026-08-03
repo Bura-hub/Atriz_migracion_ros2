@@ -1,0 +1,83 @@
+==============================================================================
+PRUEBA DE ACEPTACION · rvr-01 · 2026-08-02 21:13:16  ⚠️ ABORTADA POR Ctrl-C
+==============================================================================
+
+
+── F0 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F0 · Arranque en frio — ¿arranco solo?
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F1 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F1 · Telemetria — los sentidos del robot
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F2 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F2 · LIDAR — arranca, barre y para
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F3 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F3 · Luces — esta la confirmas TU con los ojos
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F4 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F4 · Movimiento basico y parada de emergencia
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F5 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F5 · ANGULOS — el hueco que nadie habia medido
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F6 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F6 · Seguridad — collision_monitor y watchdog
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F8 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F8 · Web — rosbridge de verdad, no «el puerto esta abierto»
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F9 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F9 · Veredicto
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F7 ──────────────────────────────────────────────────────────────────────
+  [OK   ] Nav2 levanta y su action server responde
+  [OK   ] objetivo limpio a 1.50 m: Nav2 lo dio por COMPLETADO
+          estado = SUCCEEDED
+  [OK   ] objetivo limpio a 1.50 m: error final
+          7.7 cm · banda [0.0, 15.0] cm · base TRASPASO § "Hecho: navegando a 0.40 m/s": 8 cm; otra tanda 9-10
+  [OK   ] regreso al origen: Nav2 lo dio por COMPLETADO
+          estado = SUCCEEDED
+  [OK   ] regreso al origen: error final
+          7.6 cm · banda [0.0, 15.0] cm · base TRASPASO § "Hecho: navegando a 0.40 m/s": 8 cm; otra tanda 9-10
+
+── F9 ──────────────────────────────────────────────────────────────────────
+  [PEND ] rosbridge sin autenticacion en el 9090
+          expone raw_motors, que se salta el collision_monitor y no tiene corte automatico. Hay que decidirlo ANTES de escribir el cliente: cambia su arquitectura. Ver 03_operacion/ARQUITECTURA.md
+  [PEND ] el hueco de los precipicios
+          collision_monitor solo mira /scan, y un LIDAR 2D no ve un vacio a ninguna altura. Mitigado solo por la regla de laboratorio (suelo continuo y cerrado). Ver manual cap. 12.2b
+  [PEND ] la PSK del WiFi es legible por cualquier usuario
+          falta fmask=0177,dmask=0077 en /etc/fstab. chmod NO sirve: es FAT
+  [PEND ] la credencial sphero sin rotar
+          y sin purgar del historico de git
+
+==============================================================================
+  5 PASA · 0 REVISAR · 0 FALLO · 13 PENDIENTE
+==============================================================================
+
+  🔴 NO HAY VIA LIBRE PARA LA FASE 5
+
+     Lo que lo impide:
+       · [PENDIENTE] F0 · Arranque en frio — ¿arranco solo?
+       · [PENDIENTE] F1 · Telemetria — los sentidos del robot
+       · [PENDIENTE] F2 · LIDAR — arranca, barre y para
+       · [PENDIENTE] F3 · Luces — esta la confirmas TU con los ojos
+       · [PENDIENTE] F4 · Movimiento basico y parada de emergencia
+       · [PENDIENTE] F5 · ANGULOS — el hueco que nadie habia medido
+       · [PENDIENTE] F6 · Seguridad — collision_monitor y watchdog
+       · [PENDIENTE] F8 · Web — rosbridge de verdad, no «el puerto esta abierto»
+       · [PENDIENTE] F9 · Veredicto
+       · [PENDIENTE] rosbridge sin autenticacion en el 9090
+       · [PENDIENTE] el hueco de los precipicios
+       · [PENDIENTE] la PSK del WiFi es legible por cualquier usuario
+       · [PENDIENTE] la credencial sphero sin rotar
+==============================================================================
