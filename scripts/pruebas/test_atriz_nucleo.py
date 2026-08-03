@@ -8,11 +8,14 @@ import math
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path.home() / 'atriz_ws/src/Atriz_rvr/scripts/estudiantes'))
 
 from atriz import (                                          # noqa: E402
-    GRADOS_MAX, RITMO_HZ, TIEMPO_MAX, TOPIC_MANDO, VEL_GIRO_MAX, VEL_MAX,
-    acumular, alcanzado, limitar, normalizar, velocidad_giro, yaw_de_cuaternion,
+    ErrorAtriz, GRADOS_MAX, RITMO_HZ, TIEMPO_MAX, TOPIC_MANDO, VEL_GIRO_MAX,
+    VEL_MAX, acumular, alcanzado, limitar, normalizar, validar_canal_led,
+    velocidad_giro, yaw_de_cuaternion,
 )
 
 
@@ -261,3 +264,37 @@ def test_generador_rampa_real_respeta_el_signo_en_giros_negativos():
     assert math.isclose(resultado, -90.0, abs_tol=2.0), (
         f"giro de -90° dio {resultado:.3f}°, se esperaba cerca de -90°."
     )
+
+
+# ── validar_canal_led ────────────────────────────────────────────────────────
+def test_validar_canal_led_acepta_el_rango_valido():
+    validar_canal_led(0, 'rojo')
+    validar_canal_led(255, 'rojo')
+    validar_canal_led(128, 'rojo')
+
+
+def test_validar_canal_led_rechaza_fuera_de_rango():
+    with pytest.raises(ErrorAtriz):
+        validar_canal_led(256, 'rojo')
+    with pytest.raises(ErrorAtriz):
+        validar_canal_led(-1, 'rojo')
+
+
+def test_validar_canal_led_rechaza_bool_aunque_sea_subclase_de_int():
+    """🔴 `bool` es subclase de `int` en Python: sin este chequeo,
+    `luces(True, True, True)` pasaria como RGB (1,1,1) -- practicamente
+    apagado -- sin avisar. Ronda de arreglo 1 de la Tarea 5."""
+    with pytest.raises(ErrorAtriz):
+        validar_canal_led(True, 'rojo')
+    with pytest.raises(ErrorAtriz):
+        validar_canal_led(False, 'rojo')
+
+
+def test_validar_canal_led_rechaza_float_aunque_trunque_a_un_valor_valido():
+    """`int(-0.5) == 0` es un entero valido: si el rango se comprobara
+    DESPUES de convertir a int, esto pasaria en silencio. Hay que validar el
+    valor tal como llega, no su truncamiento."""
+    with pytest.raises(ErrorAtriz):
+        validar_canal_led(-0.5, 'rojo')
+    with pytest.raises(ErrorAtriz):
+        validar_canal_led(128.0, 'rojo')
