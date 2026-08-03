@@ -1,0 +1,42 @@
+═══════════════════════════════════════════════════════════════════════════════
+LA LISTA BLANCA, COMPROBADA CON EL EFECTO FISICO — 2026-08-02
+═══════════════════════════════════════════════════════════════════════════════
+Con el RVR encendido y cargado (8.35 V, 100 %), espacio despejado por delante.
+
+LA PRUEBA QUE FALTABA
+───────────────────────────────────────────────────────────────────────────────
+Se mando `raw_motors` **al 30 % (speed 77, modo 1 = adelante)** por WebSocket,
+igual que lo haria alguien en la red del aula, y se midio /odom antes y despues.
+
+  antes:   x=-0.0620  y=-0.0057
+  despues: x=-0.0620  y=-0.0057
+
+  DESPLAZAMIENTO: 0.00 cm      ✅ NO SE MOVIO
+
+Y el log del servidor registro las denegaciones:
+  «cancelling service call for: /raw_motors»   x2
+
+POR QUE ESTA PRUEBA HACIA FALTA
+───────────────────────────────────────────────────────────────────────────────
+El resto de la verificacion se apoyaba en que rosbridge **no responde**. Pero
+este proyecto tiene documentado seis veces que un codigo de salida no prueba
+nada — y el reciproco tampoco: **que no llegue respuesta NO prueba que la orden
+no pasara**. `raw_motors` no publica en ningun topic: le habla al RVR por el
+puerto serie, asi que la unica prueba concluyente es el robot quieto.
+
+📝 Y `raw_motors` es el peor caso posible para esto: se salta el
+   collision_monitor Y el watchdog, y **no tiene corte automatico** — «sigue
+   hasta que le mandes modo 0». Si la lista blanca hubiera fallado, el robot
+   habria arrancado y no habria parado solo.
+
+CON ESTO LA FASE A QUEDA CERRADA
+───────────────────────────────────────────────────────────────────────────────
+  ✅ raw_motors y move_timed: rechazados (log + efecto fisico)
+  ✅ publicar en /cmd_vel: rechazado (log)
+  ✅ /start_scan y /set_pos_and_yaw: responden y aceptan
+  ✅ rosapi responde (getTopics no se colgara)
+  ✅ /odom sigue llegando a 16.6 Hz
+
+⚠️ Lo que la Fase A NO resuelve, y sigue bloqueando la Fase 5: cualquiera en el
+   aula puede seguir teleoperando cualquier robot por `cmd_vel_raw`. Eso es la
+   Fase B (proxy con JWT por robot).
