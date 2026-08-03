@@ -1,0 +1,100 @@
+Tarea 2 — conexion y cierre de atriz.py. 2026-08-02.
+
+=== Paso 2: tests ===
+
+$ cd ~/atriz_migracion && source /opt/ros/jazzy/setup.bash
+$ python3 -m pytest scripts/pruebas/ -q
+..........................................                               [100%]
+42 passed in 2.02s
+
+$ python3 -c "import sys; sys.path.insert(0, '$HOME/atriz_ws/src/Atriz_rvr/scripts/estudiantes'); import atriz; print('importa bien')"
+importa bien
+
+=== Paso 3: prueba contra el robot (ACCION FISICA: enciende el barrido del LIDAR) ===
+
+$ cd ~/atriz_ws/src/Atriz_rvr/scripts/estudiantes && source /opt/ros/jazzy/setup.bash
+$ python3 -c "
+from atriz import Robot
+with Robot() as r:
+    print('hay_color =', r.hay_color)
+    print('/scan llego, con', len(r._scan.ranges), 'puntos')
+"
+Conectando con el robot...
+AVISO: el sensor de color esta APAGADO en este robot.
+       color() devolvera ceros. Para usarlo, el robot tiene
+       que arrancar asi (lo hace el profesor):
+         sudo systemctl stop atriz-robot
+         ros2 launch atriz_rvr_bringup robot.launch.py color_detection:=true
+Robot listo.
+hay_color = False
+/scan llego, con 260 puntos
+terminate called without an active exception
+/bin/bash: line 13:  7704 Aborted                 (core dumped) python3 -c "..."
+[exit code 134]
+
+RESULTADO FUNCIONAL: coincide con lo esperado por el brief — "Robot listo.", el
+aviso de color apagado, hay_color = False, y ~250 puntos (salieron 260, dentro
+del rango 226-260 ya visto en las medidas de referencia del proyecto).
+
+🔴 PERO el proceso terminó con SIGABRT (señal 6, "terminate called without an
+active exception") y volcado de núcleo, DESPUES de imprimir todo lo esperado.
+No hay traza de Python (no es una excepcion de Python): es un abort() en
+codigo nativo, casi seguro durante el cierre — self._ejecutor.shutdown() /
+self._nodo.destroy_node() / rclpy.shutdown() en cerrar(), con el hilo de
+fondo (self._hilo, spin() de SingleThreadedExecutor) todavia en marcha porque
+cerrar() nunca hace self._hilo.join(). Confirmado con el informe de apport:
+
+$ ls -la /var/crash/ | tail -3
+-rw-r-----  1 sphero root 10950570 Aug  2 23:08 _usr_bin_python3.12.1000.crash
+
+$ grep -n "^Signal:" /var/crash/_usr_bin_python3.12.1000.crash
+812:Signal: 6
+
+El ProcCmdline del informe de apport coincide exactamente con el comando de
+este paso. No se pudo sacar backtrace (StacktraceTop) porque gdb no esta
+instalado y no se instalo (paso con sudo, no le corresponde a este agente).
+
+=== Comprobaciones tras el crash (sanidad del robot) ===
+
+$ ps -eo pid,ppid,stat,comm | grep -i python3
+    852     708 Sl   python3
+    853     708 Sl   python3
+   2292       1 Sl   python3
+(2292 es el daemon de ros2cli, con 42 min de antiguedad — no viene del
+script que crasheo. Sin procesos huerfanos del test.)
+
+$ systemctl is-active atriz-robot
+active
+
+$ stdbuf -oL ros2 topic hz /odom   (en foreground, 6 s, luego SIGINT)
+average rate: 16.671
+	min: 0.057s max: 0.064s std dev: 0.00131s window: 18
+average rate: 16.587
+	min: 0.057s max: 0.070s std dev: 0.00191s window: 35
+(coincide con la referencia del proyecto: 16.59 Hz)
+
+=== Paso 4: comprueba que el barrido quedo APAGADO ===
+
+$ source /opt/ros/jazzy/setup.bash && timeout 8 ros2 topic hz /scan 2>&1 | tail -3
+Terminated
+
+Ningun mensaje en 8 s: /stop_scan surtio efecto pese al crash posterior — la
+llamada a self._llamar(self._cli_parar_barrido, ...) en cerrar() se completo
+ANTES del abort (esta dentro del mismo bloque try, antes del finally donde
+esta lo que se sospecha que aborta). El barrido quedo apagado, que es la
+garantia de seguridad que este paso existe para verificar.
+
+=== Conclusion de esta evidencia ===
+
+Los DOS efectos que el paso 3/4 tenian que verificar se cumplieron: el barrido
+se encendio, /scan llego de verdad (no solo la respuesta del servicio), la
+comprobacion de color funciono y avisó correctamente, y el barrido quedó
+apagado al cerrar. El robot (driver, /odom, atriz-robot.service) quedó sano
+tras la prueba.
+
+Pero el cierre deja un SIGABRT con core dump que no estaba en el brief ni se
+esperaba, y no se ha modificado cerrar() para investigarlo o corregirlo — el
+brief pide usarse literal y solo se autorizo cambiar mover()/_mandar(). Queda
+documentado como concern en el informe de la tarea 2, con la hipotesis mas
+probable (falta self._hilo.join() antes de destroy_node()/rclpy.shutdown())
+sin verificar con un backtraza real.
