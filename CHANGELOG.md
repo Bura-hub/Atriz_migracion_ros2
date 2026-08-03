@@ -4,6 +4,50 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-02 (parte 3) — el material docente está muerto, y además tiene credenciales en público
+
+### Comprobado por ejecución, no deducido
+
+Los diez scripts de `scripts/estudiantes/` no arrancan: `import rospy` →
+`ModuleNotFoundError` en la primera línea. **10 de 10 con `rospy`, 0 con `rclpy`**, y
+**15 publicaciones a `/cmd_vel`** en 8 ficheros — el topic prohibido, que es la SALIDA del
+`collision_monitor`. Además `05` y `11` usan `/enable_color`, que **no existe**
+(`ros2 service type /enable_color` no devuelve nada).
+
+### 🔴 Hallazgo nuevo: la PSK del WiFi y una contraseña de usuario, en un repositorio PÚBLICO
+
+`00_LEEME_PRIMERO.md` y `GUIA_PASO_A_PASO.md` las llevan en texto plano, y están **en el
+remoto**, en cuatro ramas (`main`, `ros2`, `migracion-ros2`, `wip/scripts-estudiantes`).
+`Bura-hub/Atriz_rvr` responde **200 sin autenticar**: es público.
+
+Es un **segundo** caso, distinto del ya conocido (la credencial de `sphero` en
+`Atriz_web_server`): otro fichero, otro repositorio, otras dos credenciales. Y una es la PSK
+del WiFi, la misma que el `fmask` de `/boot/firmware` deja legible en el robot y que la imagen
+dorada replicaría por 16.
+
+→ **Rotar es lo que lo cierra, y es acción del usuario.** Reescribir el material saca el texto
+del contenido actual, no del historial.
+
+### Diseño escrito: `03_operacion/API_LABORATORIO.md`
+
+El material se reescribe sobre una biblioteca del laboratorio, `atriz.py`, en vez de `rclpy` a
+pelo: publica en `cmd_vel_raw`, enciende el barrido, republica a 10 Hz contra el watchdog, para
+el robot con Ctrl-C (`SignalHandlerOptions.NO`), usa BEST_EFFORT, limita velocidad y tiempo, y
+apaga el barrido al cerrar. `girar()` va en **lazo cerrado** sobre el Δyaw de `/odom`, no con una
+constante calibrada — que es la idea de robótica que justifica el ejercicio.
+
+Dos límites medidos y escritos en el diseño en vez de descubrirse en clase:
+`ros2 param get /rvr_driver color_detection` → **False** en el arranque normal, así que
+`robot.color()` avisa en vez de devolver `[0,0,0]`; y **el driver no publica ningún estado de
+parada**, así que la API no puede afirmar que la respeta.
+
+### Pendiente
+
+Implementar `atriz.py`, reescribir los 10 scripts y los 5 documentos, y verificarlos ejecutándolos
+contra el robot.
+
+---
+
 ## 2026-08-02 (parte 2) — rosbridge cerrado, F7 completa, y tres regresiones mías
 
 ### 🔴 Fase A de seguridad: `raw_motors` deja de ser alcanzable

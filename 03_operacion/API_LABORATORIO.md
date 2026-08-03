@@ -1,0 +1,242 @@
+# La API del laboratorio y el material docente
+
+> **Para qué existe.** Las prácticas del curso —diez scripts y cinco documentos, 16 h de clase—
+> están escritas en **ROS 1** y **no arrancan**. No es que estén desactualizadas: `import rospy`
+> lanza `ModuleNotFoundError` en la primera línea. Y las quince publicaciones que hacen van a
+> **`/cmd_vel`**, que en este sistema es la **salida** del `collision_monitor`: si arrancaran,
+> saltarían la capa de seguridad entera.
+>
+> Hay que reescribirlas con o sin plataforma web. Este documento decide **sobre qué** se
+> reescriben: una biblioteca del laboratorio, `atriz.py`, en vez de `rclpy` a pelo.
+>
+> Diseñado y acordado el **2026-08-02**.
+
+---
+
+## Lo que se comprobó antes de diseñar nada
+
+Ejecutado sobre `~/atriz_ws/src/Atriz_rvr/scripts/estudiantes/`, no deducido:
+
+| | Medido |
+|---|---|
+| Scripts que arrancan | **0 de 10.** `python3 01_avanzar.py` → `ModuleNotFoundError: No module named 'rospy'` |
+| Scripts con `import rospy` | **10 de 10.** Con `rclpy`: **0** |
+| Publicaciones a `/cmd_vel` | **15**, en 8 ficheros |
+| `/enable_color`, que usan dos scripts | **NO EXISTE.** `ros2 service type /enable_color` no devuelve nada |
+| Documentos | 5 `.md`, 1923 líneas |
+
+Y una cosa más, que no estaba en el encargo y cambia una prioridad:
+
+### 🔴 Las credenciales del laboratorio están en un repositorio PÚBLICO
+
+`scripts/estudiantes/00_LEEME_PRIMERO.md` y `GUIA_PASO_A_PASO.md` llevan **en texto plano** la
+PSK del WiFi del laboratorio y la contraseña de un usuario. Están **empujadas al remoto**, no solo
+en el disco:
+
+```
+$ git show origin/ros2:scripts/estudiantes/00_LEEME_PRIMERO.md | grep -n "Contraseña"
+14:Contraseña: <PSK del WiFi>
+26:6. Contraseña: <contraseña de usuario>
+...
+$ git branch -r --contains b1ca095
+  origin/main   origin/migracion-ros2   origin/ros2   origin/wip/scripts-estudiantes
+
+$ curl -s -o /dev/null -w "%{http_code}" https://api.github.com/repos/Bura-hub/Atriz_rvr
+200          ← sin autenticar: el repositorio es PÚBLICO
+```
+
+📝 **Es un segundo caso, no el que ya se conocía.** El expuesto que este proyecto tenía anotado es
+la credencial de `sphero` en `Atriz_web_server`. Este es **otro fichero, otro repositorio, otras
+dos credenciales**, y una de ellas es la **PSK del WiFi** — la misma que el `fmask` de
+`/boot/firmware` deja legible en el robot y que la imagen dorada replicaría por 16.
+
+→ **Y la consecuencia para el orden de trabajo:** reescribir el material **saca las credenciales
+del contenido actual, no del historial**. Lo que de verdad lo cierra es **rotarlas** (acción del
+usuario). Purgar el historial es higiene, y es incompleta por naturaleza: GitHub conserva commits
+sin referenciar accesibles por su SHA, y cualquier *fork* se los queda para siempre. Rotar primero,
+reescribir después; al revés da sensación de resuelto sin estarlo.
+
+---
+
+## Requisitos, decididos con el usuario
+
+| | |
+|---|---|
+| **Qué se enseña** | **Robótica.** ROS es el medio, no la asignatura |
+| **Dónde corre el código del alumno** | **En el robot**, contra una API del laboratorio — no contra `rclpy` ni contra el SDK |
+| **Qué escribe el alumno** | Su programa, usando la API. **No** escribe nodos ROS |
+| **Alcance** | Los 10 scripts y los 5 documentos. Se reescriben, no se parchean |
+
+---
+
+## La decisión: una biblioteca, y por qué no `rclpy` directo
+
+Un script de alumno escrito contra `rclpy` tiene que acertar, **cada vez y sin ayuda**, en siete
+cosas que este proyecto ha aprendido pagándolas. La alternativa es que las acierte una vez, en un
+fichero, y que el alumno escriba robótica.
+
+```python
+from atriz import Robot
+
+robot = Robot()                      # conecta, enciende el barrido y comprueba que hay /scan
+robot.avanzar(0.20, 3)               # m/s durante segundos
+robot.girar(90)                      # grados; positivo = a la izquierda
+robot.parar()
+r, g, b, claro = robot.color()
+robot.luces(255, 0, 0)               # RGB de los faros
+d = robot.distancia_frontal()        # metros, del /scan
+v = robot.bateria()                  # voltios
+robot.cerrar()                       # para el robot y apaga el barrido
+```
+
+Y con `with`, que es lo que se enseña, para que cerrar no dependa de acordarse:
+
+```python
+with Robot() as robot:
+    robot.avanzar(0.20, 3)
+    robot.girar(90)
+```
+
+**Un solo fichero `atriz.py`, junto a los scripts, sin instalar.** Nada de paquete, `setup.py` ni
+`colcon build`: el material tiene que funcionar en 16 robots salidos de la imagen dorada, y cada
+paso de instalación es una cosa más que se rompe en clase. `python3 mi_script.py` y ya.
+
+### Las siete cosas que la biblioteca acierta por el alumno
+
+Ninguna es hipotética. Cada una es un fallo que este proyecto ya pagó:
+
+| | Qué hace `atriz.py` | El fallo que evita |
+|---|---|---|
+| 1 | Publica en **`/cmd_vel_raw`**, nunca en `/cmd_vel` | `/cmd_vel` es la **salida** del `collision_monitor`. Publicar ahí **funciona**, y por eso es el agujero más silencioso: el robot obedece y no hay capa de seguridad. Los 10 scripts actuales lo hacen |
+| 2 | Llama a **`/start_scan`** al construirse | Un robot recién arrancado **no obedece `cmd_vel`**: el barrido arranca apagado a propósito, y sin `/scan` el `collision_monitor` bloquea (medido **0.0 cm** contra 9.9 del control). Desde fuera es **idéntico a un robot averiado** |
+| 3 | Republica el comando a **10 Hz** mientras dura el movimiento | El watchdog del driver corta a los **0.3 s** sin `cmd_vel`. Un `sleep(3)` entre dos publicaciones deja al robot parado casi todo el tiempo |
+| 4 | **Ctrl-C para el robot**, con `SignalHandlerOptions.NO` | `rclpy.init()` instala su manejador de SIGINT e **invalida su propio contexto**: el `except KeyboardInterrupt` que intenta publicar la parada muere con `publisher's context is invalid`. Medido: **0 líneas** de parada contra 5 con la opción puesta. Y **es intermitente**, que es lo que lo hizo pasar desapercibido |
+| 5 | Se suscribe con **BEST_EFFORT** a `/scan`, `/odom`, `/imu`, `/color` y `/encoders` | Un suscriptor RELIABLE **no recibe nada, sin error**: DDS no empareja. Es la misma trampa de QoS que costó la parada de emergencia. 📝 `/ambient_light` queda **fuera de la API**: la decisión del 2026-08-01 es que en este montaje no significa lo que parece |
+| 6 | Limita a **≤ 0.40 m/s** y a un tiempo máximo por llamada | 0.40 m/s es la meseta medida del robot; por encima el número es ficción. El tiempo máximo evita el script que se va a comer una pared mientras el alumno mira otra cosa |
+| 7 | `cerrar()` **para el robot y apaga el barrido**, también en el camino de error | Si no, el X2 se queda girando a **11.8 Hz** en vez de 2.7 — 24/7, por 16 robots |
+
+---
+
+## `girar()` en lazo cerrado, y por qué no una constante calibrada
+
+El giro por tiempo no cierra: a 90° comandados el robot hace **86.6 / 86.2 / 87.7°** (n=3, medido
+el 2026-08-02 con baterías del 55 % al 100 %, así que **el déficit no depende de la carga**). La
+salida barata es multiplicar por 1.04 y seguir.
+
+**No se hace así.** `girar()` mide el rumbo real en `/odom` y para cuando llega:
+
+```
+Δyaw acumulado, normalizado a (−π, π] en cada paso, hasta alcanzar el objetivo
+```
+
+La normalización no es un detalle: `atan2` devuelve −π..π, así que un giro de 360° leído como yaw
+absoluto vuelve al punto de partida y **se lee como 0°**. Acumular el incremento normalizado es lo
+que hace que 360° sean 360°. Es exactamente lo que ya hace la fase F5 de la prueba de aceptación,
+y se reutiliza.
+
+📝 **Y es la razón pedagógica de todo el documento:** un lazo cerrado le gana a una constante
+calibrada, y eso es una idea de robótica de verdad. Un alumno que ve `girar(90)` acertar sobre un
+robot con déficit de fábrica ha visto para qué sirve realimentar.
+
+⚠️ **Lo que el lazo NO arregla:** la deriva de yaw es **~1000× mayor** en los primeros minutos tras
+encender el RVR (0.97 °/30 s recién encendido contra 0.001 siete minutos después). En una práctica
+de 15 min empezada sobre un robot recién encendido son decenas de grados de error acumulado en la
+odometría. El lazo cerrado de un giro suelto no lo nota —un giro dura segundos—, pero un script que
+encadene diez movimientos sí. Va escrito en la guía, no escondido.
+
+---
+
+## Lo que la API NO puede hacer, y hay que decirlo
+
+Dos límites reales. Escribirlos aquí es más barato que descubrirlos en clase.
+
+**🔴 `robot.color()` no funciona en un robot arrancado normalmente, y no es un fallo de la API.**
+El sensor de color necesita su propia luz, que se enciende **antes** de configurar el streaming y
+**no se puede encender bajo demanda** (`enable_color_detection` con el stream ya montado no hace
+nada: 481 mensajes, todos ceros). Se decide en el arranque, y el servicio systemd arranca con el
+valor por defecto:
+
+```
+$ ros2 param get /rvr_driver color_detection
+Boolean value is: False
+```
+
+→ **La API lo consulta al construirse y avisa en voz alta** en vez de devolver `[0,0,0]` como si
+fuera negro — que es justo lo que `/color` publicó durante meses sin que nadie lo notara. La
+práctica de color exige arrancar el robot con `color_detection:=true`, y eso va en su enunciado.
+
+**⚠️ La API no puede saber si la parada de emergencia está activa.** El driver **no publica ningún
+estado de parada**: de los 29 topics vivos, los tres que llevan `emergency_stop` en el nombre son
+**suscripciones suyas** —los tres nombres que escucha—, no un estado que alguien pueda leer. Lo
+único observable es el síntoma —se manda `cmd_vel` y el robot no se mueve—, y ese síntoma es **indistinguible** de un
+barrido apagado o de un `collision_monitor` frenando. Así que:
+
+- `atriz.py` **publica** en `/emergency_stop` (RELIABLE + VOLATILE) al recibir Ctrl-C
+- **nunca** llama a `/release_emergency_stop` sola: liberar es un acto explícito del operador.
+  Ese fue el cuarto fallo de la parada — al **soltarla**, no al pulsarla, el robot arrancaba solo
+- y **no promete** «respeta la parada», porque no puede comprobarlo
+
+---
+
+## El alcance de la reescritura
+
+**Los 10 scripts.** Se conserva la progresión, que es lo bueno del material actual; cambia el
+sustrato. `05` y `11` cambian además de fondo, porque usan un servicio que no existe:
+
+| | Hoy | Después |
+|---|---|---|
+| `01_avanzar` · `02_girar` · `03_cuadrado` | `rospy` → `/cmd_vel` | `robot.avanzar()` / `robot.girar()` |
+| `04_giro_preciso` | giro por tiempo, con la constante | `robot.girar()` en lazo cerrado, y la práctica es **comparar** las dos |
+| `05_sensor_color` · `11_sensor_avanzado` | `/enable_color`, **que no existe** | `robot.color()`, y el enunciado exige arrancar con `color_detection:=true` |
+| `10_movimiento_completo` | clase con `rospy` | la misma clase, sobre la API |
+| `90_template` | plantilla `rospy` | plantilla de la API — es lo que copia el alumno |
+| `99_test_ctrl_c` | prueba que Ctrl-C para | **sigue existiendo y gana valor**: ahora comprueba la protección 4, que ha fallado de verdad |
+| `seguidor_linea_pid_demo` | PID sobre `rospy` + `/cmd_vel` | PID sobre la API. El PID es lo que se enseña y no se toca |
+
+**Los 5 documentos.** `00_LEEME_PRIMERO.md`, `GUIA_PASO_A_PASO.md`, `README.md`, `REFERENCIAS.md`
+y `SEGUIDOR_LINEA_EXPLICACION.md`. Fuera de ellos:
+
+- **las credenciales en texto plano** — es material que ven los alumnos, y está en público
+- **`roscore`** y arrancar el driver a mano: el robot arranca solo desde el 2026-07-31
+- **`/enable_color`** y todo lo que se apoya en él
+- **`/cmd_vel`** como topic al que escribir
+
+Y entra lo que hoy no está y hace falta el primer día: **el barrido se enciende**, la parada de
+emergencia es un acto explícito, y qué significa que el robot vaya despacio (el polígono de
+precaución frena al 40 % **aunque el robot se aleje**: 30 cm comandados → 14 medidos).
+
+---
+
+## Verificación
+
+La regla del proyecto: se comprueba **el efecto**, no el código de salida.
+
+1. **Los 10 scripts se ejecutan contra el robot**, uno a uno, con el pasillo despejado. Un script
+   que «no da error» pero no mueve el robot **no cuenta como verificado**.
+2. **Las siete protecciones, cada una con su comprobación de efecto.** Las tres que se pueden
+   falsear a propósito:
+   - **`/start_scan`**: script sobre un robot recién reiniciado, sin tocar `atriz-escaneo`. Debe
+     moverse. Es el caso que hoy parece un robot averiado.
+   - **Ctrl-C**: matar un script a mitad de un avance y medir el **desplazamiento posterior con
+     cinta**, más las líneas de parada en el journal del driver. Repetido, porque el fallo es
+     **intermitente**: una sola pasada verde no distingue «arreglado» de «esta vez tocó».
+   - **Watchdog**: un `avanzar(0.20, 3)` debe recorrer ~60 cm, no ~6.
+3. **`girar()` medido con transportador**, n≥3 a 90°, 180° y 360°, contra los mismos ángulos por
+   tiempo. Si el lazo cerrado no bate a la constante, el argumento de este documento es falso y hay
+   que cambiarlo.
+4. **Que un alumno no pueda saltarse la seguridad sin querer**: un script que publique en
+   `/cmd_vel` a mano —el error que cometen los 10 actuales— tiene que ser visiblemente incorrecto
+   en el material, y `atriz.py` no debe ofrecer ningún camino que lleve ahí.
+5. **`grep` de credenciales sobre los 5 documentos reescritos**, y anotar que **rotarlas sigue
+   pendiente** y es del usuario.
+
+---
+
+## Lo que este trabajo NO cierra
+
+- **No rota las credenciales expuestas** ni purga el historial. Saca el texto del contenido actual;
+  lo demás es acción del usuario, con `sudo` y sobre GitHub.
+- **No toca la plataforma web.** La API corre en el robot para el alumno que trabaja en el robot.
+  Que la web ofrezca esta misma API es la Fase C, y llega después.
+- **No arregla la deriva de yaw del arranque en frío.** Se documenta; desaparece sola.
+- **No decide el arranque automático de Nav2/SLAM**, que es el punto siguiente del orden acordado.
