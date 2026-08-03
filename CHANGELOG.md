@@ -4,6 +4,92 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-02 (parte 2) — rosbridge cerrado, F7 completa, y tres regresiones mías
+
+### 🔴 Fase A de seguridad: `raw_motors` deja de ser alcanzable
+
+`robot.launch.py` pasaba solo `{'port': 9090}`, dejando los 18 servicios del driver expuestos a
+cualquiera en la red. **Y no se arregla con autenticación: rosbridge 2.7.0 en Jazzy no la tiene** —
+`rosauth` no es dependencia, no hay parámetro `authenticate`, la capacidad `Authentication` no está
+en el protocolo, y `check_origin()` devuelve `True` incondicionalmente. Lo único que ofrece son
+**listas blancas**.
+
+Aplicadas y **verificadas con el efecto físico**, que era lo que faltaba:
+
+```
+raw_motors AL 30 % por WebSocket, con el RVR encendido:
+    antes:   x=-0.0620  y=-0.0057
+    después: x=-0.0620  y=-0.0057
+    DESPLAZAMIENTO: 0.00 cm
+```
+
+📝 Hacía falta porque el resto se apoyaba en que rosbridge **no responde**, y **que no llegue
+respuesta no prueba que la orden no pasara** — el recíproco de la trampa que este proyecto lleva
+seis veces documentada. `raw_motors` no publica en ningún topic: habla al RVR por el puerto serie,
+y **no tiene corte automático**.
+
+⚠️ **La Fase A NO levanta el pendiente.** Cierra el agujero grave, pero cualquiera en el aula sigue
+pudiendo teleoperar cualquier robot hasta la Fase B (proxy con JWT en cada robot).
+
+### 🔴 Tres regresiones mías, las tres cazadas por la prueba de aceptación
+
+1. **`verificar_robot.sh` buscaba `base_length 0.182`**, y por la mañana lo cambié a `0.190` con la
+   medida de cinta del usuario. Daba FALLO **sobre un modelo correcto**. Van dos veces que ese
+   verificador falla justo después de arreglar lo que comprueba.
+2. **Mi arreglo A4 rompió F7.** Añadí que F6 apagara el barrido —para no dejar el X2 a 11.8 Hz— y
+   **F7 nunca lo volvía a encender**: sin `/scan`, `slam_toolbox` no publicaba `map → odom` y los
+   tres objetivos salieron NO VERIFICADO. Es el patrón ya escrito: *al cambiar el estado por
+   defecto de un componente, comprueba qué hacen todos los que dependían de él.*
+3. **«Volver al origen» no volvía al origen.** Calculaba el destino desde la pose *actual*, así que
+   heredaba el error de rumbo y encima proyectaba sobre el rumbo torcido. Eso **invalidaba la
+   comparación limpio-vs-obstáculo**, que es lo único que hace interpretable el desvío. **Lo vio el
+   usuario mirando el robot**, no el informe.
+
+### 🔴 Y una comprobación que anuncié como añadida y no existía
+
+`err_yaw` se calculaba en F7 y **el `juzgar_banda` que lo reporta nunca llegó a añadirse**: el
+parche apuntaba a un texto que ya había cambiado y **falló en silencio**. Quedó una variable
+calculada y jamás usada.
+
+📝 **Un `juzgar_banda` que no se llama no falla: desaparece.** Misma familia que una comprobación
+bajo un `if` sin `else`.
+
+Y la corrida demuestra que importaba: el tercer objetivo salió a **−10°** con la partida en **+1°**
+— **11 grados** que Nav2 dio por `SUCCEEDED` (su `yaw_goal_tolerance` lo permite) y que **ningún
+número del informe enseñaba**.
+
+### ✅ F7 completa por primera vez
+
+`partida x=-1.97 y=-0.26 yaw=+1°` · limpio **9.5 cm** · regreso **7.6 cm** · con obstáculo
+**18.4 cm** (REVISAR) · desvío lateral **18.2 cm** · sin `Failed to make progress`.
+
+### 🔴 La deriva de yaw es ~1000× mayor justo tras encender el RVR
+
+```
+21:01:36   0.97  °/30 s    motor 23.2 °C   RVR recién encendido
+21:08:18   0.001 °/30 s    motor 24.1 °C   ~7 min después
+```
+
+Los 0.97° eran **transitorios**, así que la banda de F1 está bien puesta: **saltó sobre algo real**.
+⚠️ La causa es una **hipótesis** (el giróscopo asentándose con la temperatura), no una medida: n=1.
+🔴 Pero la consecuencia para la web es concreta: un alumno que empiece nada más encender el robot
+acumulará decenas de grados de error en 15 minutos, y `set_pos_and_yaw(0,0,0)` **no lo arregla** —
+pone el origen a cero, no corrige la deriva.
+
+### Otros hallazgos del día
+
+- **No hay cortafuegos, aunque `systemctl is-active ufw` diga `active`**: `ENABLED=no` hace que
+  `ufw-init` salga con 0 sin cargar una sola regla. **Octava vez** que algo informa de éxito sin
+  haber hecho nada.
+- **`laser_x` no era 0**: el LIDAR está **0.5 cm por detrás del centro**, medido con cinta por el
+  usuario. Y `laser_y = 0` deja de ser suposición. ⚠️ Queda abierto el conflicto del largo: 18.2
+  contra 19.0 cm, dos medidas con cinta.
+- 🔴 **La telemetría de la web actual es FALSA** — `Math.random()` generando batería, temperatura y
+  el estado de los sensores, con retardos para que parezca ejecución real. Hallazgo nuevo, no
+  estaba en la auditoría original.
+
+---
+
 ## 2026-08-02 — Prueba de aceptación: las diez fases escritas, F8 verificado de verdad
 
 Se diseñó y se construyó una **prueba de aceptación de extremo a extremo**, de arranque en frío
