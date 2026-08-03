@@ -138,7 +138,11 @@ def test_un_pendiente_bloquea():
 
 def test_los_pendientes_conocidos_bloquean_una_pasada_perfecta():
     # 🔴 Consecuencia elegida a proposito: aunque el robot este impecable, la
-    #    primera pasada NO da via libre, porque rosbridge sigue sin autenticacion.
+    #    pasada NO da via libre mientras quede un pendiente abierto.
+    #    📝 El comentario original decia «porque rosbridge sigue sin
+    #       autenticacion», y eso se quedo desactualizado el mismo dia: la Fase A
+    #       cerro `raw_motors`. Lo que bloquea ahora es la falta de IDENTIDAD POR
+    #       USUARIO (Fase B). El test no cambia; la razon si.
     todo_bien = [juzgar_categorico('x', True, 'F0')]
     assert hay_via_libre(todo_bien) is True
     assert hay_via_libre(todo_bien + PENDIENTES_CONOCIDOS) is False

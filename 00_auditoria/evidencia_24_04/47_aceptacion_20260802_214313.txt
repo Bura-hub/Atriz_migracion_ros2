@@ -1,0 +1,176 @@
+==============================================================================
+PRUEBA DE ACEPTACION · rvr-01 · 2026-08-02 21:43:13
+==============================================================================
+
+
+── F0 ──────────────────────────────────────────────────────────────────────
+  [REV  ] el servicio subio EN EL ARRANQUE (no lo levanto nadie)
+          635.7 s · banda [0.0, 120.0] s · base evidencia 47: 23 s tras el boot
+  [REV  ] el servicio subio a la primera (NRestarts)
+          NRestarts = 1. Si no es 0: o es una repeticion de esta misma prueba (F0 mata el driver a proposito), o el driver se cayo de verdad. Lo desempata el journal
+  [OK   ] atriz-robot arranco solo
+          systemctl is-active = active
+  [OK   ] nodo rvr_driver
+  [OK   ] nodo ydlidar_ros2_driver_node
+  [OK   ] nodo collision_monitor
+  [OK   ] nodo lifecycle_manager_seguridad
+  [OK   ] nodo robot_state_publisher
+  [OK   ] nodo rosbridge_websocket
+  [OK   ] journal sin errores desde el arranque
+  [OK   ] verificar_robot.sh sin fallos
+          0 fallo(s); 4 aviso(s). 
+  [REV  ] aviso: ! apt avisara en cada ejecucion por: ubuntu.sources.bak-20260729   →  muevelos fuera: sudo
+  [REV  ] aviso: ! mDNS por enlace: wlan0 no lo tiene (Global sí)  →  pendiente: drop-in de systemd-network
+  [REV  ] aviso: ! red.txt en 755: la PSK del WiFi es legible por cualquier usuario  →  chmod NO sirve (es 
+  [REV  ] aviso: ! no se pudo leer 60-atriz.yaml (necesita root) o no tiene dhcp4
+  [OK   ] Restart=always revive el driver
+          PID 3324 → 12354. Primera vez que se ejercita
+
+── F1 ──────────────────────────────────────────────────────────────────────
+  [OK   ] ritmo de /odom
+          16.579701006821995 Hz · banda [13.0, 25.0] Hz · base Fase 4: 16.5 Hz
+  [OK   ] ritmo de /imu
+          16.612623550392847 Hz · banda [13.0, 25.0] Hz · base Fase 4: 16.5 Hz
+  [OK   ] voltaje de bateria
+          8.07 V · banda [6.5, 8.5] V · base firmware: critica 6.50, baja 7.00
+  [OK   ] temperatura de bateria es NaN y no 0.0
+          temperature = nan
+  [OK   ] temperatura del motor izquierdo
+          25.7 °C · banda [10.0, 55.0] °C · base reposo medido: 27.5 / 28.3 °C
+  [OK   ] en reposo no hay atasco ni fallo
+  [OK   ] deriva de yaw en 30 s de reposo
+          0.002 ° · banda [0.0, 0.5] ° · base medido 2026-08-01: 0.01°/60 s
+
+── F2 ──────────────────────────────────────────────────────────────────────
+  [OK   ] arranca con el barrido APAGADO
+          0 mensajes con el barrido parado
+  [OK   ] start_scan responde
+  [OK   ] ritmo de /scan
+          11.851107498781943 Hz · banda [9.5, 13.0] Hz · base medido: 10.1 · 11.84 · 12.00 Hz (el motor va libre)
+  [OK   ] el barrido trae rangos utiles
+          220/260 finitos · min 0.30 max 2.67 m
+  [OK   ] stop_scan responde
+  [OK   ] stop_scan calla /scan de verdad
+          0 mensajes DESPUES de parar
+  [OK   ] el parche del YDLIDAR aguanta (no inunda el journal)
+          1 lineas en 20 s con el barrido parado (antes del parche eran miles). Referencia previa: 1
+
+── F3 ──────────────────────────────────────────────────────────────────────
+  [OK   ] set_led_rgb responde con success
+  [OK   ] set_multiple_leds responde con success
+          2 LEDs: headlight_left, headlight_right
+  [OK   ] los LEDs se encienden, cambian y se direccionan
+          confirmado a ojo por el operador
+
+── F4 ──────────────────────────────────────────────────────────────────────
+  [OK   ] move_timed 2 s a 0.15 m/s: el servicio acepta (success)
+          success = True
+  [OK   ] move_timed 2 s a 0.15 m/s
+          30.5 cm · banda [24.0, 37.0] cm · base evidencia 26: 30.3 cm (101 %)
+  [OK   ] marcha atras 2 s a 0.15 m/s: el servicio acepta (success)
+          success = True
+  [OK   ] marcha atras 2 s a 0.15 m/s
+          30.3 cm · banda [24.0, 37.0] cm · base simetrico a la ida
+  [OK   ] recorrido DESPUES de la parada de emergencia
+          1.9 cm · banda [0.0, 12.0] cm · base SIN BASE: primera medida de la parada de emergencia por este camino (Empty en /emergency_stop). No confundir con el watchdog de cmd_vel de F6
+  [OK   ] con la parada activa, move_timed es rechazado
+          success = False
+  [OK   ] release_emergency_stop devuelve el control
+
+── F5 ──────────────────────────────────────────────────────────────────────
+  [OK   ] giro de 90°: el servicio acepta (success)
+          success = True
+  [OK   ] giro comandado de 90° (Δyaw acumulado)
+          87.7 ° · banda [73.6, 99.6] ° · base evidencia 48 / CLAUDE.md: 86.6° medido 2026-08-02 (n=1)
+  [OK   ] deslizamiento girando 90°
+          0.3 cm · banda [0.0, 15.0] cm · base giro en el sitio: deberia ser ~0
+  [OK   ] giro de 180°: el servicio acepta (success)
+          success = True
+  [OK   ] giro comandado de 180° (Δyaw acumulado)
+          179.6 ° · banda [152.7, 206.5] ° · base evidencia 48 / CLAUDE.md: 179.6° medido 2026-08-02 (n=1)
+  [OK   ] deslizamiento girando 180°
+          0.0 cm · banda [0.0, 15.0] cm · base giro en el sitio: deberia ser ~0
+  [OK   ] giro de 360°: el servicio acepta (success)
+          success = True
+  [OK   ] giro comandado de 360° (Δyaw acumulado)
+          358.8 ° · banda [304.6, 412.2] ° · base evidencia 48 / CLAUDE.md: 358.4° medido 2026-08-02 (n=1)
+  [OK   ] deslizamiento girando 360°
+          0.2 cm · banda [0.0, 15.0] cm · base giro en el sitio: deberia ser ~0
+  [OK   ] derecha 90°: el servicio acepta (success)
+          success = True
+  [OK   ] angular positivo gira a la IZQUIERDA (regla de la mano derecha)
+          con angular NEGATIVO el Δyaw fue -86.8° (negativo = derecha, como manda REP-103)
+
+── F6 ──────────────────────────────────────────────────────────────────────
+  [OK   ] el robot se detuvo SOLO (no por agotarse el tiempo)
+          si no, la distancia de abajo NO es la de parada: es donde estaba cuando el bucle acabo
+  [OK   ] distancia frontal a la que quedo parado
+          19.6 cm · banda [15.0, 24.0] cm · base collision_monitor.yaml: circle radius 0.18 + approach
+  [OK   ] el robot avanzo y se detuvo solo
+          si no avanzo nada, la prueba no demuestra nada
+  [OK   ] recorrido tras dejar de publicar cmd_vel
+          2.5 cm · banda [0.0, 12.0] cm · base CHANGELOG § 2026-07-30 (parte 5): quieto en 527 ms, ~7.9 cm
+
+── F7 ──────────────────────────────────────────────────────────────────────
+  [OK   ] Nav2 levanta y su action server responde
+  [OK   ] objetivo limpio a 1.50 m: Nav2 lo dio por COMPLETADO
+          estado = SUCCEEDED
+  [OK   ] objetivo limpio a 1.50 m: error final
+          7.6 cm · banda [0.0, 15.0] cm · base TRASPASO § "Hecho: navegando a 0.40 m/s": 8 cm; otra tanda 9-10
+  [OK   ] objetivo limpio a 1.50 m: error de RUMBO al llegar
+          13.6 ° · banda [0.0, 20.0] ° · base sin base historica; Nav2 lo da por bueno dentro de su yaw_goal_tolerance
+  [OK   ] regreso al origen: Nav2 lo dio por COMPLETADO
+          estado = SUCCEEDED
+  [OK   ] regreso al origen: error final
+          7.0 cm · banda [0.0, 15.0] cm · base TRASPASO § "Hecho: navegando a 0.40 m/s": 8 cm; otra tanda 9-10
+  [OK   ] regreso al origen: error de RUMBO al llegar
+          10.1 ° · banda [0.0, 20.0] ° · base sin base historica; Nav2 lo da por bueno dentro de su yaw_goal_tolerance
+  [OK   ] objetivo CON obstaculo: Nav2 lo dio por COMPLETADO
+          estado = SUCCEEDED
+  [REV  ] objetivo CON obstaculo: error final
+          15.2 cm · banda [0.0, 15.0] cm · base TRASPASO § "Hecho: navegando a 0.40 m/s": 8 cm; otra tanda 9-10
+  [OK   ] objetivo CON obstaculo: error de RUMBO al llegar
+          14.1 ° · banda [0.0, 20.0] ° · base sin base historica; Nav2 lo da por bueno dentro de su yaw_goal_tolerance
+  [OK   ] desvio lateral rodeando el obstaculo
+          26.3 cm · banda [15.0, 50.0] cm · base manual 11.13: 30 cm y vuelve al eje
+  [OK   ] sin «Failed to make progress»
+          el arreglo del SimpleProgressChecker sigue en pie
+
+── F8 ──────────────────────────────────────────────────────────────────────
+  [OK   ] rosbridge completa el handshake WebSocket
+          HTTP/1.1 101 Switching Protocols
+Server: TornadoServer/6.4
+  [OK   ] la web recibe /odom por rosbridge
+          suscripcion real, no solo el puerto abierto
+
+── F9 ──────────────────────────────────────────────────────────────────────
+  [PEND ] rosbridge sin autenticacion en el 9090
+          expone raw_motors, que se salta el collision_monitor y no tiene corte automatico. Hay que decidirlo ANTES de escribir el cliente: cambia su arquitectura. Ver 03_operacion/ARQUITECTURA.md
+  [PEND ] el hueco de los precipicios
+          collision_monitor solo mira /scan, y un LIDAR 2D no ve un vacio a ninguna altura. Mitigado solo por la regla de laboratorio (suelo continuo y cerrado). Ver manual cap. 12.2b
+  [PEND ] la PSK del WiFi es legible por cualquier usuario
+          falta fmask=0177,dmask=0077 en /etc/fstab. chmod NO sirve: es FAT
+  [PEND ] la credencial sphero sin rotar
+          y sin purgar del historico de git
+
+==============================================================================
+  62 PASA · 7 REVISAR · 0 FALLO · 4 PENDIENTE
+==============================================================================
+
+  🔴 NO HAY VIA LIBRE PARA LA FASE 5
+
+     Lo que lo impide:
+       · [PENDIENTE] rosbridge sin autenticacion en el 9090
+       · [PENDIENTE] el hueco de los precipicios
+       · [PENDIENTE] la PSK del WiFi es legible por cualquier usuario
+       · [PENDIENTE] la credencial sphero sin rotar
+
+  ⚠️ Y 7 numero(s) fuera de banda. No bloquean, pero miralos:
+       · el servicio subio EN EL ARRANQUE (no lo levanto nadie): 635.7 s · banda [0.0, 120.0] s · base evidencia 47: 23 s tras el boot
+       · el servicio subio a la primera (NRestarts): NRestarts = 1. Si no es 0: o es una repeticion de esta misma prueba (F0 mata el driver a proposito), o el driver se cayo de verdad. Lo desempata el journal
+       · aviso: ! apt avisara en cada ejecucion por: ubuntu.sources.bak-20260729   →  muevelos fuera: sudo: 
+       · aviso: ! mDNS por enlace: wlan0 no lo tiene (Global sí)  →  pendiente: drop-in de systemd-network: 
+       · aviso: ! red.txt en 755: la PSK del WiFi es legible por cualquier usuario  →  chmod NO sirve (es : 
+       · aviso: ! no se pudo leer 60-atriz.yaml (necesita root) o no tiene dhcp4: 
+       · objetivo CON obstaculo: error final: 15.2 cm · banda [0.0, 15.0] cm · base TRASPASO § "Hecho: navegando a 0.40 m/s": 8 cm; otra tanda 9-10
+==============================================================================

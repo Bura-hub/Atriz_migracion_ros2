@@ -1163,6 +1163,34 @@ RUIDO="$(journalctl -u atriz-robot --since '-2 min' --no-pager 2>/dev/null \
     || _mal "el journal se está inundando: $RUIDO errores en 2 min" \
             "¿se recompiló el ydlidar tras parchearlo?"
 
+# --- La lista blanca de rosbridge ---------------------------------------------
+# 🔴 `SEGURIDAD_ROSBRIDGE.md` prometia esta comprobacion «en tres sitios: una
+#    herramienta de banco, verificar_robot.sh, y F8». Estaban dos de tres: AQUI
+#    faltaba, y lo encontro una auditoria con subagentes.
+#    Lo que habia comprobado era que el 9090 ESCUCHA — que es exactamente la
+#    trampa «el puerto esta abierto ≠ funciona» que este proyecto tiene
+#    documentada media docena de veces.
+LAUNCH_ROBOT="$WS/atriz_rvr_bringup/launch/robot.launch.py"
+if [[ -f "$LAUNCH_ROBOT" ]]; then
+    if grep -q "topics_pub_glob" "$LAUNCH_ROBOT" && grep -q "services_glob" "$LAUNCH_ROBOT"; then
+        _ok "rosbridge: la lista blanca esta en el launch"
+    else
+        _mal "rosbridge SIN lista blanca: raw_motors alcanzable desde la red" \
+             "ver 03_operacion/SEGURIDAD_ROSBRIDGE.md, Fase A"
+    fi
+    grep -q "params_glob" "$LAUNCH_ROBOT" \
+        && _ok "rosbridge: params_glob puesto (la web no toca parametros)" \
+        || _avi "rosbridge sin params_glob" "ver SEGURIDAD_ROSBRIDGE.md"
+    grep -q "rosapi" "$LAUNCH_ROBOT" \
+        && _ok "rosapi_node se levanta (getTopics no se colgara)" \
+        || _avi "rosapi_node NO se levanta: ros.getTopics() de roslibjs se cuelga SIN error" \
+                "ver ARQUITECTURA.md, trampas de rosbridge"
+    # 📝 Y esto NO prueba que deniegue: eso solo se sabe llamando. Para el efecto
+    #    real esta `mediciones_banco/probar_lista_blanca.py`, que ademas exige un
+    #    CONTROL para no confundir «denegado» con «aqui no funciona nada».
+    _nota "para comprobar que DENIEGA de verdad: python3 00_auditoria/evidencia/mediciones_banco/probar_lista_blanca.py"
+fi
+
 # --- Regresión: rutas fijas en /tmp -----------------------------------------
 # 🔴 `fs.protected_regular=2` impide a ROOT escribir en un fichero de /tmp que no
 #    le pertenece. Si la redirección falla, bash NO ejecuta el comando y el

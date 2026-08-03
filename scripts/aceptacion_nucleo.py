@@ -91,10 +91,24 @@ def no_verificado(concepto, fase, motivo) -> Resultado:
 #: web». Se mantienen AQUI y no en el documento, para que no se desincronicen.
 #: Cuando una se cierre, se borra de esta lista y se anota en el CHANGELOG.
 PENDIENTES_CONOCIDOS = [
-    Resultado('F9', 'rosbridge sin autenticacion en el 9090', PENDIENTE,
-              'expone raw_motors, que se salta el collision_monitor y no tiene corte '
-              'automatico. Hay que decidirlo ANTES de escribir el cliente: cambia su '
-              'arquitectura. Ver 03_operacion/ARQUITECTURA.md'),
+    # 🔴 EL TEXTO SE ACTUALIZO EL 2026-08-02, Y EL MOTIVO IMPORTA. Antes decia
+    #    «expone raw_motors, que se salta el collision_monitor y no tiene corte
+    #    automatico», y eso **dejo de ser cierto** ese mismo dia: la Fase A puso
+    #    la lista blanca y se verifico con el EFECTO FISICO (raw_motors al 30 %
+    #    por WebSocket -> 0.00 cm de desplazamiento, evidencia 53).
+    #    El pendiente SIGUE siendo correcto, pero **por otra razon**: falta
+    #    identidad por usuario. Describirlo con el riesgo viejo hacia que cada
+    #    informe imprimiera un peligro que ya no existe, en vez del que si.
+    #    📝 Un pendiente que describe mal lo que bloquea es tan enganoso como uno
+    #       que no esta: quien lo lea ira a arreglar lo que no toca.
+    Resultado('F9', 'rosbridge sin identidad por usuario (Fase B)', PENDIENTE,
+              'La Fase A ya cerro `raw_motors` y publicar en /cmd_vel — verificado '
+              'con 0.00 cm de desplazamiento (evidencia 53). Lo que sigue abierto es '
+              'que **rosbridge 2.7.0 en Jazzy NO TIENE AUTENTICACION** (no existe: ni '
+              '`rosauth`, ni parametro `authenticate`, y `check_origin()` devuelve '
+              'True siempre), asi que CUALQUIERA EN EL AULA PUEDE TELEOPERAR '
+              'CUALQUIER ROBOT por cmd_vel_raw. Se cierra con el proxy que valida el '
+              'JWT en cada robot. Ver 03_operacion/SEGURIDAD_ROSBRIDGE.md'),
     Resultado('F9', 'el hueco de los precipicios', PENDIENTE,
               'collision_monitor solo mira /scan, y un LIDAR 2D no ve un vacio a ninguna '
               'altura. Mitigado solo por la regla de laboratorio (suelo continuo y '

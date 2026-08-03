@@ -1076,6 +1076,7 @@ probar_atasco.py             # ⚠️ MUEVE EL ROBOT y TÚ LO BLOQUEAS: ¿detect
 probar_notif_fallo_termica.py # ⚠️ CALIENTA LOS MOTORES a propósito · quedó NO VERIFICADA
 probar_sdk_tanda2.py         # temperaturas con los IDs buenos, color async, batería
 #                              --calibrar ⚠️ GIRA EL ROBOT 360° tres veces
+probar_lista_blanca.py       # ¿la lista blanca de rosbridge DENIEGA de verdad? (sin mover el robot)
 probar_sdk_no_usados.py      # los métodos del SDK que el driver NO usa: ¿cuáles responden?
 #                              ⚠️ necesita el driver parado (sudo systemctl stop atriz-robot)
 ```
@@ -1094,6 +1095,13 @@ fase_0_3_respaldo.sh          # prepara la SD antes de reflashear
 fase_1_validar_sdk_py312.py   # GO/NO-GO de la migración
 fase_7_systemd.sh --id NN     # arranque automático (sudo) · --simular · --quitar
 auditar_documentacion.py      # ¿dice la documentación lo que de verdad pasa? · sin ROS ni sudo
+prueba_aceptacion.py          # ⚠️ LA PRUEBA DE ACEPTACIÓN: 10 fases, de arranque en frío a Nav2
+#                               MUEVE EL ROBOT en F4-F7 · GUIADA: exige terminal de verdad
+#                               --solo F4,F6   ejecuta solo esas fases (las demás quedan PENDIENTE)
+#                               --desde F4     retoma sin repetir
+#                               Criterio y umbrales: 03_operacion/PRUEBA_ACEPTACION.md
+aceptacion_nucleo.py          # su lógica pura (bandas, veredictos, informe). 24 tests, sin ROS:
+#                               python3 -m pytest scripts/pruebas/ -q
 first-boot.sh --solo-red      # regenera /etc/netplan/60-atriz.yaml desde red.txt (sudo)
 #                               NO aplica: eso es `netplan try`, que revierte solo
 diag_uart_pins.sh             # último recurso: lee GPFSEL del chip
@@ -1136,7 +1144,7 @@ de verdad. Dos consecuencias que cambian el día a día:
 | **Nombre Bluetooth del RVR** | `RV-1E6D` — identifica **la bola**, no la Pi. Para el inventario | 2026-08-01 |
 | `/color` (con `color_detection:=true`) | `clear` **181** (negro) → **2288** (blanco), 12.6× · rojo R/G **2.74** · azul B/G **0.86** | 2026-08-01 |
 | Enlace con keepalive | **12 min, 0 huecos** en `/odom`, 16.54 Hz | 2026-07-31 |
-| ✅ **GIRO POR ANGULO** (nuevo) | 90°→**86.6°** (96.2 %) · 180°→**179.6°** · 360°→**358.4°** · deslizamiento **0.2–0.3 cm** · signo REP-103 confirmado. ⚠️ **n=1 por ángulo** | 2026-08-02, evidencia 48 |
+| ✅ **GIRO POR ANGULO** | **n=2**, replicado el mismo día con baterías distintas (55 % y 90 %): 90°→**86.6 / 86.2°** · 180°→**179.6 / 179.6°** · 360°→**358.4 / 357.9°**. Deslizamiento **0.0–0.3 cm** · signo REP-103 confirmado. 📝 La réplica **descarta que el déficit dependiera de la carga**, que era la duda que dejaba n=1 | 2026-08-02, evidencia 48 + corrida 21:01 |
 | **Nav2 navegando** | error final **9–10 cm** (= la tolerancia configurada) | 2026-07-31 |
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |
 | Nav2 solo | ~58 % de un núcleo — la pieza más pesada | 2026-07-31 |

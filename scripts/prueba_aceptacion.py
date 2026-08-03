@@ -30,8 +30,7 @@ from aceptacion_nucleo import (                                  # noqa: E402
 import rclpy                                                     # noqa: E402
 from rclpy.node import Node                                      # noqa: E402
 from rclpy.executors import SingleThreadedExecutor               # noqa: E402
-from rclpy.qos import (QoSProfile, ReliabilityPolicy,            # noqa: E402
-                       DurabilityPolicy)
+from rclpy.qos import QoSProfile, ReliabilityPolicy             # noqa: E402
 from rclpy.signals import SignalHandlerOptions                   # noqa: E402
 from std_msgs.msg import Empty                                   # noqa: E402
 from std_srvs.srv import Empty as EmptySrv                       # noqa: E402
@@ -860,6 +859,15 @@ def f5(a: Aceptacion) -> None:
     if medido is not None:
         a.add(juzgar_categorico('derecha 90°: el servicio acepta (success)',
                                 ok is True, 'F5', f'success = {ok}'))
+    else:
+        # 🔴 Sin este `else` el concepto DESAPARECIA del informe cuando /odom no
+        #    llegaba en esta llamada concreta —aunque hubiera llegado en las tres
+        #    anteriores—: ni PASA, ni FALLO, ni PENDIENTE. Misma familia que
+        #    `err_yaw`, que se calculaba y no se reportaba, y que un `if` sin
+        #    `else` en F2. **Una comprobacion que no se añade no falla: se
+        #    evapora.**
+        a.add(no_verificado('derecha 90°: el servicio acepta (success)', 'F5',
+                            'no llego /odom en esta llamada'))
     # 🔴 Hallazgo de revision (task 6): el brief formatea `medido` con `.1f` sin
     #    comprobar antes que no sea None — si /odom no llega, `girar()` devuelve
     #    (None, None, None) y el f-string original reventaria con TypeError. Se
@@ -955,6 +963,26 @@ def f6(a: Aceptacion) -> None:
         #    📝 Los 9.9 cm son de ANTES de que el radio fuera 0.18: el propio
         #       YAML documenta que con `radius 0.11` paraba a 3.0 cm de la
         #       pared. Una base medida sobre otra configuracion no es una base.
+        # 🔴🔴 PRIMERO: ¿PARO, O CHOCO? Esta comprobacion no existia, y sin ella
+        #    F6 NO PODIA DISTINGUIR LAS DOS COSAS. Si el `collision_monitor`
+        #    estuviera roto —por ejemplo un QoS incompatible en su suscripcion a
+        #    `/scan`, fallo que este proyecto ya ha tenido y que es SILENCIOSO—
+        #    el robot avanzaria hasta estrellarse contra la pared que el operador
+        #    acaba de colocar. Las orugas se calan, `/odom` deja de moverse
+        #    **igual que si hubiera parado por software**, y `paro_solo` sale True.
+        #    Y la distancia caeria por DEBAJO de la banda -> solo REVISAR, que
+        #    **nunca bloquea la via libre** por diseño.
+        #    → El choque que esta fase existe para impedir podia ocurrir DURANTE
+        #      LA PROPIA PRUEBA sin que el informe marcara FALLO ni PENDIENTE.
+        #    Por eso «no choco» es CATEGORICO, no una banda: o hay hueco o no.
+        #    El LIDAR va casi en el centro, asi que con media longitud de chasis
+        #    (~9.5 cm) una lectura por debajo de ~11 cm significa contacto.
+        a.add(juzgar_categorico(
+            'NO CHOCO: quedo hueco entre el robot y el obstaculo',
+            frontal is not None and frontal > 11.0, 'F6',
+            f'{"sin lectura" if frontal is None else round(frontal, 1)} cm desde '
+            'el LIDAR. Por debajo de 11 el chasis esta tocando: el robot NO paro, '
+            'se estrello — y /odom se queda quieto igual que si hubiera parado'))
         a.add(juzgar_banda('distancia frontal a la que quedo parado',
                            None if frontal is None else round(frontal, 1),
                            15.0, 24.0,
@@ -1008,7 +1036,6 @@ def f6(a: Aceptacion) -> None:
 def f7(a: Aceptacion) -> None:
     from nav2_msgs.action import NavigateToPose
     from rclpy.action import ActionClient
-    from geometry_msgs.msg import PoseStamped
 
     a.puerta('PASILLO LIBRE, 2 m POR DELANTE. Se lanzan SLAM y Nav2 y el robot\n'
              '     ira solo a un objetivo a 1.50 m. Tarda ~1 min en arrancar.')
@@ -1202,7 +1229,14 @@ def f7(a: Aceptacion) -> None:
                  '     ⚠️ NO muevas el robot: romperia la pose de SLAM.')
 
         desvio = objetivo(1.50, 'objetivo CON obstaculo')
-        if desvio is not None:
+        if desvio is None:
+            # 🔴 Sin esto el concepto desaparecia del informe. `objetivo()` tiene
+            #    TRES rutas de retorno temprano (sin TF, objetivo rechazado,
+            #    timeout de 120 s); las tres añaden su propio PENDIENTE, pero el
+            #    desvio lateral se quedaba sin rastro.
+            a.add(no_verificado('desvio lateral rodeando el obstaculo', 'F7',
+                                'el objetivo con obstaculo no llego a completarse'))
+        else:
             a.add(juzgar_banda('desvio lateral rodeando el obstaculo',
                                round(desvio, 1), 15.0, 50.0,
                                'manual 11.13: 30 cm y vuelve al eje', 'F7', 'cm'))
