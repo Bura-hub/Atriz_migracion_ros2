@@ -67,4 +67,62 @@ Fecha : 2026-08-03T15:31:05-05:00   ·   Robot: rvr-01   ·   claude 2.1.220
   📝 NO VERIFICADO: la prueba se hizo EN la Pi, no por SSH desde el PC. Falta
      comprobarlo con 'ssh rvr-01 bash -lc' cuando existan las claves — hoy
      ~/.ssh/authorized_keys está vacío y el SSH pide contraseña.
+
+── SEGUNDA PARTE · el encargo completo, con contrato y esquema ────────────────
+  Fecha: 2026-08-03. Encargo: «mide la frecuencia real de /odom durante 10 s y
+  dime si el driver esta sano. No arregles nada.»
+
+  RESULTADO: hecho=true, y `jq -e '.hecho == true'` PASA.
+
+    /odom              1 <- dominio DDS correcto
+    medicion           16.630 Hz sobre 224 mensajes, mas una segunda medida
+                       independiente de 16.647 Hz (sigma 1.23 ms)
+    comandos           14
+    evidencia          9 entradas con comando + salida
+    no_verificado      6 entradas
+    coste              $0.95 · 25 turnos · 176 s
+
+  ✅ LA PRUEBA ANTI-ALUCINACION FUNCIONA. Los tres campos que solo la Pi puede
+     saber se contrastaron contra la maquina y cuadran:
+       machine_id  e2fee1e8a7114b029799…  == /etc/machine-id
+       git_head    23b781bcdfdd04b185f4…  == git rev-parse HEAD
+       uptime_s    11885                  ~= /proc/uptime (12117, dentro de tolerancia)
+
+  Y el delegado avisó por su cuenta de dos cosas que nadie le preguntó: que el
+  `git fetch` previo fue denegado por permisos, y que el dt min/max de la
+  primera medida era descubrimiento DDS, no jitter real.
+
+── 🔴 EL PRIMER ENCARGO REAL NO PUDO HACER NADA — Y ESO ESTUVO BIEN ───────────
+  La primera version usaba --disallowedTools (lista negra). En modo -p no
+  interactivo, TODO lo que requiere aprobacion se deniega: 20 comandos
+  intentados, 20 denegados.
+
+  Lo importante es como falló:
+    · devolvio hecho=false
+    · puso NO_DISPONIBLE en machine_id y git_head en vez de inventarlos
+    · listo en requiere_usuario los comandos exactos que le faltaban
+    · y `jq -e '.hecho == true'` NO paso
+
+  O sea: el canal se negó a mentir. Es el comportamiento que se buscaba.
+
+  🔴 Y ENCONTRO UN FALLO DE MI ESQUEMA. Su propio parte decia:
+     «git_sucio va a 0 porque el esquema exige un entero >= 0 y no admite
+      centinela: ESE 0 ES RELLENO, NO UNA MEDIDA. No se apoye ninguna
+      conclusion en el.»
+     Tenia razon: un esquema que obliga a rellenar fabrica datos falsos, que es
+     justo lo que este canal existe para evitar. Corregido — los cinco campos
+     de contraste admiten null = NO MEDIDO.
+
+── CUATRO DETALLES DE SINTAXIS, UN INTENTO CADA UNO ──────────────────────────
+  1. --json-schema quiere el JSON, no una ruta   -> "Unrecognized token '/'"
+  2. el esquema no puede llevar $schema con $ref -> "no schema with key or ref"
+  3. --allowedTools es VARIADICO y se traga el prompt -> hay que cerrar con --
+  4. falta < /dev/null  -> "no stdin data received in 3s"
+
+── LO QUE SIGUE SIN VERIFICARSE ──────────────────────────────────────────────
+  📝 Todo esto se probo EN la Pi. Falta repetirlo por SSH desde el PC, que es
+     como se usaria de verdad — y ahi entra la trampa del `bash -lc`. Hoy no se
+     puede: ~/.ssh/authorized_keys esta vacio.
+  📝 Coste: ~$1 por encargo. No es un canal para preguntas de un dato; para eso
+     va un `ssh rvr-01 bash -lc 'ros2 topic hz /odom'` sin agente de por medio.
 ═══════════════════════════════════════════════════════════════════════════════
