@@ -1,6 +1,7 @@
 ═══════════════════════════════════════════════════════════════════════════════
 EVIDENCIA 62 — practica 5, el sensor de color con color_detection:=true
 2026-08-03 · sesion fisica · bateria 7.28 V
+🔴 MEDIDO EN CASA DEL USUARIO, **NO EN EL LABORATORIO**. Ver el aviso del final.
 ═══════════════════════════════════════════════════════════════════════════════
 
 ARRANQUE ESPECIAL, VERIFICADO POR EFECTO
@@ -45,7 +46,28 @@ sobre la evidencia 37 (negro 181, suelo 1275). Contra las lecturas de HOY:
    cae justo dentro de «claro», pero cualquier variacion —otra baldosa, otra
    luz, el robot un milimetro mas alto— lo tira a «borde».
 
-   → Los umbrales del seguidor **NO estan calibrados para este suelo**. Ejecutar
-     el seguidor asi seria depurar un controlador cuyos umbrales no
-     corresponden a la superficie. Hay que medir la cinta negra y el suelo EN EL
-     SITIO donde vaya a correr, y fijarlos con esos numeros.
+   → Los umbrales del seguidor **NO estan calibrados para este suelo**.
+
+═══════════════════════════════════════════════════════════════════════════════
+🔴 Y UNA CORRECCION QUE APORTO EL USUARIO, Y QUE CAMBIA LA CONCLUSION
+═══════════════════════════════════════════════════════════════════════════════
+Estas medidas se tomaron **en casa del usuario, no en el laboratorio**. Asi que
+el «suelo lee 985» de arriba es el suelo de una casa, y **no dice nada del suelo
+del aula**, que es donde correra el curso.
+
+→ La conclusion NO es «hay que recalibrar a 985». Es mas fuerte:
+
+  🔴 **CABLEAR LOS UMBRALES EN EL CODIGO ESTA MAL DE RAIZ.** Hay dos medidas del
+     mismo canal sobre dos suelos distintos —1275 (evidencia 37) y 985 (hoy)—
+     que difieren un 23 %, y ninguna es la del aula. Con 16 robots, una sola
+     baldosa distinta o una lampara encendida mueve el numero.
+
+  → Lo que el seguidor deberia hacer es **calibrarse al empezar**: pedir al
+     alumno que ponga el robot sobre la cinta, luego sobre el suelo, y sacar los
+     umbrales de esas dos lecturas. Es dos lineas mas de practica y convierte un
+     numero magico en una leccion de calibracion — que es contenido de robotica
+     de verdad, del mismo tipo que el lazo cerrado de la practica 4.
+
+  ⏳ **PENDIENTE, y no se puede cerrar fuera del aula**: el seguidor (evidencia
+     63) queda sin ejecutar hasta estar en el laboratorio, con su suelo y su
+     cinta. Decision del usuario, 2026-08-03.
