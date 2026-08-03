@@ -82,12 +82,20 @@ robot = Robot()                      # conecta, enciende el barrido y comprueba 
 robot.avanzar(0.20, 3)               # m/s durante segundos
 robot.girar(90)                      # grados; positivo = a la izquierda
 robot.parar()
-r, g, b, claro = robot.color()
-robot.luces(255, 0, 0)               # RGB de los faros
+r, g, b, claro = robot.color()       # servicio /get_rgbc_sensor_values, 13-20 ms
+robot.luces(255, 0, 0)               # RGB de todos los faros
 d = robot.distancia_frontal()        # metros, del /scan
 v = robot.bateria()                  # voltios
+robot.parada_emergencia()            # acto explícito; NO se libera sola
 robot.cerrar()                       # para el robot y apaga el barrido
 ```
+
+📝 **`color()` sale de un servicio, no del topic `/color`, y por una razón medida.** El mensaje
+`atriz_rvr_msgs/msg/Color` solo lleva `rgb_color` y `confidence` — **no trae el canal `clear`**,
+que es el que discrimina de verdad (**12.6×** entre blanco y negro, contra un RGB que apenas se
+mueve). `clear` solo lo da `/get_rgbc_sensor_values`, y **cuesta 13.3–20.5 ms** (n=5, medido el
+2026-08-02 sobre el robot vivo): cabe de sobra en un lazo de control a 10 Hz, que es lo que hace el
+seguidor de línea.
 
 Y con `with`, que es lo que se enseña, para que cerrar no dependa de acordarse:
 
@@ -171,10 +179,17 @@ estado de parada**: de los 29 topics vivos, los tres que llevan `emergency_stop`
 único observable es el síntoma —se manda `cmd_vel` y el robot no se mueve—, y ese síntoma es **indistinguible** de un
 barrido apagado o de un `collision_monitor` frenando. Así que:
 
-- `atriz.py` **publica** en `/emergency_stop` (RELIABLE + VOLATILE) al recibir Ctrl-C
-- **nunca** llama a `/release_emergency_stop` sola: liberar es un acto explícito del operador.
-  Ese fue el cuarto fallo de la parada — al **soltarla**, no al pulsarla, el robot arrancaba solo
-- y **no promete** «respeta la parada», porque no puede comprobarlo
+- Con **Ctrl-C**, `atriz.py` publica **velocidad cero** repetida y deja de publicar. 🔴 **No** dispara
+  la parada de emergencia, y esto es una corrección al primer borrador de este diseño: la parada
+  **se queda enganchada** hasta que alguien llame a `/release_emergency_stop`, así que un Ctrl-C
+  que la disparara dejaría **el siguiente script del alumno sin funcionar y sin explicación** —
+  justo la clase de trampa silenciosa que este proyecto lleva toda la migración pagando. El camino
+  correcto para que un script termine es el normal: cero, y el watchdog de 0.3 s por debajo
+- La parada de emergencia sí está, como **acto explícito**: `robot.parada_emergencia()`, que
+  publica en `/emergency_stop` con **RELIABLE + VOLATILE** (el QoS que costó el tercer fallo)
+- **Nunca** se llama a `/release_emergency_stop` sola, ni al arrancar ni al cerrar: liberar es del
+  operador. Ese fue el cuarto fallo — al **soltarla**, no al pulsarla, el robot arrancaba solo
+- Y **no promete** «respeta la parada», porque no puede comprobarlo
 
 ---
 

@@ -41,10 +41,18 @@ Dos límites medidos y escritos en el diseño en vez de descubrirse en clase:
 `robot.color()` avisa en vez de devolver `[0,0,0]`; y **el driver no publica ningún estado de
 parada**, así que la API no puede afirmar que la respeta.
 
+### Plan escrito: `00_auditoria/planes/2026-08-02-api-laboratorio.md`
+
+Trece tareas, de las funciones puras a la pasada completa tras un reinicio de verdad. El código
+del núcleo y sus 18 tests **se ejecutaron desde el propio plan** antes de darlo por bueno —
+`18 passed`— y la clase `Robot` ensamblada pasa `pyflakes` limpia: 21 métodos, ningún nombre sin
+definir. Un plan cuyo código no compila es un plan que se descubre roto en la tarea 7.
+
 ### Pendiente
 
-Implementar `atriz.py`, reescribir los 10 scripts y los 5 documentos, y verificarlos ejecutándolos
-contra el robot.
+Ejecutar el plan: implementar `atriz.py`, reescribir los 10 scripts y los 5 documentos, y
+verificarlos **ejecutándolos contra el robot**. Y, fuera del plan y del usuario: **rotar la PSK del
+WiFi y la contraseña de usuario** que están en público.
 
 ---
 
