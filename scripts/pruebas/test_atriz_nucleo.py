@@ -231,3 +231,33 @@ def test_generador_recibe_dt_correcto_segun_freq_hz():
             f"freq_hz={freq_hz}: el generador recibió dt={dts_recibidos[0]}, "
             f"se esperaba {esperado}. El dt está hardcodeado en simular_girar()."
         )
+
+
+def test_generador_rampa_real_respeta_el_signo_en_giros_negativos():
+    """generador_rampa_real() tiene que aplicar el SIGNO del objetivo, igual
+    que Robot.girar() real: `sentido * velocidad_giro(...)`.
+
+    velocidad_giro() usa abs() por dentro y nunca es negativa. Si el
+    generador hace `acumulado += v_cmd * dt` sin multiplicar por el signo del
+    objetivo, un giro negativo (`girar(-90)`, "a la derecha" según el
+    docstring de girar()) hace que el acumulado se ALEJE del objetivo en vez
+    de acercarse, y el lazo agota el tope de tiempo en vez de converger.
+
+    Ronda de arreglo 5: encontrado ejecutando
+    `simular_girar(-90, generador_rampa_real(), freq_hz=20.0)` -> ~589°,
+    'timeout'.
+    """
+    sys.path.insert(0, str(Path.home() / 'atriz_migracion/scripts'))
+    from simular_girar import generador_rampa_real, simular_girar  # noqa: E402
+
+    resultado, iters, razon = simular_girar(-90, generador_rampa_real(), freq_hz=20.0)
+
+    assert razon == 'convergencia', (
+        f"giro de -90° con generador_rampa_real() terminó en '{razon}' "
+        f"(resultado={resultado:.3f}°, iters={iters}), no en 'convergencia'. "
+        f"Si el generador no aplica el signo, el acumulado se aleja del "
+        f"objetivo y agota el tope de tiempo en vez de converger."
+    )
+    assert math.isclose(resultado, -90.0, abs_tol=2.0), (
+        f"giro de -90° dio {resultado:.3f}°, se esperaba cerca de -90°."
+    )

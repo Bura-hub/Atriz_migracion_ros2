@@ -85,6 +85,14 @@ def generador_rampa_real():
     misma rampa que usa `Robot.girar()` en `atriz.py` — en vez de una
     velocidad inventada.
 
+    🔴 Reproduce solo dos piezas del lazo real, verificadas con test:
+    la MAGNITUD (integra `velocidad_giro()`, no una velocidad inventada) y
+    el SIGNO (`sentido * velocidad_giro(...)`, igual que `girar()` real,
+    porque `velocidad_giro()` usa `abs()` por dentro y nunca es negativa).
+    Cualquier otra propiedad del lazo real que no tenga un test explícito
+    NO está garantizada por este generador — no lo trates como el lazo
+    completo.
+
     Es la ÚNICA función de este módulo que produce cifras de sobregiro. Tanto
     la tabla que imprime este script (`__main__`) como `medir_sobregiro.py`
     la importan de aquí: no hay una segunda copia de la física en ningún otro
@@ -97,16 +105,21 @@ def generador_rampa_real():
     justo lo que comprueba `test_frecuencia_20hz_reduce_el_sobregiro`.
 
     Se instancia una vez por llamada a `simular_girar()` (lleva estado propio
-    en `acumulado`), nunca se reutiliza entre corridas.
+    en `acumulado` y en `sentido`), nunca se reutiliza entre corridas.
     """
     acumulado = 0.0
+    sentido = 1.0  # se fija en la primera llamada, igual que en girar()
 
     def generador(iteracion, restante_grados, dt):
-        nonlocal acumulado
+        nonlocal acumulado, sentido
         if iteracion == 0:
+            # En la llamada 0, simular_girar() pasa grados_pedidos tal cual
+            # (el objetivo completo, no lo que queda), así que su signo es
+            # el signo del giro pedido.
+            sentido = 1.0 if restante_grados >= 0.0 else -1.0
             return 0.0
         v_cmd = velocidad_giro(math.radians(restante_grados))
-        acumulado += v_cmd * dt
+        acumulado += sentido * v_cmd * dt
         return acumulado
 
     return generador
