@@ -12,7 +12,9 @@
 > 1. **La sesión física.** *Nada* se ha medido con el robot moviéndose: ni distancias, ni ángulos,
 >    ni las corridas de Ctrl-C, ni los faros, ni el seguidor sobre una línea real. Va más abajo.
 > 2. **Rotar la PSK del WiFi y la contraseña de `sphero`**, que es lo único que cierra la
->    exposición del repositorio público (11 coincidencias en cada una de sus cuatro ramas).
+>    exposición del repositorio público. Medido tras el push: la **punta** de `ros2` ya está
+>    limpia (**0**), pero `main`, `migracion-ros2` y `wip/scripts-estudiantes` siguen con **11
+>    cada una**, y el **historial** de las cuatro las conserva.
 >
 > Y falta también la corrida completa de la prueba de aceptación tras un reinicio real.
 
@@ -332,11 +334,18 @@ detalle completo de las tres rondas.
 #   sudo reboot
 
 cd ~/atriz_ws/src/Atriz_rvr/scripts/estudiantes && source /opt/ros/jazzy/setup.bash
+# 🔴 99_test_ctrl_c.py NO va en este bucle: su Ctrl-C llega a TODO el grupo de
+#    procesos en primer plano, asi que romperia el bucle entero — y su salida
+#    correcta (130) se imprimiria como «FALLO». Va aparte y CINCO veces, porque
+#    el fallo que busca es intermitente.
 for f in 01_avanzar.py 02_girar.py 03_cuadrado.py 04_giro_preciso.py \
-         10_movimiento_completo.py 90_template.py 99_test_ctrl_c.py; do
+         10_movimiento_completo.py 90_template.py; do
   read -p "Coloca el robot y pulsa Enter para $f..." _
   python3 "$f" && echo "OK $f" || echo "FALLO $f"
 done
+
+# y este, suelto y repetido, midiendo con cinta lo que recorre TRAS el Ctrl-C:
+python3 99_test_ctrl_c.py        # x5, pulsando a distintas alturas
 # 05_sensor_color.py, 11_sensor_avanzado.py y seguidor_linea_pid_demo.py van aparte:
 # necesitan arrancar el driver con color_detection:=true (ver API_LABORATORIO.md)
 ```
@@ -1065,7 +1074,7 @@ a ✅ con la fecha. **En el repositorio, no en un mensaje de chat.**
 |---|---|---|---|
 | `Atriz_migracion_ros2` | `main` | — | Este repositorio: auditoría, plan, manual, scripts |
 | `Atriz_rvr` | `main` | `6f48ae1` | Original + **el arreglo del UART** (cherry-pick de `67c8776`) |
-| `Atriz_rvr` | **`ros2`** ← rama de trabajo actual | `1b1239a` (histórico) → **`d543cdd`** (2026-08-02, local, sin `push`) | `atriz_rvr_msgs` portado a ament+rosidl, y desde el 2026-08-02 el material docente reescrito sobre `atriz.py` — ver «Material docente», arriba |
+| `Atriz_rvr` | **`ros2`** ← rama de trabajo actual | `1b1239a` (histórico) → **`ff2ea8a`** (2026-08-03, **empujado** a `origin/ros2`) | `atriz_rvr_msgs` portado a ament+rosidl, y desde el 2026-08-02 el material docente reescrito sobre `atriz.py` — ver «Material docente», arriba |
 | `Atriz_rvr` | `migracion-ros2` | `24c7749` | UART → `/dev/rvr` · `interval` 250→60 ms |
 | `Atriz_rvr` | `wip/scripts-estudiantes` | `62e0313` | Stash rescatado. **No mezclar** — ver decisión pendiente arriba |
 | `Atriz_web_server` | `pruebas` | `924d659` | Sin tocar — se aborda al final |

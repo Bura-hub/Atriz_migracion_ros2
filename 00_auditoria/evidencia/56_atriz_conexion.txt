@@ -361,3 +361,40 @@ reproduce (no se forzo esa condicion especifica -- el join real sigue
 siendo submilisegundos en todas las corridas medidas hasta ahora -- pero la
 rama de codigo que lo maneja ya no repite la secuencia que abortaba). El
 apagado del barrido en cerrar() ya no depende de que _mandar() tenga exito.
+
+═══════════════════════════════════════════════════════════════════════════════
+2026-08-03 — LOS CUATRO CAMINOS DE SALIDA (anadido tras la revision final)
+═══════════════════════════════════════════════════════════════════════════════
+Sostiene la trampa «UN PROGRAMA TIENE MAS CAMINOS DE SALIDA DE LOS QUE SE TE
+OCURREN» de CLAUDE.md. Se copia aqui porque la fuente original vivia solo en el
+espacio de trabajo de los subagentes, que esta en .gitignore: la regla 3 del
+proyecto dice que nada se ejecuta sin documentarse, y una trampa cuya evidencia
+desaparece al limpiar no cumple.
+
+⚠️ TABLA DE MECANISMO, NO MEDIDA FISICA. Lo comprobado es si se llamo a
+   /stop_scan, provocando las senales sobre procesos de prueba. NO se ha medido
+   el tambor del X2 parando: eso sigue NO VERIFICADO y va en la sesion fisica.
+
+  antes    + SIGQUIT  -> salida 131 | /stop_scan NO se llamo
+  antes    + SIGINT   -> salida 130 | /stop_scan llamado
+  antes    + SIGTERM  -> salida 143 | /stop_scan NO se llamo
+  antes    + SIGHUP   -> salida 129 | /stop_scan NO se llamo
+  despues  + SIGQUIT  -> salida 131 | /stop_scan llamado
+  despues  + SIGINT   -> salida 130 | /stop_scan llamado
+  despues  + SIGTERM  -> salida 143 | /stop_scan llamado
+  despues  + SIGHUP   -> salida 129 | /stop_scan llamado
+
+🔴 EL CODIGO DE SALIDA ES IDENTICO EN LOS OCHO CASOS. Solo el efecto los
+   distingue: la regla «comprueba el efecto, no el codigo de salida» apareciendo
+   dentro de su propia verificacion.
+
+La ventana entre las dos banderas de cierre, con la senal entregada justo ahi:
+  ANTES  (_cerrado primero) -> rastro []                                 barrido encendido
+  DESPUES(_cerrando primero) -> rastro ['parar','/stop_scan','desmontar'] barrido apagado
+
+Que NO cubre atexit, medido: os._exit(), SIGKILL, SIGABRT, SIGSEGV, os.execv y
+caida dura. Si cubre: salida normal sin `with`, sys.exit() y excepcion sin
+capturar. Esta escrito asi en atriz.py y en 00_LEEME_PRIMERO.md.
+
+Donde vive el arreglo: atriz.py, constante SENALES_DE_CIERRE y el metodo
+cerrar(). Los tests que lo protegen estan en scripts/pruebas/test_atriz_nucleo.py.

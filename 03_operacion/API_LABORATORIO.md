@@ -36,7 +36,9 @@ física— está en `TRASPASO.md`.
 
 **Y esto no lo arregla ningún trabajo de documentación:** las credenciales encontradas en
 `Atriz_rvr` (PSK del WiFi del laboratorio y contraseña de `sphero`) siguen en el **historial** de
-las cuatro ramas remotas — 11 coincidencias cada una, medido, ningún tag afectado. Rotarlas es
+las cuatro ramas remotas: tras el push, la **punta** de `origin/ros2` ya está limpia (**0**) y las de `main`,
+`migracion-ros2` y `wip/scripts-estudiantes` siguen con **11 cada una**; el **historial**
+de las cuatro las conserva, y ningún tag. Rotarlas es
 acción del usuario y es lo único que cierra la exposición.
 
 ---
@@ -155,7 +157,11 @@ Ninguna es hipotética. Cada una es un fallo que este proyecto ya pagó:
 
 ## `girar()` en lazo cerrado, y por qué no una constante calibrada
 
-El giro por tiempo no cierra: a 90° comandados el robot hace **86.6 / 86.2 / 87.7°** (n=3, medido
+⚠️ **Ojo con la atribución:** los **86.6 / 86.2 / 87.7°** que este documento citaba como «lo que
+da el giro por tiempo» se midieron con **`move_timed`** —un servicio del driver— **a 1.0 rad/s**
+(evidencia 48), y la práctica usa `girar_por_tiempo()` **a 0.8 rad/s** por `/cmd_vel_raw`: otro
+mecanismo, otra velocidad. **El déficit de ESE camino no está medido.** Con esa reserva: el giro
+por tiempo no cierra, y con `move_timed` a 90° comandados salió **86.6 / 86.2 / 87.7°** (n=3, medido
 el 2026-08-02 con baterías del 55 % al 100 %, así que **el déficit no depende de la carga**). La
 salida barata es multiplicar por 1.04 y seguir.
 

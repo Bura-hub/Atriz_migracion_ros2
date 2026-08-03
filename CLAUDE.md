@@ -144,8 +144,9 @@ hacer **la tabla de TODOS los caminos de salida contra la promesa**.
 | **Ventana de dos sentencias** | poner la bandera de «ya cerrado» **antes** que la de «cerrando» |
 
 ```
-antes + SIGQUIT/SIGTERM/SIGHUP -> BARRIDO ENCENDIDO     despues -> APAGADO
+antes + SIGQUIT/SIGTERM/SIGHUP -> /stop_scan NO se llamo    despues -> LLAMADO
 ```
+⚠️ Tabla de **mecanismo**: lo medido es la llamada al servicio, **no** el tambor parando.
 🔴 **El código de salida es idéntico en los cuatro casos, antes y después.** Solo el efecto los
 distingue: es la regla «comprueba el efecto, no el código de salida» apareciendo dentro de su
 propia verificación.
@@ -154,12 +155,16 @@ propia verificación.
   capturarlo por señal, y lo que no se pueda **se escribe**, no se calla.
 → 📝 **Y arreglar un camino puede abrir otro:** al hacer que la biblioteca pidiera «espera, ya
   estoy cerrando» en el segundo Ctrl-C, se empujaba al alumno justo hacia probar Ctrl-\.
+→ El arreglo vive en `atriz.py`, constante `SENALES_DE_CIERRE` y el método `cerrar()`; los tests
+  que lo protegen, en `scripts/pruebas/test_atriz_nucleo.py`. Medido el **2026-08-03**,
+  **evidencia 56**.
 
 **🔴 UNA FUNCIÓN QUE «RECORTA A UN VALOR SEGURO» PUEDE MAPEAR LO PEOR AL MÁXIMO.** `limitar(nan)`
 devolvía **0.40 m/s** —el tope— porque `abs(nan) <= tope` es `False` y caía en la rama de recorte.
 Con el tope de tiempo, `avanzar(nan, nan)` habría conducido **4 metros**.
 → Comprueba `math.isfinite` **antes** de comparar. `aceptacion_nucleo.delta_angulo()` ya lo hacía
   bien: la disciplina estaba en el repo y no se aplicó al escribir la biblioteca nueva.
+  Medido el **2026-08-03**; el arreglo está en `limitar()` de `atriz.py`.
 
 
 **🔴 CON EL RVR APAGADO, EL DRIVER DICE «streaming reanudado» PARA SIEMPRE.** Medido el

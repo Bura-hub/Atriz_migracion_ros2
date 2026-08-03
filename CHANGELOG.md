@@ -7,8 +7,9 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 ## 2026-08-03 (parte 2) — La revisión final dijo NO FUSIONAR, y tenía razón
 
 Cerradas las trece tareas del plan `2026-08-02-api-laboratorio.md`, se lanzó la **revisión de toda
-la rama**. Encontró **26 hallazgos**, dos de ellos de seguridad, y **ninguno lo había visto ninguna
-de las trece revisiones por separado**: solo se ven mirando el conjunto.
+la rama**. Encontró **26 hallazgos**. Los **dos de seguridad** no los había visto ninguna de las trece
+revisiones por separado: solo se ven mirando el conjunto. 📝 El resto no: diez venían de la lista
+de menores que las propias revisiones por tarea habían ido difiriendo, y la oleada los cerró.
 
 ### 🔴 La garantía central de `atriz.py` tenía CUATRO agujeros, y el manual conducía a dos
 
@@ -21,12 +22,15 @@ La biblioteca promete que **el barrido del LIDAR se apaga pase lo que pase**. No
 | **Ctrl-\ (`SIGQUIT`)** | Tampoco, y **sí se puede capturar** |
 | **Ventana entre dos banderas** | `_cerrado = True` se ponía **antes** que `_cerrando = True`: una señal en ese hueco de dos sentencias reproducía el primer caso |
 
-Medido sobre procesos reales, antes y después:
+Comprobado provocando las señales sobre **procesos de prueba**, antes y después.
+⚠️ **Es una tabla de MECANISMO, no una medida física:** lo medido es **si se llamó a
+`/stop_scan`**, no el tambor del X2 girando. El efecto físico está **NO VERIFICADO** y va
+en la sesión física.
 
 ```
-antes   + SIGQUIT -> BARRIDO ENCENDIDO      despues + SIGQUIT -> BARRIDO APAGADO
-antes   + SIGTERM -> BARRIDO ENCENDIDO      despues + SIGTERM -> BARRIDO APAGADO
-antes   + SIGHUP  -> BARRIDO ENCENDIDO      despues + SIGHUP  -> BARRIDO APAGADO
+antes   + SIGQUIT -> /stop_scan NO se llamo      despues -> /stop_scan LLAMADO
+antes   + SIGTERM -> /stop_scan NO se llamo      despues -> /stop_scan LLAMADO
+antes   + SIGHUP  -> /stop_scan NO se llamo      despues -> /stop_scan LLAMADO
 ventana entre banderas: rastro []          ->  ['parar', '/stop_scan', 'desmontar']
 ```
 
@@ -89,7 +93,9 @@ secretos: 1 coincidencia, y es la linea que dice que NO estan
 ### Lo que sigue abierto
 
 - 🔴 **Rotar la PSK del WiFi y la contraseña de `sphero`.** Es lo único que cierra la exposición.
-  Medido: **11 coincidencias en cada una de las cuatro ramas** de `Atriz_rvr`, que es público.
+  Medido **tras el push**: la **punta** de `origin/ros2` ya está limpia (**0**), pero las
+de `main`, `migracion-ros2` y `wip/scripts-estudiantes` siguen sirviéndolas (**11 cada una**), y
+el **historial** de las cuatro las conserva de `Atriz_rvr`, que es público.
   ⚠️ Una re-revisión afirmó **56** en `origin/ros2`; **no se reproduce** — la medición propia da 11
   en las cuatro. Anotado como dato no confirmado.
 - 🔴 **La sesión física entera.** Nada se ha medido con el robot moviéndose: ni distancias, ni
