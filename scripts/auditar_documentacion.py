@@ -6,6 +6,13 @@
 
 Sale con código ≠ 0 si encuentra algo. No toca ningún fichero y no necesita ROS.
 
+Examina lo que `git` considera parte del repositorio (`git ls-files`), no todo lo que
+hay en el disco: un directorio de trabajo ignorado (`.superpowers/`, `__pycache__/`, …)
+no es documentación del proyecto, y mirarlo genera falsos positivos que nadie puede
+arreglar desde aquí — un paquete de revisión con un diff pegado dentro no es un enlace
+roto. Necesita `git` y correr dentro del repo; si no lo encuentra, falla alto en vez de
+mirar el disco entero en silencio.
+
 ═══════════════════════════════════════════════════════════════════════════════
 POR QUÉ EXISTE
 ═══════════════════════════════════════════════════════════════════════════════
@@ -38,6 +45,7 @@ que «la parada no cancela Nav2» sea mentira.
 import argparse
 import os
 import re
+import subprocess
 import sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -54,12 +62,33 @@ OBSOLETAS = [
 ]
 
 
+def _archivos_no_ignorados():
+    """Todo lo que `git` ve — trackeado, o sin trackear pero no ignorado —, con
+    RUTAS ABSOLUTAS. Es la fuente de verdad de qué cuenta como «el repositorio»:
+    ni `.git/` (git nunca lo lista) ni nada de `.gitignore` (`.superpowers/`,
+    `__pycache__/`, ...) pueden colarse por aquí, sin tener que mantener a mano
+    una lista de directorios a excluir que el próximo directorio de trabajo
+    volvería a dejar corta.
+
+    🔴 Si `git` no está disponible o `RAIZ` no es un repo, FALLA ALTO en vez de
+    caer a recorrer el disco entero: un auditor que en silencio empieza a mirar
+    lo que git ignora vuelve a producir los falsos positivos que esto arregla.
+    """
+    try:
+        salida = subprocess.run(
+            ['git', '-C', RAIZ, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+            capture_output=True, text=True, check=True,
+        ).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        sys.exit(f"🔴 auditar_documentacion.py necesita `git` (para respetar .gitignore) "
+                 f"y no pudo listar los ficheros de {RAIZ}: {exc}")
+    return [os.path.join(RAIZ, rel) for rel in salida.split('\0') if rel]
+
+
 def ficheros(exts=('.md',)):
-    for base, dirs, fs in os.walk(RAIZ):
-        dirs[:] = [d for d in dirs if d != '.git']
-        for f in fs:
-            if f.endswith(exts):
-                yield os.path.join(base, f)
+    for ruta in _archivos_no_ignorados():
+        if ruta.endswith(exts):
+            yield ruta
 
 
 def enlaces_rotos():
