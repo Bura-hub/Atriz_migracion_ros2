@@ -3,6 +3,38 @@
 ═══════════════════════════════════════════════════════════════════════════════
 Fecha: 2026-08-03T17:50-05:00   ·   Máquina: PC de desarrollo (no el robot)
 
+🔴🔴 CORREGIDO EL MISMO DÍA — LEER ANTES QUE NADA ────────────────────────────
+  TODO LO QUE SIGUE SE MIDIÓ SOBRE LA RAMA `master`, y no lo dice. `master` es
+  lo que da un `git clone` sin argumentos (`default_branch=master`, dato que
+  esta misma evidencia imprime en su punto 1 y que no se usó).
+
+  `Atriz_web_server` tiene TRES ramas SIN ANCESTRO COMÚN (`compare` → HTTP 404):
+  `master` (2026-02-09), `develop` (2026-02-10) y `pruebas` (2026-02-16).
+  **Manda `pruebas`**: es la más nueva y la que cita toda la documentación del
+  proyecto con el commit 924d659. Detalle en la evidencia 67.
+
+  → Las cuatro afirmaciones que el punto 4 declara falsas son falsas EN `master`
+    y CIERTAS en `pruebas`. Medido: PythonCode.vue 10913 B e importa Monaco de
+    verdad; ExecuteCommand.vue 5598 B; raspberry_config.py 413 B;
+    `POST /robots/execute/` existe. El plan de la mañana midió bien; midió otra
+    rama. **El defecto fue de los dos: ninguno fijó la rama.**
+
+  → Y afecta a UNA COSA DEL PUNTO 2, la de credenciales, así que va aquí:
+      · `.env` commiteado (PostgreSQL) ..... SOLO en `master`. En `pruebas` y
+        `develop` da HTTP 404.
+      · `core/security.py` con la SECRET_KEY .. en LAS TRES (859 B en master,
+        1048 B en pruebas y develop). **Esta es la que importa y no depende de
+        la rama.**
+
+  → Lo que NO depende de la rama y se sostiene entero: la autenticación escrita
+    y sin conectar (medido en las tres: los `include_router` van sin
+    `dependencies=` — cinco en master, SEIS en pruebas y develop, que es lo que
+    decía el plan), la telemetría falsa, y el veredicto «se rehace».
+
+  📝 LECCIÓN: un repositorio sin rama fijada no es una referencia. Y el dato que
+     lo habría evitado estaba impreso en la propia salida de la verificación.
+─────────────────────────────────────────────────────────────────────────────
+
 PREGUNTA: el plan de la Fase 5 (`00_auditoria/planes/2026-08-03-plataforma-web.md`)
 describe el repositorio de la web en su sección 1 y declara ahí mismo que se
 inspeccionó «por la API de GitHub el 2026-08-03, SIN CLONARLO». Al reanudar la

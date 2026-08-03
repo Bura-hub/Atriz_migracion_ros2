@@ -4,7 +4,69 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-03 (parte 6) — Nadie fijó la rama, y por eso las dos auditorías se contradijeron
+
+`Atriz_web_server` tiene **TRES ramas que son códigos distintos**, y `compare` entre ellas devuelve
+**HTTP 404: no comparten ancestro.** `master` (2026-02-09, la que da un `git clone` sin argumentos),
+`develop` (2026-02-10) y **`pruebas` (2026-02-16)**, que es la más nueva y la que cita toda la
+documentación del proyecto con el commit `924d659` (`INFORME_AUDITORIA.md:5`, `TRASPASO.md:1103`,
+`CHANGELOG.md:4560`). **Manda `pruebas`**: `git clone -b pruebas …`.
+
+**Las dos auditorías midieron bien. Midieron ramas distintas y ninguna lo dijo.** La de la mañana
+(el plan, escrito en la Pi) midió `pruebas`; la corrección de la tarde (parte 5, desde el PC) midió
+`master`, porque eso es lo que da un `git clone`.
+
+### Lo que queda retractado de la parte 5
+
+Las cuatro afirmaciones que se declararon falsas son falsas **en `master`** y **ciertas en
+`pruebas`**, medido:
+
+| | `master` | `pruebas` |
+|---|---|---|
+| `PythonCode.vue` | 2895 B, `<textarea>`+Prism | **10913 B, importa Monaco de verdad** |
+| `ExecuteCommand.vue` | 404 | **5598 B** |
+| `raspberry_config.py` | 404 | **413 B** |
+| `POST /robots/execute/` | no existe | **existe**, `command` por formulario |
+| `include_router` sin `dependencies=` | 5 | **6** ← lo que decía el plan |
+
+Y **dos endpoints que no había visto nadie**, en `pruebas` y `develop`: `POST /robots/stop/` y
+`POST /robots/emergency-stop/`, los dos con `robot_ip` por formulario y **sin autenticación**. Una
+parada de emergencia sin autenticar también es una parada que cualquiera puede dejar inservible:
+entra en el inventario de la Fase B.
+
+### Lo que NO depende de la rama, medido en las tres
+
+- **La autenticación escrita y sin conectar.** `get_current_user` importado y nunca llamado, y los
+  routers sin `dependencies=`, en `master`, `pruebas` y `develop`.
+- 🔐 **La `SECRET_KEY` de firma de los JWT** (`core/security.py`) está en **las tres**. Es la
+  credencial que importa: con ella cualquiera **forja un token válido**, así que cablear
+  `get_current_user` no serviría de nada hasta cambiarla.
+- El veredicto **«se rehace»**, que sale reforzado.
+
+📝 **Matiz sobre la otra credencial:** el `.env` commiteado con la de PostgreSQL está **solo en
+`master`** (404 en las otras dos) y apunta a `localhost`. Es limpieza, no puerta abierta. La parte 5
+lo dio como del repositorio entero.
+
+### 📝 La lección, y es de método
+
+**Un repositorio sin rama fijada no es una referencia.** Este proyecto ya tiene documentada la
+trampa de auditar un clon desincronizado —tres hallazgos falsos, el error más caro de su historia—
+y esta es la misma con otro disfraz.
+
+Y una segunda, más incómoda: **corregir un error generó otro, por tercera vez.** La corrección de la
+tarde imprimió `default_branch=master` en su propia salida de verificación **y no lo usó**. Una
+corrección es una afirmación: necesita fijar sus condiciones con el mismo cuidado que lo que corrige.
+
+Evidencias 66 (con cabecera de corrección) y 67.
+
+---
+
 ## 2026-08-03 (parte 5) — Los repositorios web, leídos de primera mano
+
+> ⚠️ **LEER LA PARTE 6 ANTES QUE ESTA.** Todo lo que sigue se midió sobre la rama **`master`** sin
+> decirlo, y `master` no es la rama que manda. Las cuatro afirmaciones que esta entrada declara
+> falsas son falsas en `master` y **ciertas en `pruebas`**. Lo que sí se sostiene: la autenticación
+> sin conectar, la telemetría falsa, la `SECRET_KEY` (está en las tres ramas) y el veredicto.
 
 Primera sesión **desde el PC de desarrollo**, no desde el robot. Se pusieron al día los dos clones
 (`atriz_migracion` iba 9 commits por detrás; `Atriz_rvr` ya estaba en el head de `ros2`) y apareció

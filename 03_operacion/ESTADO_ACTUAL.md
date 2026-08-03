@@ -70,7 +70,7 @@ Después: **la imagen dorada y el robot 2** (Fase 6), donde se comprueban por pr
 | | |
 |---|---|
 | 🔐 **Rotar la PSK del WiFi y la contraseña de `sphero`** | 👤 tuyo. La credencial está en el historial de un repositorio público |
-| 🔐 **DOS credenciales NUEVAS, encontradas el 2026-08-03 por la tarde** | 👤 tuyo. En `Atriz_web_server`, que sigue **público**: la de PostgreSQL en un **`.env` commiteado** y duplicada en `core/config.py`, y la **`SECRET_KEY` de los JWT** en `core/security.py`. La de PostgreSQL es de desarrollo y apunta a `localhost` (limpieza); la `SECRET_KEY` sí importa: con ella cualquiera **forja un token válido**. `forks=0`, así que purgar el historial aquí sí serviría — después de rotar. Evidencia 66 |
+| 🔐 **DOS credenciales NUEVAS, encontradas el 2026-08-03 por la tarde** | 👤 tuyo. En `Atriz_web_server`, que sigue **público**. **Con la rama fijada, que es lo que faltaba:** la **`SECRET_KEY` de los JWT** (`core/security.py`) está en **las tres ramas** — es la que importa, porque con ella cualquiera **forja un token válido**. La de PostgreSQL (`.env` commiteado + `core/config.py`) está **solo en `master`**; en `pruebas` y `develop` da 404, y además apunta a `localhost`: es limpieza. `forks=0`, así que purgar el historial sí serviría — después de rotar. Evidencias 66 y 67 |
 | **`red.txt` en 755** | 👤 tuyo. La PSK es legible por cualquier usuario; `chmod` no sirve, va `fmask=0177` en `/etc/fstab` |
 | **El mapa del aula** | 👤 tuyo, en el laboratorio. Bloquea la tarea 4 del plan de navegación |
 | **`~/.ssh/authorized_keys` vacío** | 👤 tuyo, desde el PC |
