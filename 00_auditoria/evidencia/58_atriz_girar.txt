@@ -71,3 +71,36 @@ El cerrado NO gana en error absoluto — pierde por medio grado.
 📝 Y si el lazo abierto tambien sobregira ~4 grados por la misma inercia, los dos
    compartirian el sesgo y la comparacion se decidiria por la REPETIBILIDAD, que
    es donde el lazo cerrado si tiene un caso claro (rango 0.5-1.2° aqui).
+
+═══════════════════════════════════════════════════════════════════════════════
+SEGUNDA TANDA — CON ANTICIPACION DE LA INERCIA (mismo dia, mismo robot)
+═══════════════════════════════════════════════════════════════════════════════
+Arreglo aplicado: `girar()` apunta a `objetivo - sentido * 4.0 grados`, o sea
+para ANTES de llegar y deja que la inercia complete el giro. Es compensacion
+feedforward de un retardo MEDIDO (los 0.350 s de arriba), no una constante
+calibrada a ojo. Decision del usuario, 2026-08-03.
+
+ pedido    ANTES (error medio)    AHORA (error medio)   rango ahora
+     90                 +4.05°                 +0.34°        0.92°
+    180                 +4.04°                 -0.05°        1.05°
+    360                 +3.96°                 +0.29°        0.95°
+
+    sesgo medio:  +4.01°  ->  +0.19°
+    peor error:    4.70°  ->   0.74°
+    objetivo del plan (±2°): CUMPLE
+
+medidas crudas: 90.46 · 89.82 · 90.74 | 180.50 · 179.90 · 179.45 |
+                360.71 · 360.41 · 359.76
+
+🔴 LA SEÑAL QUE IMPORTA NO ES EL SESGO, SON LOS SIGNOS.
+   Antes: los NUEVE errores positivos. Ahora: 5 positivos y 4 negativos.
+   Un sesgo sistematico se corrige; lo que queda es dispersion, que es el suelo
+   de ruido del sistema. Y el rango casi no cambia (0.52-1.17 -> 0.92-1.05),
+   que es justo lo esperado: la anticipacion mueve la media, no el ruido.
+
+📝 QUE NO SE CONCLUYA DE MAS:
+   - los 4.0 grados salen de UN robot, UNA bateria (7.6 V) y UN suelo. Si el
+     coasting depende de la carga o de la friccion, habra que remedirlo. NO
+     ESTA CARACTERIZADO en esas variables.
+   - sigue sin transportador: /odom es juez y parte para el angulo absoluto.
+   - n=3 por angulo en las dos tandas.
