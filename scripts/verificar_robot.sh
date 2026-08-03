@@ -1339,6 +1339,64 @@ else
     fi
 fi
 
+# ── El canal con el PC: cómo entra quien trabaja en este robot ───────────────
+# 🔴 Medido el 2026-08-03: authorized_keys estaba VACÍO (0 bytes) y los 12
+#    accesos del auth.log eran por contraseña. Con eso, cualquier canal
+#    automatizado (`ssh rvr-01 …` desde un script o desde el Claude del PC) NO
+#    falla: se queda colgado esperando una contraseña que nadie va a escribir.
+#    Es aviso y no fallo porque un robot de la flota puede no necesitarlo.
+if [[ -s "$HOME/.ssh/authorized_keys" ]]; then
+    _ok "SSH por clave publica: $(grep -c '^ssh-' "$HOME/.ssh/authorized_keys" 2>/dev/null || echo 0) clave(s) autorizada(s)"
+else
+    _avi "~/.ssh/authorized_keys vacío: el acceso es por contraseña" \
+         "un canal automático se colgaría esperándola · ssh-copy-id desde el PC"
+fi
+
+# 🔴 mDNS puede publicar una dirección INALCANZABLE, y devolverla la primera.
+#    Medido: rvr-01.local -> A=10.14.7.7,192.168.1.200,192.168.1.58, y la
+#    10.14.7.7 es la del laboratorio, que desde casa no responde (ping al
+#    gateway: 100 % de pérdida). Un cliente que resuelva por nombre puede
+#    quedarse en el timeout TCP de la IP muerta. No es un fallo del robot —es
+#    correcto tener las dos redes puestas a la vez— pero quien conecte tiene
+#    que saberlo. Se comprueba el EFECTO: ¿hay ruta hacia el gateway de cada
+#    dirección? No basta con que la IP esté configurada.
+NUM_IPS="$(ip -4 -o addr show wlan0 2>/dev/null | wc -l)"
+if [[ "$NUM_IPS" -gt 1 ]]; then
+    MUERTAS=""
+    while read -r CIDR; do
+        IPX="${CIDR%%/*}"
+        # La dirección es alcanzable desde fuera solo si su red tiene salida.
+        # Se prueba contra el gateway de esa red: .1 del prefijo, que es la
+        # convención del laboratorio y de casa.
+        GW="$(ip route show dev wlan0 2>/dev/null | awk -v ip="$IPX" '$1 ~ /\// && $NF==ip {print $1}' | head -1)"
+        [[ -z "$GW" ]] && continue
+        BASE_GW="$(echo "${GW%%/*}" | awk -F. '{print $1"."$2"."$3".1"}')"
+        if ! ping -c1 -W1 -I wlan0 "$BASE_GW" >/dev/null 2>&1; then
+            MUERTAS="$MUERTAS $IPX"
+        fi
+    done < <(ip -4 -o addr show wlan0 2>/dev/null | awk '{print $4}')
+    if [[ -n "$MUERTAS" ]]; then
+        _avi "wlan0 tiene $NUM_IPS IPv4 y no todas son alcanzables:${MUERTAS}" \
+             "mDNS las publica TODAS y puede devolver primero una muerta: fija HostName en el ~/.ssh/config del PC"
+    else
+        _ok "las $NUM_IPS direcciones IPv4 de wlan0 tienen pasarela que responde"
+    fi
+fi
+
+# 🔴 Claude Code es herramienta de DESARROLLO del robot de referencia, no del
+#    producto (decisión del usuario, 2026-08-03). Guarda en
+#    ~/.claude/.credentials.json los tokens OAuth de la suscripción, y ocupa
+#    ~386 MB. Un robot de la flota no debe tenerlo; el de referencia sí, y por
+#    eso esto es un _nota y no un fallo: quién es quién lo dice fase_6.
+if [[ -e "$HOME/.local/bin/claude" || -d "$HOME/.claude" ]]; then
+    _nota "Claude Code presente ($(du -sh "$HOME/.claude" 2>/dev/null | cut -f1) en ~/.claude) — quítalo antes del dd: fase_6 lo hace"
+    [[ -f "$HOME/.claude/.credentials.json" ]] && \
+        _avi "🔐 ~/.claude/.credentials.json: tokens OAuth de tu suscripción" \
+             "un dd los copiaría a los 16 robots. fase_6 los borra"
+else
+    _ok "sin Claude Code (correcto para un robot de la flota)"
+fi
+
 # ─────────────────────────────────────────────────────────────────────────────
 printf '\n%s' "$AZUL"
 echo "======================================================================"
