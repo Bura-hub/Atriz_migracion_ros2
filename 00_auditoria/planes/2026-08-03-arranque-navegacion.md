@@ -516,9 +516,19 @@ git add scripts/pruebas/test_atriz_nucleo.py && git commit -m \
 **Ficheros:**
 - Crear: `~/atriz_migracion/00_auditoria/evidencia/64_arranque_navegacion.txt`
 
-⏳ **Requisito previo que hoy NO se cumple:** hace falta **el mapa del aula** en
-`atriz_rvr_bringup/maps/aula.yaml`. Sin él la unidad falla alto a propósito (tarea 1). **Esta
-tarea no se puede cerrar hasta estar en el laboratorio.**
+⏳ **Requisito previo:** hace falta **un mapa válido**. Sin él la unidad falla alto a propósito
+(tarea 1).
+
+🔴 **Y ojo con la precisión, porque una versión anterior de este plan decía «el mapa del aula» y
+era más restrictivo de lo que se sostiene:** lo que esta tarea verifica es el **mecanismo** —que
+la unidad arranque, encienda el barrido sola, que `BindsTo` la tumbe con el driver, que un guion
+de alumno no la deje ciega y que tras un reinicio no vuelva—. **Nada de eso depende de qué
+habitación esté mapeada.**
+
+→ Se puede cerrar **fuera del laboratorio** con un mapa cualquiera, apuntándolo con la variable
+  `ATRIZ_MAPA` (que el envoltorio ya soporta) para no meter un mapa de pruebas en el paquete.
+  Lo único que espera al aula es tener el `aula.yaml` de verdad, que es **contenido**, no
+  mecanismo.
 
 - [ ] **Paso 1: instalar**
 

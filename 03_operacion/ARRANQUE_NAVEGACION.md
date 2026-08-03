@@ -142,6 +142,10 @@ documentada.
 6. 🔴 **Tras un reinicio de verdad, la navegación NO vuelve** y el driver sí.
 7. **Medir el tiempo de arranque** y anotarlo, que es el dato que falta para la decisión futura.
 
+📝 **Todo lo de arriba se puede comprobar con CUALQUIER mapa válido**, apuntándolo con
+`ATRIZ_MAPA`: verifica el **mecanismo**, no el contenido. Solo el `aula.yaml` de verdad tiene que
+esperar al laboratorio.
+
 ---
 
 ## Lo que queda fuera

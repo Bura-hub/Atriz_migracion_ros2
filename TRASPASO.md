@@ -24,8 +24,9 @@
 > 🆕 **Y desde el 2026-08-03 hay una tercera cosa, a medias:** el arranque de la navegación.
 > `atriz-nav.service` está **escrita, instalable y sin habilitar** (tareas 1, 2, 3 y 5 del plan
 > `00_auditoria/planes/2026-08-03-arranque-navegacion.md`), pero **nunca se ha arrancado bajo
-> systemd**. La verificación exige **el mapa del aula**, que no existe: las medidas del 2026-08-03
-> se tomaron en casa. Detalle en `03_operacion/ARRANQUE_NAVEGACION.md`.
+> systemd**. La verificación exige **un mapa válido** — y puede ser cualquiera, apuntado con
+> `ATRIZ_MAPA`: comprueba el mecanismo, no el contenido. El `aula.yaml` de verdad sí espera al
+> laboratorio. Detalle en `03_operacion/ARRANQUE_NAVEGACION.md`.
 
 ---
 
