@@ -4,6 +4,48 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 8) — El tercer estado: /odom muerto con el enlace VIVO
+
+Lo encontro la revision **desde el robot** de la rama `feat/estado-robot`, antes de fusionarla, y es
+un hueco que el mensaje nuevo **no cubria**. Verificado en el fuente (`_quiza_publicar`, lineas
+1979-1986).
+
+Los espejos `_t_muestra_real` / `_n_muestras` avanzan **ANTES** del `return` que se toma cuando aun
+no han llegado los cinco componentes de `/odom`. Y eso **es correcto** —lo que vigilan es que el RVR
+siga ENVIANDO, y «faltan componentes» no es «el enlace callo»: reiniciar el streaming no arreglaria
+lo primero—. Pero la consecuencia es un estado que **no detecta nadie**, ni el vigilante de silencio
+ni `rvr_responde`:
+
+    estado                      latido    rvr_responde   /odom
+    todo bien                   avanza    true           publica
+    la Pi va y el RVR no        avanza    false          0 Hz    ✅ cubierto
+    llegan 4 de los 5           avanza    true           0 Hz    🔴 nadie avisa
+
+🔴 **Desde el muro del profesor ese robot se pinta VERDE con la odometria muerta** — la familia de
+fallos de siempre, esta vez dentro del mensaje escrito para evitarla.
+
+📌 **Y no es hipotetico: es el estado que no se pudo descartar el 2026-08-04.** Los cinco topics del
+stream a cero, el RVR contestando a consultas y el vigilante callado. Se cerro apagando el robot, asi
+que **nunca se supo si faltaban todos los componentes o solo uno**.
+
+✅ **Cerrado con `float32 antiguedad_odom_s`**, un tercer reloj que se pone **despues** del `return`,
+o sea que solo avanza cuando un `/odom` se completa de verdad:
+
+    antiguedad_muestra ~0  ·  antiguedad_odom CRECE  ->  faltan componentes
+    las dos crecen                                   ->  el RVR callo
+
+⚠️ **Y no valia un `odom_completo: bool`**, que era la solucion obvia: `_recibidos` **se vacia en
+cada ciclo** y los componentes llegan asincronos a 16,5 Hz, asi que en un instante cualquiera esta
+medio lleno **con el robot sano**. Muestreado a 1 Hz diria «incompleto» casi siempre.
+📝 **Hay que medir cuanto hace que se completo uno, no si lo esta ahora.** Es la misma forma que ya
+mordio con `ps -o %cpu` y con `spin_once`: **una foto instantanea de algo que oscila no dice nada**.
+
+Se metio **antes** de fusionar, a proposito: el `.msg` obliga a `rm -rf build/ install/` del paquete
+y ~4,5 min de compilacion, asi que hacerlo despues habria costado dos recompilaciones. Diff
+puramente aditivo, `py_compile` OK, **NO VERIFICADO**.
+
+---
+
 ## 2026-08-04 (parte 7) — Las pantallas. La app se puede abrir y mirar. 173 -> 250 pruebas
 
 `atriz-lab`, `main`. Cinco rutas (`/`, `/flota`, `/robot/[id]/{diagnostico,telemetria,conducir}`),
