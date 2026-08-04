@@ -100,7 +100,30 @@ Salud del robot durante la medida (12 s), para que conste que no está mudo:
     movimiento, así que **esto bloquea la tarea 9** (teleoperar y medir con
     cinta).
   📝 En la primera pasada se leyó «sin respuesta» porque solo se esperaron 3 s.
-     La respuesta llega a los ~6. Un plazo corto convirtió un fallo con motivo
-     en un silencio: el plazo del cliente son 5 s por defecto y **también se
-     quedaría corto aquí**.
+     La respuesta llegó a los ~6. Un plazo corto convirtió un fallo con motivo
+     en un silencio.
+
+  ✅ CERRADO POR LA EVIDENCIA 69, y con una corrección a este mismo texto:
+     el nodo del X2 tenía el descriptor `/dev/ttyUSB0 (deleted)` desde que se
+     apagó y encendió el RVR nueve horas antes. Abre el puerto una vez y no lo
+     reabre; udev rehace `/dev/ydlidar` y nadie se lo dice al proceso.
+     `systemctl restart atriz-robot` lo arregla: /scan volvió a 11.90 Hz.
+
+  🔴 CORRECCIÓN a lo escrito arriba: **este texto daba a entender que
+     `/start_scan` tarda ~6 s de normal, y es FALSO.** Con el robot sano tarda
+     **1.4-2.1 s** por el camino de la web (n=6, evidencia 69 §5). Los ~6 s eran
+     el PROPIO PLAZO de rosbridge venciendo sobre un puerto muerto. Y el
+     `/stop_scan` que respondía `true` no era contradicción: solo baja una
+     bandera, **no toca el hardware**.
+
+  🔴 PERO SOBREVIVE UN HALLAZGO, y es del cliente web: el plazo por defecto de
+     `Transporte.llamar()` son **5 s**, y rosbridge devolvió su `result:false`
+     a los **~6 s**. Es decir que en el fallo real **el plazo del cliente vence
+     ANTES** y sustituye el motivo exacto —«Timeout exceeded while waiting for
+     service response»— por el genérico «puede estar denegado o el robot puede
+     estar caído». Es la misma atribución falsa que el arreglo del `result:false`
+     vino a cerrar, entrando por la puerta del plazo.
+     → El plazo del cliente para servicios tiene que ser **MAYOR que el de
+       rosbridge**, no menor: si no, el cliente se pisa el mensaje bueno.
+       Pendiente de arreglar en `atriz-lab`.
 ═══════════════════════════════════════════════════════════════════════════════
