@@ -380,6 +380,26 @@ BUCLE y no por el robot. Poner un ejecutor persistente sin quitar el `0.1` arreg
 
 → Para *conducir* o esperar, `rclpy.spin_once` vale: ahí no se cuenta nada.
 
+**🔴 `npm run build` CON `npm run dev` CORRIENDO ROMPE EL SERVIDOR, Y EL SÍNTOMA PARECE UN FALLO DE
+TU CÓDIGO.** Los dos escriben en `.next/`: la compilación de producción pisa el caché del de
+desarrollo y a partir de ahí las rutas devuelven **HTTP 500**. Pasó el 2026-08-04 justo después de
+tocar el muro de flota, y durante un rato pareció que el cambio estaba mal:
+
+```
+tsc limpio · eslint limpio · 290 pruebas en verde · «Compiled successfully»
+GET /flota  ->  500
+```
+
+El log lo delata, pero hay que ir a buscarlo: `ENOENT: .next/server/vendor-chunks/next.js` y
+`Could not find the module … in the React Client Manifest`. Ninguno menciona tu fichero.
+→ **Arreglo:** parar el servidor, `rm -rf .next`, y volver a arrancar. Verificado: 0 errores y las
+  seis rutas a 200.
+→ **Y la regla:** no compiles producción y desarrollo a la vez sobre el mismo directorio. Si hay que
+  hacer las dos, `next build --distDir` aparte, o secuencialmente.
+→ 📝 Van **seis** veces que el instrumento miente en este proyecto —`ros2 topic hz`, `spin_once` en
+  bucle, `mensajes/duración`, mezclar ejecutores, `ros2 service call` para medir latencia, y ahora
+  esto—. La forma es siempre la misma: **el fallo estaba en el medidor y se atribuyó a lo medido.**
+
 **🔴 UN UMBRAL DE SILENCIO EN MILISEGUNDOS NO ES TRANSFERIBLE ENTRE TOPICS DE RITMOS DISTINTOS.**
 Los 3000 ms de `salud.ts` están calibrados contra `/odom`, que va a **16,5 Hz**: son **50 mensajes
 perdidos** antes de dar la alarma. El mismo número sobre `/motor_status`, que va a **1 Hz**, son
