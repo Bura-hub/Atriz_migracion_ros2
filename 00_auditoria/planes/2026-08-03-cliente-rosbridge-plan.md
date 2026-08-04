@@ -1484,6 +1484,33 @@ node herramientas/medir_qos_rosbridge.mjs rvr-01.local
 Anotar tres cosas: si aparece algún `STATUS error` al mandar `qos`; a qué frecuencia llega `/imu`;
 y los kB/s de cada topic.
 
+- [ ] **Paso 2b: Cerrar los QUINCE tipos de `TIPOS` contra el robot**
+
+🔴 **Esto existe porque uno de los quince estaba mal y nada podía cazarlo.** `/encoders` decía
+`atriz_rvr_msgs/msg/Encoders` y el mensaje es **`Encoder`**, en singular. El comprobador solo miraba
+nombres, y la prueba solo cubría tres tipos. El síntoma de un tipo mal escrito es
+`InvalidClassException` en rosbridge y **«ese topic no llega»** en el navegador — que se busca en el
+sitio equivocado.
+
+`comprobar_contrato.mjs` ya cubre los `atriz_rvr_msgs/*` contra sus `.msg`. Los **estándar** no
+viven en ningún repositorio clonado, así que solo el robot los cierra. En el robot:
+
+```bash
+for t in /odom /imu /scan /battery_state /motor_status /encoders /color /map \
+         /tf /tf_static /collision_monitor_state /amcl_pose \
+         /cmd_vel_raw /emergency_stop /initialpose; do
+  printf '%-28s %s\n' "$t" "$(ros2 topic type "$t" 2>&1 | head -1)"
+done
+```
+
+⚠️ Los que dependen de Nav2 o SLAM (`/map`, `/amcl_pose`, `/initialpose`,
+`/collision_monitor_state`) **no existen con el arranque por defecto**: hay que levantar
+`nav2.launch.py` o dar el tipo por `NO VERIFICADO`. **`nav2_msgs/msg/CollisionMonitorState` está
+marcado así en el código** y este es el paso que lo cierra.
+
+Cualquier discrepancia se corrige en `contrato.ts` **y se añade su prueba**, que es lo que faltó la
+primera vez.
+
 - [ ] **Paso 3: Escribir el resultado donde no se pierda**
 
 Crear la evidencia en el repositorio `atriz_migracion`, en
