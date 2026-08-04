@@ -721,7 +721,11 @@ describe('llamadas pendientes', () => {
     vi.useFakeTimers()
     const r = new RegistroPendientes()
     const p = r.registrar('y', 5000)
-    const capturado = expect(p).rejects.toThrowError(/denegad[ao].*|.*ca[ií]d/)
+    // 🔴 Exige LAS DOS posibilidades en el mismo mensaje. Un regex con
+    //    alternancia sin agrupar —`/denegad[ao].*|.*ca[ií]d/`— es en realidad
+    //    `(denegad[ao].*)|(.*ca[ií]d)` y PASA mencionando solo una: la
+    //    salvaguarda seria mas debil de lo que aparenta.
+    const capturado = expect(p).rejects.toThrowError(/denegad[ao][\s\S]*ca[ií]d/)
     vi.advanceTimersByTime(5001)
     await capturado
     vi.useRealTimers()
@@ -801,6 +805,14 @@ export class RegistroPendientes {
   >()
 
   registrar(id: string, ms: number): Promise<unknown> {
+    // 🔴 Un id repetido pisaba la entrada anterior EN SILENCIO y dejaba su
+    //    temporizador huerfano: la PRIMERA llamada acababa rechazada con «sin
+    //    respuesta» aunque el robot SI hubiera contestado —bajo la segunda
+    //    entrada—, mandando a diagnosticar lo que no es. Es un error de
+    //    programacion del llamante, asi que se dice en el acto y no despues.
+    if (this.pendientes.has(id)) {
+      throw new Error(`ya hay una llamada pendiente con el id «${id}»: no se reutilizan`)
+    }
     return new Promise((resolver, rechazar) => {
       const plazo = setTimeout(() => {
         this.pendientes.delete(id)
