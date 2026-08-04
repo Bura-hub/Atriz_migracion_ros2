@@ -155,7 +155,17 @@ else
     # La IP del laboratorio: explícita si la hay, derivada si no.
     if [[ -z "$LAB_IP" && -n "$LAB_BASE" && -n "$LAB_OCTETO" ]]; then
         LAB_IP="$LAB_BASE.$(( LAB_OCTETO + ID_NUM ))"
-        echo "  · LAB_IP derivada del número de robot: $LAB_IP"
+        # 🔴 OBSOLETO desde el 2026-08-04, y se avisa a gritos en vez de callar.
+        #    El administrador de red asigna las direcciones UNA A UNA, así que una
+        #    derivada casi seguro NO es la que te han dado. Y rvr-01 lo demuestra:
+        #    tiene 10.14.7.7 mientras este esquema daría 10.14.7.101 — el robot de
+        #    referencia no seguía su propio esquema, y eso se hereda a la imagen
+        #    dorada. Se conserva el cálculo para no romper un red.txt ya escrito,
+        #    pero la plantilla ya no lo ofrece.
+        echo "  ! LAB_IP DERIVADA del número de robot: $LAB_IP"
+        echo "    ⚠️ El esquema derivado está OBSOLETO: las direcciones del"
+        echo "       laboratorio las asigna el administrador de red, una a una."
+        echo "       Pon la que te hayan dado en LAB_IP de /boot/firmware/red.txt."
     fi
 
     if [[ -z "$LAB_SSID" || -z "$LAB_IP" ]]; then
@@ -179,21 +189,17 @@ else
             printf '        "%s":\n          password: "%s"\n' "$LAB_SSID" "$LAB_PASS"
             [[ -n "$CASA_SSID" ]] && \
                 printf '        "%s":\n          password: "%s"\n' "$CASA_SSID" "$CASA_PASS"
-            echo "      addresses:"
-            echo "        - $LAB_IP/${LAB_PREFIJO:-24}"
-            [[ -n "$CASA_IP" ]] && echo "        - $CASA_IP/${CASA_PREFIJO:-24}"
-            # 🔴 `routes:`, NUNCA `gateway4:` — obsoleto en netplan y en 24.04 ya
-            #    avisa. La configuración vieja del laboratorio lo usaba.
-            case "${RUTA,,}" in
-                lab)  [[ -n "$LAB_GATEWAY" ]] && {
-                          echo "      routes:"
-                          echo "        - to: default"
-                          echo "          via: $LAB_GATEWAY"; } ;;
-                casa) [[ -n "$CASA_GATEWAY" ]] && {
-                          echo "      routes:"
-                          echo "        - to: default"
-                          echo "          via: $CASA_GATEWAY"; } ;;
-            esac
+            # 🔴 CAMBIADO EL 2026-08-04 · AQUÍ YA NO VAN LAS DIRECCIONES.
+            #    Netplan asigna las direcciones A LA INTERFAZ, no al punto de
+            #    acceso: no sabe dar una IP distinta por SSID. Por eso el robot
+            #    llevaba SIEMPRE las dos estáticas y `rvr-NN.local` resolvía a
+            #    cuatro direcciones, de las que dos son un agujero negro desde
+            #    cualquier red. El navegador probaba en orden y se colgaba ~21 s
+            #    en cada una: el muro no encontraba NINGÚN robot.
+            #    Las direcciones pasan a los `.network` con `[Match] SSID=` de
+            #    más abajo. Netplan se queda con lo que sí sabe hacer: la
+            #    ASOCIACIÓN wifi (`netplan-wpa-wlan0.service`).
+            #    Diseño: 00_auditoria/planes/2026-08-04-direccionamiento-flota.md
             if [[ -n "$DNS" ]]; then
                 echo "      nameservers:"
                 echo "        addresses: [${DNS}]"
@@ -201,6 +207,56 @@ else
         } > "$YAML"
         # 🔴 600: lleva la PSK del WiFi en claro. El propio netplan avisa si no.
         chmod 600 "$YAML"
+
+        # ── Una dirección por red, emparejada por SSID ───────────────────────
+        # `systemd-networkd` SÍ sabe hacerlo: `[Match] SSID=` existe desde
+        # systemd v244 —«shell-style globs matching the SSID of the currently
+        # connected wireless LAN»— y aquí corre la 255.
+        #
+        # 🔴 EL ORDEN ES LO QUE LO HACE FUNCIONAR: estos ficheros van en /etc y
+        #    ordenan 05/06, así que se evalúan ANTES que el
+        #    `10-netplan-wlan0.network` que netplan deja en /run. Si el SSID no
+        #    casa con ninguno, cae al de netplan y el robot se comporta como
+        #    antes: sigue alcanzable. El «si no sé, no toco» lo implementa el
+        #    EMPAREJADOR, no un script que pelee con networkd.
+        #
+        # 🔴 Y se usa "$LAB_IP" **ya derivada** de LAB_BASE+LAB_OCTETO más
+        #    arriba, no la clave del fichero: con la plantilla tal cual
+        #    `LAB_IP=` viene VACÍA y esto no escribiría nada en 15 de los 16
+        #    robots. Es el error exacto que hundió el intento anterior.
+        escribir_red_ssid() {
+            local nombre="$1" ssid="$2" ip="$3" pref="$4" gw="$5" fich
+            fich="/etc/systemd/network/$nombre"
+            # Se niega antes que dejar un robot sin ruta: sin puerta no hay NTP,
+            # y esta Pi no tiene RTC.
+            if [[ -z "$ssid" || -z "$ip" ]]; then
+                rm -f "$fich"; return 0
+            fi
+            if [[ -z "$gw" ]]; then
+                echo "  ! $nombre: sin puerta de enlace en red.txt — NO se escribe"
+                echo "    (sin ruta por defecto no hay NTP, y esta Pi no tiene RTC)"
+                rm -f "$fich"; return 0
+            fi
+            {
+                echo "# Generado por atriz-first-boot el $(date -u '+%Y-%m-%dT%H:%M:%SZ')."
+                echo "# NO EDITAR A MANO: se regenera desde /boot/firmware/red.txt."
+                echo "# Una dirección por red. Ver 2026-08-04-direccionamiento-flota.md"
+                echo "[Match]"
+                echo "Name=wlan0"
+                echo "SSID=$ssid"
+                echo ""
+                echo "[Network]"
+                echo "Address=$ip/${pref:-24}"
+                echo "Gateway=$gw"
+                [[ -n "$DNS" ]] && echo "DNS=${DNS//,/ }"
+                echo "IPv6AcceptRA=no"
+            } > "$fich"
+            chmod 644 "$fich"
+            echo "  ✓ $nombre → $ip/${pref:-24} vía $gw  (SSID «$ssid»)"
+        }
+        mkdir -p /etc/systemd/network
+        escribir_red_ssid 05-atriz-lab.network  "$LAB_SSID"  "$LAB_IP"  "${LAB_PREFIJO:-24}"  "$LAB_GATEWAY"
+        escribir_red_ssid 06-atriz-casa.network "$CASA_SSID" "$CASA_IP" "${CASA_PREFIJO:-24}" "$CASA_GATEWAY"
 
         # 🔴 NUNCA una ruta FIJA en /tmp. `fs.protected_regular=2` (Ubuntu 24.04)
         #    impide a **root** escribir en un fichero de /tmp que no le pertenece.

@@ -180,7 +180,10 @@ del robot, y la diferencia se explica entera: el X2 **gira libre** (11.86 Hz con
 
 ---
 
-### ✅ Estática y DHCP conviven — verificado el 2026-08-01
+### 🔴 ~~✅ Estática y DHCP conviven — verificado el 2026-08-01~~ · RETIRADO, ver más abajo
+
+> ⚠️ **Lo que sigue se conserva tal cual y NO describe el estado actual.** La medición es
+> correcta; la conclusión que se sacó de ella, no. La retractación va inmediatamente después.
 
 Era **la suposición sobre la que se apoyaba todo el diseño de red**, y estaba sin probar:
 
@@ -197,6 +200,40 @@ Tres direcciones IPv4 a la vez, y la estática del laboratorio **no rompe la sal
 en casa** — que era el riesgo concreto de `RUTA_POR_DEFECTO`.
 
 🔴 **Un robot se muda del laboratorio a casa, y al revés, sin tocar un solo comando.**
+
+---
+
+## 🔴🔴 RETIRADO EL 2026-08-04: la medición de arriba era correcta y la conclusión NO
+
+Todo lo anterior se midió **desde el punto de vista del ROBOT** —¿puede tener las tres
+direcciones a la vez?— y **nunca desde el del CLIENTE**. Con la web ya construida, el usuario
+avisó de que «no funciona nada en flota». Medido en el navegador, con el robot encendido y sano:
+
+```
+ws://rvr-01.local:9090     🔴 12 s sin abrir, sin error y sin cierre
+ws://10.14.7.7:9090        🔴 12 s igual   <- LA MISMA FIRMA
+ws://192.168.1.200:9090    ✅ abre
+```
+
+`rvr-01.local` resuelve a **cuatro** direcciones, y el navegador prueba en un orden donde las dos
+primeras —el `fe80::` sin zona y la estática del laboratorio— **no fallan: se cuelgan** ~21 s cada
+una. **El muro del profesor no encontraba NINGÚN robot.**
+
+🔴 **Para un cliente, desde cualquier red al menos una dirección del robot es un agujero negro.**
+En el aula pasa lo mismo al revés, y allí funcionaba **por suerte**: `10.14.7.7` ordena antes que
+las de casa.
+
+⚠️ **Y el diagnóstico fácil engaña:** `ping rvr-01.local` responde en **1 ms** —elige el `fe80::`
+con su zona— y `Resolve-DnsName` lista las cuatro sin quejarse. **Las dos herramientas daban verde
+con el fallo presente.** Solo se ve abriendo un TCP desde el navegador.
+
+→ **Lo sustituye: una dirección por red**, emparejada por SSID en `systemd-networkd`, con `DHCP=no`
+y avahi sin publicar el `fe80::`. Diseño completo en
+[`00_auditoria/planes/2026-08-04-direccionamiento-flota.md`](../00_auditoria/planes/2026-08-04-direccionamiento-flota.md).
+
+📝 **La lección, que vale más que el arreglo: «verificado» tiene que decir PARA QUIÉN.** Esta
+decisión llevaba tres días con un ✅ y no era falsa — era incompleta, y por eso nadie volvió a
+mirarla.
 
 ✅ **El riesgo nº4 queda cerrado.** Y aparece la palanca: `/scan` es el **83 %** del tráfico por
 rosbridge. **Sin él, los 16 caben en 1.6 Mbit/s.**
@@ -257,12 +294,20 @@ queda legible por cualquier usuario, en los 16 robots. Se cierra en `/etc/fstab`
 **Rellenar esta tabla a medida que se despliega cada robot.** Es el inventario, y sin él no
 se puede diagnosticar nada a distancia.
 
-✅ **Resuelto de otra forma, y mejor** (2026-08-01). No hace falta reserva DHCP: `rvr-01` tiene
-**tres direcciones a la vez** —`10.14.7.7` del laboratorio, `192.168.1.200` de casa y la del
-DHCP— y **responde a `rvr-01.local` por mDNS**, verificado desde el PC del usuario.
+🔴 **CORREGIDO EL 2026-08-04.** Aquí decía que no hacía falta reserva DHCP porque `rvr-01` tiene
+«tres direcciones a la vez y responde a `rvr-01.local` por mDNS, verificado desde el PC». **Las
+tres direcciones son justamente el problema**: el nombre resuelve a cuatro y el navegador se
+cuelga en las que no sirven. Ver la retractación de arriba.
 
-Así el robot se muda del laboratorio a casa **sin tocar un comando**, y no depende de que nadie
-configure el router. La IP se edita metiendo la microSD en cualquier PC.
+✅ **Lo que sigue siendo cierto:** no hace falta reserva DHCP —y además no se puede, las
+direcciones del laboratorio **las asigna el administrador de red**, una por robot—, la IP se edita
+metiendo la microSD en cualquier PC, y el robot se muda sin tocar un comando. **Lo que cambia es
+que ahora lleva UNA dirección, la del sitio donde esté**, en vez de todas a la vez.
+
+⚠️ **`LAB_BASE`/`LAB_OCTETO` quedan OBSOLETOS.** El esquema derivado daba `10.14.7.101` al robot
+01 y su dirección real es `10.14.7.7`: **el robot de referencia no seguía su propio esquema**, y
+eso se heredaba a la imagen dorada. `LAB_IP` pasa a ser obligatoria y `first-boot.sh` avisa a
+gritos si alguien usa la derivada.
 
 **Por qué un dominio DDS por robot** y no namespaces en un dominio común: ver
 [ARQUITECTURA.md](ARQUITECTURA.md), Decisión 1. Resumen: ~160 participantes DDS sobre WiFi

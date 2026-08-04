@@ -66,10 +66,18 @@ docente: `atriz.py` y las diez prácticas», que es el siguiente paso exacto. Y 
 sacaron del **contenido** actual, no del historial: **rotarlas sigue siendo acción del usuario**,
 y es lo único que cierra la exposición de verdad.
 
-✅ **Y la RED DE LA FLOTA está resuelta y verificada de extremo a extremo (2026-08-01).** Un
-navegador del PC abre `ws://rvr-01.local:9090`, recibe telemetría y **enciende los faros** —
-resolviendo **por nombre**, sin ninguna IP. `wlan0` lleva **tres direcciones a la vez**
-(laboratorio + casa + DHCP), así que el robot se muda sin tocar un comando. Ancho de banda
+🔴 **LA RED DE LA FLOTA SE DIO POR RESUELTA EL 2026-08-01 Y NO LO ESTABA.** Aquel día un
+navegador abrió `ws://rvr-01.local:9090` resolviendo **por nombre** y se dio por cerrado. **La
+medición era correcta y la conclusión incompleta:** se verificó desde el punto de vista del
+**robot** —¿puede tener tres direcciones a la vez?— y nunca desde el del **cliente**.
+
+El 2026-08-04, con la web ya construida, el usuario avisó de que «no funciona nada en flota».
+`rvr-NN.local` resuelve a **cuatro** direcciones y el navegador prueba en un orden en el que las
+dos primeras —el `fe80::` sin zona y la estática del otro sitio— **no fallan: se cuelgan** ~21 s
+cada una. En el aula funcionaba **por suerte**, porque `10.14.7.7` ordenaba antes que las de casa.
+→ Rediseñado: **una dirección por red**, emparejada por SSID.
+[`00_auditoria/planes/2026-08-04-direccionamiento-flota.md`](00_auditoria/planes/2026-08-04-direccionamiento-flota.md).
+⏳ **Escrito, sin aplicar todavía** al robot. Ancho de banda
 medido dos veces con dos clientes distintos: **80.7 kB/s navegando → 10.3 Mbit/s los 16**, y
 `/scan` es el **83 %**. Manual, **cap. 19**.
 

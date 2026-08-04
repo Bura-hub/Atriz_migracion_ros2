@@ -1180,13 +1180,27 @@ fi
 # --- El netplan generado ----------------------------------------------------
 if [[ -f /etc/netplan/60-atriz.yaml ]]; then
     _ok "existe /etc/netplan/60-atriz.yaml"
-    # 🔴 El corazón del diseño de la flota: estática Y DHCP a la vez. Si esto no
-    #    está, el robot no se puede mudar de red sin reconfigurarlo.
-    if sudo -n grep -q 'dhcp4: true' /etc/netplan/60-atriz.yaml 2>/dev/null \
-       || grep -q 'dhcp4: true' /etc/netplan/60-atriz.yaml 2>/dev/null; then
-        _ok "netplan: dhcp4 activo junto a las direcciones estáticas"
+    # 🔴 INVERTIDO EL 2026-08-04. Esto exigía `dhcp4: true` y llamaba a la
+    #    convivencia «el corazón del diseño de la flota». Lo era para el ROBOT y
+    #    NO para el CLIENTE: con tres direcciones, `rvr-NN.local` resuelve a
+    #    cuatro y el navegador se cuelga ~21 s en las que no sirven —el muro no
+    #    encontraba NINGÚN robot—. Ahora se exige lo contrario.
+    #    Diseño: 00_auditoria/planes/2026-08-04-direccionamiento-flota.md
+    # 🔴 Y hay que distinguir «no» de «NO LO SÉ»: el fichero es 600 y sin root el
+    #    grep falla igual que si dijera `dhcp4: false`. La primera versión de esta
+    #    comprobación cayó en el `else` y cantó «dhcp4 desactivado» con la
+    #    dirección del DHCP puesta en la interfaz. Comprobación muerta que
+    #    contaba como aprobada: el patrón que este proyecto ya ha pagado.
+    #    Se decide por EFECTO —¿hay una dirección `dynamic` en wlan0?— y el
+    #    fichero solo sirve de confirmación cuando se puede leer.
+    if ip -4 -o addr show wlan0 2>/dev/null | grep -q ' dynamic'; then
+        _mal "wlan0 tiene una dirección del DHCP: sobra una" \
+             "pon DHCP=no en /boot/firmware/red.txt y repite first-boot.sh --solo-red"
+    elif sudo -n grep -q 'dhcp4: true' /etc/netplan/60-atriz.yaml 2>/dev/null; then
+        _avi "el netplan pide dhcp4 pero aún no hay concesión" \
+             "pon DHCP=no en red.txt: en cuanto la haya, sobrará una dirección"
     else
-        _avi "no se pudo leer 60-atriz.yaml (necesita root) o no tiene dhcp4" ""
+        _ok "wlan0 sin dirección del DHCP (una dirección por red)"
     fi
 else
     _avi "no hay /etc/netplan/60-atriz.yaml" \
@@ -1205,13 +1219,57 @@ done
 # --- Las direcciones que realmente tiene la interfaz -------------------------
 # El efecto, no la configuración: lo que cuenta es lo que `ip` dice AHORA.
 N_IP="$(ip -4 -o addr show wlan0 2>/dev/null | wc -l || echo 0)"
-if [[ "$N_IP" -ge 2 ]]; then
-    _ok "wlan0 con $N_IP direcciones IPv4 (estática y DHCP conviven ✅)"
-elif [[ "$N_IP" -eq 1 ]]; then
-    _avi "wlan0 con 1 sola dirección IPv4: $(ip -4 -br addr show wlan0 | awk '{print $3}')" \
-         "normal si aún no se aplicó el netplan de la flota"
+if [[ "$N_IP" -eq 1 ]]; then
+    _ok "wlan0 con UNA sola dirección IPv4: $(ip -4 -br addr show wlan0 | awk '{print $3}')"
+elif [[ "$N_IP" -ge 2 ]]; then
+    # 🔴 Antes esto era el ✅. Ver el comentario de arriba: para un CLIENTE, cada
+    #    dirección de más es un agujero negro de ~21 s en el que se cuelga el
+    #    navegador, porque un SYN sin respuesta no falla, espera.
+    _mal "wlan0 con $N_IP direcciones IPv4: $(ip -4 -br addr show wlan0 | awk '{print $3" "$4" "$5}')" \
+         "mDNS las publica TODAS y el navegador se cuelga en las muertas. Una por red: 2026-08-04-direccionamiento-flota.md"
 else
     _mal "wlan0 sin dirección IPv4" "nadie puede llegar a este robot"
+fi
+
+# --- Los .network por SSID, que son los que ponen esa única dirección --------
+# Se comprueba por EFECTO: que exista el fichero del sitio donde está el robot
+# AHORA y que su dirección sea la que la interfaz lleva puesta.
+SSID_AHORA="$(iw dev wlan0 link 2>/dev/null | sed -n 's/^[[:space:]]*SSID:[[:space:]]*//p' | head -1)"
+N_NET="$(ls /etc/systemd/network/0[56]-atriz-*.network 2>/dev/null | wc -l)"
+if [[ "$N_NET" -eq 0 ]]; then
+    _avi "no hay ficheros .network por SSID" \
+         "sudo bash scripts/first-boot.sh --solo-red   (y luego netplan try)"
+elif [[ -z "$SSID_AHORA" ]]; then
+    _avi "hay $N_NET .network por SSID pero no se pudo leer el SSID actual" ""
+else
+    # ¿Alguno casa con el SSID de ahora, y su Address es la que tiene wlan0?
+    CASA_CON=""
+    for F in /etc/systemd/network/0[56]-atriz-*.network; do
+        [[ -e "$F" ]] || continue
+        grep -qxF "SSID=$SSID_AHORA" "$F" 2>/dev/null && CASA_CON="$F"
+    done
+    if [[ -z "$CASA_CON" ]]; then
+        _avi "ningún .network casa con el SSID actual «$SSID_AHORA»" \
+             "el robot cae al netplan genérico: alcanzable, pero sin una dirección por red"
+    else
+        IP_ESPERADA="$(sed -n 's/^Address=\([0-9.]*\)\/.*/\1/p' "$CASA_CON" | head -1)"
+        if ip -4 -o addr show wlan0 2>/dev/null | grep -qF " $IP_ESPERADA/"; then
+            _ok "el .network de «$SSID_AHORA» está aplicado (wlan0 tiene $IP_ESPERADA)"
+        else
+            _mal "el .network de «$SSID_AHORA» pide $IP_ESPERADA y wlan0 NO la tiene" \
+                 "sudo netplan try --timeout 90   ·   networkctl status wlan0"
+        fi
+    fi
+fi
+
+# --- avahi: que no publique lo que el navegador no puede usar ----------------
+# 🔴 El `fe80::` link-local SIN ZONA es inservible desde un navegador y ordena
+#    ANTES que las direcciones buenas: se cuelga 21 s antes de llegar a ellas.
+if grep -qE '^\s*use-ipv6\s*=\s*no' /etc/avahi/avahi-daemon.conf 2>/dev/null; then
+    _ok "avahi no publica IPv6 (el fe80:: colgaba al navegador)"
+else
+    _avi "avahi publica IPv6 link-local: el navegador se cuelga en él antes de llegar a la IPv4" \
+         "use-ipv6=no en /etc/avahi/avahi-daemon.conf — HAZLO DESPUÉS de comprobar que la IPv4 responde"
 fi
 
 # --- rosbridge: por donde habla la web --------------------------------------

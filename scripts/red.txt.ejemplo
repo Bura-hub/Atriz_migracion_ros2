@@ -54,13 +54,18 @@
 LAB_SSID=Atriz-server
 LAB_PASS=PON_AQUI_LA_CONTRASEÑA
 
-# La IP de ESTE robot. Dos formas, y gana la explícita:
-#   · LAB_IP=10.14.7.7        <- explícita. Úsala si el administrador de red
-#                                asigna las direcciones una a una (es el caso).
-#   · LAB_BASE + LAB_OCTETO   <- derivada: el robot NN toma BASE.(OCTETO+NN)
-LAB_IP=
-LAB_BASE=10.14.7
-LAB_OCTETO=100
+# 🔴 La IP de ESTE robot, y es OBLIGATORIA desde el 2026-08-04.
+#
+#    Antes había dos formas —explícita o derivada de LAB_BASE+LAB_OCTETO— y la
+#    plantilla venía con la explícita VACÍA. Se retira la derivada por dos
+#    motivos medidos:
+#      · El administrador de red asigna las direcciones UNA A UNA, así que la
+#        derivada no se puede usar: no coinciden con lo que te han dado.
+#      · rvr-01 tiene 10.14.7.7 y el esquema derivado daría 10.14.7.101. O sea
+#        que el robot de referencia NO seguía su propio esquema, y eso se hereda
+#        a la imagen dorada. Un esquema derivado que nadie usa es una trampa
+#        esperando a que alguien se fíe de él.
+LAB_IP=10.14.7.7
 
 LAB_PREFIJO=21
 LAB_GATEWAY=10.14.0.1
@@ -76,9 +81,22 @@ CASA_GATEWAY=
 
 
 # ── Comportamiento ────────────────────────────────────────────────────────────
-# DHCP: además de las estáticas. Recomendado `si`: es lo que hace que el robot
-# funcione en una red que no conocías sin tocar nada.
-DHCP=si
+# 🔴 CAMBIADO EL 2026-08-04: el recomendado pasa de `si` a `no`.
+#
+#    Decía «recomendado `si`: es lo que hace que el robot funcione en una red que
+#    no conocías sin tocar nada». Eso es cierto PARA EL ROBOT y falso para el
+#    CLIENTE. Con el DHCP encendido, `rvr-NN.local` resuelve a CUATRO direcciones
+#    y el navegador prueba en un orden en el que las que no sirven **no fallan:
+#    se cuelgan** ~21 s cada una. Medido el 2026-08-04: el muro del profesor no
+#    encontraba NINGÚN robot, con los robots encendidos y sanos.
+#
+#    Con `no`, el robot tiene UNA dirección: la del `.network` que casa con el
+#    SSID donde esté (ver LAB_SSID/CASA_SSID). El nombre vuelve a servir.
+#
+#    ⚠️ Ponlo en `si` solo si vas a una red DESCONOCIDA y no te importa que el
+#       nombre no resuelva bien: entonces el robot es alcanzable por IP y poco más.
+#    Diseño: 00_auditoria/planes/2026-08-04-direccionamiento-flota.md
+DHCP=no
 
 # 🔴 RUTA POR DEFECTO. Ojo, que aquí es fácil dejarse sin internet:
 #

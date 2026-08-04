@@ -4496,7 +4496,7 @@ misma interfaz.** Es la suposición sobre la que se apoya todo lo demás.
 ```
 LAB_SSID=Atriz-server
 LAB_PASS=…
-LAB_IP=10.14.7.7          # o LAB_BASE + LAB_OCTETO, y el robot NN deriva la suya
+LAB_IP=10.14.7.7          # OBLIGATORIA: la que asigne el administrador de red
 LAB_PREFIJO=21
 LAB_GATEWAY=10.14.0.1
 
@@ -4506,7 +4506,7 @@ CASA_IP=192.168.1.200
 CASA_PREFIJO=24
 CASA_GATEWAY=192.168.1.1
 
-DHCP=si
+DHCP=no                   # 🔴 era `si` hasta el 2026-08-04: ver abajo
 RUTA_POR_DEFECTO=dhcp
 DNS=8.8.8.8,1.1.1.1
 ```
