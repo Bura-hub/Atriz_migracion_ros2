@@ -176,7 +176,23 @@ Ninguna se resuelve promediando posturas. Cada una tiene un hecho que la zanja.
     rescate y el único camino que devuelve las herramientas ROS al PC por túnel.
 16. **TLS: ¿un certificado con 16 SAN o 16 certificados?** Uno = una clave privada replicada 16 veces
     (microSD robada = cifrado de los dieciséis) pero imagen dorada idéntica.
-17. **¿Presencial o remoto?** (sección 3).
+17. ✅ **CERRADO el 2026-08-03: TALLER PRESENCIAL, SIN SSH.** El alumno está en el aula con el robot
+    delante y escribe en el navegador en vez de entrar por SSH. **Consecuencia para la F4: el
+    producto es el TERMINAL, y la teleoperación va la última** — ninguna de las diez prácticas
+    teleopera. Las razones, y son dos y ninguna es de software:
+    · **Las diez prácticas son presenciales por construcción**: el instrumento de medida es una
+      persona con cinta y transportador, y dos de ellas piden pausas **entre** medidas (cuatro
+      `input()` en `04_giro_preciso.py`, un quinto en `99_test_ctrl_c.py`). Hacerlas remotas no es
+      trabajo de plataforma: es reescribir el currículo.
+    · **La decisión cerrada «sin cámaras» corta el camino remoto**: un alumno en casa no puede ver
+      si el robot chocó, ni colocarlo, ni rescatarlo. Se tomó cuando la web no era la interfaz;
+      reabrirla cambia el hardware de los 16 robots.
+    ⚠️ **Matiz, para no pasarse:** *conducir* en remoto sí sería viable sin cámara — `/scan` da una
+    vista del LIDAR en vivo y eso es telemetría real. Lo que no es viable es esa forma de práctica,
+    la que exige una regla en el suelo. → **La pregunta útil no es «presencial o remoto», es qué
+    sustituye a la cinta métrica.** Lo remoto se reabre cuando exista una práctica diseñada para
+    serlo. El acta fundacional (`Atriz_summary.txt`) lo define como remoto: **no se olvida, se
+    aplaza con su condición escrita**.
 18. **Reclasificar el pendiente de los precipicios** como riesgo aceptado con mitigación escrita, o
     `hay_via_libre()` no puede abrirse nunca por construcción.
 19. **¿Dónde vive el agente:** `Atriz_rvr` (público) o `atriz_migracion` (privado)?

@@ -74,6 +74,19 @@ puntos a 20.
 Después: **la imagen dorada y el robot 2** (Fase 6), donde se comprueban por primera vez
 `provision.sh` entero y el parser de `robot_id.txt` con un ID distinto de 01.
 
+✅ **DECIDIDO el 2026-08-03: la web es un TALLER PRESENCIAL sin SSH**, no un laboratorio remoto. El
+alumno está en el aula con el robot delante. **El producto es el terminal; la teleoperación va la
+última** — ninguna de las diez prácticas teleopera. Motivo: las prácticas miden con cinta y
+transportador (dos piden pausas entre medidas), y «sin cámaras» impide que un alumno en casa vea si
+el robot chocó. Lo remoto se reabre cuando exista una práctica diseñada para serlo; el acta
+fundacional lo pedía, así que **se aplaza con su condición escrita, no se olvida**. Revisión del
+plan, decisión 17.
+
+🚧 **En marcha desde el 2026-08-03: el cliente de rosbridge**, en el repositorio `atriz-lab`
+(que pasa a ser **el** repositorio de la web), rama `cliente-rosbridge`. Plan tarea a tarea en
+[`00_auditoria/planes/2026-08-03-cliente-rosbridge-plan.md`](../00_auditoria/planes/2026-08-03-cliente-rosbridge-plan.md).
+Es la única pieza que ninguna medición pendiente puede invalidar.
+
 ## Lo que bloquea, y de quién es
 
 | | |
