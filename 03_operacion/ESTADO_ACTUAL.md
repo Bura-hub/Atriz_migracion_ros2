@@ -82,10 +82,25 @@ el robot chocó. Lo remoto se reabre cuando exista una práctica diseñada para 
 fundacional lo pedía, así que **se aplaza con su condición escrita, no se olvida**. Revisión del
 plan, decisión 17.
 
-🚧 **En marcha desde el 2026-08-03: el cliente de rosbridge**, en el repositorio `atriz-lab`
-(que pasa a ser **el** repositorio de la web), rama `cliente-rosbridge`. Plan tarea a tarea en
-[`00_auditoria/planes/2026-08-03-cliente-rosbridge-plan.md`](../00_auditoria/planes/2026-08-03-cliente-rosbridge-plan.md).
-Es la única pieza que ninguna medición pendiente puede invalidar.
+✅ **CERRADO el 2026-08-04: el cliente de rosbridge está escrito, revisado y en un PR.**
+`atriz-lab` (privado) es ya **el** repositorio de la web, y el trabajo está **fusionado en `main`**
+(PR #1, merge `42e5895`); la rama `cliente-rosbridge` se borró tras comprobarlo. Cinco módulos en
+`frontend/src/lib/rosbridge/` sin un solo import de React, **87 pruebas**, `tsc`/`eslint` limpios, y
+un comprobador que compara la lista blanca de la web con `robot.launch.py` **del robot** y falla si
+divergen. Plan y especificación en `00_auditoria/planes/`.
+
+🔴 **PERO NO SE HA EJECUTADO NUNCA CONTRA UN ROBOT, ni en un navegador.** El criterio de aceptación
+de la especificación —*«un robot real se teleopera desde el navegador y el desplazamiento medido con
+cinta coincide con el del mismo movimiento por SSH»*— **sigue sin cumplirse**. La revisión final lo
+dijo así: los defectos que se arreglaron son **«trampas armadas esperando al primer consumidor»**.
+→ **Lo que falta son las tareas 8 y 9 del plan, y necesitan el robot encendido y cinta métrica.**
+
+📝 **Y una advertencia sobre el plan, marcada en su cabecera en rojo: YA SE EJECUTÓ y sus bloques de
+código reproducirían defectos ya corregidos.** La fuente de verdad es el repositorio. El plan
+acumuló **veinte defectos propios** y ninguno se encontró releyéndolo: los veinte salieron de
+ejecutar algo. El más instructivo — una revisión comparó `contrato.ts` carácter a carácter contra el
+plan y dio **✅ perfecto** mientras el tipo del mensaje estaba mal, **porque el plan también lo
+estaba**. Transcribir fielmente una fuente equivocada produce un verde impecable.
 
 ## Lo que bloquea, y de quién es
 

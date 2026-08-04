@@ -4,6 +4,68 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 — El cliente de rosbridge, escrito y revisado hasta el hueso
+
+Primera pieza de código de la Fase 5, y la única que ninguna medición pendiente puede invalidar.
+Vive en **`atriz-lab`** —que pasa a ser **el** repositorio de la web, y a privado—, **fusionado en
+`main`** por el PR #1 (merge `42e5895`). La rama `cliente-rosbridge` se borró tras comprobar que
+`main` la contenía entera y que la batería pasaba sobre el resultado fusionado.
+
+Cinco módulos en `frontend/src/lib/rosbridge/`, **sin un solo import de React ni de Next**, para
+probarlos en Node sin navegador y sin robot: `contrato`, `salud`, `protocolo`, `transporte`,
+`teleoperacion`. **87 pruebas**, `tsc` y `eslint` limpios, y `herramientas/comprobar_contrato.mjs`,
+que compara la lista blanca de la web con `robot.launch.py` **del repositorio del robot** y **falla
+si divergen** — probado rompiéndolo.
+
+### 🔴 Lo que NO está hecho, y es lo que decide si esto sirve
+
+**Nada de este núcleo se ha ejecutado nunca contra un robot ni en un navegador.** Faltan las tareas
+8 y 9 del plan: medir qué acepta rosbridge **2.7.0** (no el upstream), cerrar los quince tipos con
+`ros2 topic type`, y **la prueba con cinta métrica**. La revisión final lo dijo con estas palabras:
+los defectos corregidos son **«trampas armadas esperando al primer consumidor»**.
+
+### El método, que es lo que vale para la próxima vez
+
+Siete tareas, cada una con implementador y **dos revisores independientes** —uno tras la
+implementación y otro acotado tras cada arreglo—, más una revisión final de toda la rama con el
+modelo más capaz. A los revisores se les exigió **ejecutar sondas y romper cada arreglo** para
+comprobar que su prueba falla. Ocho rondas de arreglo; **en seis de ellas el arreglo abrió otro
+hueco**, y las seis las cazó la misma instrucción: *«busca lo que este arreglo pueda haber roto»*.
+
+### 📝 Veinte defectos del plan, y ninguno se encontró releyéndolo
+
+Los veinte salieron de **ejecutar** algo. Los que dejan lección:
+
+- **Una prueba en verde sobre una ficción.** Se diseñó un canal de avisos apoyado en el `status` de
+  rosbridge, con una prueba que lo inyectaba por un doble. **rosbridge 2.7.0 no manda ese mensaje
+  jamás**: `Protocol.log()` escribe en el logger del nodo y ahí acaba. Verificado en el fuente.
+- **Un fallo real sustituido por una conjetura.** `result: false` se resolvía como éxito, así que el
+  motivo que manda el robot se tiraba y ocho segundos después el alumno leía *«puede que el LIDAR no
+  haya arrancado»*. **Mide antes de atribuir, al revés, y escrito en el mensaje que ve el alumno.**
+- 🔴 **Transcribir fielmente una fuente equivocada da un ✅ perfecto.** Una revisión comparó
+  `contrato.ts` carácter a carácter contra el plan y aprobó mientras el tipo de `/encoders` estaba
+  mal —`Encoders` en vez de `Encoder`—, **porque el plan también lo estaba**. Lo encontró el usuario
+  contra el robot. → **Un plan que trae el código escrito traslada sus errores intactos al
+  repositorio.** El plan quedó marcado en rojo: *ya se ejecutó, y sus bloques reproducirían los
+  defectos*.
+- **`publicar()` perdía una parada de emergencia en silencio**, y **`cerrar()` no cerraba**: dejaba
+  un socket vivo recibiendo `/scan` que nadie sabía que existía. Cuatro críticos que ninguna
+  revisión por tarea podía ver, porque **ninguno vivía dentro de un solo módulo**.
+
+### Decisión cerrada
+
+**La web es un TALLER PRESENCIAL sin SSH**, no un laboratorio remoto: las diez prácticas miden con
+cinta y transportador, y «sin cámaras» impide que un alumno en casa vea si el robot chocó. Lo remoto
+se aplaza **con su condición escrita**. Revisión del plan, decisión 17.
+
+### 👤 Pendiente, y es suyo
+
+Rotar la **`SECRET_KEY`** de `Atriz_web_server` (está en las **tres** ramas de un repositorio
+público) · las tareas 8 y 9 con el robot · y, tras la reescritura de historia para quitar las
+coautorías, en la Pi: `git -C ~/atriz_migracion status` y luego `fetch` + `reset --hard origin/main`.
+
+---
+
 ## 2026-08-03 (parte 7) — Dos ramas muertas de `Atriz_rvr`, y un stash que ya sabía la respuesta
 
 De las cuatro ramas remotas de `Atriz_rvr` quedan **dos**. Las otras dos se borraron hoy, y las
