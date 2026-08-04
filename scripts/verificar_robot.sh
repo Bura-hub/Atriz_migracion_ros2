@@ -547,12 +547,57 @@ if all(k in d for k in "xyzw"):
     fi
     # /dev/ydlidar: nombre estable por regla udev. Sin el, /dev/ttyUSB0 no es
     # determinista con dos dispositivos USB-serie.
+    #
+    # 🔴 Y cuando NO existe, decir solo «no existe» manda a mirar la regla, que
+    #    casi nunca es el problema. La regla casa por ID_PATH —el puerto USB
+    #    FISICO—, asi que la causa habitual es que el lidar esta enchufado en
+    #    otro conector. Medido el 2026-08-04: costo cuatro intentos y varios
+    #    minutos, porque el unico error visible era «/stop_scan no respondio en
+    #    30s», que apunta al launch. Se dice el puerto real contra el esperado.
     if [[ -L /dev/ydlidar ]]; then
         _ok "/dev/ydlidar -> $(readlink /dev/ydlidar)"
     else
-        _avi "/dev/ydlidar no existe (el driver lo espera)" \
-             "sudo cp .../atriz_rvr_bringup/udev/99-ydlidar.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules"
+        _esperado=$(grep -ho 'ID_PATH}=="[^"]*"' /etc/udev/rules.d/99-ydlidar.rules 2>/dev/null \
+                    | head -1 | sed 's/.*=="//;s/"//')
+        _real=''
+        for _d in /dev/ttyUSB*; do
+            [[ -e "$_d" ]] || continue
+            _p=$(udevadm info -q property -n "$_d" 2>/dev/null | sed -n 's/^ID_PATH=//p')
+            _v=$(udevadm info -q property -n "$_d" 2>/dev/null | sed -n 's/^ID_VENDOR_ID=//p')
+            [[ "$_v" == '10c4' ]] && _real="$_p"
+        done
+        if [[ -n "$_real" && -n "$_esperado" && "$_real" != "$_esperado" ]]; then
+            # Solo el numero de conector: 'platform-...usb-0:1.4:1.0' -> '1.4'
+            _pr=$(printf '%s' "$_real"     | sed -n 's/.*usb-0:\([0-9.]*\).*/\1/p')
+            _pe=$(printf '%s' "$_esperado" | sed -n 's/.*usb-0:\([0-9.]*\).*/\1/p')
+            _mal "el LIDAR esta en el PUERTO USB ${_pr:-?}, y la regla udev espera el ${_pe:-?}" \
+                 "MUEVE EL CABLE al conector ${_pe:-esperado} (cual es, en FLOTA.md). NO toques la regla: es la misma en los 16 robots"
+        elif [[ -z "$_real" ]]; then
+            _mal "/dev/ydlidar no existe y NO se ve ningun adaptador CP2102 (10c4)" \
+                 "¿esta el lidar enchufado y alimentado? lsusb | grep 10c4"
+        else
+            _avi "/dev/ydlidar no existe (el driver lo espera)" \
+                 "sudo cp .../atriz_rvr_bringup/udev/99-ydlidar.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules"
+        fi
+        unset _esperado _real _d _p _v _pr _pe
     fi
+
+    # 🔴 Y el caso que NO se ve mirando si el fichero existe: el nodo abre el
+    #    puerto UNA VEZ al arrancar y no lo reabre. Si el adaptador se
+    #    re-enumera despues (desenchufarlo, o apagar y encender el RVR, que es
+    #    quien lo alimenta), el proceso se queda con el descriptor MUERTO:
+    #    /dev/ydlidar existe y apunta bien, el nodo vive, sus servicios
+    #    contestan, y /scan esta a 0 para siempre. Evidencia 69.
+    _pid_lidar=$(pgrep -f '[y]dlidar_ros2_dr' 2>/dev/null | head -1)
+    if [[ -n "$_pid_lidar" ]]; then
+        if ls -l "/proc/$_pid_lidar/fd" 2>/dev/null | grep -q 'tty.*(deleted)'; then
+            _mal "el nodo del LIDAR tiene el descriptor MUERTO: no volvera a barrer" \
+                 "sudo systemctl restart atriz-robot   (el puerto se re-enumero tras arrancar el nodo)"
+        else
+            _ok "el nodo del LIDAR tiene un descriptor vivo (no re-enumerado)"
+        fi
+    fi
+    unset _pid_lidar
 
     # xacro NO viene en ros-base y hace falta para el URDF.
     dpkg -l ros-jazzy-xacro 2>/dev/null | grep -q '^ii' \

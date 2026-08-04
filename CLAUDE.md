@@ -1047,6 +1047,25 @@ ls -l /proc/$(pgrep -f "[y]dlidar_ros2_dr")/fd | grep tty    # si dice (deleted)
   rosbridge. La medida de 4,6-6,5 s que se llegó a escribir salía de `ros2 service call`, que
   arranca un nodo entero en cada llamada. **Van cinco veces que el instrumento miente aquí.**
 
+**🔴 Y EL HERMANO DEL ANTERIOR: SI EL LIDAR NO ESTÁ EN SU PUERTO USB, EL LAUNCH MUERE MUDO.** La
+regla udev casa por **`ID_PATH`, el conector FÍSICO**, así que moverlo de sitio hace desaparecer
+`/dev/ydlidar`. Y entonces `robot.launch.py` **muere en ~1 s sin imprimir una palabra**: el único
+error visible es el del `ExecStartPost` —`🔴 /stop_scan no respondió en 30s. ¿está corriendo
+robot.launch.py?`— que manda a mirar el launch, donde no está el problema. systemd reintenta 3
+veces y se rinde con `Start request repeated too quickly`, que **exige `reset-failed`** antes de
+poder arrancar otra vez. Medido el 2026-08-04: costó cuatro intentos de cable.
+→ 📝 **El error que lo provocó merece decirse porque es natural:** se movió el cable buscando que
+  volviera a ser **`/dev/ttyUSB0`**. Ese número **NO IMPORTA** —lo asigna el kernel por orden de
+  aparición y cambia solo—, y la regla udev existe precisamente para hacerlo irrelevante: el nodo
+  abre `/dev/ydlidar`. **Lo que importa es el conector, no el número.**
+→ ✅ `verificar_robot.sh` ya lo dice en una línea: «el LIDAR está en el PUERTO USB 1.4, y la regla
+  udev espera el 1.2 → MUEVE EL CABLE». Y comprueba también el descriptor muerto de arriba.
+→ 👤 **DECIDIDO el 2026-08-04: el puerto fijo se mantiene en los 16.** Se ofreció quitar el
+  `ID_PATH` (hay **un solo** dispositivo USB-serie en el robot: el RVR va por `ttyAMA0`, así que
+  `10c4:ea60` bastaría y funcionaría en cualquier puerto) y se descartó por coherencia con la
+  imagen dorada. **Consecuencia: la foto del conector en `FLOTA.md` es obligatoria y no existe.**
+  Evidencia 69, apartados 7 y 8.
+
 **🔴 EL X2 GIRA SIEMPRE, Y AL PONER systemd PASARÁ A GIRAR SIEMPRE **RÁPIDO**.** DTR no
 enciende el motor: elige su velocidad. Medido el 2026-07-31, diez tramos alternados y
 confirmado por oído: `DTR=1` → **11.8 Hz**, `DTR=0` → **2.7 Hz** (4.3×, checksums 99.8 % en los

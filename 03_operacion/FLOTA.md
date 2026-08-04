@@ -76,11 +76,32 @@ SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="10c4", ENV{ID_MODEL_ID}=="ea60", \
   SYMLINK+="ydlidar", MODE="0660", GROUP="dialout"
 ```
 
-> 📝 **NO VERIFICADO.** La regla está deducida del `ID_PATH` medido, pero **no se ha
-> escrito ni probado** todavía. Se hace en la Fase 3, junto con el driver ROS del X2.
-> Al probarla, comprobar además que el `ID_PATH` es idéntico en dos robots distintos con
-> el lidar en el mismo puerto físico — si no lo fuera, la regla no es clonable y habría que
-> generarla en el primer arranque (`first-boot.sh`) en lugar de meterla en la imagen dorada.
+> ✅ **La regla está escrita, instalada y funcionando en rvr-01** (`/etc/udev/rules.d/99-ydlidar.rules`).
+> ⏳ **Lo que sigue NO VERIFICADO es que el `ID_PATH` sea idéntico en otro robot** con el
+> lidar en el mismo puerto físico. Se cierra en la Fase 6, con el robot 2:
+> `udevadm info -q property -n /dev/ttyUSB0 | grep ID_PATH=`. Si no coincidiera, la regla no
+> es clonable y habría que generarla en `first-boot.sh` en vez de meterla en la imagen dorada.
+
+> 🔴 **DECISIÓN DEL USUARIO, 2026-08-04: el puerto fijo se mantiene, y el lidar va en el
+> MISMO conector en los 16.** Se ofreció la alternativa —quitar el `ID_PATH` y casar solo por
+> `10c4:ea60`, que en este robot es inequívoco porque **hay un único dispositivo USB-serie**
+> (el RVR habla por `ttyAMA0`, el UART del SoC)—, y se descartó por coherencia con la imagen
+> dorada: un robot idéntico a otro, sin variables por unidad.
+>
+> 👤 **Consecuencia directa: la FOTO del conector pasa de recomendable a OBLIGATORIA.** Es lo
+> único que le dirá a quien monte el robot 7 dónde va el cable. **Sigue sin existir.**
+>
+> 🔴 **Por qué importa, medido el 2026-08-04:** con el lidar en el conector equivocado, el
+> launch **muere en ~1 s sin imprimir una palabra** y el único error visible es
+> «`/stop_scan` no respondió en 30s. ¿está corriendo robot.launch.py?», que manda a mirar el
+> launch —donde no está el problema—. Costó cuatro intentos de cable.
+> ✅ `verificar_robot.sh` ya lo dice ahora en una línea: «el LIDAR está en el PUERTO USB 1.4,
+> y la regla udev espera el 1.2». Evidencia 69, apartados 7 y 8.
+>
+> 📝 Y el error que lo provocó, que es fácil de repetir: se movió el cable **buscando que
+> volviera a ser `/dev/ttyUSB0`**. Ese número **no importa** —lo asigna el kernel por orden de
+> aparición— y la regla existe justamente para hacerlo irrelevante: el nodo abre
+> `/dev/ydlidar`. Lo que importa es el conector.
 
 > **Verificar primero:** puede que los 16 adaptadores **no** sean todos `0001`. Enchufa dos
 > y compara `udevadm info -q property -n /dev/ttyUSB0 | grep ID_SERIAL_SHORT` antes de

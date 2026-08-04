@@ -113,8 +113,15 @@ muerto.** La evidencia 68 §6 dejó abierto un `result:false` y lo atribuyó al 
 RVR nueve horas antes. Abre el puerto una vez al arrancar y no lo reabre; udev rehace
 `/dev/ydlidar` y nadie se lo dice al proceso. Un `systemctl restart atriz-robot` lo arregla, y
 medido después: `/scan` a **11,90 Hz** y `/start_scan` en **1,4-2,1 s** por WebSocket, 6 de 6.
-🔴 **Que se recupere solo sigue SIN HACER** y con 16 robots va a volver: apagar y encender el RVR
-es cotidiano. Evidencia 69, apartado 6, con las dos opciones y sin decidir.
+🔴 **Que se recupere solo sigue SIN HACER** y con 16 robots va a volver: cualquier
+re-enumeración del USB lo provoca. Evidencia 69, apartado 6, con las dos opciones y sin decidir.
+
+🔴 **Y del mismo episodio salió un SEGUNDO fallo, ya cerrado: el puerto USB físico.** Al mover el
+cable buscando que volviera a ser `/dev/ttyUSB0` —número que **no importa**, para eso está la
+regla udev— el LIDAR quedó en otro conector, `/dev/ydlidar` desapareció y **el launch murió en
+1 s sin imprimir nada**, con el único error visible apuntando al sitio equivocado. Cuatro
+intentos de cable. ✅ `verificar_robot.sh` ahora lo dice en una línea. 👤 **DECIDIDO: puerto fijo
+en los 16**, y eso hace la **foto del conector en `FLOTA.md` obligatoria — sigue sin existir.**
 
 📝 **Y una advertencia sobre el plan, marcada en su cabecera en rojo: YA SE EJECUTÓ y sus bloques de
 código reproducirían defectos ya corregidos.** La fuente de verdad es el repositorio. El plan

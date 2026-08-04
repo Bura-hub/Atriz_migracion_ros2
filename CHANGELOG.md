@@ -148,6 +148,42 @@ stack, es **cuándo respecto al robot**.
 ⏳ **Que se recupere solo está SIN HACER**, y con 16 robots va a volver. Dos opciones sin decidir
 en la evidencia 69 §6. Un `Restart=always` no sirve: el proceso no muere.
 
+### Y el segundo fallo del mismo episodio: el puerto USB físico
+
+Al intentar recuperar el robot se movió el LIDAR de conector **buscando que volviera a ser
+`/dev/ttyUSB0`**. Ese número **no importa** —lo asigna el kernel por orden de aparición— y la
+regla udev existe justamente para hacerlo irrelevante: el nodo abre `/dev/ydlidar`. Lo que
+importa es el conector, porque la regla casa por `ID_PATH`.
+
+```
+la regla exige:   ...usb-0:1.2:1.0
+estuvo en:        ...usb-0:1.1:1.0  ✗   y luego  ...usb-0:1.4:1.0  ✗
+volvió a:         ...usb-0:1.2:1.0  ✅  ->  /dev/ydlidar apareció solo
+```
+
+🔴 **Y el síntoma vuelve a no parecerse a la causa:** sin `/dev/ydlidar` el launch **muere en
+~1 s sin imprimir una palabra**, y el único error visible es del `ExecStartPost` —«`/stop_scan`
+no respondió en 30s. ¿está corriendo robot.launch.py?»— que manda a mirar el launch. systemd
+reintenta 3 veces y se rinde con `Start request repeated too quickly`, que exige `reset-failed`.
+**Costó cuatro intentos de cable.**
+
+✅ **Arreglado en `verificar_robot.sh`**, y ejercitando la rama de fallo, no solo la buena:
+
+```
+✗ el LIDAR esta en el PUERTO USB 1.4, y la regla udev espera el 1.2
+   → MUEVE EL CABLE al conector 1.2 (cual es, en FLOTA.md). NO toques la regla:
+     es la misma en los 16 robots
+```
+
+Y una segunda aserción para el descriptor muerto, que ninguna comprobación de «¿existe el
+fichero?» puede ver: `✓ el nodo del LIDAR tiene un descriptor vivo (no re-enumerado)`.
+
+👤 **DECIDIDO: el puerto fijo se mantiene, y el lidar va en el mismo conector en los 16.** Se
+ofreció la alternativa —quitar el `ID_PATH` y casar solo por `10c4:ea60`, que es inequívoco
+porque **hay un único dispositivo USB-serie** en el robot (el RVR habla por `ttyAMA0`, el UART
+del SoC)— y se descartó por coherencia con la imagen dorada. **Consecuencia asumida: la foto del
+conector en `FLOTA.md` pasa de recomendable a obligatoria, y sigue sin existir.**
+
 ### Dos veces que mintió el instrumento, en el mismo diagnóstico
 
 - **`ros2 service call` dio 4,6-6,5 s para `/start_scan`** y se llegó a escribir que rozaba el
@@ -159,6 +195,12 @@ en la evidencia 69 §6. Un `Restart=always` no sirve: el proceso no muere.
   devuelve la tupla `(payload, opcode)` y se le pasaba entera a `json.loads`, que lanzaba dentro
   de un `except: continue`. Lo destapó **mirar el journal del robot y ver que rosbridge no se
   había quejado de nada**.
+- **Y una tercera al verificar el arreglo final:** el contador propio sobre el WebSocket dio
+  «`/scan`: 0 mensajes en 8 s» con el LIDAR barriendo. Lo desmintieron el journal —«Real points
+  251 > fixed points 250», o sea barridos de verdad— y un instrumento **distinto**:
+  `ros2 topic hz /scan` = **11,97 Hz**.
+  → La regla, en su forma más útil: **ante una medida rara el primer sospechoso es el medidor, y
+  el desempate lo da un instrumento DISTINTO, no repetir el mismo.**
 
 ### Y un apunte para el cliente web, verificado en el rosbridge instalado
 

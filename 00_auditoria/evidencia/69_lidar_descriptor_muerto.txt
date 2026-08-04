@@ -12,9 +12,16 @@ Método: diagnóstico de solo lectura sobre el robot, y después medición del
 ── 1 · EL HALLAZGO ───────────────────────────────────────────────────────────
 
   El nodo del YDLIDAR abre su puerto UNA SOLA VEZ, al arrancar, y NUNCA lo
-  reabre. Si el adaptador USB-serie se re-enumera después —lo que pasa cada vez
-  que se apaga y enciende el RVR, porque el X2 se alimenta del robot— el proceso
-  se queda agarrado a un descriptor que el kernel ya ha destruido.
+  reabre. Si el adaptador USB-serie se re-enumera después, el proceso se queda
+  agarrado a un descriptor que el kernel ya ha destruido.
+
+  ⚠️ QUÉ ESTÁ MEDIDO Y QUÉ NO: lo medido es el MECANISMO —el `(deleted)` en el
+  descriptor y la cadena de síntomas que produce—. El DISPARADOR de esta vez no
+  se aisló: coincide en el tiempo con encender el RVR (el X2 se alimenta del
+  robot, así que apagarlo re-enumera su adaptador), pero esa misma noche también
+  se movieron cables. Cualquier re-enumeración lo provoca; cuál fue aquí es una
+  inferencia, no una medida. Una primera versión de este documento lo afirmaba
+  como hecho y se corrigió.
 
     nodo del lidar, fd 29  ->  /dev/ttyUSB0 (deleted)     <── descriptor MUERTO
     proceso arrancado      ->  Mon Aug  3 15:31:56
@@ -112,4 +119,70 @@ Método: diagnóstico de solo lectura sobre el robot, y después medición del
 
   📝 Un `Restart=always` NO sirve: el proceso no muere. Es el mismo motivo por
      el que hizo falta `on_exit=Shutdown()` para los nodos que sí mueren.
+
+── 7 · 🔴 Y EL SEGUNDO FALLO, DEL MISMO EPISODIO: EL PUERTO USB FÍSICO ───────
+
+  Al intentar recuperar el robot, el usuario desenchufó el LIDAR y lo movió de
+  conector **buscando que volviera a ser `/dev/ttyUSB0`**. Es un error natural y
+  merece decirse: el número `ttyUSB0` NO IMPORTA —lo asigna el kernel por orden
+  de aparición y cambia solo—, y la regla udev existe precisamente para hacerlo
+  irrelevante. El nodo abre `/dev/ydlidar`, no `/dev/ttyUSB0`.
+
+  Lo que sí importa es el CONECTOR, porque la regla casa por `ID_PATH`:
+
+      la regla exige:   ...usb-0:1.2:1.0
+      estuvo en:        ...usb-0:1.1:1.0   ✗      luego  ...usb-0:1.4:1.0   ✗
+      volvió a:         ...usb-0:1.2:1.0   ✅  -> /dev/ydlidar apareció solo
+
+  🔴 EL SÍNTOMA NO SE PARECE A LA CAUSA, OTRA VEZ. Sin `/dev/ydlidar`:
+      · el launch muere en ~1 s SIN IMPRIMIR UNA PALABRA
+      · el único error visible es del `ExecStartPost`:
+        «🔴 /stop_scan no respondió en 30s. ¿está corriendo robot.launch.py?»
+        — que manda a mirar el launch, donde no está el problema
+      · systemd reintenta 3 veces y se rinde con «Start request repeated too
+        quickly», que exige `reset-failed` antes de poder arrancar de nuevo
+     Costó cuatro intentos de cable. Un mensaje de una línea lo habría resuelto
+     al primero.
+
+  ✅ ARREGLADO EN `verificar_robot.sh` (sección 8): cuando falta `/dev/ydlidar`
+     compara el `ID_PATH` real contra el que exige la regla y dice
+     «está en 1.4 y la regla espera 1.2 — MUEVE EL CABLE». Y añade una
+     comprobación del descriptor muerto del apartado 4, que ninguna
+     comprobación de «¿existe el fichero?» puede ver.
+
+── 8 · DECISIÓN DEL USUARIO: PUERTO FIJO EN LOS 16 ───────────────────────────
+
+  Se ofreció quitar la condición `ID_PATH` y casar solo por `10c4:ea60`. Es
+  viable y está medido: **en este robot hay UN solo dispositivo USB-serie**
+  (`lsusb` -> un CP2102 y nada más; el RVR habla por `ttyAMA0`, el UART del
+  SoC, no por USB), así que fabricante+modelo bastan para identificarlo sin
+  ambigüedad y el LIDAR funcionaría en cualquiera de los cuatro puertos.
+
+  👤 **El usuario decidió mantener el puerto fijo**, por coherencia con la
+     imagen dorada: un robot idéntico a otro, sin variables por unidad.
+     Consecuencias que asume la decisión:
+
+     · La FOTO del conector en FLOTA.md pasa de recomendable a OBLIGATORIA: es
+       lo único que le dice a quien monte el robot 7 dónde va el cable. ⏳ 👤
+     · ⏳ SIN VERIFICAR que el `ID_PATH` sea el mismo en otro robot. Debería
+       serlo (`fd500000.pcie` y `0000:01:00.0` son de la placa, y esta es una
+       Pi 4 Model B Rev 1.5), pero no está medido. Se cierra en la Fase 6, con
+       el robot 2 y el LIDAR en el mismo conector físico:
+           udevadm info -q property -n /dev/ttyUSB0 | grep ID_PATH=
+       Si no coincide, la regla no es clonable y hay que generarla en
+       `first-boot.sh` — que es la restricción 1 de FLOTA.md.
+     · Si algún robot llevara un Pi de otro modelo, el `platform-...` cambiaría
+       y la regla NO casaría en absoluto.
+
+── 9 · 📝 TRES VECES QUE MINTIÓ EL INSTRUMENTO, EN UNA SOLA SESIÓN ───────────
+
+  Además de las dos del apartado 5, una tercera al verificar el arreglo final:
+  un contador propio sobre el WebSocket dio «/scan: 0 mensajes en 8 s» con el
+  LIDAR barriendo. Lo desmintió el journal del robot —«Real points 251 > fixed
+  points 250», o sea barridos de verdad— y un instrumento independiente:
+  `ros2 topic hz /scan` = **11.97 Hz**.
+
+  → La regla del proyecto, otra vez y en su forma más útil: **ante una medida
+    rara, el primer sospechoso es el medidor, y el desempate lo da un
+    instrumento DISTINTO, no repetir el mismo.**
 ═══════════════════════════════════════════════════════════════════════════════
