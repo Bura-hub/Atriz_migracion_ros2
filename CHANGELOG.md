@@ -4,6 +4,33 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 4) — El auditor de documentacion no corria en el PC, y mentia
+
+Dos fallos suyos, los dos **solo en Windows**, encontrados al pasarlo desde el PC por primera vez.
+Van **cuatro** fallos propios del auditor: nacio con tres falsos positivos y aqui salen dos mas.
+
+1. 🔴 **Reventaba entero al imprimir el primer emoji.** La consola de Windows es cp1252 y
+   `UnicodeEncodeError` mataba el script **antes de decir una sola conclusion**. Nacio en la Pi, que
+   es UTF-8, y desde hoy se trabaja tambien desde el PC.
+
+2. 🔴 **Y el peor, porque daba un veredicto FALSO: una exclusion que existia y no hacia nada.**
+
+       if 'CHANGELOG' in rel or '00_auditoria/evidencia' in rel:   # se salta las bitacoras
+
+   En Windows `os.path.relpath` devuelve `00_auditoria\evidencia_24_04\...` con **barra
+   invertida**, asi que el `in` daba `False` y el auditor **delataba las bitacoras como deriva**.
+   Resultado: denunciaba «91 comprobaciones» en una evidencia del 2026-07-31, que es exactamente lo
+   que esa evidencia **debe** decir — es memoria, no deriva.
+   → Es la familia de fallo mas repetida de este proyecto: **una comprobacion que existe y no hace
+     nada**, como `chmod` en `/boot/firmware` o `usercfg.txt` en 24.04. Y aqui con agravante: es el
+     fallo que este auditor existe para no cometer. **Un verificador con falsos positivos se acaba
+     ignorando, y eso es peor que no tenerlo.**
+
+✅ **Comprobado por el efecto**, sin `PYTHONIOENCODING` y desde el PC: **0 problemas** donde antes
+salia 1, y codigo de salida 0.
+
+---
+
 ## 2026-08-04 (parte 3) — La web movio el robot, y la app ya tiene estructura
 
 **Primera vez en el proyecto que el cliente web mueve un robot real.** 60 cm, con el codigo de

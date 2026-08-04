@@ -54,6 +54,16 @@ import subprocess
 import sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 🔴 En Windows la consola es cp1252 y el PRIMER emoji que se imprime revienta el
+#    script entero con UnicodeEncodeError — antes de decir una sola conclusión. El
+#    auditor nació en la Pi (UTF-8) y desde el 2026-08-04 se trabaja también desde el
+#    PC. `errors='replace'` a propósito: prefiero un «?» a que la herramienta muera.
+for _flujo in (sys.stdout, sys.stderr):
+    try:
+        _flujo.reconfigure(encoding='utf-8', errors='replace')
+    except (AttributeError, OSError):
+        pass          # flujo redirigido o sin reconfigure: no es motivo para abortar
 MANUAL = os.path.join(RAIZ, '02_manual', 'MANUAL_ATRIZ_ROS2.md')
 
 #: Frases que fueron ciertas y dejaron de serlo. Cada una costó encontrarla.
@@ -177,7 +187,12 @@ def secciones_desordenadas():
 def frases_obsoletas():
     malas = []
     for ruta in ficheros(('.md', '.txt')):
-        rel = os.path.relpath(ruta, RAIZ)
+        # 🔴 Con `/` fijo esta exclusión NO HACÍA NADA EN WINDOWS: `os.path.relpath`
+        #    devuelve `00_auditoria\evidencia_24_04\…` y el `in` daba False, así que
+        #    el auditor delataba las bitácoras como deriva. Un falso positivo, que es
+        #    justo el fallo que este auditor existe para no cometer — y de la familia
+        #    ya conocida: una comprobación que existe y no hace nada. Normaliza.
+        rel = os.path.relpath(ruta, RAIZ).replace(os.sep, '/')
         if 'CHANGELOG' in rel or '00_auditoria/evidencia' in rel:
             continue          # son bitácoras: DEBEN conservar lo que se dijo
         texto = _leer(ruta)
