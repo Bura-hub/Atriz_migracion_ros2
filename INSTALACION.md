@@ -450,8 +450,9 @@ pip install --break-system-packages pyserial pyserial-asyncio
 
 mkdir -p ~/atriz_ws/src && cd ~/atriz_ws/src
 git clone -b ros2 https://github.com/Bura-hub/Atriz_rvr.git
-#            ↑ `-b ros2` es OBLIGATORIO: `origin/HEAD` apunta a `main`, que es
-#              ROS 1 (catkin) y está 75 commits por detrás. Un clone a secas da eso.
+#            ↑ `ros2` es la rama por defecto desde el 2026-08-04, así que el
+#              `-b` ya no hace falta; se deja explícito porque `main` sigue
+#              existiendo y es ROS 1 (catkin), 75 commits por detrás.
 
 # Con el RVR ENCENDIDO:
 python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
@@ -488,8 +489,8 @@ repositorios:
 | Cómo verificar que funciona | manual, caps. 1.3, 2 y 8.2 |
 
 > 📝 En esta etapa solo interesa el **SDK**, que es Python puro y no depende de ROS. La rama
-> `ros2` ya trae el driver portado y compila; **`main` —lo que da un `git clone` sin `-b`— es
-> ROS 1 (catkin)** y **no** compila con colcon.
+> `ros2` ya trae el driver portado y compila, y desde el 2026-08-04 es la rama por defecto;
+> **`main` sigue existiendo, es ROS 1 (catkin)** y **no** compila con colcon.
 
 ### E3 · Verificar UART y telemetría
 

@@ -46,17 +46,30 @@ el rediseño del 2026-08-02. **Conservado en `CLAUDE.md`**, con el fragmento de 
 antes de diseñar algo que el proyecto ya intentó, busca los intentos anteriores, incluidas las
 ramas WIP.
 
-### 🔴 Y la trampa que queda viva: `origin/HEAD` de `Atriz_rvr` apunta a `main`
+### ✅ Y la trampa que esto destapó, cerrada al día siguiente
 
 ```
 origin/main   ros2 tiene 75 commits de más   ·   último: 2026-07-29
 ```
 
-**Un `git clone` a secas de `Atriz_rvr` da `main`**, que es ROS 1 y no tiene ninguno de los 23
-commits de hoy. Es la misma trampa que hizo que las dos auditorías de `Atriz_web_server` se
-contradijeran (parte 6). Se cierra desde GitHub cambiando la rama por defecto. 👤 **Pendiente
-del usuario.** Mientras tanto, `-b ros2` es obligatorio y así está escrito en `CLAUDE.md`,
-`INSTALACION.md` y el manual.
+**Un `git clone` a secas de `Atriz_rvr` daba `main`**, que es ROS 1 y no tiene ninguno de los 23
+commits del 2026-08-03. Es la misma trampa que hizo que las dos auditorías de `Atriz_web_server`
+se contradijeran (parte 6).
+
+**Cerrado el 2026-08-04** cambiando la rama por defecto a `ros2` (API de GitHub; `gh` no está
+instalado en la Pi). Y **verificado por efecto, no por el 200 de la API** — clonando de verdad
+sin `-b`:
+
+```
+$ git ls-remote --symref … HEAD   →  ref: refs/heads/ros2	HEAD
+$ git clone --depth 1 …           →  rama: ros2 · 65ad124 · scripts/estudiantes/atriz.py presente · usa rclpy
+```
+
+📝 Y eso dejó **falsas** las cuatro advertencias «clona con `-b ros2` porque `origin/HEAD` apunta
+a `main`» escritas unas horas antes: corregidas en `CLAUDE.md`, `INSTALACION.md` (×2), el manual
+y el mensaje de fallo de `verificar_robot.sh`. El `-b ros2` se deja explícito en los ejemplos
+—`main` sigue existiendo y sigue siendo ROS 1—, pero ya no se justifica con una razón que no es
+cierta.
 
 ### Exposición de credenciales: no mejora, y conviene decirlo
 

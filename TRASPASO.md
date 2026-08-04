@@ -1103,9 +1103,11 @@ a ✅ con la fecha. **En el repositorio, no en un mensaje de chat.**
 | ~~`Atriz_rvr`~~ | ~~`wip/scripts-estudiantes`~~ | `62e0313` | 🗑️ **Borrada el 2026-08-03.** Stash rescatado; su decisión pendiente la contestaron los hechos (el tutorial está restaurado y el seguidor tiene su fichero). El mecanismo que valía está conservado en `CLAUDE.md` |
 | `Atriz_web_server` | `pruebas` | `924d659` | Sin tocar — se aborda al final |
 
-🔴 **`origin/HEAD` de `Atriz_rvr` apunta a `main`**, que es ROS 1 y está **75 commits** por
-detrás: un `git clone` a secas te da eso. **Clona siempre con `-b ros2`.** 👤 Pendiente del
-usuario cambiar la rama por defecto en GitHub.
+✅ **Cerrado el 2026-08-04: `ros2` es la rama por defecto de `Atriz_rvr`.** Hasta entonces
+`origin/HEAD` apuntaba a `main` —ROS 1, **75 commits** por detrás—, así que un `git clone` a
+secas daba eso; era la misma trampa que hizo que las dos auditorías de `Atriz_web_server` se
+contradijeran. Verificado **por efecto**, clonando sin `-b`: sale `ros2`, con el material
+docente sobre `rclpy` dentro. `main` sigue existiendo y sigue siendo ROS 1.
 
 📝 `migracion-ros2` se había creado **desde `origin/main`**, no desde el clon local. Importante:
 ver la lección de abajo.
