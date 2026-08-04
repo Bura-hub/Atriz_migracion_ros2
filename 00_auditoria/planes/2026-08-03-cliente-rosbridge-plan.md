@@ -396,7 +396,9 @@ export function interpretarAntiguedad(s: number): Frescura {
 - [ ] **Paso 4: Ejecutar la prueba y comprobar que pasa**
 
 Ejecutar: `cd frontend && npx vitest run src/lib/rosbridge/contrato.test.ts`
-Esperado: **PASA**, 7 pruebas.
+Esperado: **PASA**. ⚠️ El plan decía **7** y el bloque de arriba tiene **9**; el repositorio real
+acabó con **10** tras las rondas de arreglo. La cuenta del plan nunca fue de fiar — **cuéntalas en
+el fichero**.
 
 - [ ] **Paso 5: Commit**
 
@@ -875,7 +877,11 @@ export class RegistroPendientes {
 - [ ] **Paso 4: Ejecutar la prueba y comprobar que pasa**
 
 Ejecutar: `cd frontend && npx vitest run src/lib/rosbridge/protocolo.test.ts`
-Esperado: **PASA**, 9 pruebas (6 de «lista blanca», 2 de «bateria», 1 de «frescura»).
+Esperado: **PASA**. ⚠️ Aquí ponía «9 pruebas (6 de lista blanca, 2 de batería, 1 de frescura)», que
+es **el desglose de `contrato`, no de este fichero**: se coló al corregir la cuenta de `contrato`
+con un reemplazo **global** que pisó esta línea porque decía el mismo número. El repositorio real
+tiene **10** pruebas aquí. 📝 Un reemplazo global es una corrección sin condiciones: **el mismo
+error que corregir un regex sin mirar dónde más casa.**
 
 - [ ] **Paso 5: Commit**
 
@@ -1207,7 +1213,8 @@ export class Transporte {
 - [ ] **Paso 4: Ejecutar la prueba y comprobar que pasa**
 
 Ejecutar: `cd frontend && npx vitest run src/lib/rosbridge/transporte.test.ts`
-Esperado: **PASA**, 7 pruebas.
+Esperado: **PASA**. ⚠️ El plan decía **7**; el repositorio real tiene **21** — este módulo pasó por
+dos rondas de arreglo y cada una añadió las suyas. **Cuéntalas en el fichero.**
 
 - [ ] **Paso 5: Commit**
 
@@ -1501,9 +1508,24 @@ export * from './teleoperacion'
 - [ ] **Paso 4: Ejecutar toda la batería y comprobar que pasa**
 
 Ejecutar: `cd frontend && npm test`
-⚠️ **Este recuento es el PLANEADO y quedó muy corto: el repositorio real tiene 65 pruebas** —10 de
-`contrato`, 9 de `protocolo`, 7 de `salud`, 19 de `transporte` y 20 de `teleoperación`—, porque cada
-ronda de arreglo añadió las suyas. La cifra de abajo se conserva como registro de lo que se planeó:
+🔴 **CUATRO DE LAS CINCO CUENTAS DE ESTE PLAN ESTABAN MAL**, y las encontró el usuario contando los
+`it()` del propio documento. El repositorio real tiene **69** pruebas:
+
+| | plan | real |
+|---|---|---|
+| `contrato` | 7 | **10** |
+| `salud` | 7 | **7** ✅ |
+| `protocolo` | «9 (6 lista blanca, 2 batería, 1 frescura)» — **desglose de `contrato`** | **10** |
+| `transporte` | 7 | **21** |
+| `teleoperacion` | 7 | **21** |
+| **total** | **39** | **69** |
+
+📝 **Y por qué importa más de lo que parece:** en este plan el número **es la comprobación de efecto
+del paso 4**. Un número mal enseña a ignorarlo — y entonces el paso 4 deja de comprobar nada. Van
+**tres** recuentos equivocados en este documento, uno de ellos por un **reemplazo global** que pisó
+la línea de otra tarea porque decía la misma cifra.
+
+La cifra de abajo se conserva como registro de lo que se planeó:
 
 Esperado: **PASA**. Los cinco ficheros de prueba, **39 pruebas** en total: 8 de `contrato`,
 7 de `salud`, 8 de `protocolo`, 9 de `transporte` y 7 de `teleoperacion`.
