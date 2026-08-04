@@ -4,6 +4,48 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 2) — Nueve repositorios, y el público repartía el sistema muerto
+
+Inventario completo del ecosistema, en [`03_operacion/REPOSITORIOS.md`](03_operacion/REPOSITORIOS.md).
+Existe porque **la confusión entre repositorios ya costó tiempo real**: el día anterior se auditó
+«el repositorio de la web» sin decir cuál de los tres era ni sobre qué rama, y dos auditorías
+correctas llegaron a conclusiones opuestas.
+
+**Son nueve, entre dos dueños** — cinco de `Bura-hub` y cuatro de la organización `atriz-udenar`,
+de los cuales **tres son de solo lectura** (`admin: false`, comprobado por API): no son nuestros
+para reorganizar.
+
+### 🔴 El hallazgo, y no lo esperaba nadie
+
+**`ATRIZ` es la única puerta pública del proyecto —tiene una estrella, o sea que alguien lo
+encontró— y sus dos submódulos apuntaban al sistema muerto:** `driver_ros_node` a la rama `main` de
+`Atriz_rvr`, que es **ROS 1 y no compila con `colcon`**, y `frontend_and_backend` a
+`Atriz_web_server`, la plataforma abandonada **con credenciales dentro**. Quien llegara y clonara con
+`--recursive` **se llevaba el stack antiguo entero**.
+
+Corregido: el submódulo apunta ahora al driver en la rama `ros2` y a su punta actual, el de la web
+se retiró, y el README dice dónde vive hoy cada componente. **Verificado por efecto**, clonando con
+`--recursive` como lo haría un tercero: trae `heads/ros2` y paquetes `ament`.
+
+Y se añadió al README el aviso que faltaba: **los dos PDF de `docs/` describen la arquitectura
+ANTERIOR a la migración**, con funcionalidades descartadas después —entre ellas la transmisión de
+vídeo, porque **los robots no llevan cámara**—.
+
+### Lo demás
+
+- **`atriz-udenar/ros_sphero_rvr` archivado.** Driver de ROS 1 (`catkin`, `rospy`), superado por
+  `Atriz_rvr` rama `ros2`. Queda como registro, sin que nadie lo confunda con código vivo.
+- ⏳ **`Atriz_web_server` NO se archivó todavía, a propósito.** Se archiva **en cuanto se rote la
+  `SECRET_KEY`**: archivar deja el repositorio en solo lectura y **no cierra ninguna exposición**.
+  Es la misma regla que ya se midió con las ramas de `Atriz_rvr` — **borrar no cerró nada, rotar
+  sí**.
+- **Nombres: propuesta registrada y NO aplicada**, por decisión del usuario. La que importa es
+  `Atriz_migracion_ros2` → `atriz-ingenieria`: **nombra un evento temporal, no un propósito**, y el
+  día que la migración acabe el nombre miente. El coste no es técnico —GitHub redirige— sino las
+  decenas de referencias en la documentación y en los clones de la Pi.
+
+---
+
 ## 2026-08-04 — El cliente de rosbridge, escrito y revisado hasta el hueso
 
 Primera pieza de código de la Fase 5, y la única que ninguna medición pendiente puede invalidar.

@@ -111,6 +111,13 @@ ejecutar algo. El más instructivo — una revisión comparó `contrato.ts` car�
 plan y dio **✅ perfecto** mientras el tipo del mensaje estaba mal, **porque el plan también lo
 estaba**. Transcribir fielmente una fuente equivocada produce un verde impecable.
 
+📌 **Inventario de repositorios, nuevo:**
+[`03_operacion/REPOSITORIOS.md`](REPOSITORIOS.md). Son **nueve** entre dos dueños, y existe porque la
+confusión entre ellos ya costó tiempo real. Hecho el 2026-08-04: `ros_sphero_rvr` (ROS 1)
+**archivado**, y el paraguas público `ATRIZ` **corregido** — sus dos submódulos apuntaban al sistema
+muerto, así que un `git clone --recursive` repartía ROS 1 y la web abandonada. ⏳ Queda archivar
+`Atriz_web_server` **en cuanto se rote la `SECRET_KEY`**, no antes.
+
 ## Lo que bloquea, y de quién es
 
 | | |
