@@ -867,6 +867,35 @@ git commit -m "protocolo: las ops de rosbridge, y el plazo que rosbridge no da"
 
 ## Tarea 6 · `transporte.ts` — WebSocket, reconexión y reloj de llegadas
 
+> 🔴🔴 **EL CÓDIGO DE ESTA TAREA TENÍA CUATRO DEFECTOS CRÍTICOS, ENCONTRADOS AL REVISARLA.** Se
+> transcribió tal cual, se probó, pasó — y las pruebas no los cubrían. Los midió el revisor con
+> sondas ejecutadas contra el código, no razonándolos. **La versión corregida es la que vale**; lo
+> de abajo se conserva para que no vuelva por la puerta de atrás.
+>
+> | | Qué pasaba, medido |
+> |---|---|
+> | **`cerrar()` no cerraba** con `reconectar: true` | `onclose` no distingue «lo pidió el usuario» de «se cayó», así que reprogramaba una reconexión. **Dos segundos después había otro socket vivo**, recibiendo `/scan` sin que nadie supiera que existía |
+> | **`conectar()` dos veces = dos sockets** | Cada mensaje **entregado dos veces**, y el `onclose` del viejo **cancelaba las llamadas pendientes del nuevo**, que estaba sano |
+> | **Cancelar una suscripción no llegaba al robot** | `opUnsubscribe` existía, exportado, **sin un solo punto de llamada**. `/scan` —el **83 %** del tráfico— seguía llegando para siempre, y al reconectar se resuscribía a topics que nadie quería |
+> | 🔴 **`publicar()` sin conexión fallaba EN SILENCIO** | `this.ws?.send()` no-opea. Y por ahí pasa **`/emergency_stop`**: una parada perdida sin excepción, sin retorno y sin aviso — **el fallo más caro y más repetido de este proyecto**, reapareciendo en la capa de transporte |
+>
+> Y una **Importante** que era el mismo antipatrón que esta tarea decía evitar: `intentos = 0` en
+> `onopen`, así que con un socket que **parpadea** (rosbridge reiniciándose) cada ciclo pasaba por
+> `onopen` antes que por `onclose` y la espera se quedaba clavada en ~1 s **para siempre** — los 123
+> reintentos del driver con otra ropa.
+>
+> ✅ **LA CORRECCIÓN DE FONDO, y vale más que los cuatro arreglos juntos:**
+> **que el socket ABRA no prueba que el enlace sirva. Lo prueba un mensaje que LLEGA.**
+> Es la regla de siempre de este proyecto —comprobar el efecto, no el código de retorno— aplicada a
+> un WebSocket, y resuelve la espera creciente sola: `intentos` se reinicia **al recibir**.
+>
+> Cambios de la versión corregida: `conectar()` **idempotente**; bandera `cierreDeliberado` y
+> cancelación del temporizador en `cerrar()`; `opUnsubscribe` al quedarse un topic sin oyentes, más
+> borrar su entrada del `Map`; `publicar()` **lanza** y `llamar()` **rechaza** sin enlace;
+> `intentos = 0` en `entrante()`; `try/catch` en el `JSON.parse`; y un canal `alAviso()` que expone
+> el `status` de rosbridge — **la única pista que da cuando deniega en silencio**, y que se estaba
+> tirando.
+
 **Ficheros:**
 - Crear: `frontend/src/lib/rosbridge/transporte.ts`
 - Test: `frontend/src/lib/rosbridge/transporte.test.ts`
