@@ -4,6 +4,54 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 12) — El encargo de diseño, replanteado pantalla a pantalla
+
+**`03_operacion/DESIGN.md`**, escrito con la skill `stitch-design-taste` y en su formato, que es
+el que interpreta Google Stitch. Sustituye a `ENCARGO_DISENO_UI.md`, que queda marcado y **no
+debe pegarse en Stitch**.
+
+**Lo que añade sobre el anterior:** las siete pantallas descritas una a una (portada, muro,
+espacio del robot, terminal, telemetría, conducir, LIDAR, diagnóstico), la jerarquía de tres
+niveles cifra/unidad/antigüedad, y el sexto estado vacío — **«no construido»**.
+
+**🔴 Y lo que lo hace útil de verdad: anula CINCO reglas por defecto de la propia skill**, cada
+una con su motivo medido. La que más importa:
+
+```
+la skill dice   «Perpetual micro-interactions: every active component should
+                 have an infinite loop state (Pulse, Shimmer…)»
+aquí            PROHIBIDO SIN EXCEPCIÓN
+por qué         un pulso infinito en un indicador de estado es INDISTINGUIBLE
+                de un latido real, y esta pantalla vigila 16 robots que pueden
+                estar mudos
+```
+
+Las otras cuatro: nada de *skeleton loaders* («never invent progress»), el color es un
+**vocabulario de cinco estados** y no un acento único, varianza bajada de 8 a **2** (un
+instrumento no sorprende), y **ningún dato inventado** — ni redondo ni «orgánico», que es lo que
+la skill recomienda para que no parezca relleno.
+
+✅ **Contrastes calculados, no supuestos:** los **14 pares** (7 tintas × 2 fondos) pasan WCAG AA,
+**0 fallos**. Peor caso **Neutro sobre Lino, 4,59:1** — justo por encima de 4,5, así que el gris
+de «no se sabe» **no puede aclararse más**. Mejor caso 17,49:1.
+
+✅ **Y no es una propuesta: es lo que ya corre.** Los ocho colores, las tres duraciones y las dos
+curvas están tomados de `globals.css` y verificados uno a uno (`--background: 250 250 249` =
+`#FAFAF9`, `--border: 214 211 209` = `#D6D3D1`, …). La §10 lleva la tabla de correspondencia,
+para que lo que devuelva Stitch se pueda **contrastar contra la aplicación** en vez de admirarse
+suelto — y para que se note si alguien cambia el CSS y deja el documento mentido.
+
+📌 Se sube también `00_auditoria/planes/2026-08-04-cierre-app-web.md`, la especificación del
+cierre aprobada antes de ejecutar, que estaba escrita y sin commitear.
+
+⏳ **Pendiente y sin respuesta:** si `rvr-01.local` resuelve en el navegador **real** del
+usuario. Medido en Edge headless: por nombre **no abre nunca** (3 de 3, 8 s de plazo; 0 de 16 en
+el caso del muro), por IP **7 · 20 · 36 ms**. Headless no lleva resolutor mDNS, así que **la
+medida puede ser del instrumento y no del sistema** — la trampa que este proyecto lleva
+documentada cinco veces. No se diseña ningún arreglo hasta saberlo.
+
+---
+
 ## 2026-08-04 (parte 11) — La comprobación cruzada, hecha; y una falsa alarma resuelta
 
 **Cuarta corrida, y la primera con las dos mitades del mismo evento.** Hasta aquí cada lado se

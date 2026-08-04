@@ -1,5 +1,16 @@
 # Encargo de diseño de interfaz — para pegar en Google Stitch
 
+> 🔴🔴 **SUSTITUIDO EL 2026-08-04 POR [`DESIGN.md`](DESIGN.md). NO PEGUES ESTE EN STITCH.**
+>
+> `DESIGN.md` lo reemplaza entero y va más lejos en tres cosas que aquí faltaban: describe
+> **cada pantalla una a una**, trae los **valores exactos** ya implementados en `globals.css`
+> (con su tabla de correspondencia) y **anula explícitamente las cinco reglas por defecto** de
+> la guía de estilo de Stitch que en un instrumento son dañinas — sobre todo el
+> «bucle infinito en todo componente activo», que aquí fabricaría latido donde no lo hay.
+>
+> Este fichero se conserva **solo como registro** de por dónde pasó el diseño. Su contenido
+> no es falso, es incompleto.
+
 > **Cómo usarlo.** Pega la sección «EL ENCARGO» tal cual. Está escrito para una
 > herramienta que genera pantallas a partir de una descripción, así que dice
 > **qué se ve y cómo está colocado**, no cómo se implementa.
