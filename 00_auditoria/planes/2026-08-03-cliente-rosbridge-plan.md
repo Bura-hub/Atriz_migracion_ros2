@@ -425,7 +425,10 @@ const contrato = readFileSync(join(raizProyecto, 'frontend/src/lib/rosbridge/con
 
 /** Saca las cadenas '/loquesea' de un bloque `NOMBRE = [ ... ]`. */
 function bloquePython(fuente, nombre) {
-  const m = fuente.match(new RegExp(`^${nombre}\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'm'))
+  // El anclaje lleva `[ \t]*` porque las constantes NO estan a nivel de modulo:
+  // viven indentadas dentro de la funcion del launch. Con `^${nombre}` no casa
+  // nada y el script muere con «no encuentro el bloque LEER». Medido.
+  const m = fuente.match(new RegExp(`^[ \\t]*${nombre}\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'm'))
   if (!m) throw new Error(`no encuentro el bloque ${nombre} en robot.launch.py`)
   return [...m[1].matchAll(/'(\/[^']+)'/g)].map((x) => x[1]).sort()
 }
