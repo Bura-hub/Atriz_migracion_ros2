@@ -124,6 +124,38 @@ está bloqueado por A1 de todos modos.
 
 ---
 
+### A7 · 🆕 `FRENANDO` no está implementado — hace falta medir dos cosas
+
+El diseño tiene un estado azul «va lento porque la seguridad frena, no está averiado». **No se
+construyó**, y creo que es la decisión correcta: saldría de `/collision_monitor_state`, y de ese
+topic este proyecto **no ha caracterizado su `action_type`** ni **ha medido su caudal**. Un estado de
+interfaz apoyado en dos suposiciones es exactamente lo que esta aplicación intenta no ser.
+
+**Mientras tanto el hueco se declara en pantalla**, con su motivo, en vez de callarse.
+
+**Lo que lo desbloquea, y son cinco minutos con el robot:**
+```bash
+ros2 topic echo /collision_monitor_state --once      # ¿qué trae el action_type?
+ros2 topic hz  /collision_monitor_state              # ¿cuánto cuesta?
+```
+📌 Importa más de lo que parece: **el `Precaucion` frena al 40 % aunque el robot se aleje** (medido:
+30 cm comandados → 14 cm reales). Sin este estado, la web no puede explicar por qué un retroceso
+tarda el doble, y parece que el robot no obedece.
+
+---
+
+### A8 · 🆕 La vista del LIDAR no existe
+
+`/scan` no está modelado en `useTopic`, y modelarlo exigía tocar `hooks/`, que el encargo protegía.
+
+**Mi recomendación: hacerlo, pero con cuidado**, porque `/scan` es el **83 % del tráfico** (~67 kB/s)
+y la suscripción tiene que soltarse al salir de la pantalla. **Y hay un aliciente medido:** mantener
+una suscripción a `/scan` es lo único que activa la rama fina de `salud.ts`, la que distingue «una
+excepción en un manejador del driver» de «el RVR se durmió» — hoy esa rama no se toma nunca.
+**No es urgente**: ninguna de las diez prácticas la necesita.
+
+---
+
 ## B · Las que necesitan el robot — y son tuyas
 
 ### B1 · 🔴 La T9 no está cerrada: falta la cinta
