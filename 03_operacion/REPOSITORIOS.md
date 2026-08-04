@@ -43,13 +43,19 @@ tercero**.
 
 | Repositorio | Dueño | Estado | Por qué |
 |---|---|---|---|
-| **`Atriz_web_server`** | Bura-hub | **PÚBLICO, activo** ⏳ | La web anterior. **65 MB de los que el 98 % son artefactos** (`swarm_lab_env/`, `build/`, `devel/`). **Tres ramas SIN ancestro común** —`master`, `develop`, `pruebas`—; manda `pruebas`. Superado por `atriz-lab` |
+| **`Atriz_web_server`** | Bura-hub | ✅ **ARCHIVADO** | La web anterior. **65 MB de los que el 98 % son artefactos** (`swarm_lab_env/`, `build/`, `devel/`). **Tres ramas SIN ancestro común** —`master`, `develop`, `pruebas`—; manda `pruebas`, que es la que tiene Monaco integrado de verdad. Superado por `atriz-lab` |
 | **`ros_sphero_rvr`** | atriz-udenar | ✅ **ARCHIVADO** | Driver de ROS 1 (`catkin`, `rospy`). Superado por `Atriz_rvr` rama `ros2` |
 
-🔐 **`Atriz_web_server` sigue público y con credenciales dentro:** la de PostgreSQL en un `.env`
-**commiteado** (solo en `master`) y la **`SECRET_KEY` de los JWT** en `core/security.py`, que está
-en **las tres ramas**. → **Se archiva EN CUANTO se rote la `SECRET_KEY`**, no antes: archivar deja el
-repositorio en solo lectura y no cierra ninguna exposición. **Rotar es lo único que la cierra.**
+🔐 **Los dos se archivaron el 2026-08-04, y `Atriz_web_server` solo DESPUÉS de rotar.** Contenía la
+credencial de PostgreSQL en un `.env` **commiteado** (solo en `master`) y la **`SECRET_KEY` de los
+JWT** en `core/security.py`, que estaba en **las tres ramas**. **Archivar no habría cerrado nada:**
+deja el repositorio en solo lectura y los secretos siguen en el historial. **Rotar es lo único que
+lo cierra**, y por eso se hizo en ese orden. Sigue siendo público, ahora en solo lectura.
+
+⚠️ **Consecuencia de haberlo archivado, por si algún día se quiere purgar el historial:** un
+repositorio archivado **no admite escrituras**, así que habría que **desarchivarlo primero**. Con
+`forks = 0` la purga sería efectiva, pero es higiene — la exposición ya está cerrada por la
+rotación.
 
 ---
 

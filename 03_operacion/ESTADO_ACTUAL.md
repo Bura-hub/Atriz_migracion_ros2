@@ -20,7 +20,10 @@ para saber por dónde vas.
 | `Atriz_migracion_ros2` | `main` | este; privado |
 | `Atriz_rvr` | **`ros2`** ← por defecto desde el 2026-08-04 | público. Solo quedan **dos** ramas: `ros2` y `main` (ROS 1, 75 commits detrás). `migracion-ros2` y `wip/scripts-estudiantes` **borradas** el 2026-08-03 |
 | `atriz-lab` | `main` | **el** repositorio de la web; privado. `cliente-rosbridge` fusionada (PR #1) y borrada |
-| `Atriz_web_server` | `pruebas` | el viejo. **Público y con la `SECRET_KEY` de los JWT dentro** |
+| `Atriz_web_server` | `pruebas` | el viejo. **ARCHIVADO** el 2026-08-04, después de rotar. Público y en solo lectura; los secretos siguen en su historial pero **ya no valen** |
+| `ATRIZ` | `master` | el **paraguas público** (⭐1) y los dos PDF institucionales. Su submódulo apuntaba a ROS 1 hasta el 2026-08-04 |
+
+Los nueve del ecosistema, con quién es dueño de cuál: [`REPOSITORIOS.md`](REPOSITORIOS.md).
 
 ## En qué estamos
 
@@ -115,15 +118,15 @@ estaba**. Transcribir fielmente una fuente equivocada produce un verde impecable
 [`03_operacion/REPOSITORIOS.md`](REPOSITORIOS.md). Son **nueve** entre dos dueños, y existe porque la
 confusión entre ellos ya costó tiempo real. Hecho el 2026-08-04: `ros_sphero_rvr` (ROS 1)
 **archivado**, y el paraguas público `ATRIZ` **corregido** — sus dos submódulos apuntaban al sistema
-muerto, así que un `git clone --recursive` repartía ROS 1 y la web abandonada. ⏳ Queda archivar
+muerto, así que un `git clone --recursive` repartía ROS 1 y la web abandonada. ✅ Y archivado
 `Atriz_web_server` **en cuanto se rote la `SECRET_KEY`**, no antes.
 
 ## Lo que bloquea, y de quién es
 
 | | |
 |---|---|
-| 🔐 **Rotar la PSK del WiFi y la contraseña de `sphero`** | 👤 tuyo. La credencial está en el historial de un repositorio público |
-| 🔐 **DOS credenciales NUEVAS, encontradas el 2026-08-03 por la tarde** | 👤 tuyo. En `Atriz_web_server`, que sigue **público**. **Con la rama fijada, que es lo que faltaba:** la **`SECRET_KEY` de los JWT** (`core/security.py`) está en **las tres ramas** — es la que importa, porque con ella cualquiera **forja un token válido**. La de PostgreSQL (`.env` commiteado + `core/config.py`) está **solo en `master`**; en `pruebas` y `develop` da 404, y además apunta a `localhost`: es limpieza. `forks=0`, así que purgar el historial sí serviría — después de rotar. Evidencias 66 y 67 |
+| ✅ ~~**Rotar la PSK del WiFi y la contraseña de `sphero`**~~ | **HECHO el 2026-08-04.** Era el bloqueo más antiguo del proyecto. Los secretos siguen en el historial de los repositorios públicos, pero **ya no valen**: rotar es lo único que cierra una exposición, y borrar ramas o archivar repositorios **no cerró nada** — los dos casos medidos |
+| ✅ ~~**DOS credenciales NUEVAS de `Atriz_web_server`**~~ | **HECHO el 2026-08-04.** La `SECRET_KEY` de los JWT estaba en las **tres** ramas y la de PostgreSQL en un `.env` commiteado en `master`. Rotadas, y el repositorio **archivado después** — en ese orden, porque archivar deja el repo en solo lectura y **no cierra ninguna exposición**. [`REPOSITORIOS.md`](REPOSITORIOS.md) |
 | **`red.txt` en 755** | 👤 tuyo. La PSK es legible por cualquier usuario; `chmod` no sirve, va `fmask=0177` en `/etc/fstab` |
 | **El mapa del aula** | 👤 tuyo, en el laboratorio. Bloquea la tarea 4 del plan de navegación |
 | **`~/.ssh/authorized_keys` vacío** | 👤 tuyo, desde el PC |

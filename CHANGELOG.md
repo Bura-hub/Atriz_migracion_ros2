@@ -35,10 +35,17 @@ vídeo, porque **los robots no llevan cámara**—.
 
 - **`atriz-udenar/ros_sphero_rvr` archivado.** Driver de ROS 1 (`catkin`, `rospy`), superado por
   `Atriz_rvr` rama `ros2`. Queda como registro, sin que nadie lo confunda con código vivo.
-- ⏳ **`Atriz_web_server` NO se archivó todavía, a propósito.** Se archiva **en cuanto se rote la
-  `SECRET_KEY`**: archivar deja el repositorio en solo lectura y **no cierra ninguna exposición**.
-  Es la misma regla que ya se midió con las ramas de `Atriz_rvr` — **borrar no cerró nada, rotar
-  sí**.
+- ✅ **`Atriz_web_server` archivado — y en el orden correcto: DESPUÉS de que el usuario rotara.**
+  Archivar deja el repositorio en solo lectura y **no cierra ninguna exposición**: los secretos
+  siguen en el historial. **Rotar es lo único que lo cierra**, igual que se midió con las ramas de
+  `Atriz_rvr` — borrar no cerró nada.
+  📝 Y una comprobación que salió bien por hacerla: **la primera llamada a la API falló**
+  (`Problems parsing JSON`, por el guion largo de la descripción al pasar por el shell) y el
+  repositorio **siguió activo**. Se detectó porque se releyó el estado en vez de fiarse de que la
+  orden se hubiera enviado. **Comprueba el efecto, no el código de salida** — van siete.
+  ⚠️ Consecuencia: un repositorio archivado no admite escrituras, así que **purgar el historial
+  exigiría desarchivarlo primero**. Con `forks = 0` sería efectivo, pero es higiene: la exposición
+  ya está cerrada.
 - **Nombres: propuesta registrada y NO aplicada**, por decisión del usuario. La que importa es
   `Atriz_migracion_ros2` → `atriz-ingenieria`: **nombra un evento temporal, no un propósito**, y el
   día que la migración acabe el nombre miente. El coste no es técnico —GitHub redirige— sino las
