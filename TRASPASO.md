@@ -4,8 +4,9 @@
 > Raspberry Pi ya se reflasheó. Está escrito para que no haga falta reconstruir el
 > contexto desde cero.
 >
-> Última actualización: **2026-08-03**, tras la **revisión final de rama** y su oleada de
-> arreglos. El material docente —`atriz.py` y las diez prácticas— está escrito, revisado y con
+> Última actualización: **2026-08-04**, tras cerrar el **cliente de rosbridge** (movió un robot
+> real 60 cm) y diseñar **la estructura de la aplicación web**. Antes de eso: la **revisión final
+> de rama** y su oleada de arreglos. El material docente —`atriz.py` y las diez prácticas— está escrito, revisado y con
 > **89 tests**, y **empujado a los dos repositorios**.
 >
 > 🔴 **Lo que falta es de dos clases, y las dos son del usuario:**
@@ -14,13 +15,29 @@
 >    no compensar la inercia — arreglado y remedido en la misma sesión (**+0.19°**). Faltan las
 >    dos que necesitan `sudo` y rearrancar el robot con `color_detection:=true`: **la 62 (las dos
 >    prácticas de color) y la 63 (el seguidor de línea)**. Va más abajo.
-> 2. **Rotar la PSK del WiFi y la contraseña de `sphero`**, que es lo único que cierra la
->    exposición del repositorio público. Medido tras el push: la **punta** de `ros2` ya está
->    limpia (**0**) y la de `main` sigue sucia; el **historial de las dos las conserva**.
->    ⚠️ El 2026-08-03 se borraron `migracion-ros2` y `wip/scripts-estudiantes`, que también las
->    servían: **eso NO cierra nada**, solo deja de servirlas por esas dos puntas.
+> 2. ✅ **ROTADAS el 2026-08-04.** El usuario rotó la PSK del WiFi y la contraseña de `sphero`, y
+>    a continuación se **archivó `Atriz_web_server`** (público, solo lectura). **Eso es lo que
+>    cierra la exposición**, y ya está hecho.
+>    ⚠️ **Lo que sigue abierto es higiene, no exposición:** el historial de `Atriz_rvr` conserva
+>    las once líneas en `main` y en `ros2` — la **punta** de `ros2` está limpia (0) y la de `main`
+>    no. Purgar el historial **no llega a los forks que ya existan**, así que nunca habría bastado
+>    solo. Ahora que están rotadas, los valores del historial **ya no valen para nada**.
+>    ⚠️ Y el borrado de `migracion-ros2` y `wip/scripts-estudiantes` del 2026-08-03 **no cerró
+>    nada**: solo dejó de servirlas por esas dos puntas.
 >
 > Y falta también la corrida completa de la prueba de aceptación tras un reinicio real.
+>
+> 🆕 **Y desde el 2026-08-04, la Fase 5 está en marcha y su capa de datos FUNCIONA.** El cliente de
+> rosbridge de `atriz-lab` **movió un RVR real 60 cm** con el código de producción (evidencia 70),
+> **97 pruebas**. Lo que falta de esa tarea es **la medida con cinta** y el control por SSH, más
+> **publicar la parada de emergencia con el robot en marcha** mirando el log del driver.
+> El diseño de la aplicación está en
+> [`00_auditoria/planes/2026-08-04-estructura-app-web.md`](00_auditoria/planes/2026-08-04-estructura-app-web.md)
+> y **todas las dudas abiertas, con recomendación**, en
+> [`00_auditoria/planes/2026-08-04-dudas-abiertas.md`](00_auditoria/planes/2026-08-04-dudas-abiertas.md).
+> 🔴 **El producto —el terminal— está bloqueado por la F0**, que necesita el aula: si el AP aísla
+> clientes, el transporte se replantea entero. Es el único experimento que puede tirar un diseño, y
+> cuesta diez minutos.
 >
 > 🆕 **Y desde el 2026-08-03 hay una tercera cosa, a medias:** el arranque de la navegación.
 > `atriz-nav.service` está **escrita, INSTALADA y sin habilitar** (tareas 1, 2, 3 y 5 del plan
