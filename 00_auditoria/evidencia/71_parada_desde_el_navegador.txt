@@ -76,13 +76,47 @@ cuatro fallos silenciosos.
 
   ✅ **4 de 4 corridas paran el robot.** Cuantificadas: **2,9 · 2,3 · 1,8 cm**
      (rango 1,1). Los recorridos previos: 25,6 · 28,0 · 27,8 cm.
-  ⏳ **El lado del robot, PENDIENTE de pegar aquí.** El observador corría esta
-     vez, pero su salida no se ha visto todavía: hasta que esté, la comprobación
-     cruzada sigue sin hacerse. No se repite el error de la tercera corrida, que
-     se dio por cruzada antes de mirar.
+  ✅ **Y ESTA VEZ SÍ: LA COMPROBACIÓN CRUZADA, HECHA.** Con el observador ya
+     arreglado, desde el robot:
+
+         🔴 parada_emergencia: False -> True   (latido=2181)
+         1· log del driver ✅ «PARADA DE EMERGENCIA» x1
+                              Aug 04 11:46:13.890  [rvr_driver]
+         2· /estado_robot  ✅ se vio el FLANCO False -> True
+                                                    código de salida: 0
+
+     **Es la primera vez que este proyecto tiene el mismo evento medido desde
+     los dos lados**: el PC sabe cuándo publicó y cuánto recorrió; la Pi da fe
+     de que el driver lo registró y de que la bandera cambió. Y es un FLANCO
+     real —había un `False` antes—, no una bandera encontrada ya puesta.
+     Los latidos encajan: el PC conectó con 2176 y el flanco cayó en 2181,
+     cinco segundos después, que es justo lo que dura la secuencia (barrido
+     2,50 s + avance 1,50 s + esperas). También dice que el driver **no se
+     reinició** por el camino.
   📝 `/odom` se midió a **14,3 Hz** justo antes de esta corrida, contra los 16,5
      habituales. No afecta al resultado —la granularidad de muestreo pasa de 60
      a 70 ms— pero **no está explicado**. Anotado, no atribuido.
+
+── 🔴 LO QUE ESTE CRUCE NO PUEDE DECIR: LA LATENCIA ──────────────────────────
+Tentador, y falso: comparar el `11:46:13.890` del driver con la hora del PC para
+concluir que no hay retardo escondido entre el navegador y el corte. **No se
+puede, por dos razones independientes:**
+
+  1. **El guion no marcaba el instante del `publish`.** Solo tenía la hora de
+     conexión (`11:46:09.066`), así que hubo que RECONSTRUIR el momento sumando
+     el barrido (2,50 s) y el avance (1,50 s) más una espera de pose **no
+     registrada**: sale 13,2-13,5 con ±0,3 s de incertidumbre, sobre un hueco
+     aparente de 0,4-0,7 s. La reconstrucción **no distingue un retardo real del
+     ruido**. ✅ Arreglado: ahora se marca a los dos lados de la llamada.
+  2. 🔴 **Y aun con eso, falta el DESFASE ENTRE LOS DOS RELOJES, que no está
+     medido.** La Pi **no tiene RTC** (`/dev/rtc*` no existe) y depende de NTP;
+     el PC es Windows. Comparar dos marcas de máquinas distintas mide la deriva
+     de los relojes tanto como el retardo del sistema, y unos cientos de ms de
+     desfase —que es TODO el hueco observado— son perfectamente normales.
+
+→ **La latencia extremo a extremo navegador→motores sigue SIN MEDIR**, como ya
+  decía el diseño de la aplicación. Cerrarla exige medir primero el desfase de
+  relojes, o hacerlo entero desde un solo reloj.
 
 ── ✅ Y LA CINTA, QUE ERA EL CRITERIO PENDIENTE DE LA TAREA 9 ────────────────
 El usuario midió el desplazamiento de esa misma corrida **con cinta**:
