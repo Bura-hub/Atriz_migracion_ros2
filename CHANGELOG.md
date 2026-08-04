@@ -70,6 +70,22 @@ MENSAJES: 11.3 Hz sobre un robot que va a 16.5»— y aun así se usó toda la n
 
 ---
 
+## 2026-08-04 (parte 9 bis) — Correccion: NO hubo medida desde el lado del robot
+
+La evidencia 71 decia que la tercera corrida era «el mismo evento medido desde los dos lados». **Es
+falso**: el observador de la Pi se lanzo, pero **fallo y no dejo registro**. La comprobacion cruzada
+—que era la razon de repetir la corrida— **sigue sin hacerse**, y todo lo medido viene de UN lado.
+
+📝 Lo escribi como hecho antes de saberlo: di por bueno lo que se **lanzo** en vez de lo que se
+**comprobo**. Es exactamente el error que este proyecto persigue, cometido dentro del experimento
+que existe para no cometerlo.
+
+⚠️ Lo que NO cambia: los numeros del PC siguen valiendo (3 de 3, frenada 2,3-2,9 cm, la bandera del
+driver a `true`) y **la cinta tampoco** (30 contra 30,2 cm), que es un testigo independiente de
+verdad. Lo que falta es el tercero: el log del driver y el instante del corte vistos desde dentro.
+
+---
+
 ## 2026-08-04 (parte 9) — La parada de emergencia, POR WEBSOCKET y con el robot en marcha
 
 **Era la pata que faltaba, y es la que mas ha mentido.** La parada ha fallado CINCO veces en este

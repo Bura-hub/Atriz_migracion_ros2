@@ -51,9 +51,14 @@ cuatro fallos silenciosos.
   ✅ **3 de 3 corridas paran el robot**, y las dos cuantificadas dan
      **2,9 y 2,3 cm** — rango 0,6 cm. El barrido arrancó en 2,23 y 2,10 s.
      Y la bandera del driver pasó a `true` en las dos.
-  📌 Esta es la que tiene el testigo del robot en paralelo
-     (`observar_parada_emergencia.py`): el MISMO evento medido desde los dos
-     lados. La de las 09:30 se lanzó sin el observador puesto.
+  🔴 **CORREGIDO: NO hay medida desde el lado del robot.** Esta corrida se lanzó
+     con `observar_parada_emergencia.py` arrancado a propósito, pero **el
+     observador falló** y no dejó registro. O sea que la comprobación cruzada
+     —el mismo evento medido desde los dos lados, que era la razón de repetir—
+     **sigue sin hacerse**. Todo lo de arriba viene de UN solo lado: el PC.
+     ⚠️ Lo escribí como hecho antes de saberlo. Es el error que este proyecto
+        persigue, cometido aquí: dar por bueno lo que se lanzó, en vez de lo que
+        se comprobó.
   📝 Replicar no es ceremonia aquí: este proyecto ya concluyó una vez —con datos
      limpios— algo que la réplica del mismo protocolo, una hora después,
      desmintió. Con un mecanismo de seguridad, menos aún.
