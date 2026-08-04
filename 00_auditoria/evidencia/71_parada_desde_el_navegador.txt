@@ -97,6 +97,38 @@ cuatro fallos silenciosos.
      habituales. No afecta al resultado —la granularidad de muestreo pasa de 60
      a 70 ms— pero **no está explicado**. Anotado, no atribuido.
 
+── ✅ EL CONTROL POR SSH — la otra mitad del criterio de aceptación ──────────
+Misma secuencia EXACTA por `rclpy` local, sin rosbridge de por medio
+(`mediciones_banco/control_ssh_mismo_movimiento.py`). Lo único distinto es el
+transporte, a propósito.
+
+    corrida        antes de parar   frenada   TOTAL (odom)   CINTA
+    web · 3            28.0           2.3        30.2         30
+    web · 4            27.8           1.8        29.6         30
+    SSH · control      29.0           2.3        31.3         31
+
+  ✅ **La cinta valida la odometría por TERCERA vez**: 31,3 contra 31 (0,3 cm).
+     Van tres corridas, dos transportes, y la odometría acierta siempre dentro
+     de la resolución de la cinta.
+  ✅ **La frenada es indistinguible entre los dos caminos**: 2,3 por SSH contra
+     1,8-2,9 por WebSocket. La parada de emergencia se comporta igual venga por
+     donde venga, que era la duda de fondo.
+  ⚠️ **El total sale ~1,4 cm mayor por SSH** (31,3 contra una media web de 29,9).
+     **NO se puede atribuir al transporte**: es n=1 contra n=2, y la dispersión
+     DENTRO del propio camino web ya es de 0,6 cm. Un efecto de 1,4 cm sobre
+     30 (4,7 %) con esos tamaños de muestra no se distingue del ruido de
+     corrida a corrida. Para separarlo harían falta varias repeticiones de cada
+     uno, y **no compensa**: la tolerancia de objetivo de Nav2 son 10 cm.
+  📝 Y una diferencia sin importancia para la distancia, pero que conviene
+     anotar: el control dio **«barrido listo en 0.08 s»** contra 2,10-2,50 s de
+     las corridas web. O sea que el LIDAR **ya estaba barriendo** cuando arrancó.
+     No afecta al recorrido; solo dice que el estado de partida no era idéntico.
+
+→ **El criterio de aceptación de la especificación queda CUMPLIDO**: el
+  desplazamiento medido con cinta desde el navegador (30, 30) y el del mismo
+  movimiento por SSH (31) coinciden dentro de la resolución del instrumento. El
+  camino web **no introduce un error de movimiento que importe**.
+
 ── 🔴 LO QUE ESTE CRUCE NO PUEDE DECIR: LA LATENCIA ──────────────────────────
 Tentador, y falso: comparar el `11:46:13.890` del driver con la hora del PC para
 concluir que no hay retardo escondido entre el navegador y el corte. **No se

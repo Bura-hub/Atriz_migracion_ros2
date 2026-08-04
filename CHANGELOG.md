@@ -117,6 +117,36 @@ MENSAJES: 11.3 Hz sobre un robot que va a 16.5»— y aun así se usó toda la n
 
 ---
 
+## 2026-08-04 (parte 10) — El control por SSH: la TAREA 9 queda CERRADA
+
+La especificacion del cliente pedia que el desplazamiento medido con cinta desde el navegador
+coincidiera con el del **mismo movimiento por SSH**. Hecho, con la secuencia replicada EXACTA
+—barrido, 0,20 m/s, 1,5 s, republicacion a 10 Hz, parada de emergencia— para que **lo unico
+distinto sea el transporte**.
+
+    corrida        antes de parar   frenada   TOTAL (odom)   CINTA
+    web · 3            28.0           2.3        30.2         30
+    web · 4            27.8           1.8        29.6         30
+    SSH · control      29.0           2.3        31.3         31
+
+✅ **La cinta valida la odometria por TERCERA vez** (31,3 contra 31). Tres corridas, dos
+transportes, y la odometria acierta siempre dentro de la resolucion del instrumento.
+✅ **La frenada es indistinguible entre los dos caminos**: 2,3 por SSH contra 1,8-2,9 por
+WebSocket. La parada de emergencia se comporta igual venga por donde venga.
+✅ **El criterio de aceptacion queda CUMPLIDO**: 30, 30 y 31 cm. El camino web **no introduce un
+error de movimiento que importe**.
+
+⚠️ **Y lo que NO se afirma:** el total sale ~1,4 cm mayor por SSH. **No se atribuye al transporte**
+—es n=1 contra n=2, y la dispersion DENTRO del propio camino web ya es 0,6 cm—. Un efecto de 4,7 %
+con esos tamaños de muestra no se distingue del ruido de corrida a corrida, y separarlo exigiria
+repeticiones que **no compensan**: la tolerancia de objetivo de Nav2 son 10 cm.
+
+📝 Anotado sin importancia para la distancia: el control dio «barrido listo en **0.08 s**» contra
+2,10-2,50 s de las corridas web, o sea que el LIDAR **ya estaba barriendo**. El estado de partida no
+era identico.
+
+---
+
 ## 2026-08-04 (parte 9 bis) — Correccion: NO hubo medida desde el lado del robot
 
 La evidencia 71 decia que la tercera corrida era «el mismo evento medido desde los dos lados». **Es
