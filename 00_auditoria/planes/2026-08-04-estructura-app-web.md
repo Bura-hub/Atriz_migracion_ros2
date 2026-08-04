@@ -222,6 +222,13 @@ Esta es la parte donde este proyecto se ha equivocado más veces, así que va ex
 | `SIN_DATOS` | el enlace va y `/odom` calla > 3 s | **ámbar, NUNCA rojo** | **las tres causas, sin elegir** |
 | `FRENANDO` | `/collision_monitor_state` actúa | azul | «va lento porque la seguridad frena, no está averiado» |
 
+🔴 **Y el muro del profesor usa OTRO umbral, a propósito: 5000 ms, no 3000.** Los 3000 de `salud.ts`
+están calibrados contra `/odom` a **16,5 Hz** — son **50 mensajes perdidos**. El muro solo paga
+`/motor_status`, que va a **1 Hz**: ahí los mismos 3000 ms son **tres**, y las 16 baldosas se
+pondrían «sin señal de vida» al primer hipo de WiFi. **Un umbral en milisegundos no es transferible
+entre topics de ritmos distintos**; se piensa en *mensajes perdidos* y se traduce con el período de
+**su** topic. Son dos constantes con una prueba que **impide unificarlas**.
+
 🔴 **`SIN_DATOS` no es avería, y el cliente no puede saber cuál de las tres es:** el robot está
 **cargando** (RVR apagado, Pi viva — el estado **cotidiano**), el RVR se **durmió**, o hay una
 **excepción en un manejador** del driver. Con 16 robots, adivinar saca la flota entera en rojo.

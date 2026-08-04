@@ -357,6 +357,19 @@ while ...: ex.spin_once(timeout_sec=0.1)      # 16.5 Hz — el valor real
 ```
 → Para *conducir* o esperar, `rclpy.spin_once` vale: ahí no se cuenta nada.
 
+**🔴 UN UMBRAL DE SILENCIO EN MILISEGUNDOS NO ES TRANSFERIBLE ENTRE TOPICS DE RITMOS DISTINTOS.**
+Los 3000 ms de `salud.ts` están calibrados contra `/odom`, que va a **16,5 Hz**: son **50 mensajes
+perdidos** antes de dar la alarma. El mismo número sobre `/motor_status`, que va a **1 Hz**, son
+**tres**. Reutilizarlo habría pintado **las 16 baldosas del muro del profesor «sin señal de vida» al
+primer hipo de WiFi** — justo el falso positivo que ese código existe para evitar.
+→ Lo pilló quien implementaba, contra un encargo mío que decía «usa `evaluarSalud()`». **El umbral
+  se expresa en MENSAJES PERDIDOS y se traduce a milisegundos con el período de SU topic**, no se
+  copia. En `atriz-lab` son dos constantes distintas (`UMBRAL_SILENCIO_MS` 3000 y
+  `UMBRAL_LATIDO_MURO_MS` 5000) **con una prueba que impide unificarlas**.
+→ 📝 Misma familia que «`ps -o %cpu` da el promedio, no lo instantáneo» y que los 11,3 Hz de
+  `spin_once`: **una cifra correcta en su contexto se vuelve falsa al mudarla de sitio.** Medido el
+  2026-08-04.
+
 **🔴🔴 EN ROSBRIDGE, EL PRIMER CLIENTE QUE SE SUSCRIBE A UN TOPIC IMPONE EL QoS A TODOS LOS
 DEMÁS.** rosbridge crea **una sola suscripción ROS por topic** y la comparte. Medido el 2026-08-04
 contra rvr-01, con control:

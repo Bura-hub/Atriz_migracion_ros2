@@ -4,6 +4,49 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 6) — La capa 1 de la app: hooks y modelo de flota. 97 -> 173 pruebas
+
+`atriz-lab`, `main`, commit `0d23e89`. Lo puro en `lib/flota/` (`resumen.ts`, `presupuesto.ts`) y la
+capa fina de React en `hooks/`. **`lib/rosbridge/` no se toco** — `git diff` sobre ese directorio
+sale vacio.
+
+**+76 pruebas, y 16 mutaciones aplicadas, 16 detectadas.** Una destapo un fallo de las propias
+pruebas: con `TEXTO_SIN_SENAL` cambiado a «robot averiado» seguian verdes, porque comparaban contra
+la constante y no contra la cadena. 📝 **Una prueba que compara contra la constante que el codigo usa
+no prueba el texto: prueba que dos sitios leen la misma variable.**
+
+### 🔴 Y un hallazgo que corrige un encargo mio, y vale como regla general
+
+**UN UMBRAL DE SILENCIO EN MILISEGUNDOS NO ES TRANSFERIBLE ENTRE TOPICS DE RITMOS DISTINTOS.**
+
+Mi encargo decia «el muro usa `evaluarSalud()`». Habria producido **un muro roto**: sus 3000 ms
+estan calibrados contra `/odom` a **16,5 Hz**, o sea **50 mensajes perdidos**. El muro del profesor
+no puede pagar `/odom` (13,05 kB/s x 16 = 209) y solo tiene `/motor_status` a **1 Hz**, donde los
+mismos 3000 ms son **TRES** mensajes: **las 16 baldosas «sin señal de vida» al primer hipo de WiFi**,
+que es exactamente el falso positivo que ese codigo existe para evitar.
+→ El umbral se piensa en **mensajes perdidos** y se traduce con el periodo de **su** topic. Quedan
+  dos constantes (`UMBRAL_SILENCIO_MS` 3000 · `UMBRAL_LATIDO_MURO_MS` 5000) **con una prueba que
+  impide unificarlas**.
+→ 📝 Misma familia que «`ps -o %cpu` da el promedio» y que los 11,3 Hz de `spin_once`: **una cifra
+  correcta en su contexto se vuelve falsa al mudarla de sitio.**
+
+### Lo que queda sin probar, y esta dicho
+
+- **El cableado de React** (~10 lineas por hook: `useState`, `useMemo`, arrays de dependencias, el
+  proveedor). No hay `jsdom` ni `@testing-library` y **no se instalan**. Riesgo concreto: que cambiar
+  de robot **no re-monte la conexion**. Se comprueba a mano en el navegador.
+- **Nada contra un robot real**: todo contra el doble de WebSocket.
+- El `as` de `useTopic` es **aserción, no validación**.
+- `Transporte` no tiene `alAbrirse`, asi que «conectado» se **muestrea** cada 500 ms.
+
+⚠️ Y un efecto colateral que costo un rojo: el agente del driver dejo `Atriz_rvr` **en la rama
+`feat/estado-robot`**, y `npm run contrato` compara contra el arbol de trabajo de ese repositorio.
+Salio en rojo por `/estado_robot`. **Devuelto a `ros2` y verde otra vez.** 📝 Un comprobador que lee
+un repositorio hermano depende de en que rama esta ese repositorio — y eso no se ve en el mensaje de
+error.
+
+---
+
 ## 2026-08-04 (parte 5) — Las tres señales que le faltan al robot, escritas y SIN VERIFICAR
 
 Rama **`feat/estado-robot`** de `Atriz_rvr`. 🔴 **`ros2` intacta en `65ad124`** — el codigo no se
