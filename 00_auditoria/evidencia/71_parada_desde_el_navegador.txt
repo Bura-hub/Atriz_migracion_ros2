@@ -63,6 +63,27 @@ cuatro fallos silenciosos.
      limpios— algo que la réplica del mismo protocolo, una hora después,
      desmintió. Con un mecanismo de seguridad, menos aún.
 
+── CUARTA CORRIDA (16:46 UTC), con el observador ya arreglado ────────────────
+    conectado · latido=2176        <- el driver se habia reiniciado (era 2541)
+    bandera de parada ANTES: false
+    barrido listo en 2.50 s
+    MOVIENDO a 0.2 m/s durante 1.5 s
+    recorrido antes de la parada: 27.8 cm
+    parada ENVIADA por /emergency_stop
+    ══ RECORRIDO TRAS LA PARADA: 1.8 cm ══
+    bandera de parada DESPUES: true
+    total desde el inicio: 29.6 cm
+
+  ✅ **4 de 4 corridas paran el robot.** Cuantificadas: **2,9 · 2,3 · 1,8 cm**
+     (rango 1,1). Los recorridos previos: 25,6 · 28,0 · 27,8 cm.
+  ⏳ **El lado del robot, PENDIENTE de pegar aquí.** El observador corría esta
+     vez, pero su salida no se ha visto todavía: hasta que esté, la comprobación
+     cruzada sigue sin hacerse. No se repite el error de la tercera corrida, que
+     se dio por cruzada antes de mirar.
+  📝 `/odom` se midió a **14,3 Hz** justo antes de esta corrida, contra los 16,5
+     habituales. No afecta al resultado —la granularidad de muestreo pasa de 60
+     a 70 ms— pero **no está explicado**. Anotado, no atribuido.
+
 ── ✅ Y LA CINTA, QUE ERA EL CRITERIO PENDIENTE DE LA TAREA 9 ────────────────
 El usuario midió el desplazamiento de esa misma corrida **con cinta**:
 
