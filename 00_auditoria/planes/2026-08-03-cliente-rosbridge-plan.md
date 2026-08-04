@@ -1,5 +1,26 @@
 # Cliente de rosbridge — Plan de implementación
 
+> # 🔴🔴 ESTE PLAN YA SE EJECUTÓ. NO SE VUELVE A EJECUTAR PASO A PASO.
+>
+> **La fuente de verdad es el código**, en `Bura-hub/atriz-lab` (privado), rama `cliente-rosbridge`,
+> en `frontend/src/lib/rosbridge/`. Este documento se conserva como **registro de lo que se planeó y
+> de lo que salió mal**, que es donde está su valor.
+>
+> **Por qué el aviso está en rojo:** los bloques de código de las tareas 6 y 7 **contienen defectos
+> que la revisión encontró después** —cuatro críticos en el transporte, entre ellos una parada de
+> emergencia que se perdía en silencio— y siguen aquí, marcados, para que no vuelvan por la puerta
+> de atrás. **Transcribirlos hoy reproduciría los defectos.**
+>
+> **El plan acumuló doce defectos propios**, y los doce salieron de **ejecutar** algo, ninguno de
+> releerlo: dos de rutas y anclajes, dos de recuentos de pruebas, uno de código de salida, uno de
+> tipo de mensaje, dos de salvaguardas que no salvaguardaban, y cuatro de diseño del transporte. Los
+> encontraron el implementador, los revisores y el usuario contra el robot — nunca el plan.
+>
+> 📝 **La lección, que es la que vale para el próximo plan:** un plan que trae el código escrito
+> **traslada sus errores intactos al repositorio**, y las revisiones que comparan «código contra
+> plan» los aprueban con un ✅ perfecto. Solo los cazó preguntar *«¿qué hace esto de verdad?»* en vez
+> de *«¿coincide con lo que pedí?»*.
+
 > **Para quien lo ejecute (persona o agente):** SUB-SKILL OBLIGATORIA — usa
 > `superpowers:subagent-driven-development` (recomendada) o `superpowers:executing-plans` para
 > implementarlo tarea a tarea. Los pasos llevan casilla (`- [ ]`) para ir marcándolos.
@@ -1050,7 +1071,10 @@ Esperado: **FALLA** con `Failed to resolve import "./transporte"`.
 
 - [ ] **Paso 3: Escribir la implementación mínima**
 
-Crear `frontend/src/lib/rosbridge/transporte.ts`:
+🔴 **NO TRANSCRIBAS ESTO. Tiene los cuatro defectos críticos de la cabecera de la tarea** — entre
+ellos `publicar()` perdiendo una parada de emergencia **en silencio**, y `cerrar()` que no cierra.
+La versión buena vive en `atriz-lab`, rama `cliente-rosbridge`,
+`frontend/src/lib/rosbridge/transporte.ts`. Lo de abajo se conserva **solo como registro**:
 
 ```ts
 import { RegistroPendientes, opAdvertise, opCallService, opPublish, opSubscribe } from './protocolo'
@@ -1374,7 +1398,10 @@ Esperado: **FALLA** con `Failed to resolve import "./teleoperacion"`.
 
 - [ ] **Paso 3: Escribir la implementación mínima**
 
-Crear `frontend/src/lib/rosbridge/teleoperacion.ts`:
+🔴 **NO TRANSCRIBAS ESTO.** No encaja con el `transporte.ts` final —cuyo `publicar()` **lanza**— y
+le falta el plazo de `arrancarBarrido()`, sin el cual la promesa queda pendiente para siempre y la
+suscripción a `/scan` **fuga**. La versión buena vive en `atriz-lab`,
+`frontend/src/lib/rosbridge/teleoperacion.ts`. Lo de abajo se conserva **solo como registro**:
 
 ```ts
 import type { Transporte } from './transporte'
@@ -1474,6 +1501,10 @@ export * from './teleoperacion'
 - [ ] **Paso 4: Ejecutar toda la batería y comprobar que pasa**
 
 Ejecutar: `cd frontend && npm test`
+⚠️ **Este recuento es el PLANEADO y quedó muy corto: el repositorio real tiene 65 pruebas** —10 de
+`contrato`, 9 de `protocolo`, 7 de `salud`, 19 de `transporte` y 20 de `teleoperación`—, porque cada
+ronda de arreglo añadió las suyas. La cifra de abajo se conserva como registro de lo que se planeó:
+
 Esperado: **PASA**. Los cinco ficheros de prueba, **39 pruebas** en total: 8 de `contrato`,
 7 de `salud`, 8 de `protocolo`, 9 de `transporte` y 7 de `teleoperacion`.
 
