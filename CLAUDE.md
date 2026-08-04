@@ -350,11 +350,34 @@ perfectas. **El fallo cambió de distancia.** → Con un fenómeno intermitente 
 se pierde lo que llegue. Medido las dos formas el 2026-07-31 sobre el mismo robot en el mismo
 minuto. Y la comprobación **pasaba** (el umbral es >10 Hz), así que habría llevado a «arreglar»
 un driver sano.
-→ Para **contar mensajes**, ejecutor persistente:
+→ Para **contar mensajes**, ejecutor persistente **y `timeout_sec=0.0`**:
 ```python
 ex = SingleThreadedExecutor(); ex.add_node(n)
-while ...: ex.spin_once(timeout_sec=0.1)      # 16.5 Hz — el valor real
+while ...: ex.spin_once(timeout_sec=0.0)      # 16.40 Hz — coincide con topic hz
 ```
+
+🔴 **CORREGIDO EL 2026-08-04: este remedio estaba INCOMPLETO y su cifra era falsa.** Decía
+`timeout_sec=0.1` con el comentario «16.5 Hz — el valor real». Remedido sobre el mismo robot,
+en el mismo minuto y contra `ros2 topic hz` como referencia:
+
+```
+ros2 topic hz /odom          16.51 Hz   <- referencia (y /imu 16.39-16.57)
+spin_once(timeout_sec=0.0)   16.40 Hz   ✅ coincide
+spin_once(timeout_sec=0.1)   15.02 Hz   🔴 el remedio DOCUMENTADO, subestimando
+     (y en otras tomas del día, 13.6-14.3 Hz)
+```
+
+**La causa no es el ejecutor: es que `spin_once` procesa UN callback por llamada.** Con
+`timeout_sec=0.1` el bucle gira ~10 veces por segundo, así que el conteo queda capado por el
+BUCLE y no por el robot. Poner un ejecutor persistente sin quitar el `0.1` arregla la mitad.
+→ ⚠️ Y esto costó una falsa alarma el 2026-08-04: se anotó «`/odom` a 14,3 Hz contra los 16,5
+  habituales, sin explicar» sobre un robot **sano**, dos veces y desde las dos máquinas.
+→ ⚠️ Una tercera variante —girar el ejecutor en un hilo aparte— dio 13.70 Hz, pero **esa medida
+  no se cree**: el proceso volcó el core al cerrar y está contaminada. Queda **sin medir**.
+→ 📝 La lección de segundo orden, que es la que vale: **una trampa documentada puede traer un
+  remedio que tampoco funciona.** Este llevaba desde el 2026-07-31 con una cifra inventada al
+  lado, y se usó sin comprobarlo porque venía con el sello de «ya medido».
+
 → Para *conducir* o esperar, `rclpy.spin_once` vale: ahí no se cuenta nada.
 
 **🔴 UN UMBRAL DE SILENCIO EN MILISEGUNDOS NO ES TRANSFERIBLE ENTRE TOPICS DE RITMOS DISTINTOS.**

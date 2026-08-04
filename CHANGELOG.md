@@ -4,6 +4,53 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 11) — La comprobación cruzada, hecha; y una falsa alarma resuelta
+
+**Cuarta corrida, y la primera con las dos mitades del mismo evento.** Hasta aquí cada lado se
+creía a sí mismo.
+
+```
+lado PC   recorrido antes 27,8 cm · TRAS LA PARADA 1,8 cm · total 29,6 cm
+lado Pi   log «PARADA DE EMERGENCIA» ×1  ·  Aug 04 11:46:13.890
+          /estado_robot: FLANCO False -> True presenciado (latido=2181)
+          código de salida 0
+```
+
+**4 de 4 corridas paran el robot.** Cuantificadas: **2,9 · 2,3 · 1,8 cm**, rango 1,1 — contra los
+9,9-10,7 del `collision_monitor`. La parada corta en el driver; no ralentiza con un polígono.
+
+⚠️ **Lo que NO cierra:** la latencia. Los dos relojes no están sincronizados a ese nivel y el
+testigo de la Pi se muestrea a 1 Hz. Prueba que el camino entrega y que el driver aplica; no cuánto
+tarda.
+
+### 🔴 Y una falsa alarma del mismo día, resuelta: «`/odom` a 14,3 Hz»
+
+Se anotó **desde las dos máquinas** que `/odom` iba a 14,3 Hz contra los 16,5 habituales, «sin
+explicar». **El robot estaba sano. Mentía el medidor**, y medido en el mismo minuto:
+
+```
+ros2 topic hz /odom .......... 16,51 Hz   ← referencia (/imu 16,39-16,57)
+spin_once(timeout_sec=0.0) ... 16,40 Hz   ✅
+spin_once(timeout_sec=0.1) ... 15,02 Hz   🔴  (en otras tomas, 13,6-14,3)
+```
+
+`spin_once` procesa **un callback por llamada**: con `timeout_sec=0.1` el bucle gira ~10 veces por
+segundo y el conteo queda capado por el **bucle**, no por el robot.
+
+🔴 **Esto corrige el remedio que `CLAUDE.md` daba por bueno desde el 2026-07-31**, que decía
+exactamente `timeout_sec=0.1` con el comentario «16.5 Hz — el valor real». La cifra era falsa y el
+remedio, la mitad: lo que arregla el conteo es el `0.0`, no el ejecutor persistente por sí solo.
+
+📝 **La lección de segundo orden, que es la que vale: una trampa documentada puede traer un remedio
+que tampoco funciona**, y se usa sin comprobarlo porque viene con el sello de «ya medido». Van tres
+cosas documentadas hoy que resultaron estar a medias — la espera de puertos de `atriz-robot.sh`, los
+`✓` de `fase_7 --simular`, y esta.
+
+⚠️ Una tercera variante —girar el ejecutor en un hilo— dio 13,70 Hz y **no se cree**: el proceso
+volcó el core al cerrar. Queda **SIN MEDIR**.
+
+---
+
 ## 2026-08-04 (parte 9) — `feat/estado-robot` probada en el robot y fusionada
 
 Fusionada en `ros2` (`65ad124..2fdcf6c`, avance limpio, 3 commits). Se probó **antes** de fusionar,

@@ -185,3 +185,54 @@ porque ese caso solo avisa, no falla.
 → Arreglado escribiendo el informe a un fichero. Y repetir NO era gratis: el
   robot queda con la parada puesta y liberarla es presencial.
 ═══════════════════════════════════════════════════════════════════════════════
+
+── ✅ LA COMPROBACIÓN CRUZADA, CERRADA — CUARTA CORRIDA (11:46:13) ───────────
+Es la primera vez en el proyecto que el MISMO evento se mide desde los dos
+lados. Hasta aquí, cada mitad se creía a sí misma.
+
+    lado PC   recorrido antes de la parada .... 27.8 cm
+              RECORRIDO TRAS LA PARADA .........  1.8 cm
+              total desde el inicio ............ 29.6 cm
+
+    lado Pi   log del driver ......... «PARADA DE EMERGENCIA» ×1
+                                       Aug 04 11:46:13.890
+              /estado_robot .......... FLANCO False -> True presenciado
+                                       (latido=2181)
+              código de salida ....... 0
+
+  ✅ **El flanco se presenció de verdad**, con un `False` anterior contra el que
+     compararlo. Eso es lo que hacía falta y lo que las tres corridas anteriores
+     NO tuvieron: en ellas el observador llegó tarde y —hasta que se arregló—
+     lo contaba como si lo hubiera visto. Ver la corrección de más abajo.
+  ✅ **4 de 4 corridas paran el robot.** Cuantificadas: 2,9 · 2,3 · 1,8 cm.
+     Rango 1,1 cm, contra los 9,9-10,7 del `collision_monitor`.
+
+  ⚠️ **Lo que esto NO cierra, y conviene no leer de más:** no mide la LATENCIA.
+     Los dos relojes —el del PC y el del journal de la Pi— no están sincronizados
+     a ese nivel, y el testigo de la Pi se muestrea a 1 Hz. Que ambos lados vean
+     la misma parada prueba que el camino entrega y que el driver aplica; no
+     cuánto tarda.
+
+── 🔴 Y UNA FALSA ALARMA DEL MISMO DÍA, RESUELTA: «/odom a 14,3 Hz» ───────────
+Antes de esta corrida se anotó, desde las dos máquinas, que `/odom` iba a
+**14,3 Hz** contra los 16,5 habituales, «dentro de lo tolerable pero sin
+explicar». **El robot estaba sano; mentía el medidor.** Medido en el mismo
+minuto:
+
+    ros2 topic hz /odom .......... 16.51 Hz   <- referencia (/imu 16.39-16.57)
+    spin_once(timeout_sec=0.0) ... 16.40 Hz   ✅
+    spin_once(timeout_sec=0.1) ... 15.02 Hz   🔴  (en otras tomas, 13.6-14.3)
+
+  🔴 **`spin_once` procesa UN callback por llamada**, así que con
+     `timeout_sec=0.1` el bucle gira ~10 veces por segundo y el conteo queda
+     capado por el BUCLE, no por el robot.
+  🔴 **Y esto corrige el remedio que CLAUDE.md daba por bueno desde el
+     2026-07-31**, que decía exactamente `timeout_sec=0.1` con el comentario
+     «16.5 Hz — el valor real». La cifra era falsa y el remedio, la mitad: lo
+     que arregla el conteo es el `0.0`, no el ejecutor persistente por sí solo.
+  📝 La lección de segundo orden: **una trampa documentada puede traer un remedio
+     que tampoco funciona**, y se usa sin comprobarlo porque viene con el sello
+     de «ya medido».
+  ⚠️ Una tercera variante —girar el ejecutor en un hilo— dio 13.70 Hz y **no se
+     cree**: el proceso volcó el core al cerrar. Queda SIN MEDIR.
+═══════════════════════════════════════════════════════════════════════════════
