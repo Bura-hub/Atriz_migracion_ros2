@@ -4,6 +4,62 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 13) — Por qué el muro no encontraba a ningún robot
+
+**El usuario avisó de que «no funciona nada en flota»**, y resultó no ser de la aplicación.
+Medido en el navegador con el robot **encendido y sano**:
+
+```
+ws://rvr-01.local:9090     🔴 12 s sin abrir, sin error y sin cierre
+ws://10.14.7.7:9090        🔴 12 s igual   <- LA MISMA FIRMA
+ws://192.168.1.58:9090     ✅ abre
+ws://192.168.1.200:9090    ✅ abre
+```
+
+`rvr-01.local` resuelve a **cuatro** direcciones y el resolutor las devuelve en este orden:
+`fe80::…` (IPv6 link-local **sin zona**, inservible), `10.14.7.7` (la estática del laboratorio),
+y **después** las dos que sirven. El navegador prueba en ese orden y **las dos primeras no
+fallan: se cuelgan**; un SYN sin respuesta tarda ~21 s en rendirse.
+
+🔴 **Es la consecuencia directa de la decisión «estática + DHCP conviven en `wlan0`»**, que sigue
+siendo correcta para el robot. Para un cliente significa que **desde cualquier red al menos una
+de sus direcciones es un agujero negro**. En el aula ocurre lo mismo al revés, y allí funciona
+**por suerte**: `10.14.7.7` va antes que las de casa.
+
+⚠️ **Y el diagnóstico fácil engaña:** `ping rvr-01.local` responde en **1 ms** —elige la `fe80`
+con su zona `%10`— y `Resolve-DnsName` lista las cuatro sin quejarse. Las dos herramientas dicen
+que el nombre está bien. Lo que falla es abrir un TCP **desde el navegador**.
+
+✅ **Cerrado en `atriz-lab` con dos piezas** (decisión del usuario entre tres opciones):
+
+- **Plazo de conexión de 5 s.** Sin él un socket colgado **nunca llama a `onclose`**, así que la
+  reconexión con espera creciente —escrita justo para esto— no llegaba ni a arrancar, y el muro
+  dejaba **16 conexiones colgadas para siempre**.
+- **Dirección por robot**, escrita a mano y guardada en el navegador. JavaScript **no puede**
+  enumerar lo que resolvió un nombre ni elegir dirección: no hay API.
+
+**Verificado con control:** `0 de 16` baldosas vivas por nombre, **`1 de 16` con la dirección
+puesta** (`rvr-01 · 7,96 V · en línea`).
+
+📝 **La forma general: un fallo que se CUELGA es peor que uno que falla.** Sin `onerror` ni
+`onclose` no hay nada que reintentar ni que registrar — el mismo perfil que el RVR dormido con el
+nodo vivo y el nodo muerto con systemd en verde.
+
+**Y de la misma sesión, mirando las pantallas con datos reales:**
+
+- **`lib/interfaz/repeticion.ts`**, que caza el texto duplicado que las pruebas no veían. Sus dos
+  parámetros salieron de **fallos propios**: `\b` en JavaScript es ASCII aunque lleve el flag `u`
+  —«batería a 8,29 V, a 1,29 V» casaba como «a a»— y el corte etiqueta/prosa hay que medirlo en
+  **palabras**, no en caracteres.
+- **`Atasco [no se sabe] no se sabe`**, la misma frase dos veces, repartida entre la insignia y
+  la antigüedad. Ningún detector la ve: trabajan sobre un solo elemento. La vio una captura.
+- **La mitad derecha de la pantalla estaba vacía** en conducir y LIDAR: paneles de 1104 px con el
+  texto capado a 600. No era oscuridad, era eso.
+
+`atriz-lab`: **321 → 358 pruebas**, `tsc` y `eslint` limpios.
+
+---
+
 ## 2026-08-04 (parte 12) — El encargo de diseño, replanteado pantalla a pantalla
 
 **`03_operacion/DESIGN.md`**, escrito con la skill `stitch-design-taste` y en su formato, que es

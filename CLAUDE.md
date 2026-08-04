@@ -451,6 +451,43 @@ para `/scan`, que es el 83 % del tráfico. Evidencia 68.
     cliente se lo cambia**, sin aviso y sin error. Antes de usar cualquier parámetro de `subscribe`,
     mira si el fuente lo combina entre clientes.
 
+**🔴🔴 `rvr-NN.local` RESUELVE A CUATRO DIRECCIONES, Y EL NAVEGADOR SE CUELGA EN LAS DOS
+PEORES.** Medido el 2026-08-04 en el navegador, con el robot **encendido y sano**:
+
+```
+ws://rvr-01.local:9090     🔴 12 s sin abrir, sin error y sin cierre
+ws://10.14.7.7:9090        🔴 12 s igual  <- LA MISMA FIRMA
+ws://192.168.1.58:9090     ✅ abre
+ws://192.168.1.200:9090    ✅ abre
+```
+
+El resolutor del sistema devuelve, **en este orden**: `fe80::da3a:ddff:fed6:c1ee` (IPv6
+link-local **sin zona**, que el navegador no puede usar), `10.14.7.7` (la estática del
+laboratorio), `192.168.1.58` y `192.168.1.200`. El navegador prueba en ese orden y **las dos
+primeras no fallan: se cuelgan** — un SYN sin respuesta tarda ~21 s en rendirse, así que nunca
+llega a las buenas.
+
+→ 🔴 **Es la consecuencia directa de la decisión «estática + DHCP conviven en `wlan0`»**, que se
+  verificó y se dio por buena porque el robot se muda de casa al aula sin tocar un comando. Sigue
+  siendo cierto **para el robot**; para un cliente significa que **desde cualquier red al menos
+  una de sus direcciones es un agujero negro**. En el aula pasa lo mismo al revés, y allí solo
+  funciona por suerte: `10.14.7.7` va antes que las de casa.
+→ 🔴 **Y JavaScript no puede arreglarlo:** no hay API para enumerar lo que resolvió un nombre ni
+  para elegir dirección. El cliente no puede competir entre ellas como hace el sistema operativo.
+→ ✅ Cerrado en `atriz-lab` con **dos** piezas: un **plazo de conexión de 5 s** —sin él un socket
+  colgado **nunca llama a `onclose`**, así que la reconexión con espera creciente no llegaba ni a
+  arrancar y el muro dejaba 16 conexiones colgadas para siempre— y una **dirección por robot**
+  que se escribe a mano. Verificado con control: **0 de 16** baldosas vivas por nombre, **1 de
+  16** con la dirección puesta.
+→ ⚠️ **Cuidado con el diagnóstico fácil:** `ping rvr-01.local` **funciona** (elige la `fe80` con
+  su zona `%10` y contesta en 1 ms) y `Resolve-DnsName` lista las cuatro sin quejarse. Las dos
+  herramientas dicen que el nombre está bien. Lo que falla es **abrir un TCP desde el navegador**,
+  y eso solo se ve midiéndolo ahí.
+→ 📝 **La forma general: un fallo que se CUELGA es peor que uno que falla.** Sin `onerror` ni
+  `onclose` no hay nada que reintentar, nada que registrar y nada que enseñar — el mismo perfil
+  que el RVR dormido con el nodo vivo, el nodo muerto con systemd en verde, y el descriptor del
+  LIDAR apuntando a un `/dev/ttyUSB0 (deleted)`.
+
 **🔴🔴 RETRACTADO EL 2026-08-01: `ros2 topic hz` SÍ FUNCIONA sobre topics BEST_EFFORT.**
 Medido en este robot con `ros2cli 0.32.10`:
 
