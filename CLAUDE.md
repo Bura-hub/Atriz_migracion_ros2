@@ -357,6 +357,33 @@ while ...: ex.spin_once(timeout_sec=0.1)      # 16.5 Hz — el valor real
 ```
 → Para *conducir* o esperar, `rclpy.spin_once` vale: ahí no se cuenta nada.
 
+**🔴🔴 EN ROSBRIDGE, EL PRIMER CLIENTE QUE SE SUSCRIBE A UN TOPIC IMPONE EL QoS A TODOS LOS
+DEMÁS.** rosbridge crea **una sola suscripción ROS por topic** y la comparte. Medido el 2026-08-04
+contra rvr-01, con control:
+
+```
+CASO 1 · sano primero, luego uno pidiendo RELIABLE
+  A sano antes de B  16.25 Hz   ·  A después de B  16.67 Hz  (sigue bien)
+  B pidiendo RELIABLE            16.50 Hz   <- su QoS se IGNORA, hereda el de A
+CASO 2 · el que pide RELIABLE llega PRIMERO
+  C pidiendo RELIABLE  0.00 Hz  ·  D sano, llegando después  0.00 Hz  <- NACE MUDO
+CASO 3 · control, dos sanos      16.60 y 16.60 Hz
+```
+
+🔴 **Con 16 robots y varias pestañas por robot, UNA pestaña que pida un QoS incompatible deja MUDAS
+a todas las demás de ese robot.** Y el síntoma es «este robot no manda datos», que se busca en el
+robot y no en el navegador. Sin aviso: rosbridge **no manda `status`** (confirmado en el cable —
+cero mensajes que no fueran `publish` o `service_response` en 30 s).
+
+→ **Regla: NO mandes campo `qos` en `subscribe`.** Sin él, rosbridge usa `qos_profile_sensor_data`
+(BEST_EFFORT), que empareja con publicadores BEST_EFFORT y RELIABLE por igual.
+→ ✅ **Y sí toma efecto cuando se manda**, al contrario de lo que el plan daba por no verificado:
+pedir `reliability: reliable` sobre `/odom` (que es BEST_EFFORT) da **0.00 Hz** entre dos controles
+a 16,5. `extract_qos_profile` existe en el 2.7.0 instalado; los valores van en **minúsculas con
+guión bajo**, y en mayúsculas lanzan `InvalidArgumentException`.
+→ ✅ **`throttle_rate` sí funciona:** `/imu` de 16,30 a **1,83 Hz** pidiendo 2. Es la palanca barata
+para `/scan`, que es el 83 % del tráfico. Evidencia 68.
+
 **🔴🔴 RETRACTADO EL 2026-08-01: `ros2 topic hz` SÍ FUNCIONA sobre topics BEST_EFFORT.**
 Medido en este robot con `ros2cli 0.32.10`:
 

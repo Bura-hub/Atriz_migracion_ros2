@@ -1,0 +1,106 @@
+═══════════════════════════════════════════════════════════════════════════════
+68 · El QoS de rosbridge 2.7.0, medido — y el primero que se suscribe manda
+═══════════════════════════════════════════════════════════════════════════════
+Fecha: 2026-08-04T01:1x-05:00   ·   Robot: rvr-01, encendido y sano
+Método: cliente WebSocket propio desde el PC contra ws://rvr-01.local:9090.
+        NO se movió el robot: no se publicó en /cmd_vel_raw ni /emergency_stop.
+
+Salud del robot durante la medida (12 s), para que conste que no está mudo:
+  /odom 16.58 Hz · /imu 16.58 · /encoders 16.50 · /tf 16.42 · /color 13.00
+  /motor_status 1.17 · /battery_state 0.17 · bateria 8.45 V
+  /scan 0.00  ← el barrido estaba apagado (es el estado normal en reposo)
+
+── 1 · ¿EL CAMPO `qos` TOMA EFECTO? SÍ ───────────────────────────────────────
+  El plan lo tenía marcado NO VERIFICADO desde el diseño del cliente. Leer el
+  fuente de upstream decía que sí, pero upstream NO es la version instalada.
+
+  Prueba discriminante: pedir `reliability: reliable` sobre /odom, que el driver
+  publica BEST_EFFORT. Si el QoS se aplica, DDS no empareja y no llega nada.
+  Secuencial sobre UNA conexión, con control a los dos lados:
+
+    1· control: sin campo qos                            16.67 Hz
+    2· qos best_effort (coincide con el publicador)      16.50 Hz
+    3· qos RELIABLE (NO coincide)                         0.00 Hz   <──
+    4· control de cierre: sin campo qos otra vez         16.50 Hz
+
+  ✅ `extract_qos_profile` EXISTE en el rosbridge 2.7.0 instalado y el perfil
+     llega al cable. Los valores van en minúsculas con guión bajo
+     (`best_effort`, `transient_local`, `keep_last`); en MAYÚSCULAS lanzan
+     InvalidArgumentException.
+
+── 2 · 🔴 Y LO QUE NADIE BUSCABA: EL PRIMERO QUE SE SUSCRIBE MANDA ───────────
+  rosbridge crea UNA sola suscripción ROS por topic y la comparte entre todos
+  los clientes. El QoS del PRIMERO gobierna; los que llegan después heredan.
+
+  Medido con tres casos y control:
+
+    CASO 1 · sano primero, luego uno pidiendo RELIABLE
+      A sano, antes de que llegue B ......... 16.25 Hz
+      A sano, DESPUÉS de llegar B ........... 16.67 Hz   (sigue bien)
+      B pidiendo RELIABLE ................... 16.50 Hz   <- su QoS se IGNORA
+
+    CASO 2 · el que pide RELIABLE llega PRIMERO
+      C pidiendo RELIABLE .................... 0.00 Hz
+      D sano, llegando después ............... 0.00 Hz   <- NACE MUDO
+
+    CASO 3 · control, dos sanos a la vez
+      E 16.60 Hz · F 16.60 Hz
+
+  🔴 CONSECUENCIA PARA EL LABORATORIO: con 16 robots y varias pestañas por
+     robot, UNA pestaña que pida un QoS incompatible deja MUDAS a todas las
+     demás de ese robot. Y el síntoma es «este robot no manda datos», que se
+     busca en el robot y no en el navegador.
+     Y no hay aviso: rosbridge NO manda `status` (ver punto 4).
+
+  → REGLA para el cliente: **no mandar campo `qos` en `subscribe`**. Con el
+    campo ausente rosbridge usa `qos_profile_sensor_data` (BEST_EFFORT), que
+    empareja con publicadores BEST_EFFORT y RELIABLE por igual. El cliente de
+    `atriz-lab` ya lo hace así — deja de ser prudencia y pasa a ser lo medido.
+  📝 Y explica un cero anómalo de la pasada anterior: dos conexiones, la
+     primera pidiendo RELIABLE, y AMBAS a 0. Se dio por no concluyente en su
+     momento —correctamente, porque el control falló— y este caso 2 lo explica.
+
+── 3 · `throttle_rate` FUNCIONA ──────────────────────────────────────────────
+    /imu SIN throttle (control) ..... 16.30 Hz
+    /imu CON throttle_rate: 500 ......  1.83 Hz    (pedido ~2 Hz)
+
+  ✅ Es la palanca barata para /scan, que es el 83 % del tráfico.
+
+── 4 · rosbridge 2.7.0 NO MANDA `status`: CONFIRMADO EN EL CABLE ─────────────
+  En toda la primera pasada (30 s, seis conexiones, cinco topics) llegaron
+  CERO mensajes que no fueran `publish` o `service_response`.
+  Coincide con lo leído en el fuente: `Protocol.log()` escribe en el logger del
+  nodo y ahí acaba. El canal `alAviso()` del cliente ya está corregido.
+
+── 5 · CAUDAL REAL, con el barrido APAGADO ───────────────────────────────────
+    /odom          13.05 kB/s   16.30 Hz     <- el 54 % sin /scan
+    /imu            9.48 kB/s   16.30 Hz
+    /encoders       1.39 kB/s   16.23 Hz
+    /motor_status   0.45 kB/s    1.03 Hz
+    /battery_state  0.03 kB/s    0.07 Hz
+    /scan           0.00 kB/s    0.00 Hz     <- apagado
+    TOTAL          24.40 kB/s
+
+  📝 Con /scan encendido la referencia del proyecto son 80,7 kB/s, de los que
+     /scan es el 83 %. Estos 24,4 son el suelo sin barrido, y son mayores que
+     los «13,6 en reposo» ya documentados porque aquí se midieron SEIS topics.
+
+── 6 · 🔴 `/start_scan` DEVUELVE `result: false` — PENDIENTE DEL ROBOT ───────
+    {"op":"service_response","service":"/start_scan",
+     "values":"Timeout exceeded while waiting for service response",
+     "result":false}                                    (tardó 6 s)
+
+  Y `/stop_scan` responde `result: true` con `values: {}` sin problema.
+  `rosapi` ve los dos servicios y ve `/scan` entre los 12 topics.
+  Tras la llamada, /scan siguió dando 0 mensajes en 6 s.
+
+  → NO es un fallo del transporte: es exactamente el `result: false` con motivo
+    real que el cliente ya sabe rechazar. **La causa está en el robot** y queda
+    por investigar allí. ⚠️ Sin `/scan` el collision_monitor bloquea el
+    movimiento, así que **esto bloquea la tarea 9** (teleoperar y medir con
+    cinta).
+  📝 En la primera pasada se leyó «sin respuesta» porque solo se esperaron 3 s.
+     La respuesta llega a los ~6. Un plazo corto convirtió un fallo con motivo
+     en un silencio: el plazo del cliente son 5 s por defecto y **también se
+     quedaría corto aquí**.
+═══════════════════════════════════════════════════════════════════════════════
