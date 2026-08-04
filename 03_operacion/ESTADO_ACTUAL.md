@@ -11,7 +11,16 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-03
+**Última actualización:** 2026-08-04
+
+## Los repositorios, de un vistazo
+
+| Repo | Rama | Estado |
+|---|---|---|
+| `Atriz_migracion_ros2` | `main` | este; privado |
+| `Atriz_rvr` | **`ros2`** ← por defecto desde el 2026-08-04 | público. Solo quedan **dos** ramas: `ros2` y `main` (ROS 1, 75 commits detrás). `migracion-ros2` y `wip/scripts-estudiantes` **borradas** el 2026-08-03 |
+| `atriz-lab` | `main` | **el** repositorio de la web; privado. `cliente-rosbridge` fusionada (PR #1) y borrada |
+| `Atriz_web_server` | `pruebas` | el viejo. **Público y con la `SECRET_KEY` de los JWT dentro** |
 
 ## En qué estamos
 
