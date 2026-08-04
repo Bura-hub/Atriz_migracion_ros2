@@ -1196,6 +1196,38 @@ git commit -m "transporte: un socket por robot, espera creciente y resuscripcion
 
 ## Tarea 7 · `teleoperacion.ts` — el bucle de 10 Hz, el barrido y la parada
 
+> 🔴 **EL CÓDIGO DE ABAJO NO SE IMPLEMENTÓ TAL CUAL, y la razón importa:** `transporte.ts` salió de
+> sus dos rondas de arreglo con un contrato distinto —**`publicar()` LANZA** si no hay conexión, en
+> vez de fallar en silencio—, y eso obliga a decidir dos cosas que el código de abajo no decide.
+> **La versión implementada es la que vale.**
+>
+> **Las dos decisiones, y son opuestas a propósito:**
+> - **El tick del bucle NO propaga.** Hay una ventana entre que el enlace muere y que `alCerrarse`
+>   corta el bucle; una excepción sin capturar dentro de un `setInterval` es un error que nadie ve.
+>   El tick **captura, detiene el bucle y deja constancia** — nunca lo traga en silencio.
+> - **`paradaEmergencia()` SÍ propaga**, y `parar()` también. Si la parada no se pudo enviar, quien
+>   la pulsó **tiene que enterarse** para decírselo al usuario. El llamante está obligado a manejarlo.
+>
+> ✅ **Y dos detalles que la revisión verificó y merecen quedar escritos:**
+> - **El primer `Twist` sale de forma SÍNCRONA**, sin esperar los 100 ms del primer periodo. Con el
+>   watchdog a **300 ms**, perder un ciclo de margen habría sido un error real.
+> - **`paradaEmergencia()` corta el bucle ANTES de publicar**, así que aunque el publish falle el
+>   bucle ya está parado. El orden decide cuál de las dos cosas pasa.
+>
+> 🔴 **Y un defecto de este plan que la revisión no aceptó como «limitación conocida»:
+> `arrancarBarrido()` no tenía plazo.** Si `/start_scan` responde y `/scan` **no llega nunca**, la
+> promesa queda pendiente **para siempre** — y medido: **la suscripción a `/scan` queda registrada
+> sin ninguna forma pública de cancelarla**. Con `/scan` al **83 %** del tráfico, un intento fallido
+> deja ese canal abierto de por vida. Y el usuario no ve ni error ni progreso: es la familia de
+> fallo «el robot no dice nada» aplicada a la web. **`atriz.py` ya lo resolvió con un tope de ~8 s
+> y este plan no siguió su propio precedente.** → Plazo de 8 s que **rechaza con un mensaje útil Y
+> se da de baja de `/scan`**; solo rechazar deja la fuga.
+>
+> ⚠️ **Y una limitación del navegador que hay que saber:** en una pestaña **en segundo plano** los
+> temporizadores se limitan a ~1 Hz. Con el watchdog a 0,3 s eso **detiene el robot por inanición**
+> de `cmd_vel_raw`. El efecto es **seguro** —el robot para— pero sorprende a quien teleopera. No se
+> puede ejercitar con temporizadores falsos: se documenta, no se prueba.
+
 **Ficheros:**
 - Crear: `frontend/src/lib/rosbridge/teleoperacion.ts`, `frontend/src/lib/rosbridge/index.ts`
 - Test: `frontend/src/lib/rosbridge/teleoperacion.test.ts`
