@@ -1,0 +1,101 @@
+═══════════════════════════════════════════════════════════════════════════════
+71 · La parada de emergencia POR WEBSOCKET, con el robot EN MARCHA
+═══════════════════════════════════════════════════════════════════════════════
+Fecha: 2026-08-04, corridas a las 09:25, 09:30 y 09:33 (-05:00)   ·   Robot: rvr-01, sano
+Método: `Transporte` y `Teleoperacion` de PRODUCCIÓN de `atriz-lab` (`main`),
+        contra ws://rvr-01.local:9090. Guion:
+        `frontend/src/lib/rosbridge/parada_en_marcha.test.ts`
+
+── POR QUÉ HACÍA FALTA, SI YA SE HABÍA PROBADO ───────────────────────────────
+La parada ha fallado CINCO veces en este proyecto, y cuatro devolviendo éxito
+con CERO efecto: nombre de topic (ROS 1), namespace (`/rvr/` colado al portar),
+QoS incompatible, y la cuarta al SOLTARLA —el robot arrancó solo, 34,7 cm—.
+
+Y la pata del NAVEGADOR no se había ejercido nunca. El navegador **no publica
+con `rclpy`**: manda `advertise` + `publish` por WebSocket y es **rosbridge**,
+ya dentro del robot, quien resuelve el nombre y elige el QoS. Ese es código
+distinto del que se probó desde la Pi, y es justo donde vivieron dos de los
+cuatro fallos silenciosos.
+
+── LO MEDIDO ─────────────────────────────────────────────────────────────────
+    conectado a ws://rvr-01.local:9090 · latido=2386
+    bandera de parada ANTES: false
+    barrido listo en 2.23 s
+    🔴 MOVIENDO a 0.2 m/s durante 1.5 s
+    recorrido antes de la parada: 25.6 cm
+    parada ENVIADA por /emergency_stop
+    ══ RECORRIDO TRAS LA PARADA: 2.9 cm ══
+    bandera de parada DESPUES: true
+    total desde el inicio: 28.5 cm
+
+  ✅ **2,9 cm.** Para comparar: el `collision_monitor` frena en 9,9-10,7 cm. La
+     parada de emergencia es un corte en el driver, no un polígono que ralentiza,
+     y se nota.
+  ✅ **`/estado_robot.parada_emergencia` pasó a `true`** — el testigo que la Pi
+     fusionó esta misma mañana. Es la primera vez que la web puede VER que la
+     parada se aplicó, en vez de suponerlo por el `200 OK`.
+  📝 25,6 cm donde el cálculo da 30 (1,5 s × 0,20 m/s). Lo explica la rampa de
+     aceleración de ~0,5 s ya medida; no es un déficit nuevo.
+
+── LA RÉPLICA (14:33 UTC), con el observador de la Pi ya activo ──────────────
+    conectado · latido=2541
+    bandera de parada ANTES: false
+    barrido listo en 2.10 s
+    MOVIENDO a 0.2 m/s durante 1.5 s
+    recorrido antes de la parada: 28.0 cm
+    parada ENVIADA por /emergency_stop
+    ══ RECORRIDO TRAS LA PARADA: 2.3 cm ══
+    bandera de parada DESPUES: true
+    total desde el inicio: 30.2 cm
+
+  ✅ **3 de 3 corridas paran el robot**, y las dos cuantificadas dan
+     **2,9 y 2,3 cm** — rango 0,6 cm. El barrido arrancó en 2,23 y 2,10 s.
+     Y la bandera del driver pasó a `true` en las dos.
+  📌 Esta es la que tiene el testigo del robot en paralelo
+     (`observar_parada_emergencia.py`): el MISMO evento medido desde los dos
+     lados. La de las 09:30 se lanzó sin el observador puesto.
+  📝 Replicar no es ceremonia aquí: este proyecto ya concluyó una vez —con datos
+     limpios— algo que la réplica del mismo protocolo, una hora después,
+     desmintió. Con un mecanismo de seguridad, menos aún.
+
+── ANTES, UNA SONDA DE SOLO LECTURA ──────────────────────────────────────────
+Sin publicar nada, para comprobar el estado de partida y de paso el contrato:
+
+    /odom          16.49 Hz          /estado_robot   1.17 Hz
+    parada_emergencia      false     latido                 2339
+    rvr_responde           true      reanudaciones_fallidas 0
+    antiguedad_muestra_s   0.0036    antiguedad_odom_s      0.0046
+
+  ✅ `/estado_robot` **atraviesa la lista blanca y llega al navegador**.
+  ✅ Las dos antigüedades salen **pegadas**, que es el caso sano. Cuando falten
+     componentes de `/odom`, la de odom crecerá y la de muestra no: el
+     discriminante del tercer estado está vivo.
+  ✅ Y la bandera refleja el `release` hecho por SSH: **la mitad de «soltarla»
+     también tiene testigo ahora**, que es donde falló la cuarta vez.
+
+── LO QUE ESTO NO DICE ───────────────────────────────────────────────────────
+  ⚠️ **n=3, y solo dos traen números.** La primera corrida (09:25) también aprobó
+     —el guion exige < 20 cm— pero vitest se comió su salida. O sea: el mecanismo
+     funcionó **3 de 3**, y está cuantificado en 2. La regla del proyecto sigue
+     aplicando: para un mecanismo de seguridad, «lo probé y funcionó» no basta;
+     hay que preguntarse en qué condiciones NO funcionaría.
+  ⚠️ **Solo cubre este camino y estas condiciones**: avance recto a 0,20 m/s,
+     sin Nav2, con la conexión ya abierta. NO cubre parar una meta de
+     `/navigate_to_pose` en curso, que es el otro riesgo abierto
+     (`send_action_goals_in_new_thread`).
+  ⚠️ El desplazamiento es **odometría**, no cinta.
+  🔴 **El robot queda con la parada PUESTA.** El guion no la libera a propósito:
+     `Teleoperacion` no expone ninguna forma de hacerlo, porque soltarla exige
+     comprobar antes que no haya un objetivo de Nav2 activo.
+         ros2 service call /release_emergency_stop std_srvs/srv/Empty
+
+── UN FALLO DE INSTRUMENTACIÓN, PORQUE COSTÓ UNA CORRIDA ─────────────────────
+La primera corrida **aprobó y no dejó ni un número**: vitest intercepta la
+consola y su reportero por defecto no la imprime. Quedó el verde y se perdió la
+medida — y con ella lo único que decía si el tercer testigo había confirmado,
+porque ese caso solo avisa, no falla.
+→ Es la misma familia que «canalizar la salida de `ros2 topic hz` la esconde»:
+  el instrumento estaba bien y **el canal de salida se comió el dato**.
+→ Arreglado escribiendo el informe a un fichero. Y repetir NO era gratis: el
+  robot queda con la parada puesta y liberarla es presencial.
+═══════════════════════════════════════════════════════════════════════════════

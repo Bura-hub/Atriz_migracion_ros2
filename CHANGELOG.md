@@ -70,6 +70,47 @@ MENSAJES: 11.3 Hz sobre un robot que va a 16.5»— y aun así se usó toda la n
 
 ---
 
+## 2026-08-04 (parte 9) — La parada de emergencia, POR WEBSOCKET y con el robot en marcha
+
+**Era la pata que faltaba, y es la que mas ha mentido.** La parada ha fallado CINCO veces en este
+proyecto, cuatro devolviendo exito con cero efecto. El navegador **no publica con `rclpy`**: manda
+`advertise` + `publish` por WebSocket y es **rosbridge, ya dentro del robot**, quien resuelve el
+nombre y elige el QoS — que es justo donde vivieron dos de esos cuatro fallos. Ese camino no se
+habia ejercido nunca.
+
+Con `Transporte` y `Teleoperacion` de PRODUCCION, sin atajos. Evidencia 71.
+
+    recorrido antes de la parada   25.6 cm  ·  28.0 cm
+    RECORRIDO TRAS LA PARADA        2.9 cm  ·   2.3 cm     <- 3 de 3 corridas
+    bandera de parada DESPUES        true   ·    true
+
+✅ **2,3-2,9 cm.** El `collision_monitor` frena en 9,9-10,7: la parada de emergencia **corta en el
+driver**, no ralentiza con un poligono, y se nota.
+✅ **`/estado_robot.parada_emergencia` paso a `true`** — el testigo que se fusiono esta misma
+mañana. **Es la primera vez que la web puede VER que la parada se aplico**, en vez de deducirlo de
+un `200 OK`, que es exactamente como mintio cuatro veces.
+✅ Y una sonda de solo lectura confirmo de paso que **`/estado_robot` atraviesa la lista blanca y
+llega al navegador**, que `antiguedad_muestra_s` y `antiguedad_odom_s` salen **pegadas** en el caso
+sano —el discriminante del tercer estado esta vivo—, y que la bandera **refleja el `release`**: la
+mitad de «soltarla», donde fallo la cuarta vez, tambien tiene testigo ahora.
+
+⚠️ **Lo que NO cubre:** avance recto a 0,20 m/s, sin Nav2, conexion ya abierta. **No** cubre parar
+una meta de `/navigate_to_pose` en curso, que sigue abierto. Y el desplazamiento es odometria, no
+cinta.
+
+### 🔴 Y un fallo de instrumentacion que costo una corrida entera
+
+**La primera corrida aprobo y no dejo ni un numero.** Vitest intercepta la consola y su reportero por
+defecto no la imprime: quedo el verde y se perdio la medida — y con ella lo unico que decia si el
+tercer testigo habia confirmado, porque ese caso **solo avisa, no falla**. Del `PASSED` no se podia
+deducir.
+→ Misma familia que «canalizar la salida de `ros2 topic hz` la esconde»: el instrumento estaba bien
+  y **el canal de salida se comio el dato**. Van seis veces que el instrumento miente aqui.
+→ Y repetir **no era gratis**: el robot queda con la parada puesta y liberarla es presencial.
+  Arreglado escribiendo el informe a un fichero.
+
+---
+
 ## 2026-08-04 (parte 8) — El tercer estado: /odom muerto con el enlace VIVO
 
 Lo encontro la revision **desde el robot** de la rama `feat/estado-robot`, antes de fusionarla, y es
