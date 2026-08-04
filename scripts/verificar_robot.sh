@@ -315,7 +315,7 @@ if [[ -d "$WS/.git" ]]; then
     DAL="$WS/atriz_rvr_driver/scripts/sphero_sdk/asyncio/client/dal/serial_async_dal.py"
     grep -q "port_id='/dev/rvr'" "$DAL" 2>/dev/null \
         && _ok "SDK usa /dev/rvr por defecto (commit 67c8776)" \
-        || _mal "el SDK NO usa /dev/rvr por defecto" "¿estás en la rama migracion-ros2? falta el commit 67c8776"
+        || _mal "el SDK NO usa /dev/rvr por defecto" "¿clonaste sin -b ros2? un clone a secas da main, que no lleva 67c8776"
     # 🔴 CORREGIDO 2026-07-31: esto comprobaba `Atriz_rvr_node.py`, que es el
     # driver de ROS 1. Sigue en el repo como herencia, así que la comprobación
     # PASABA mirando un fichero que no se ejecuta — deriva silenciosa, justo lo

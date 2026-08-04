@@ -16,8 +16,9 @@
 >    prácticas de color) y la 63 (el seguidor de línea)**. Va más abajo.
 > 2. **Rotar la PSK del WiFi y la contraseña de `sphero`**, que es lo único que cierra la
 >    exposición del repositorio público. Medido tras el push: la **punta** de `ros2` ya está
->    limpia (**0**), pero `main`, `migracion-ros2` y `wip/scripts-estudiantes` siguen con **11
->    cada una**, y el **historial** de las cuatro las conserva.
+>    limpia (**0**) y la de `main` sigue sucia; el **historial de las dos las conserva**.
+>    ⚠️ El 2026-08-03 se borraron `migracion-ros2` y `wip/scripts-estudiantes`, que también las
+>    servían: **eso NO cierra nada**, solo deja de servirlas por esas dos puntas.
 >
 > Y falta también la corrida completa de la prueba de aceptación tras un reinicio real.
 >
@@ -39,8 +40,8 @@ Los diez guiones y cinco documentos del curso venían en ROS 1: `import rospy` �
 8 ficheros — la **salida** del `collision_monitor`, así que si hubieran arrancado habrían saltado
 la capa de seguridad entera. Y `00_LEEME_PRIMERO.md` / `GUIA_PASO_A_PASO.md` llevaban en texto
 plano la **PSK del WiFi del laboratorio** y la contraseña del usuario `sphero`, empujadas al
-remoto **público** `Atriz_rvr` en cuatro ramas (`main`, `ros2`, `migracion-ros2`,
-`wip/scripts-estudiantes`). Reescritos los diez guiones y los cinco documentos sobre `atriz.py`
+remoto **público** `Atriz_rvr` en las cuatro ramas que entonces existían (`main`, `ros2`,
+`migracion-ros2` y `wip/scripts-estudiantes`; las dos últimas borradas el 2026-08-03). Reescritos los diez guiones y los cinco documentos sobre `atriz.py`
 —diseño en [`03_operacion/API_LABORATORIO.md`](03_operacion/API_LABORATORIO.md)—, con **61
 tests** de las funciones puras y verificado que ningún guion importa `rospy` ni escribe en
 `/cmd_vel`. **Nada se ha medido con el robot moviéndose todavía** — ver más abajo, «Material
@@ -1098,11 +1099,15 @@ a ✅ con la fecha. **En el repositorio, no en un mensaje de chat.**
 | `Atriz_migracion_ros2` | `main` | — | Este repositorio: auditoría, plan, manual, scripts |
 | `Atriz_rvr` | `main` | `6f48ae1` | Original + **el arreglo del UART** (cherry-pick de `67c8776`) |
 | `Atriz_rvr` | **`ros2`** ← rama de trabajo actual | `1b1239a` (histórico) → **`ff2ea8a`** (2026-08-03, **empujado** a `origin/ros2`) | `atriz_rvr_msgs` portado a ament+rosidl, y desde el 2026-08-02 el material docente reescrito sobre `atriz.py` — ver «Material docente», arriba |
-| `Atriz_rvr` | `migracion-ros2` | `24c7749` | UART → `/dev/rvr` · `interval` 250→60 ms |
-| `Atriz_rvr` | `wip/scripts-estudiantes` | `62e0313` | Stash rescatado. **No mezclar** — ver decisión pendiente arriba |
+| ~~`Atriz_rvr`~~ | ~~`migracion-ros2`~~ | `24c7749` | 🗑️ **Borrada el 2026-08-03.** Era ancestro estricto de `ros2` (73 commits detrás, 0 propios): no se perdió nada, y `24c7749` sigue alcanzable desde `origin/ros2` |
+| ~~`Atriz_rvr`~~ | ~~`wip/scripts-estudiantes`~~ | `62e0313` | 🗑️ **Borrada el 2026-08-03.** Stash rescatado; su decisión pendiente la contestaron los hechos (el tutorial está restaurado y el seguidor tiene su fichero). El mecanismo que valía está conservado en `CLAUDE.md` |
 | `Atriz_web_server` | `pruebas` | `924d659` | Sin tocar — se aborda al final |
 
-La rama `migracion-ros2` se creó **desde `origin/main`**, no desde el clon local. Importante:
+🔴 **`origin/HEAD` de `Atriz_rvr` apunta a `main`**, que es ROS 1 y está **75 commits** por
+detrás: un `git clone` a secas te da eso. **Clona siempre con `-b ros2`.** 👤 Pendiente del
+usuario cambiar la rama por defecto en GitHub.
+
+📝 `migracion-ros2` se había creado **desde `origin/main`**, no desde el clon local. Importante:
 ver la lección de abajo.
 
 ### ⚠️ Por qué el arreglo del UART también está en `main`

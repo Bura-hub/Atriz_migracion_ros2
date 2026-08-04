@@ -4,6 +4,76 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-03 (parte 7) — Dos ramas muertas de `Atriz_rvr`, y un stash que ya sabía la respuesta
+
+De las cuatro ramas remotas de `Atriz_rvr` quedan **dos**. Las otras dos se borraron hoy, y las
+dos por motivos distintos.
+
+### `migracion-ros2` — borrada, no perdía nada
+
+Medido antes de tocarla: **ancestro estricto de `ros2`**, 73 commits por detrás, **0 commits
+propios**. Su contenido es ROS 1 (`buildtool_depend: catkin`, 44 ficheros con `import rospy`,
+0 con `rclpy`), o sea que el aviso que llevaba la documentación era correcto.
+
+📝 **El nombre era la trampa: se llama «migracion-ros2» y no contiene una línea de ROS 2.**
+Significaba «la rama DE la migración» —el ROS 1 sano del que se partió, con el UART a `/dev/rvr`
+y el `interval` 250→60 ms que subió `/odom` de 3.85 a 16.59 Hz— no «la rama CON ROS 2». Cada vez
+que se citaba había que gastar una línea en avisar. Una rama cuyo nombre necesita una advertencia
+al lado ya no ayuda.
+
+✅ Los dos commits que cita la documentación (`24c7749` y `67c8776`) **siguen alcanzables desde
+`origin/ros2`**: ninguna cita se rompe.
+
+### `wip/scripts-estudiantes` — borrada, y sí perdía algo, pero muy poco
+
+Esta **no** era ancestro: 1 commit propio (`62e0313`), 3 ficheros. Era el rescate de un `git
+stash` que solo vivía en la microSD, días antes de reflashear. De los tres ficheros, **dos eran
+daño, no trabajo**:
+
+| | Qué contenía |
+|---|---|
+| `02_girar.py` | el cambio entero es un typo de un pegado accidental: `del programa` → `del prograpythonma` |
+| `11_sensor_avanzado.py` | menú recortado de 3 opciones a 1 **sin tocar el despacho**: dice «1. Modo Reacción» y al pulsar 1 ejecuta `calibrar_colores()` |
+| `01_avanzar.py` | 🔴 el primer tutorial del curso, **reemplazado entero** por un `SeguidorBordeRojo` |
+
+Y la decisión que aparcaba —«¿el seguidor a su propio fichero y se restaura el tutorial, o se
+descarta?»— **ya la contestaron los hechos**: hoy `origin/ros2` tiene `01_avanzar.py` como
+tutorial y `seguidor_linea_pid_demo.py` en su propio fichero.
+
+🔴 **Pero ese seguidor ya tenía el mecanismo que el proyecto re-derivó cuatro días después**
+—signo por estado arrastrado, invertido tras N ciclos sin ver el borde—, y nadie lo cruzó contra
+el rediseño del 2026-08-02. **Conservado en `CLAUDE.md`**, con el fragmento de código y la regla:
+antes de diseñar algo que el proyecto ya intentó, busca los intentos anteriores, incluidas las
+ramas WIP.
+
+### 🔴 Y la trampa que queda viva: `origin/HEAD` de `Atriz_rvr` apunta a `main`
+
+```
+origin/main   ros2 tiene 75 commits de más   ·   último: 2026-07-29
+```
+
+**Un `git clone` a secas de `Atriz_rvr` da `main`**, que es ROS 1 y no tiene ninguno de los 23
+commits de hoy. Es la misma trampa que hizo que las dos auditorías de `Atriz_web_server` se
+contradijeran (parte 6). Se cierra desde GitHub cambiando la rama por defecto. 👤 **Pendiente
+del usuario.** Mientras tanto, `-b ros2` es obligatorio y así está escrito en `CLAUDE.md`,
+`INSTALACION.md` y el manual.
+
+### Exposición de credenciales: no mejora, y conviene decirlo
+
+Borrar dos ramas **no cierra nada**. Reproducida hoy la medición documentada
+(`grep -c "Contraseña"` sobre los dos ficheros del curso, por punta de rama):
+
+```
+origin/main                     8      ← sigue sirviéndolas
+origin/ros2                     0      ✅
+origin/wip/scripts-estudiantes  8      ← borrada
+```
+
+El **historial** de `main` y `ros2` las conserva igual. 👤 **Rotar la PSK y la contraseña de
+`sphero` sigue siendo lo único que lo cierra.**
+
+---
+
 ## 2026-08-03 (parte 6) — Nadie fijó la rama, y por eso las dos auditorías se contradijeron
 
 `Atriz_web_server` tiene **TRES ramas que son códigos distintos**, y `compare` entre ellas devuelve

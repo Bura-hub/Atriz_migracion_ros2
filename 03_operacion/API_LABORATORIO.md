@@ -36,10 +36,11 @@ física— está en `TRASPASO.md`.
 
 **Y esto no lo arregla ningún trabajo de documentación:** las credenciales encontradas en
 `Atriz_rvr` (PSK del WiFi del laboratorio y contraseña de `sphero`) siguen en el **historial** de
-las cuatro ramas remotas: tras el push, la **punta** de `origin/ros2` ya está limpia (**0**) y las de `main`,
-`migracion-ros2` y `wip/scripts-estudiantes` siguen con **11 cada una**; el **historial**
-de las cuatro las conserva, y ningún tag. Rotarlas es
+las ramas remotas: tras el push, la **punta** de `origin/ros2` ya está limpia (**0**) y la de
+`main` no; el **historial de las dos las conserva**, y ningún tag. Rotarlas es
 acción del usuario y es lo único que cierra la exposición.
+⚠️ El 2026-08-03 se borraron `migracion-ros2` y `wip/scripts-estudiantes`, que también las
+servían por su punta. **Borrar ramas no cierra la exposición**; solo reduce por dónde se sirve.
 
 ---
 

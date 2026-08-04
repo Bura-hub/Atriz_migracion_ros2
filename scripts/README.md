@@ -122,8 +122,8 @@ un respaldo que no existe.
 
 > ⚠️ **Después de este script hay que cambiar el código.** El puerto pasa de `ttyS0` a
 > `ttyAMA0`, y el driver tenía `/dev/ttyS0` hardcodeado en 6 sitios. Hecho en el commit
-> `67c8776` de la rama `migracion-ros2` de `Atriz_rvr`. Sin ese cambio el robot deja
-> de responder.
+> `67c8776`, hoy en el histórico de la rama `ros2` de `Atriz_rvr` (se hizo en
+> `migracion-ros2`, borrada el 2026-08-03). Sin ese cambio el robot deja de responder.
 
 > ℹ️ **Falsa alarma documentada.** Tras aplicar el overlay, `uart0_pins` queda con
 > `brcm,pins` **vacío** en el device-tree y el mini-UART pasa a `disabled`. Parece que

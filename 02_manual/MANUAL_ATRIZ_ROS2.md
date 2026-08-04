@@ -232,7 +232,8 @@ Los demás: `serial_observer_dal.py:17`, `scripts/rgbc_sensor_service.py:61`,
 `rvr_with_lidar.launch`. Quedan dos en C++ (`sphero_rvr_hw_interface.cpp:29`,
 `base_controller.cpp:40`) que **no se ejecutan** y se eliminan en el port a ROS 2.
 
-Hecho en el commit `67c8776` de la rama `migracion-ros2`.
+Hecho en el commit `67c8776`, hoy en el histórico de `ros2` (se hizo en `migracion-ros2`,
+rama borrada el 2026-08-03; el commit sigue alcanzable).
 
 > **No hace falta recompilar.** `devel/lib/python3/dist-packages/sphero_sdk` es un
 > redirector al código fuente, no una copia — verificado con `inspect.getfile()`. Editar
@@ -347,9 +348,9 @@ y Nav2 encima habrá que medir de nuevo — es la referencia contra la que compa
 
 ### 2.6 Aplicado
 
-`atriz_rvr_driver/scripts/Atriz_rvr_node.py:1313` → `interval=60`. Commit `24c7749` en
-`migracion-ros2`. En el port a `rclpy` pasa a ser el valor por defecto del parámetro
-`streaming_interval_ms`.
+`atriz_rvr_driver/scripts/Atriz_rvr_node.py:1313` → `interval=60`. Commit `24c7749`, hoy en el
+histórico de `ros2` (se hizo en `migracion-ros2`, rama borrada el 2026-08-03). En el port a
+`rclpy` pasa a ser el valor por defecto del parámetro `streaming_interval_ms`.
 
 ---
 
@@ -1191,8 +1192,8 @@ sudo pip3 install --break-system-packages pyserial-asyncio
 ```bash
 mkdir -p ~/atriz_ws/src && cd ~/atriz_ws/src
 git clone -b ros2 https://github.com/Bura-hub/Atriz_rvr.git
-#            ↑ `ros2`, NO `migracion-ros2`: esa es la rama VIEJA con código de
-#              ROS 1 (catkin), que no compila con colcon.
+#            ↑ `-b ros2` es OBLIGATORIO: `origin/HEAD` apunta a `main`, que es
+#              ROS 1 (catkin), no compila con colcon y está 75 commits detrás.
 
 # Regla nº1 del proyecto: fetch ANTES de mirar el código
 git -C ~/atriz_ws/src/Atriz_rvr fetch origin

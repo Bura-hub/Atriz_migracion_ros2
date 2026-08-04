@@ -96,6 +96,7 @@ Es la única pieza que ninguna medición pendiente puede invalidar.
 | **`red.txt` en 755** | 👤 tuyo. La PSK es legible por cualquier usuario; `chmod` no sirve, va `fmask=0177` en `/etc/fstab` |
 | **El mapa del aula** | 👤 tuyo, en el laboratorio. Bloquea la tarea 4 del plan de navegación |
 | **`~/.ssh/authorized_keys` vacío** | 👤 tuyo, desde el PC |
+| 🔴 **`origin/HEAD` de `Atriz_rvr` apunta a `main`** | 👤 tuyo, en GitHub (Settings → default branch). **Un `git clone` a secas da `main`**: ROS 1, sin ninguno de los 23 commits de hoy, 75 por detrás de `ros2`. Es la misma trampa que hizo que las dos auditorías de `Atriz_web_server` se contradijeran. Mientras tanto, `-b ros2` es obligatorio |
 
 ## Marcado NO VERIFICADO
 

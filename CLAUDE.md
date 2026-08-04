@@ -16,7 +16,7 @@ Tres repositorios:
 | Repo | Qué es |
 |---|---|
 | **este** (`Atriz_migracion_ros2`) | Auditoría, plan, manual, scripts, documentación de operación |
-| `Bura-hub/Atriz_rvr` | Código del robot. Rama de trabajo: **`ros2`**. ⚠️ `migracion-ros2` es la rama VIEJA con código de ROS 1: no compila con colcon |
+| `Bura-hub/Atriz_rvr` | Código del robot. Rama de trabajo: **`ros2`**. 🔴 **Clona con `-b ros2` SIEMPRE**: `origin/HEAD` apunta a `main`, que es ROS 1 (catkin) y está **75 commits por detrás** — un `git clone` a secas te da eso |
 | `Bura-hub/Atriz_web_server` | Plataforma web. **Se aborda al final**, no antes |
 
 ---
@@ -78,9 +78,12 @@ contiene: por eso este repositorio es **privado**.
 fichero y otras dos credenciales:** la PSK del WiFi del laboratorio y la contraseña del usuario
 `sphero`, en texto plano en `scripts/estudiantes/00_LEEME_PRIMERO.md` y
 `GUIA_PASO_A_PASO.md`. Las once líneas se **sacaron del contenido actual** al reescribir esos
-documentos (tarea 12, commit `d543cdd`), pero **siguen en el historial** de `main`, `ros2`,
-`migracion-ros2` y `wip/scripts-estudiantes` — medido sobre las cuatro ramas remotas, 11
-coincidencias en cada una, ningún tag afectado, 2 commits tocan el valor. Reescribir el
+documentos (tarea 12, commit `d543cdd`), pero **siguen en el historial** de `main` y `ros2` —
+medido el 2026-08-02 sobre las cuatro ramas remotas que entonces existían, 11 coincidencias en
+cada una, ningún tag afectado, 2 commits tocan el valor. El 2026-08-03 se **borraron**
+`migracion-ros2` y `wip/scripts-estudiantes`, así que hoy quedan **dos** ramas y solo la punta
+de `main` sigue sirviéndolas; **eso no cierra nada**: el historial de `main` y `ros2` las
+conserva igual. Reescribir el
 contenido no cierra la exposición: **rotar la PSK y la contraseña es lo único que lo hace**, y
 es acción del usuario. Purgar el historial después es higiene y es incompleta — no llega a los
 forks que ya existan. Al revés (purgar sin rotar) no sirve de nada.
@@ -1108,6 +1111,27 @@ hasta implementarlo (tarea 11). **Rediseñado a edge-following** por decisión d
 `tiempo_perdido_max` segundos sin reencontrar el borde. **NO VERIFICADO sobre una línea real**:
 las funciones puras suman 9 tests nuevos entre las tres rondas (52 → 61 en
 `scripts/pruebas/`), pero el robot nunca ha seguido una línea físicamente.
+
+🔴 **Y HAY UNA SEGUNDA FUENTE, EN ESTE MISMO PROYECTO, QUE YA TENÍA LA RESPUESTA — TAMPOCO SE
+MIRÓ.** El 2026-07-29 se rescató un `git stash` de la microSD a la rama `wip/scripts-estudiantes`
+de `Atriz_rvr` (commit `62e0313`). Dentro, un `SeguidorBordeRojo` escrito por el usuario que
+decidía el giro **exactamente** con el mecanismo al que se llegó cuatro días después:
+
+```python
+cmd.angular.z = 0.32 * self.sentido_giro     # el signo NO sale de la lectura actual
+if self.tiempo_sin_rojo > 25:                # sino de un estado que se arrastra,
+    self.sentido_giro *= -1                  # y se invierte tras N ciclos sin ver el borde
+```
+
+Es `lado_borde` + `tiempo_perdido_max` con otros nombres, en 2026-07-29. El 2026-08-02 se
+diseñó un PID de umbral único que **no podía funcionar**, se implementó, y se rediseñó
+re-derivando esto desde cero. **Van dos fuentes del propio repositorio que lo decían antes de
+tiempo** —esta y `SEGUIDOR_LINEA_EXPLICACION.md` de la versión ROS 1— y ninguna se cruzó contra
+el diseño nuevo.
+→ **La regla: antes de diseñar algo que el proyecto ya intentó, busca los intentos anteriores —
+  incluidas las ramas WIP y los stashes rescatados.** El código de aquel seguidor no vale (es
+  `rospy` y publica en `/cmd_vel`, la salida del `collision_monitor`); **el mecanismo sí**, y es
+  lo único que se conserva: la rama se borró el 2026-08-03.
 
 **🔴🔴 Y EL SIGNO Y LA MAGNITUD DE UNA CORRECCIÓN TIENEN QUE MEDIR DESDE EL MISMO CENTRO, O HAY
 REALIMENTACIÓN POSITIVA.** Al implementar el edge-following de arriba, `signo_correccion()`
