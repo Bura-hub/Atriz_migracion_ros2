@@ -383,6 +383,17 @@ a 16,5. `extract_qos_profile` existe en el 2.7.0 instalado; los valores van en *
 guión bajo**, y en mayúsculas lanzan `InvalidArgumentException`.
 → ✅ **`throttle_rate` sí funciona:** `/imu` de 16,30 a **1,83 Hz** pidiendo 2. Es la palanca barata
 para `/scan`, que es el 83 % del tráfico. Evidencia 68.
+→ 🔴 **PERO NO ES UN CONTROL POR CLIENTE, y esa frase sola induce a creer que sí.** Misma causa que
+  el QoS —una suscripción ROS compartida— y peor forma: `subscribe.py:225` hace
+  `self.throttle_rate = min(f("throttle_rate"))` (y `:226` lo mismo con `queue_length`). **Gana el
+  cliente MÁS RÁPIDO, para todos.** Un profesor que pida 1 Hz recibirá a 16,5 en cuanto **un alumno**
+  esté suscrito sin límite en ese robot.
+  → Sirve para **bajar tu propio coste cuando eres el único**; **no** para protegerte de los demás.
+    Con 16 robots, una vista de flota **no** puede apoyarse en él: tiene que **suscribirse solo a
+    topics baratos** (`/battery_state` + `/motor_status` = 0,48 kB/s por robot, **7,7 los 16**).
+  → 📝 Y es la tercera vez que aparece la misma forma en rosbridge: **lo que un cliente pide, otro
+    cliente se lo cambia**, sin aviso y sin error. Antes de usar cualquier parámetro de `subscribe`,
+    mira si el fuente lo combina entre clientes.
 
 **🔴🔴 RETRACTADO EL 2026-08-01: `ros2 topic hz` SÍ FUNCIONA sobre topics BEST_EFFORT.**
 Medido en este robot con `ros2cli 0.32.10`:
