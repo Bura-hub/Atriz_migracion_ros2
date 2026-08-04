@@ -1,0 +1,66 @@
+═══════════════════════════════════════════════════════════════════════════════
+72 · `/collision_monitor_state`, medido — y no publica como se suponía
+═══════════════════════════════════════════════════════════════════════════════
+Fecha: 2026-08-04, desde el PC   ·   Robot: rvr-01, sano, EN REPOSO
+Método: cliente WebSocket propio contra ws://rvr-01.local:9090.
+        🔴 **El robot NO se movió**: se verificó midiendo `/odom` durante toda
+        la prueba — **0.00 cm** de desplazamiento.
+
+Se medía para decidir si la interfaz puede tener un estado «FRENANDO». El diseño
+lo dejó SIN construir a propósito porque de este topic no se sabían dos cosas:
+qué trae su `action_type` y cuánto cuesta. Ya se saben, y la respuesta cambia el
+diseño para bien.
+
+── 1 · NO PUBLICA PERIÓDICAMENTE. PUBLICA AL CAMBIAR ─────────────────────────
+    robot en reposo, nadie conduciendo ......  0 mensajes en 12 s
+    publicando twists A CERO a 10 Hz, 5 s ...  1 mensaje
+
+  El `collision_monitor` de Nav2 **procesa cuando le llega `cmd_vel_raw`**. Sin
+  nadie conduciendo no tiene nada que evaluar y no publica; y aun ticando a
+  10 Hz emitió **uno**, no cincuenta.
+
+  ✅ **Consecuencia: suscribirse es GRATIS.** 0,012 kB/s en la ventana de la
+     prueba, y **cero** con el robot parado. Se puede tener siempre puesto sin
+     tocar el presupuesto de los 16 robots.
+  📝 El truco para medirlo sin mover nada: **twists a cero**. El monitor procesa
+     igual y el robot no se mueve. Verificado por el efecto, no supuesto:
+     0.00 cm en `/odom`.
+
+── 2 · 🔴 LO QUE DIJO, Y NO ERA LO ESPERADO ──────────────────────────────────
+    {"action_type": 1, "polygon_name": "invalid source"}
+
+  `polygon_name` **no siempre trae el nombre de un polígono**: aquí trae un
+  MOTIVO. Y el motivo es que la fuente de datos no vale.
+
+  Corroborado en la misma sesión:
+    /scan   0.00 Hz     <- el barrido estaba apagado, que es el REPOSO NORMAL
+    /odom  15.98 Hz     <- el robot, perfectamente sano
+
+  O sea que con el barrido apagado el `collision_monitor` está permanentemente
+  en `action_type=1` por «invalid source». Es exactamente el mecanismo que ya
+  estaba documentado —«sin `/scan` el `collision_monitor` bloquea el
+  movimiento»— pero **hasta ahora no se podía VER desde fuera**.
+
+── 3 · POR QUÉ ESTO VALE MÁS QUE EL «FRENANDO» QUE SE HABÍA DISEÑADO ─────────
+El diseño quería un estado azul: «va lento porque la seguridad frena, no está
+averiado». Sigue valiendo. Pero lo medido da algo más útil:
+
+  **la interfaz puede decir POR QUÉ el robot no obedece.**
+
+«El robot no se mueve y no hay ningún error» es el síntoma más confuso de este
+laboratorio, y su causa más frecuente es justo esta: el barrido apagado. Con
+este topic, en vez de un silencio, la pantalla puede decir «la capa de seguridad
+está bloqueando el movimiento porque no le llega `/scan`» — y el alumno enciende
+el barrido en vez de pensar que el robot está roto.
+
+── 4 · ⏳ LO QUE FALTA: EL ENUM ──────────────────────────────────────────────
+Se ha observado **un** valor, `action_type=1`. El resto del enum **no se conoce**
+y NO se va a suponer: este proyecto tiene medida la lección de que «un valor
+plausible no es un valor validado».
+
+  👤 Un comando en el robot lo cierra:
+      cat /opt/ros/jazzy/share/nav2_msgs/msg/CollisionMonitorState.msg
+
+⚠️ Y los demás valores solo se verán **con un obstáculo delante**: el polígono
+   `Precaucion` se dispara a 0,36 m y frena al 40 %. Eso sí mueve el robot.
+═══════════════════════════════════════════════════════════════════════════════
