@@ -1492,8 +1492,15 @@ lo que produce deriva entre documentación y realidad.
   hallazgos de auditoría por estar equivocados, y eso es preferible a dejarlos.
 - **Los pasos que requieren `sudo`, apagar la Pi o un PC externo los ejecuta el usuario**,
   no tú. Prepáraselos como script o comando exacto.
-- **Avisa de las acciones físicas.** Despertar el robot enciende sus LEDs y gasta batería;
+- **Avisa de las acciones físicas.** Reiniciar el driver despierta el RVR y gasta batería;
   cuando termines una prueba, para el nodo.
+  📝 **CORREGIDO el 2026-08-04: arrancar el driver NO enciende ningún LED.** Esta línea decía
+  «despertar el robot enciende sus LEDs» y se repitió como aviso durante meses. **Lo desmintió el
+  usuario mirando el robot** («que sepas que no se encendieron los leds»), y se comprobó después:
+  **cero llamadas a LEDs en `_conectar_rvr`**. Lo único que enciende algo es
+  `color_detection:=true`, que está en `false` por defecto. Avisar de un efecto que no ocurre
+  gasta la credibilidad del aviso que sí importa — y **el ojo de quien tiene el robot delante es
+  el instrumento que manda**, que es una regla que este fichero ya tenía escrita.
 
 ---
 

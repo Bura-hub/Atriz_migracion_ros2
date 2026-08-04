@@ -129,9 +129,20 @@ orden de construcción.
   `subscribe.py:225` hace `min(f("throttle_rate"))`: **gana el más rápido, para todos**. El muro se
   suscribe solo a `/battery_state` y `/motor_status` — **7,7 kB/s los 16**. Con `/odom` serían
   1,7 Mbit/s y con `/scan` **10,3**.
-→ 🔴 **Tres señales que el driver NO publica** y sin las cuales la interfaz tiene que decir «no lo
-  sé»: un **latido** de 1 Hz (sin él el muro no sabe quién está vivo), la **bandera de parada**, y un
-  **«estoy cargando»** (sin él un robot en el cargador se pinta como averiado).
+→ ✅ **Las tres señales YA EXISTEN: `feat/estado-robot` fusionada en `ros2` el 2026-08-04**
+  (`65ad124..2fdcf6c`) y **probada en rvr-01**. `/estado_robot` a **1,000 Hz exacto**, con `latido`,
+  `parada_emergencia`, `rvr_responde`, `antiguedad_muestra_s`, `antiguedad_odom_s` y
+  `reanudaciones_fallidas`. Compilada con el borrado obligatorio de `build/` e `install/`.
+  **Y lo que había que comprobar no era el topic nuevo:** `/odom` **16,53 Hz** e `/imu` **16,68**
+  siguen intactos tras 225 líneas nuevas en el driver, con 0 errores en 5 min.
+  → ⏳ **NO VERIFICADO lo que importa:** está probado que **no estorba**, no que **sirva**. Ninguno
+    de los campos se ha visto en su estado de fallo — `rvr_responde` nunca ha estado en `false`,
+    `reanudaciones_fallidas` vale 0, y `parada_emergencia` nunca ha pasado a `true`. Los campos que
+    justifican el mensaje son justo los que solo aparecen cuando algo se rompe.
+  → 🔴 **Y esto pone el CI de `atriz-lab` en rojo hasta que la web se ponga al día:** `/estado_robot`
+    entró en la lista blanca del robot, así que `comprobar_contrato.mjs` sale con **código 1**
+    (`solo en el ROBOT: /estado_robot`). Se cierra añadiéndolo a `TOPICS_LECTURA` y su tipo
+    `atriz_rvr_msgs/msg/EstadoRobot` a `TIPOS`. Es correcto que falle: **gana el robot**. 👤 PC.
 
 ✅ **Y LA APLICACIÓN ESTÁ CONSTRUIDA Y SE PUEDE ABRIR** (2026-08-04, madrugada). Cinco rutas, sus
 componentes, y **250 pruebas** (eran 97 al empezar la noche):

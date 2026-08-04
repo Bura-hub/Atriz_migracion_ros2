@@ -4,6 +4,72 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 9) — `feat/estado-robot` probada en el robot y fusionada
+
+Fusionada en `ros2` (`65ad124..2fdcf6c`, avance limpio, 3 commits). Se probó **antes** de fusionar,
+en una rama local desechable: si algo hubiera fallado, `ros2` quedaba intacta con un `checkout`.
+
+Compilada con el borrado obligatorio de `build/` e `install/` del paquete de mensajes (4 min 34 s),
+y comprobado el **efecto** —el `.msg` instalado con sus seis campos— y no el «Finished» del colcon.
+
+### Lo que había que comprobar no era el topic nuevo
+
+```
+/odom          16,528 Hz      ← intacto tras 225 líneas nuevas en el driver
+/imu           16,679 Hz
+/estado_robot   1,000 Hz      ← exacto
+latido 360 → 367 · parada=False · rvr_responde=True
+muestra=0,011 s · odom=0,012 s  ← los dos relojes pegados, la línea base sana
+errores del driver en 5 min: 0
+```
+
+Los dos relojes juntos y cerca de cero es el discriminador **en su estado sano**: si un día llegan
+cuatro de los cinco componentes, `muestra` se quedará abajo y `odom` empezará a crecer.
+
+### ⏳ Y lo que NO está verificado, que es lo que justifica el mensaje
+
+Está probado que **no estorba**; no que **sirva**. Ningún campo se ha visto en su estado de fallo:
+`rvr_responde` nunca en `false`, `reanudaciones_fallidas` en 0, `parada_emergencia` nunca en `true`.
+Y hay una ironía: la noche anterior tuvimos el estado de fallo durante quince minutos, y se cerró
+apagando el robot **antes** de que este código existiera.
+
+📌 De los cuatro, `parada_emergencia` **sí se puede cerrar sin esperar a que se rompa nada**:
+publicar la parada con el robot en marcha. Ya estaba pendiente por otro motivo — ese botón ha
+fallado **cinco veces** en este proyecto, cuatro devolviendo éxito con cero efecto.
+
+### 🔴 Consecuencia para `atriz-lab`, que conviene saber antes de mirar su CI
+
+`/estado_robot` entró en la lista blanca del robot (`LEER` pasa de 12 a 13), así que
+`comprobar_contrato.mjs` sale con **código 1**:
+
+```
+🔴 LEER / TOPICS_LECTURA divergen
+   solo en el ROBOT: /estado_robot
+```
+
+**Es correcto que falle** —la política es «gana el robot»— y se cierra añadiendo el topic a
+`TOPICS_LECTURA` y su tipo `atriz_rvr_msgs/msg/EstadoRobot` a `TIPOS`. 👤 PC.
+
+### 📝 Y una corrección de una regla del proyecto, que llevaba meses repitiéndose
+
+`CLAUDE.md` decía **«despertar el robot enciende sus LEDs»** y ese aviso se daba antes de cada
+reinicio. **Es falso:** cero llamadas a LEDs en `_conectar_rvr`; lo único que enciende algo es
+`color_detection:=true`, que está en `false`. **Lo desmintió el usuario mirando el robot** —«que
+sepas que no se encendieron los leds»— y se comprobó después en el código.
+→ Avisar de un efecto que no ocurre gasta la credibilidad del aviso que sí importa. Y **el ojo de
+  quien tiene el robot delante es el instrumento que manda**, que ya era regla escrita.
+
+### 📝 Cuarta vez que miente un instrumento, hoy, y esta era de manual
+
+Un contador propio con `spin_once(timeout_sec=0.1)` en bucle dio **14,3 Hz** sobre un robot a
+**16,5**. `CLAUDE.md` tiene esa trampa documentada literalmente —«`rclpy.spin_once` EN BUCLE PIERDE
+MENSAJES: 11.3 Hz sobre un robot que va a 16.5»— y aun así se usó toda la noche. El bueno es
+`ros2 topic hz`.
+→ Lo que salva las conclusiones anteriores: **un contador que pierde mensajes no inventa cuando no
+  hay ninguno.** Los ceros eran ceros; los ritmos estaban subestimados.
+
+---
+
 ## 2026-08-04 (parte 8) — El tercer estado: /odom muerto con el enlace VIVO
 
 Lo encontro la revision **desde el robot** de la rama `feat/estado-robot`, antes de fusionarla, y es
