@@ -4,6 +4,64 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 3) — La web movio el robot, y la app ya tiene estructura
+
+**Primera vez en el proyecto que el cliente web mueve un robot real.** 60 cm, con el codigo de
+produccion de `atriz-lab` sobre el mismo WebSocket que usara el navegador. Evidencia 70.
+
+    barrido listo en 1.48 s   <- arrancarBarrido() espero un /scan REAL
+    MOVIENDO 0.20 m/s x 3 s
+    desplazamiento segun odometria: 59.7 cm
+    el barrido se apago solo al terminar
+
+Se pudo ejecutar el cliente REAL desde Node porque el nucleo **no importa React ni nada del
+navegador** — una decision del primer dia que hoy pago.
+
+⏳ **La T9 NO esta cerrada:** falta la medida con CINTA y el control por SSH, y falta publicar la
+PARADA DE EMERGENCIA con el robot en marcha mirando el log del driver.
+
+### Los siete hallazgos del cliente, cerrados
+
+Seis salieron de revisar el PR contra el robot real y uno de medir rosbridge. 87 -> **97 pruebas**.
+El mas instructivo es el segundo, porque el arreglo anterior se habia quedado a medias:
+
+🔴 **`confirmaEfecto()` prometia un efecto que este proyecto midio que NO ocurre.** El arreglo previo
+miro la FORMA del `.srv` y marco como «sin confirmacion» los cuatro de respuesta vacia. Pero los
+otros cuatro devuelven `bool success`, y en el driver ese campo es `resp.success = ok`, donde `ok`
+significa **«la corrutina del SDK no lanzo»**, no «el LED cambio». Y hay un caso medido:
+`undercarriage_white` devuelve `success=True` **sin encender nada**.
+→ El tipo pasa a ser `'NINGUNA' | 'SOLO_QUE_NO_LANZO'`, **sin ningun miembro que diga «confirma»**:
+  hoy es estructuralmente imposible que la interfaz prometa un efecto fisico.
+
+Los otros seis: `arrancarBarrido()` ya escucha la caida del enlace y **deja de acusar al LIDAR**;
+`tipoDe(topic)!` **lanza** en vez de mandar un `subscribe` sin tipo —el mismo silencio que costo el
+`Encoders`—; `ACCIONES` deja de ser codigo mudo y el comprobador **dice** que no compara el glob de
+acciones; la rama fina de `salud.ts` queda documentada como acoplamiento, no como fallo;
+`opSubscribe` **ya no acepta `qos`** (ver abajo); y `opCallService` manda el `timeout` en el propio
+op, con el plazo local por encima, **para que gane siempre el motivo real de rosbridge**.
+
+### Y el diseño que faltaba: la estructura de la aplicacion
+
+`00_auditoria/planes/2026-08-04-estructura-app-web.md`. La capa de datos existia y estaba probada;
+**la aplicacion nunca se habia diseñado**. Rutas, ficheros, modelo de conexion, la vista del
+profesor, el terminal, los estados de la interfaz y el orden de construccion.
+
+🔴 **Y una medida que decide el diseño de la vista del profesor:** `throttle_rate` **no sirve** para
+limitar el ancho de banda por cliente. `subscribe.py:225` hace `min(f("throttle_rate"))`: **gana el
+cliente mas rapido, para todos**. Un profesor que pida 1 Hz recibira a 16,5 en cuanto un alumno este
+suscrito sin limite en ese robot.
+→ El muro del profesor se suscribe **solo a `/battery_state` y `/motor_status`**: 0,48 kB/s por
+  robot, **7,7 kB/s los 16**. Con `/odom` serian 1,7 Mbit/s y con `/scan` **10,3**.
+→ 🔴 **Pero asi no puede saber si un robot esta VIVO**, porque `/motor_status` llega republicado con
+  el ultimo valor conocido y llega igual con el RVR mudo. Se cierra con **un `/latido` a 1 Hz en el
+  driver**: 0,5 kB/s los 16.
+
+📌 **Tres señales que el driver NO publica y sin las cuales la interfaz tiene que decir «no lo se»**:
+el latido, la bandera de parada, y un «estoy cargando». Aparecieron por separado; juntas son la
+lista de la compra del lado robot.
+
+---
+
 ## 2026-08-04 (parte 2) — Nueve repositorios, y el público repartía el sistema muerto
 
 Inventario completo del ecosistema, en [`03_operacion/REPOSITORIOS.md`](03_operacion/REPOSITORIOS.md).

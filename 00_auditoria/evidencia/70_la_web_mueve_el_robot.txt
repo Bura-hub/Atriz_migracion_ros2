@@ -1,0 +1,50 @@
+═══════════════════════════════════════════════════════════════════════════════
+70 · El cliente web mueve un robot real — por primera vez en el proyecto
+═══════════════════════════════════════════════════════════════════════════════
+Fecha: 2026-08-04T01:56-05:00   ·   Robot: rvr-01, sano
+Método: el CÓDIGO DE PRODUCCIÓN de `atriz-lab` —`Transporte` y `Teleoperacion`
+        tal cual están en `main`— ejecutado desde el PC contra
+        ws://rvr-01.local:9090. No es una copia ni una maqueta.
+
+  📌 Se pudo hacer porque el núcleo NO importa React ni nada del navegador. Esa
+     decisión de diseño se tomó el primer día para poder probar en Node, y hoy
+     permitió ejecutar el cliente real contra el robot sin navegador de por
+     medio. Lo que no se ejerció es el renderizado, que no es lo que esto mide.
+
+── EL MOVIMIENTO ─────────────────────────────────────────────────────────────
+    conectado a ws://rvr-01.local:9090
+    /odom llega a 16.0 Hz
+    encendiendo el barrido y esperando un /scan REAL…
+    barrido listo en 1.48 s
+    pose inicial : x=-0.006  y= 0.002
+    🔴 MOVIENDO: 0.20 m/s durante 3 s
+    pose final   : x=-0.587  y= 0.139
+    ══ DESPLAZAMIENTO SEGÚN LA ODOMETRÍA: 59.7 cm ══
+
+  ⏳ **PENDIENTE Y NECESARIO: la medida con CINTA.** 59,7 cm es odometría
+     comparándose consigo misma. El criterio de aceptación de la especificación
+     es la cinta contra el mismo movimiento por SSH, y eso sigue sin hacerse.
+     Sin ese número la T9 NO está cerrada.
+
+  📝 El desplazamiento salió casi todo en −x con algo de +y. Es coherente con el
+     marco del locator girado ~90° que el proyecto tiene medido. El MÓDULO vale;
+     los ejes de /odom no son para posición absoluta.
+
+── LO QUE FUNCIONÓ EN CADENA, Y CADA PIEZA COSTÓ ENCONTRARLA ─────────────────
+    arrancarBarrido() esperó un /scan DE VERDAD      1.48 s, no el código de
+                                                     retorno de /start_scan
+    el bucle republicó a 10 Hz                       contra el watchdog de 0,3 s
+    parar() cortó el bucle                           y el robot se detuvo
+    el barrido se apagó por el camino de limpieza    verificado después: 0.00 Hz
+    avisos del transporte                            ninguno
+
+── LO QUE SIGUE SIN HACERSE ──────────────────────────────────────────────────
+  1. 🔴 La medida con CINTA, y el control por SSH contra el que comparar.
+  2. 🔴 La PARADA DE EMERGENCIA publicada con el robot en marcha, mirando el log
+     del driver. Ha fallado CUATRO veces en este proyecto, siempre en silencio.
+     Leer el código da el nombre pero no el namespace resuelto ni el QoS: solo
+     se comprueba publicando.
+     ⚠️ Al verificar, usar `journalctl --since "-25 s"`. Con
+        `$(date -u +%T)` la ventana cae cinco horas en el futuro (UTC−5) y
+        cuenta 0 aunque la parada haya llegado.
+═══════════════════════════════════════════════════════════════════════════════
