@@ -818,7 +818,7 @@ export class RegistroPendientes {
 - [ ] **Paso 4: Ejecutar la prueba y comprobar que pasa**
 
 Ejecutar: `cd frontend && npx vitest run src/lib/rosbridge/protocolo.test.ts`
-Esperado: **PASA**, 8 pruebas.
+Esperado: **PASA**, 9 pruebas (6 de «lista blanca», 2 de «bateria», 1 de «frescura»).
 
 - [ ] **Paso 5: Commit**
 
