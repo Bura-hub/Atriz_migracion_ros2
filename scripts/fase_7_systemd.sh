@@ -85,6 +85,26 @@ hacer() {
     fi
 }
 
+# 🔴 TERCERA VEZ QUE ESTE SCRIPT AFIRMA UN EFECTO QUE NO OCURRE, y las tres han
+#    sido en `--simular`. Las dos anteriores: «se reiniciará al aplicar esto»
+#    (falso, no hay ningún restart) e «Instalado.» sin instalar. Esta, la peor
+#    por número: los `ok` que seguían a cada `hacer` se imprimían SIEMPRE, así
+#    que un ensayo en seco sacaba SIETE ✓ —incluido «atriz-robot.service
+#    habilitado»— sin haber tocado nada. Y el paso 5, que es el que comprobaría,
+#    se salta en simulación: los ✓ falsos eran la única salida.
+#    Encontrado el 2026-08-04 leyendo la salida de `--simular` del usuario.
+#
+#    `hecho` dice la verdad en los dos modos: ✓ cuando se hizo, y un «(sin
+#    hacer)» explícito cuando no. La lección ya estaba escrita en el comentario
+#    del arreglo anterior — no bastó con arreglar el caso que falló entonces.
+hecho() {
+    if [[ $MODO == simular ]]; then
+        printf '  \033[0;36m·\033[0m %s \033[0;36m(sin hacer: es un ensayo)\033[0m\n' "$1"
+    else
+        ok "$1"
+    fi
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ $MODO == quitar ]]; then
     say "Desinstalando el arranque automático"
@@ -266,7 +286,7 @@ fi
 #    No lleva identidad dentro — el ROS_DOMAIN_ID sigue saliendo de
 #    atriz-robot.sh, que por orden alfabético se lee justo antes.
 hacer install -m 644 "$SCRIPTS_DIR/sistema/atriz-ros.sh" /etc/profile.d/atriz-ros.sh
-ok "/etc/profile.d/atriz-ros.sh (entorno de ROS, sin identidad)"
+hecho "/etc/profile.d/atriz-ros.sh (entorno de ROS, sin identidad)"
 
 # ── Y el puente para los shells que NO son de login ──────────────────────────
 # /etc/profile.d lo leen los shells de LOGIN. Un `tmux`, un `su` o un `bash`
@@ -299,24 +319,24 @@ EOF
 fi
 
 hacer install -m 755 "$SCRIPTS_DIR/atriz-robot.sh"   /usr/local/bin/atriz-robot.sh
-ok "/usr/local/bin/atriz-robot.sh"
+hecho "/usr/local/bin/atriz-robot.sh"
 hacer install -m 755 "$SCRIPTS_DIR/atriz-escaneo.sh" /usr/local/bin/atriz-escaneo
-ok "/usr/local/bin/atriz-escaneo"
+hecho "/usr/local/bin/atriz-escaneo"
 hacer install -m 644 "$SCRIPTS_DIR/atriz-robot.service" /etc/systemd/system/atriz-robot.service
-ok "/etc/systemd/system/atriz-robot.service"
+hecho "/etc/systemd/system/atriz-robot.service"
 
 # ── La navegación, que se instala pero NO se habilita ────────────────────────
 hacer install -m 755 "$SCRIPTS_DIR/atriz-nav.sh"      /usr/local/bin/atriz-nav.sh
-ok "/usr/local/bin/atriz-nav.sh"
+hecho "/usr/local/bin/atriz-nav.sh"
 hacer install -m 644 "$SCRIPTS_DIR/atriz-nav.service" /etc/systemd/system/atriz-nav.service
-ok "/etc/systemd/system/atriz-nav.service"
+hecho "/etc/systemd/system/atriz-nav.service"
 
 # ─────────────────────────────────────────────────────────────────────────────
 say "4/5 · Habilitar"
 
 hacer systemctl daemon-reload
 hacer systemctl enable atriz-robot.service
-ok "atriz-robot.service habilitado (arrancará en el próximo reinicio)"
+hecho "atriz-robot.service habilitado (arrancará en el próximo reinicio)"
 
 # 🔴 atriz-nav NO se habilita, y NO es un olvido. La navegación cuesta ~58 % de
 #    un núcleo, y la Pi se alimenta del USB del RVR, así que eso sale de la
