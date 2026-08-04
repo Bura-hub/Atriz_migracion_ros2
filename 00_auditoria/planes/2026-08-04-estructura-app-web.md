@@ -258,6 +258,43 @@ Las tres son pequeñas y aparecieron por separado; juntas son la lista de la com
 Sin la primera, el muro del profesor no puede decir quién está vivo. Sin la segunda, el botón de
 parada no puede confirmar. Sin la tercera, `SIN_DATOS` no se puede desambiguar nunca.
 
+### ✅ Escritas el 2026-08-04, en la rama `feat/estado-robot` de `Atriz_rvr` — **NO VERIFICADAS**
+
+Las tres van en **un solo topic**, `/estado_robot` a 1 Hz (`atriz_rvr_msgs/EstadoRobot`):
+
+```
+uint64  latido                  contador monotono. La señal de vida DEL NODO
+bool    parada_emergencia       la bandera del driver, que hoy no sale
+bool    rvr_responde            false = hace mas de silence_timeout que no llega muestra
+float32 antiguedad_muestra_s    -1.0 = «no se sabe» (nunca «cero»)
+uint32  reanudaciones_fallidas  0 = bien · 1-2 = pudo ser una siesta · >2 = el RVR no esta
+```
+
+🔴 **En rama aparte a propósito: no hay robot, y `ros2` queda intacta.** Tocar el driver a ciegas es
+donde este proyecto se ha hecho daño — *«una excepción en un manejador mata `/odom` e `/imu` en
+silencio»*. El riesgo real del parche **no es que `/estado_robot` no funcione: es que se lleve por
+delante la telemetría**, y esa es la comprobación que manda al fusionarlo.
+
+**Tres cosas que salieron al escribirlo y que la interfaz tiene que saber:**
+
+1. 🔴 **`reanudaciones_fallidas` no podía apoyarse en `_t_ultima_muestra`**, que es lo que decía el
+   encargo: ese campo lo reinician **también** `_conectar_rvr` y `_recuperar_streaming`, así que
+   significa *«hace poco que pasó algo»*, no *«hace poco que llegó un dato»*. Apoyarse en él habría
+   hecho que una reanudación con el RVR **apagado** pareciera un éxito — **el fallo del 2026-08-02
+   reproducido dentro del campo escrito para detectarlo**. Se resolvió con un espejo que solo tocan
+   los manejadores.
+2. 🔴 **El latido va `TRANSIENT_LOCAL`, así que un suscriptor nuevo puede recibir el ÚLTIMO valor
+   latcheado.** **La interfaz tiene que comparar DOS lecturas separadas en el tiempo**; una sola no
+   dice nada. Y apunta en la misma dirección que lo ya medido: *«`TRANSIENT_LOCAL` en el publicador
+   no garantiza que un suscriptor tardío reciba el último valor»* (2 de 3 no recibieron nada en
+   10 s). **Lo que da la garantía es la republicación a 1 Hz, no el QoS.**
+3. ⚠️ **Los umbrales `1-2` / `>2` NO están calibrados.** Nadie ha cronometrado cuántos intentos
+   tarda una siesta real en recuperarse; la medida de la que salen (123 intentos con el robot
+   apagado) solo fija el extremo. Van como **orientación**, no como criterio.
+
+⚠️ Y el coste «~0,03 kB/s» es **aritmética, no una medida** — por rosbridge va en JSON, que abulta
+más.
+
 ---
 
 ## 10 · Orden de construcción

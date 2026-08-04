@@ -37,7 +37,22 @@ Para que la interfaz sea honesta, el robot tiene que publicar tres cosas que hoy
 | **La bandera de parada** | dice «parada enviada» y **nunca «parada activa»** | ~0 |
 | **Un «estoy cargando»** | pinta de ámbar un robot que solo está en el cargador, **el estado cotidiano** | ~0 |
 
-**Mi recomendación: sí, y ya está escrito — pero en una RAMA APARTE**, no en `ros2`. Razón:
+✅ **HECHO el 2026-08-04: las tres van en un solo topic, `/estado_robot` a 1 Hz**
+(`atriz_rvr_msgs/EstadoRobot`), en la rama **`feat/estado-robot`** de `Atriz_rvr`. `ros2` intacta en
+`65ad124`, y el diff toca **4 líneas existentes** —la lista blanca, el reflujo de un `import` y un
+rótulo—, todo lo demás es añadido. **NO VERIFICADO: no hay robot.**
+
+🔴 **Y al escribirlo apareció un fallo de mi encargo, que conviene que sepas porque es de los
+buenos:** yo dije que `reanudaciones_fallidas` se apoyara en `_t_ultima_muestra`. **Habría estado
+mal**: ese campo lo reinician también `_conectar_rvr` y `_recuperar_streaming`, así que significa
+«hace poco que pasó algo», no «hace poco que llegó un dato» — y con el RVR apagado una reanudación
+habría parecido un éxito, que es **exactamente el fallo del 2026-08-02 reproducido dentro del campo
+escrito para detectarlo**. Resuelto con un espejo que solo tocan los manejadores.
+
+⚠️ **Lo que hay que mirar al fusionarlo NO es el topic nuevo:** es que `/odom` e `/imu` sigan
+publicando. El riesgo de este parche es llevarse por delante la telemetría, no fallar en lo suyo.
+
+**Mi recomendación era: sí, pero en una RAMA APARTE**, no en `ros2`. Razón:
 tocar el driver sin robot delante es exactamente donde este proyecto se ha hecho daño. *«Una
 excepción en un manejador de telemetría mata `/odom` e `/imu` en silencio»* costó una sesión entera,
 y el fallo **no deja ni una línea en el log**.
