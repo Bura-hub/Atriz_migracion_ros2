@@ -419,6 +419,32 @@ está sincronizado y lo dice a gritos**.
 
 **F4 · El cliente web**, rehecho: teleoperación, telemetría real, editor con Monaco, panel de flota.
 
+> 🔄 **REVISADO EL 2026-08-04, y cambia el ORDEN de las fases.** Este F4 supone que el cliente va
+> **después** del agente (F2) y del JWT (F3). **No es cierto para la mitad que habla por rosbridge**:
+> la capa de datos ya está escrita, tiene **97 pruebas** y el 2026-08-04 **movió un robot real
+> 60 cm** (evidencia 70) — sin agente, sin JWT y sin F0.
+>
+> **La aplicación tiene DOS MITADES con dependencias distintas**, y verlas como una sola fase fue el
+> error de planificación:
+> - **Por rosbridge** (telemetría, salud, LEDs, LIDAR, flota, teleoperación) → **construible hoy**.
+> - **El terminal** → depende de F2, que depende de **F0**. Y **el terminal es el producto**
+>   (decisión 17).
+>
+> Diseño completo —rutas, ficheros, modelo de conexión, la vista del profesor con su presupuesto
+> medido, los estados de la interfaz y el orden de construcción— en
+> [`2026-08-04-estructura-app-web.md`](2026-08-04-estructura-app-web.md).
+>
+> ⚠️ **Y «editor con Monaco» pasa a ser una decisión abierta, no un dado.** Son ~5 MB y una
+> dependencia nueva, sobre el WiFi del aula y con 16 navegadores; las prácticas son de ~30 líneas.
+> Recomendación: empezar con un `<textarea>` y subir a Monaco solo si molesta. Sin urgencia — el
+> terminal está bloqueado por F0 igualmente. Duda A6 de
+> [`2026-08-04-dudas-abiertas.md`](2026-08-04-dudas-abiertas.md).
+>
+> 📌 **«Panel de flota» tiene ahora una restricción medida que el plan no podía conocer:**
+> `throttle_rate` **no limita por cliente** (`subscribe.py:225` hace `min()`, gana el más rápido
+> para todos), así que el muro se suscribe **solo a topics baratos** — 7,7 kB/s los 16. Y con eso
+> **no puede saber si un robot está vivo**: hace falta un `/latido` de 1 Hz en el driver.
+
 **F5 · El backend**: usuarios, asignación de robots, emisión de JWT, y el código del alumno
 **guardado en la base de datos, no en el robot** — el robot solo tiene una copia efímera en tmpfs.
 
