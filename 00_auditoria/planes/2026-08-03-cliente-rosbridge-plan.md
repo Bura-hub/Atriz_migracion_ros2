@@ -310,11 +310,19 @@ export const TIPOS: Readonly<Record<string, string>> = {
   '/scan': 'sensor_msgs/msg/LaserScan',
   '/battery_state': 'sensor_msgs/msg/BatteryState',
   '/motor_status': 'atriz_rvr_msgs/msg/MotorStatus',
-  '/encoders': 'atriz_rvr_msgs/msg/Encoders',
+  // 🔴 `Encoder`, SINGULAR. `Encoders.msg` no existe: el driver importa
+  //    `from atriz_rvr_msgs.msg import (Color, ControlState, Encoder, ...)` y
+  //    publica `create_publisher(Encoder, 'encoders', qos_tel)`. Un tipo mal
+  //    escrito da `InvalidClassException` en rosbridge y el sintoma es «ese
+  //    topic no llega», que se busca en el sitio equivocado.
+  '/encoders': 'atriz_rvr_msgs/msg/Encoder',
   '/color': 'atriz_rvr_msgs/msg/Color',
   '/map': 'nav_msgs/msg/OccupancyGrid',
   '/tf': 'tf2_msgs/msg/TFMessage',
   '/tf_static': 'tf2_msgs/msg/TFMessage',
+  // ⚠️ NO VERIFICADO: lo publica Nav2, que no esta clonado en ningun sitio, asi
+  //    que el nombre del paquete es una suposicion. Se cierra con el robot:
+  //    `ros2 topic type /collision_monitor_state`.
   '/collision_monitor_state': 'nav2_msgs/msg/CollisionMonitorState',
   '/amcl_pose': 'geometry_msgs/msg/PoseWithCovarianceStamped',
   '/cmd_vel_raw': 'geometry_msgs/msg/Twist',
