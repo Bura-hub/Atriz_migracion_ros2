@@ -101,7 +101,42 @@ plan, decisión 17.
 un comprobador que compara la lista blanca de la web con `robot.launch.py` **del robot** y falla si
 divergen. Plan y especificación en `00_auditoria/planes/`.
 
-🔴 **PERO NO SE HA EJECUTADO NUNCA CONTRA UN ROBOT, ni en un navegador.** El criterio de aceptación
+✅ **Y EL 2026-08-04 SE EJECUTÓ CONTRA EL ROBOT: la web movió un RVR real, 60 cm.** Con el código
+de producción —`Transporte` y `Teleoperacion` tal cual están en `main`— sobre el mismo WebSocket que
+usará el navegador. `arrancarBarrido()` esperó un `/scan` de verdad (1,48 s), el bucle republicó a
+10 Hz contra el watchdog, `parar()` lo detuvo y el barrido se apagó solo. Evidencia 70.
+Se pudo hacer desde Node **porque el núcleo no importa React ni nada del navegador**, que fue una
+decisión del primer día.
+→ ⏳ **La tarea 9 NO está cerrada:** falta la medida con **CINTA** y el control por SSH. 59,7 cm es
+  odometría comparándose consigo misma. Y falta publicar la **parada de emergencia con el robot en
+  marcha** mirando el log del driver — ha fallado **cuatro veces** en silencio.
+
+✅ **Los siete hallazgos del cliente, cerrados el 2026-08-04.** 87 → **97 pruebas**. El más
+instructivo: `confirmaEfecto()` prometía un efecto físico que este proyecto midió que **no ocurre**
+—`success=true` significa «la corrutina del SDK no lanzó», y `undercarriage_white` lo devuelve **sin
+encender el LED**—. El tipo pasa a `'NINGUNA' | 'SOLO_QUE_NO_LANZO'`, **sin ningún miembro que diga
+«confirma»**: hoy es estructuralmente imposible que la interfaz prometa un efecto.
+
+✅ **Y el 2026-08-04 se diseñó lo que faltaba: LA ESTRUCTURA DE LA APLICACIÓN.**
+[`00_auditoria/planes/2026-08-04-estructura-app-web.md`](../00_auditoria/planes/2026-08-04-estructura-app-web.md).
+La capa de datos existía y estaba probada; **la aplicación nunca se había diseñado**. Rutas,
+ficheros, modelo de conexión, la vista del profesor, el terminal, los estados de la interfaz y el
+orden de construcción.
+→ 🔴 **La aplicación tiene DOS MITADES y el producto está en la bloqueada.** Todo lo que va por
+  rosbridge es construible hoy; **el terminal** depende del agente de sesión, que depende de la
+  **F0** — la medición del AP del aula, que necesita el aula.
+→ 🔴 **Y una medida decide la vista del profesor: `throttle_rate` NO limita por cliente.**
+  `subscribe.py:225` hace `min(f("throttle_rate"))`: **gana el más rápido, para todos**. El muro se
+  suscribe solo a `/battery_state` y `/motor_status` — **7,7 kB/s los 16**. Con `/odom` serían
+  1,7 Mbit/s y con `/scan` **10,3**.
+→ 🔴 **Tres señales que el driver NO publica** y sin las cuales la interfaz tiene que decir «no lo
+  sé»: un **latido** de 1 Hz (sin él el muro no sabe quién está vivo), la **bandera de parada**, y un
+  **«estoy cargando»** (sin él un robot en el cargador se pinta como averiado).
+
+📋 **Todas las dudas abiertas, juntas y con recomendación:**
+[`00_auditoria/planes/2026-08-04-dudas-abiertas.md`](../00_auditoria/planes/2026-08-04-dudas-abiertas.md).
+
+**Texto anterior, conservado:** 🔴 **PERO NO SE HA EJECUTADO NUNCA CONTRA UN ROBOT, ni en un navegador.** El criterio de aceptación
 de la especificación —*«un robot real se teleopera desde el navegador y el desplazamiento medido con
 cinta coincide con el del mismo movimiento por SSH»*— **sigue sin cumplirse**. La revisión final lo
 dijo así: los defectos que se arreglaron son **«trampas armadas esperando al primer consumidor»**.
