@@ -34,3 +34,14 @@ log/
 build/
 install/
 .pytest_cache/
+
+# ── Skills instaladas en el proyecto (npx skills) ─────────────────────────────
+# El CONTENIDO no se versiona: son 100 KB de material ajeno que se reconstruye
+# con `npx skills update`, y este repositorio lo clona tambien la Raspberry Pi,
+# que no toca el frontend para nada.
+# 🔴 `skills-lock.json` SI se versiona: es 1 KB, dice QUE skills usa el proyecto
+# y con que hash, y es lo unico que hace reproducible la decision. Sin el, la
+# instalacion vive solo en este portatil — que es exactamente como se perdio un
+# `git stash` en este proyecto.
+.agents/
+.claude/skills/
