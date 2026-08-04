@@ -467,8 +467,51 @@ else
         correr udevadm control --reload-rules
         correr udevadm trigger
         ok "regla udev de /dev/ydlidar instalada"
+
+        # ── PUERTA: ¿casa la regla EN ESTE ROBOT? ────────────────────────────
+        # 🔴 La regla lleva dentro el ID_PATH completo, y su prefijo
+        #    —`platform-fd500000.pcie-pci-0000:01:00.0`— es DE LA PLACA. Con una
+        #    Pi de otra revisión no casa EN ABSOLUTO, y el sufijo `usb-0:1.2` no
+        #    casa si el lidar va en otro conector. En los dos casos el síntoma es
+        #    el mismo y es venenoso: `robot.launch.py` muere en ~1 s y el único
+        #    error visible apunta al launch. Medido el 2026-08-04, evidencia 69.
+        #
+        #    Con la decisión de PUERTO FIJO en los 16 (FLOTA.md), esto deja de
+        #    ser una nota y tiene que ser una puerta: se comprueba aquí, en la
+        #    máquina que se está aprovisionando, ANTES de darla por buena. Misma
+        #    forma que la puerta de fase_6.
+        #
+        #    Se comprueba el EFECTO (¿existe el enlace?), no que el fichero se
+        #    haya copiado: copiar una regla que no casa devuelve 0 igual.
+        sleep 1                                   # udevadm trigger es asíncrono
+        _idp_esperado=$(grep -ho 'ID_PATH}=="[^"]*"' /etc/udev/rules.d/99-ydlidar.rules 2>/dev/null \
+                        | head -1 | sed 's/.*=="//;s/"//')
+        _idp_real=''
+        for _d in /dev/ttyUSB*; do
+            [[ -e "$_d" ]] || continue
+            [[ $(udevadm info -q property -n "$_d" 2>/dev/null | sed -n 's/^ID_VENDOR_ID=//p') == 10c4 ]] \
+                && _idp_real=$(udevadm info -q property -n "$_d" 2>/dev/null | sed -n 's/^ID_PATH=//p')
+        done
+        if [[ -L /dev/ydlidar ]]; then
+            ok "/dev/ydlidar existe: la regla CASA en este robot"
+        elif [[ -z "$_idp_real" ]]; then
+            avi "no se ve ningún CP2102 (10c4): enchufa el LIDAR y repite este paso"
+        else
+            mal "la regla udev NO CASA en este robot: /dev/ydlidar no existe"
+            avi "   real:     $_idp_real"
+            avi "   la regla: ${_idp_esperado:-<sin ID_PATH>}"
+            if [[ "${_idp_real%%-usb-*}" != "${_idp_esperado%%-usb-*}" ]]; then
+                avi "   el prefijo DE LA PLACA difiere: este Pi no es el de referencia."
+                avi "   La regla NO es clonable: hay que generarla en first-boot.sh (FLOTA.md, restricción 1)."
+            else
+                avi "   la placa coincide y el CONECTOR no: mueve el LIDAR al puerto de FLOTA.md."
+            fi
+            FALLOS+=("regla udev del LIDAR: no casa en este robot")
+        fi
+        unset _idp_esperado _idp_real _d
     else
         avi "no se encontró $UDEV_SRC — /dev/ydlidar no existirá"
+        FALLOS+=("regla udev del LIDAR: no se encontró el fichero")
     fi
 
     # Y compilar. Que `colcon build` no falle es la prueba de que lo anterior

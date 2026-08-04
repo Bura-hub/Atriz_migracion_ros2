@@ -77,14 +77,62 @@ log "ROS_DOMAIN_ID=$ROS_DOMAIN_ID  RMW=$RMW_IMPLEMENTATION  hostname=$(hostname)
 # systemd puede lanzarnos antes de que udev haya creado los enlaces. Sin esto el
 # launch arranca, no encuentra el puerto y el nodo queda vivo y mudo — que es el
 # fallo más caro de diagnosticar de este proyecto.
+#
+# 🔴🔴 Y ESTA ESPERA ESTUVO ROTA, EN SILENCIO, HASTA EL 2026-08-04.
+#    Decía `(( t++ ))`. Con `t=0` el POST-incremento evalúa a 0, que en
+#    aritmética es FALSO, así que el comando devuelve estado 1 y `set -e`
+#    —línea 24— mataba el script en la PRIMERA vuelta del bucle. Consecuencias,
+#    las tres medidas:
+#      · la espera de ESPERA_HW segundos nunca ocurrió: moría en ~1 s (el sleep)
+#      · el `🔴 ... no apareció` de abajo era INALCANZABLE
+#      · systemd solo veía «status=1/FAILURE» sin una línea de explicación
+#    O sea: la salvaguarda contra «el nodo queda vivo y mudo» estaba desactivada
+#    por una trampa de bash, y su síntoma era el mismo que venía a evitar.
+#    Se usa una ASIGNACIÓN, que siempre devuelve 0. Hermana de la trampa ya
+#    documentada de `set -u` contra los `setup.bash` de ROS.
 esperar() {
     local dev=$1 t=0
     while [[ ! -e "$dev" ]]; do
-        (( t >= ESPERA_HW )) && { log "🔴 $dev no apareció en ${ESPERA_HW}s"; return 1; }
-        sleep 1; (( t++ ))
+        if (( t >= ESPERA_HW )); then
+            log "🔴 $dev no apareció en ${ESPERA_HW}s"
+            [[ "$dev" == /dev/ydlidar ]] && diagnosticar_lidar
+            return 1
+        fi
+        sleep 1
+        t=$(( t + 1 ))     # NO `(( t++ ))`: devuelve 1 cuando t vale 0
     done
     log "✓ $dev  (tras ${t}s)"
 }
+
+# 🔴 El mensaje va AQUÍ, no solo en verificar_robot.sh: el modo de fallo es que
+#    el arranque muere y NADIE ejecuta el verificador después. La causa habitual
+#    de que falte /dev/ydlidar no es que falte la regla, es que el lidar está en
+#    otro conector USB — la regla casa por ID_PATH, el puerto FÍSICO.
+#    Medido el 2026-08-04: costó cuatro intentos de cable porque el único error
+#    visible («/stop_scan no respondió en 30s») apunta al launch. Evidencia 69.
+diagnosticar_lidar() {
+    local regla=/etc/udev/rules.d/99-ydlidar.rules esperado='' real='' d v pe pr
+    [[ -r $regla ]] && esperado=$(grep -ho 'ID_PATH}=="[^"]*"' "$regla" | head -1 | sed 's/.*=="//;s/"//')
+    for d in /dev/ttyUSB*; do
+        [[ -e $d ]] || continue
+        v=$(udevadm info -q property -n "$d" 2>/dev/null | sed -n 's/^ID_VENDOR_ID=//p')
+        [[ $v == 10c4 ]] && real=$(udevadm info -q property -n "$d" 2>/dev/null | sed -n 's/^ID_PATH=//p')
+    done
+    if [[ -z $real ]]; then
+        log "   ↳ no se ve ningún adaptador CP2102 (10c4): ¿está el lidar enchufado y alimentado?"
+        return
+    fi
+    pr=$(printf '%s' "$real"     | sed -n 's/.*usb-0:\([0-9.]*\).*/\1/p')
+    pe=$(printf '%s' "$esperado" | sed -n 's/.*usb-0:\([0-9.]*\).*/\1/p')
+    if [[ -n $pe && $pr != "$pe" ]]; then
+        log "   ↳ el LIDAR está en el PUERTO USB ${pr:-?} y la regla udev espera el ${pe:-?}"
+        log "   ↳ MUEVE EL CABLE al conector ${pe:-esperado} (cuál es: FLOTA.md). El número ttyUSBn NO importa"
+    else
+        log "   ↳ el adaptador está en el puerto correcto (${pr:-?}) pero no hay enlace:"
+        log "   ↳ ¿está instalada la regla? sudo udevadm control --reload-rules && sudo udevadm trigger"
+    fi
+}
+
 esperar /dev/rvr
 esperar /dev/ydlidar
 

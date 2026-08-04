@@ -185,4 +185,75 @@ Método: diagnóstico de solo lectura sobre el robot, y después medición del
   → La regla del proyecto, otra vez y en su forma más útil: **ante una medida
     rara, el primer sospechoso es el medidor, y el desempate lo da un
     instrumento DISTINTO, no repetir el mismo.**
+
+── 10 · 🔴🔴 LA CAUSA RAÍZ DEL «MUERE EN 1 s SIN DECIR NADA» ────────────────
+
+  Los apartados 7 y 8 daban por hecho que el launch muere mudo porque falta
+  /dev/ydlidar. Es verdad a medias: `atriz-robot.sh` YA tenía una espera con su
+  mensaje de error, y NO se ejecutaba. Reproducido aislado el 2026-08-04:
+
+    set -euo pipefail                      # atriz-robot.sh:24
+    esperar() {
+        local dev=$1 t=0
+        while [[ ! -e "$dev" ]]; do
+            (( t >= ESPERA_HW )) && { log "🔴 $dev no apareció"; return 1; }
+            sleep 1; (( t++ )}              # 🔴 AQUI
+        done
+    }
+
+    $ bash repro.sh
+    [repro] ✓ /dev/null  (tras 0s)
+    codigo de salida: 1 · duracion: 1 s     <- ni el 🔴 ni el final del script
+
+  **`(( t++ ))` devuelve el valor ANTERIOR de t.** Con t=0 eso es 0, que en
+  aritmética es FALSO, así que el comando sale con estado 1 y `set -e` mata el
+  script en la PRIMERA vuelta del bucle. El «1 segundo» del síntoma es
+  literalmente el `sleep 1` de esa vuelta.
+
+  Las tres consecuencias, y las tres estuvieron activas desde que se escribió:
+    · la espera de ESPERA_HW=60 s para que udev cree los enlaces NUNCA ocurrió
+    · el mensaje `🔴 /dev/ydlidar no apareció en 60s` era INALCANZABLE
+    · systemd solo veía `status=1/FAILURE`, sin una línea de explicación
+
+  🔴 Y lo que lo hace peor: **la salvaguarda estaba escrita contra el fallo que
+     acabó causando.** Su propio comentario dice «sin esto el launch arranca, no
+     encuentra el puerto y el nodo queda vivo y mudo — el fallo más caro de
+     diagnosticar de este proyecto».
+
+  ✅ ARREGLADO con una asignación (`t=$(( t + 1 ))`), que siempre devuelve 0.
+     Verificado por efecto, no por lectura: con ESPERA_HW=3 y un dispositivo
+     inexistente, ahora **espera 3 s y escribe el mensaje**; antes moría en 1 s
+     en silencio.
+     Buscado el patrón en TODOS los scripts con `set -e`, no solo en el que
+     falló: **una sola aparición**, la de aquí.
+
+  ✅ Y el diagnóstico del puerto se movió A DONDE OCURRE EL FALLO. Que el
+     mensaje viva solo en `verificar_robot.sh` no basta: el modo de fallo es que
+     el arranque muere y NADIE ejecuta el verificador después. Ahora
+     `atriz-robot.sh` escribe en el journal, en el momento:
+
+       🔴 /dev/ydlidar no apareció en 60s
+          ↳ el LIDAR está en el PUERTO USB 1.2 y la regla udev espera el 1.3
+          ↳ MUEVE EL CABLE al conector 1.3 (cuál es: FLOTA.md). El número
+            ttyUSBn NO importa
+
+     Las dos ramas ejercitadas (puerto distinto / puerto correcto sin enlace).
+
+── 11 · PUERTA EN provision.sh: ¿CASA LA REGLA EN ESTE ROBOT? ────────────────
+
+  El `ID_PATH` de la regla lleva el prefijo DE LA PLACA
+  (`platform-fd500000.pcie-pci-0000:01:00.0`). Con una Pi de otra revisión no
+  casa EN ABSOLUTO — y el síntoma sería idéntico al de esta noche. Con la
+  decisión de puerto fijo eso deja de ser una nota y pasa a ser una puerta.
+
+  `provision.sh` comprueba ahora, tras instalar la regla y por EFECTO (¿existe
+  el enlace?), no por que el fichero se haya copiado. Y distingue las dos causas,
+  que piden cosas opuestas:
+
+    prefijo de placa distinto -> la regla NO es clonable: generarla en
+                                 first-boot.sh (FLOTA.md, restricción 1)
+    misma placa, otro sufijo  -> mover el LIDAR al conector de FLOTA.md
+
+  Suma a FALLOS, así que el aprovisionamiento no termina en verde con un robot
+  que no tendrá /scan. Misma forma que la puerta de fase_6.
 ═══════════════════════════════════════════════════════════════════════════════

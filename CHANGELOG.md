@@ -148,6 +148,52 @@ stack, es **cuándo respecto al robot**.
 ⏳ **Que se recupere solo está SIN HACER**, y con 16 robots va a volver. Dos opciones sin decidir
 en la evidencia 69 §6. Un `Restart=always` no sirve: el proceso no muere.
 
+### 🔴🔴 Y la causa raíz, que no era ninguna de las dos: `set -e` + `(( t++ ))`
+
+Los dos apartados de abajo dan por hecho que el launch muere mudo «porque falta
+`/dev/ydlidar`». Es verdad a medias. **`atriz-robot.sh` ya tenía una espera con su mensaje de
+error, y no se ejecutaba nunca.** Reproducido aislado:
+
+```bash
+set -euo pipefail
+esperar() { local t=0; while [[ ! -e $1 ]]; do sleep 1; (( t++ )); done; }
+# → código de salida 1 · duración 1 s · ni el 🔴 ni el final del script
+```
+
+**`(( t++ ))` devuelve el valor ANTERIOR de `t`.** Con `t=0` eso es `0`, falso en aritmética →
+estado de salida **1** → `set -e` mata el script en la primera vuelta. El «1 segundo» del
+síntoma es literalmente el `sleep 1` de esa vuelta.
+
+Las tres consecuencias, activas desde que se escribió:
+
+- la espera de **60 s** para que udev cree los enlaces **nunca ocurrió**
+- el mensaje `🔴 /dev/ydlidar no apareció en 60s` era **inalcanzable**
+- systemd solo veía `status=1/FAILURE`, **sin una línea de explicación**
+
+🔴 Y lo que lo hace peor: **la salvaguarda estaba escrita contra el fallo que acabó causando.**
+Su comentario dice *«sin esto el launch arranca, no encuentra el puerto y el nodo queda vivo y
+mudo — el fallo más caro de diagnosticar de este proyecto»*.
+
+✅ Arreglado con una asignación (`t=$(( t + 1 ))`) y **verificado por efecto**: con `ESPERA_HW=3`
+y un dispositivo inexistente ahora **espera 3 s y escribe el mensaje**; antes moría en 1 s en
+silencio. Buscado el patrón en **todos** los scripts con `set -e`, no solo en el que falló: una
+sola aparición.
+
+✅ **Y el diagnóstico del puerto se movió a donde ocurre el fallo.** Que el mensaje viviera solo
+en `verificar_robot.sh` no basta: el modo de fallo es que el arranque muere y **nadie ejecuta el
+verificador después**. Ahora lo escribe `atriz-robot.sh` en el journal, en el momento, con las
+dos ramas ejercitadas.
+
+### Puerta nueva en `provision.sh`: ¿casa la regla en ESTE robot?
+
+El `ID_PATH` lleva el prefijo **de la placa** (`platform-fd500000.pcie-pci-0000:01:00.0`): con
+una Pi de otra revisión no casa **en absoluto**, y el síntoma sería idéntico. Con la decisión de
+puerto fijo eso deja de ser una nota. `provision.sh` lo comprueba tras instalar la regla, **por
+efecto** (¿existe el enlace?) y no por que el fichero se copiara, y distingue las dos causas —que
+piden cosas opuestas—: prefijo de placa distinto → la regla **no es clonable**, hay que generarla
+en `first-boot.sh`; mismo Pi y otro sufijo → **mover el cable**. Suma a `FALLOS`, así que el
+aprovisionamiento no acaba en verde con un robot que no tendrá `/scan`.
+
 ### Y el segundo fallo del mismo episodio: el puerto USB físico
 
 Al intentar recuperar el robot se movió el LIDAR de conector **buscando que volviera a ser

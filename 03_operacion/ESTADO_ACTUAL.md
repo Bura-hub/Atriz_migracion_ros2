@@ -123,6 +123,18 @@ regla udev— el LIDAR quedó en otro conector, `/dev/ydlidar` desapareció y **
 intentos de cable. ✅ `verificar_robot.sh` ahora lo dice en una línea. 👤 **DECIDIDO: puerto fijo
 en los 16**, y eso hace la **foto del conector en `FLOTA.md` obligatoria — sigue sin existir.**
 
+🔴🔴 **Y la causa raíz no era ninguna de las dos: `set -e` + `(( t++ ))` en `atriz-robot.sh`.**
+Un post-incremento devuelve el valor **anterior**; con `t=0` eso es falso → estado 1 → `set -e`
+mataba el script en la primera vuelta del bucle. Así que **la espera de 60 s para que udev cree
+los enlaces nunca ocurrió** y el mensaje `🔴 /dev/ydlidar no apareció` era **inalcanzable**: la
+salvaguarda estaba escrita contra el fallo que acabó causando. Arreglado y verificado por efecto
+(espera de verdad y escribe). Y el diagnóstico del puerto se movió **al arranque**, porque un
+mensaje que solo vive en el verificador no sirve cuando el modo de fallo es que nadie lo ejecuta.
+
+👤 **PENDIENTE Y BLOQUEA: reinstalar el script corregido.** `/usr/local/bin/atriz-robot.sh`
+diverge del repositorio hasta que se ejecute `sudo bash scripts/fase_7_systemd.sh --id 01`. Hasta
+entonces el robot arranca con la versión rota — funciona, pero sin espera ni diagnóstico.
+
 📝 **Y una advertencia sobre el plan, marcada en su cabecera en rojo: YA SE EJECUTÓ y sus bloques de
 código reproducirían defectos ya corregidos.** La fuente de verdad es el repositorio. El plan
 acumuló **veinte defectos propios** y ninguno se encontró releyéndolo: los veinte salieron de

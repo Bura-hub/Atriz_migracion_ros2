@@ -524,6 +524,31 @@ que habría mordido igual en la instalación de los 16).
 corre como root **casi nunca es lo que dice**. Mira si lo que falló fue la *redirección*, y
 comprueba la **fecha** del fichero que estás leyendo.
 
+**🔴🔴 `set -e` + `(( t++ ))` MATA EL SCRIPT EN SILENCIO, Y ASÍ ESTUVO ROTA LA ESPERA DE
+HARDWARE DE `atriz-robot.sh`.** Un post-incremento aritmético **devuelve el valor ANTERIOR**, y
+`(( 0 ))` es falso → estado de salida **1** → con `set -e` el script muere ahí mismo, sin una
+línea. Descubierto el 2026-08-04:
+
+```bash
+set -euo pipefail
+esperar() { local t=0; while [[ ! -e $1 ]]; do sleep 1; (( t++ )); done; }   # 🔴 muere en la 1ª vuelta
+esperar() { local t=0; while [[ ! -e $1 ]]; do sleep 1; t=$(( t + 1 )); done; }   # ✅ una asignación devuelve 0
+```
+
+→ **Las tres consecuencias, medidas:** la espera de 60 s para que udev cree los enlaces **nunca
+  ocurrió** (moría en ~1 s, el `sleep`); el mensaje `🔴 /dev/ydlidar no apareció` era
+  **inalcanzable**; y systemd solo veía `status=1/FAILURE` **sin una palabra de explicación**.
+→ 🔴 **Y lo que lo hace peor: la salvaguarda estaba escrita contra el fallo que acabó causando.**
+  Su comentario decía *«sin esto el launch arranca, no encuentra el puerto y el nodo queda vivo y
+  mudo — el fallo más caro de diagnosticar de este proyecto»*. Costó cuatro intentos de cable
+  porque el único error visible venía del `ExecStartPost` y apuntaba al launch.
+→ **Búscalo con este patrón**, que es lo que lo encontró en un solo comando:
+```bash
+grep -rlE 'set -e' scripts/*.sh | xargs grep -nE '\(\(\s*[A-Za-z_]\w*(\+\+|--)\s*\)\)'
+```
+→ 📝 Misma familia que la de abajo: **una opción de bash que protege puede desactivar una
+  protección**. Evidencia 69, apartado 10.
+
 **🔴 LOS `setup.bash` DE ROS NO SON COMPATIBLES CON `set -u`** — `AMENT_TRACE_SETUP_FILES:
 unbound variable`. Con `set -euo pipefail` matan el script antes de hacer nada, y el mensaje no
 menciona ROS. Envuelve los `source` en `set +u` / `set -u`.
