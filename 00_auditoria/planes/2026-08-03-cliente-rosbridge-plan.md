@@ -1608,6 +1608,38 @@ node herramientas/medir_qos_rosbridge.mjs rvr-01.local
 Anotar tres cosas: si aparece algún `STATUS error` al mandar `qos`; a qué frecuencia llega `/imu`;
 y los kB/s de cada topic.
 
+- [ ] **Paso 1b: El QoS de rosbridge — medio cerrado LEYENDO EL FUENTE, sin robot**
+
+📝 Nació de una observación al cerrar dos fallos de la misma familia (`status` y `result:false`):
+**la suposición de segunda mano se cierra leyendo el fuente, no midiendo.** Leído en el upstream de
+`RobotWebTools/rosbridge_suite`, rama `ros2`:
+
+| | |
+|---|---|
+| `advertise.py` | declara `(False, "qos", dict)` y hace `qos = extract_qos_profile(message["qos"])` → **el campo SÍ se acepta** |
+| `subscribe.py` | tiene `qos: QoSProfile \| None`, y `throttle_rate`, `queue_length`, `compression` son parámetros reales. `cbor-raw` se trata explícitamente |
+| `qos_extraction.py` | valores en **minúsculas con guión bajo**: `reliable`, `best_effort`, `best_available`, `transient_local`, `volatile`, `keep_last`, `keep_all`. `depth` entero no negativo. `deadline`/`lifespan`: número, `{secs,nsecs}` o `"infinite"` |
+
+🔴 **Dos trampas que solo se ven leyendo:**
+1. **Los valores en MAYÚSCULAS lanzan `InvalidArgumentException`.** `'RELIABLE'` no vale; es `'reliable'`.
+2. **Asimetría del valor por defecto:** **sin** campo `qos`, `subscribe` usa *best effort*; **con**
+   campo `qos`, `extract_qos_profile` parte de **`qos_profile_system_default`** —RELIABLE, VOLATILE,
+   KEEP_LAST 10—. Mandar solo `reliability` hereda el resto **del system default**, no del
+   best-effort. Quien toque esto sin saberlo cambia el QoS de lo que no quería.
+
+⚠️ **LO QUE ESTO NO CIERRA, y hay que decirlo:** lo leído es **upstream HEAD**; el robot tiene
+**`ros-jazzy-rosbridge-library 2.7.0-1noble`**. `extract_qos_profile` **puede no existir en esa
+versión**. Dar esto por bueno sin comprobarlo sería el mismo error que costó el canal `status`, en la
+dirección contraria. 👤 **Un comando en la Pi lo cierra:**
+
+```bash
+grep -rn "extract_qos_profile" /opt/ros/jazzy/lib/python3.12/site-packages/rosbridge_library/ | head
+```
+
+Si aparece, la tabla de arriba vale. Si no, **`qos` no se acepta en esta versión** y `protocolo.ts` se
+queda como está hoy: sin mandar el campo. Y aun apareciendo, **que el campo se parsee no prueba que
+el perfil llegue al cable**: eso sigue siendo el paso 2 de esta tarea.
+
 - [ ] **Paso 2b: Cerrar los QUINCE tipos de `TIPOS` contra el robot**
 
 🔴 **Esto existe porque uno de los quince estaba mal y nada podía cazarlo.** `/encoders` decía
