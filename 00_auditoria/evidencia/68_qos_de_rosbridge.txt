@@ -123,7 +123,28 @@ Salud del robot durante la medida (12 s), para que conste que no está mudo:
      service response»— por el genérico «puede estar denegado o el robot puede
      estar caído». Es la misma atribución falsa que el arreglo del `result:false`
      vino a cerrar, entrando por la puerta del plazo.
-     → El plazo del cliente para servicios tiene que ser **MAYOR que el de
-       rosbridge**, no menor: si no, el cliente se pisa el mensaje bueno.
-       Pendiente de arreglar en `atriz-lab`.
+     → Escribí «el plazo del cliente tiene que ser MAYOR que el de rosbridge».
+       Es incompleto, y el diagnóstico del robot encontró lo que faltaba:
+
+  ✅ **EL PLAZO DE ROSBRIDGE LO FIJA EL CLIENTE, LLAMADA A LLAMADA.** Verificado
+     en el fuente de `call_service.py`:
+
+         :61   default_call_service_timeout: float = 5.0
+         :92   timeout = message.get("timeout", self.default_call_service_timeout)
+         :127  -> se pasa al ServiceCaller
+
+     `opCallService()` de `protocolo.ts` **no manda ese campo**, así que el `ms`
+     de `Transporte.llamar()` solo arma un temporizador LOCAL y no mueve la
+     pared de los 5 s de rosbridge. **Las dos paredes tienen que moverse
+     juntas.**
+
+     → ARREGLO para `atriz-lab`: mandar `timeout` en el `op` —esa es la pared
+       que conoce el MOTIVO REAL— y poner el temporizador local un poco POR
+       ENCIMA. Así el mensaje genérico «denegado o el robot caído» solo aparece
+       en el único caso donde es cierto: cuando rosbridge **no contesta nada**
+       (denegado en silencio, o socket muerto). Si rosbridge contesta, gana
+       siempre su motivo.
+     📝 Hoy no aprieta —`/start_scan` sano tarda 1,4-2,1 s— pero el día que
+        aprieta es exactamente el día del fallo, que es cuando el mensaje
+        importa.
 ═══════════════════════════════════════════════════════════════════════════════
