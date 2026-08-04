@@ -133,6 +133,39 @@ orden de construcción.
   sé»: un **latido** de 1 Hz (sin él el muro no sabe quién está vivo), la **bandera de parada**, y un
   **«estoy cargando»** (sin él un robot en el cargador se pinta como averiado).
 
+✅ **Y LA APLICACIÓN ESTÁ CONSTRUIDA Y SE PUEDE ABRIR** (2026-08-04, madrugada). Cinco rutas, sus
+componentes, y **250 pruebas** (eran 97 al empezar la noche):
+
+```
+npm --prefix atriz-lab/frontend run dev      ->  http://localhost:3000
+/                       la portada: los 16 robots, el muro, y lo que NO funciona
+/flota                  el muro del profesor, solo con topics baratos
+/robot/[id]/diagnostico ritmos, antigüedades, estado del enlace   <- la que mide
+/robot/[id]/telemetria  batería en VOLTIOS, motores con su antigüedad, LEDs
+/robot/[id]/conducir    teleoperación y el botón de parada
+/robot/[id]             el TERMINAL — bloqueado, y lo dice en pantalla
+```
+
+🔴 **La regla de «lo que la interfaz no puede decir» ya no es un párrafo: es una prueba.**
+`lib/interfaz/lenguaje.ts` abre los ficheros de `componentes/` y `app/` y **falla** si aparece
+«parada activa», «led encendido», «robot averiado», «color cambiado» o «latencia». Comprobado
+rompiéndolo. Es el primer sitio donde una lección de `CLAUDE.md` corre sola.
+
+✅ **Verificado por el EFECTO, no por que compile:** con `npm run dev`, Edge headless por CDP y un
+**rosbridge falso escrito a mano**. En el cable: **0 subscribes con `qos`**, **0 publicaciones en
+`/cmd_vel`**, twists a ~10 Hz en `/cmd_vel_raw` con el cero al soltar, y cambiar de robot cierra un
+socket y abre otro. En pantalla: `SIN_DATOS` sale **ámbar** con las tres causas sin elegir, y
+`antiguedad_atasco_s = -1` sale como **«no se sabe»**.
+
+🔴 **Y la portada era una maqueta que decía «Sistema operacional».** `/` renderizaba 1134 líneas con
+datos inventados y cero conexiones: la peor familia de fallos de este proyecto, en la primera
+pantalla. Sustituida por una que dice lo que **no** funciona. Las maquetas no se han borrado —duda
+A3—, pero ya no las importa nadie.
+
+⏳ **Lo que falta y por qué:** el **terminal** (F0), la **vista del LIDAR** (`/scan` sin modelar), y
+**`FRENANDO`** — que sale de `/collision_monitor_state`, cuyo `action_type` no está caracterizado y
+cuyo caudal no está medido: en vez de inventarlo, **el hueco se declara en pantalla**.
+
 📋 **Todas las dudas abiertas, juntas y con recomendación:**
 [`00_auditoria/planes/2026-08-04-dudas-abiertas.md`](../00_auditoria/planes/2026-08-04-dudas-abiertas.md).
 

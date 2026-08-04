@@ -4,6 +4,68 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 7) — Las pantallas. La app se puede abrir y mirar. 173 -> 250 pruebas
+
+`atriz-lab`, `main`. Cinco rutas (`/`, `/flota`, `/robot/[id]/{diagnostico,telemetria,conducir}`),
+sus componentes, y una capa pura nueva en `lib/interfaz/` con **77 pruebas**: toda la logica
+probable vive ahi y los componentes solo dibujan.
+
+### 🔴 La regla de «lo que la interfaz no puede decir» dejo de ser texto
+
+`lib/interfaz/lenguaje.ts` tiene una prueba que **abre los ficheros de `componentes/` y `app/`** y
+falla si aparece «parada activa», «led encendido», «robot averiado», «color cambiado» o «latencia»
+— sin acentos, sin distinguir caja, y saltandose los comentarios para que siga siendo posible
+explicar por que estan prohibidas.
+✅ **Comprobado rompiendolo:** metiendo «La parada activa esta puesta y el LED encendido» en un
+componente, la prueba falla **nombrando el fichero y las dos frases**. Retirado, verde otra vez.
+📝 Es el primer sitio del proyecto donde una leccion de CLAUDE.md se convierte en una comprobacion
+que corre sola, en vez de en un parrafo que hay que acordarse de leer.
+
+### Verificado por el EFECTO, no por que compile
+
+El agente levanto `npm run dev`, **condujo Edge headless por CDP** y **escribio un rosbridge falso a
+mano** (RFC 6455, sin instalar nada) para no quedarse en `SIN_CONEXION`. Medido en pantalla y en el
+cable: las 5 rutas dan 200 y `/robot/99` da 404 · 8,29 V y 27,5/28,3 °C con su antiguedad ·
+`antiguedad_atasco_s = -1` sale como **«no se sabe»**, no «sin atasco» · `SIN_DATOS` pinta **ambar**
+(`rgb(246,168,35)`, no el rojo) y lista **las tres causas sin elegir** · la parada sin enlace dice
+**«LA PARADA NO SE HA ENVIADO»** con el motivo real · **0 subscribes con `qos`** · **0
+publicaciones en `/cmd_vel`** · 14 twists en `/cmd_vel_raw` a ~10 Hz con el cero al soltar ·
+cambiar de robot **cierra un socket y abre otro**.
+
+Y un fallo real encontrado asi: un aviso de hidratacion porque **el modo oscuro forzado del
+navegador reescribe los `style` en linea**. La muestra de color de los LEDs paso a ser una clase.
+
+### 🔴 La portada era una maqueta que decia «Sistema operacional»
+
+`/` renderizaba `Dashboard` de `src/components/`: **1134 lineas con datos inventados**, cero `fetch`
+y cero `WebSocket`. O sea que lo PRIMERO que veia cualquiera al abrir la aplicacion era **la peor
+familia de fallos de este proyecto** —una pantalla que parece sana sin haber hablado con nada— en la
+portada, y con un cartel afirmando que el sistema esta operativo.
+→ Portada nueva: enumera lo que existe, enlaza los 16 robots y el muro, y **dice lo que no
+  funciona** (el terminal, la autenticacion, y que nada aqui confirma un efecto fisico).
+  Las maquetas **no se borran** —su destino esta sin decidir— pero al dejar de importarlas quedan
+  sin referenciar, que hace la decision barata en los dos sentidos.
+→ Y los seis motivos del muro llevan ya **acentos**: son texto visible. Al cambiarlos fallaron tres
+  pruebas, que es **lo correcto**: comparan contra el literal y no contra la constante.
+
+### El comprobador de contrato ya dice contra que rama compara
+
+Lee el arbol de trabajo de `Atriz_rvr`, asi que su veredicto depende de en que rama esta ESE
+repositorio — y no aparecia por ningun lado. Con la rama `feat/estado-robot` puesta dio rojo
+diciendo «solo en el ROBOT: /estado_robot», sin mencionarla; y **la salida natural —añadir el topic
+a `contrato.ts`— habria sido el arreglo equivocado**. ✅ Comprobado en los dos casos.
+
+### Lo que NO se construyo, con su motivo
+
+- **`FRENANDO`**: saldria de `/collision_monitor_state`, cuyo `action_type` este proyecto **no ha
+  caracterizado** y cuyo caudal nadie ha medido. En vez de un estado apoyado en una suposicion, el
+  hueco **se declara en pantalla**. Se desbloquea midiendo esas dos cosas en el robot.
+- **La vista del LIDAR**: `/scan` no esta modelado en `useTopic`, y modelarlo exigia editar
+  `hooks/`, que el encargo protegia.
+- **El terminal**: bloqueado por la F0.
+
+---
+
 ## 2026-08-04 (parte 6) — La capa 1 de la app: hooks y modelo de flota. 97 -> 173 pruebas
 
 `atriz-lab`, `main`, commit `0d23e89`. Lo puro en `lib/flota/` (`resumen.ts`, `presupuesto.ts`) y la
