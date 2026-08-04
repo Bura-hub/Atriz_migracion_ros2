@@ -1,0 +1,62 @@
+═══════════════════════════════════════════════════════════════════════════════
+73 · El `/scan` real por rosbridge — y una fila de la tabla que estaba rancia
+═══════════════════════════════════════════════════════════════════════════════
+Fecha: 2026-08-04   ·   Robot: rvr-01, sano
+Método: código de producción de `atriz-lab` (`Transporte`, `Teleoperacion`) y
+        las funciones puras de `lib/interfaz/barrido.ts`, contra
+        ws://rvr-01.local:9090. Guion:
+        `frontend/src/lib/interfaz/barrido_real.test.ts`
+        ⚠️ Enciende el barrido y LO VUELVE A APAGAR. No mueve el robot.
+
+Se medía para validar la vista del LIDAR de la web: no la lógica —eso ya lo
+cubren pruebas con barridos sintéticos— sino **los supuestos sobre el sensor**,
+que es lo que no se puede deducir leyendo código.
+
+── LO MEDIDO, 35 barridos ────────────────────────────────────────────────────
+    tamaños distintos de `ranges` ....  260, y SOLO 260
+    válidos .........................  83.4 % de media
+    range_min / range_max ...........  0.10 / 8.00 m
+    resolución angular ..............  1.39°
+    distancia mínima del último .....  0.228 m
+
+── 🔴 Y ESO CORRIGE LA TABLA DE REFERENCIA DE `CLAUDE.md` ───────────────────
+La fila de `/scan` decía **«255 puntos, 226 válidos (89 %), resolución 1.42°»**,
+medido el 2026-07-30. Hoy el robot da **260 y 1.39°**.
+
+**No es que el sensor haya cambiado: es que se arregló el YAML y no se actualizó
+la tabla.** El propio `CLAUDE.md` ya lo contaba unas líneas más arriba:
+
+  «`fixed_resolution: false` hace que `slam_toolbox` descarte barridos […]
+   Con `true`: 142 barridos, todos de 260 puntos.»
+
+Las dos cifras son consistentes consigo mismas —360/255 = 1.41°, 360/260 =
+1.38°—, así que la vieja no era falsa **cuando se tomó**. Se quedó rancia.
+
+  📝 Es deriva documental de la clase que este proyecto persigue: se arregla una
+     configuración, se documenta el arreglo, y **la tabla de valores de
+     referencia que depende de esa configuración no se toca**. El auditor
+     mecánico no puede verlo: sabe si un enlace existe, no si un número sigue
+     siendo verdad.
+  📝 Y mordió: el código nuevo de la web había copiado el «alterna 254/255» de la
+     tabla, en dos ficheros. Corregido en los dos.
+
+⚠️ **El 83-89 % de válidos NO es una constante del sensor: depende de la
+   habitación.** Un rayo que no vuelve es un rayo que no encontró nada dentro de
+   los 8 m. Por eso la prueba comprueba una BANDA (40-99 %) y no un número: lo
+   que importa es que no sea ~100 % —serían huecos sin filtrar— ni ~0 %.
+
+── LO QUE VALIDA PARA LA WEB ─────────────────────────────────────────────────
+  ✅ Los huecos llegan y se descartan: filtrar por `Number.isFinite` **y** por
+     `range_min`/`range_max` es necesario y suficiente sobre datos reales.
+  ✅ Todos los puntos convertidos caen a distancias físicamente posibles.
+  ✅ `arrancarBarrido()` + `/stop_scan` dejan el LIDAR como estaba.
+
+── UN FALLO DE LA PROPIA PRUEBA, QUE MERECE ANOTARSE ─────────────────────────
+La primera corrida falló con «sin conexión con el robot: /start_scan NO se ha
+llamado». Era la prueba, no el cliente: `conectar()` **no bloquea**, y se llamó
+al servicio antes de que el WebSocket abriera.
+→ La guardia de `Transporte.llamar()` hizo exactamente lo que debía: **negarse y
+  decir por qué**, en vez de armar un temporizador de 5 s que iba a vencer.
+→ Arreglado esperando a que llegue un `/odom` de verdad, no durmiendo un número
+  inventado.
+═══════════════════════════════════════════════════════════════════════════════

@@ -1391,7 +1391,7 @@ de verdad. Dos consecuencias que cambian el día a día:
 | Puerto del LIDAR | `/dev/ydlidar` → `ttyUSB0` (CP2102, serie `0001` genérico) | regla udev por `ID_PATH` |
 | **Giro del X2 en reposo** (nada corriendo, DTR baja) | **2.7 Hz** — sigue midiendo bien | 2026-07-31, n=5 |
 | **Giro del X2 escaneando** (DTR alta) | **11.8 Hz** — 4.3× el reposo | 2026-07-31, n=5 |
-| `/scan` | **10.1 Hz**, 255 puntos, 226 válidos (89 %), resolución **1.42°** | 2026-07-30, con el driver ROS 2 |
+| `/scan` | 🔴 **CORREGIDO 2026-08-04: 260 puntos SIEMPRE, resolución 1.39°**, 83-89 % válidos. Medido desde el navegador por rosbridge: 35 barridos, **un solo tamaño**. La fila decía «255 puntos, 226 válidos (89 %), 1.42°» — cierto **antes** de poner `fixed_resolution: true`, que es justo el arreglo documentado más arriba («142 barridos, todos de 260 puntos»). **Se arregló el YAML y no se actualizó esta tabla.** El % de válidos depende de la habitación: no es una constante | 2026-08-04, evidencia 73 |
 | Firmware del RVR | 9.1.462 (Nordic) | |
 | `/map` | **0.200 Hz** exactos (= `map_update_interval` 5 s) | 2026-07-30 |
 | **Timeout de inactividad del RVR** | **300.6 s = 5.01 min** (dos medidas idénticas) | 2026-07-31 |
