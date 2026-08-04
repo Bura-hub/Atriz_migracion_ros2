@@ -58,6 +58,25 @@ cuatro fallos silenciosos.
      limpios— algo que la réplica del mismo protocolo, una hora después,
      desmintió. Con un mecanismo de seguridad, menos aún.
 
+── ✅ Y LA CINTA, QUE ERA EL CRITERIO PENDIENTE DE LA TAREA 9 ────────────────
+El usuario midió el desplazamiento de esa misma corrida **con cinta**:
+
+    odometría, total desde el inicio ....... 30.2 cm
+    CINTA .................................. 30   cm
+    diferencia ............................. 0.2 cm
+
+  ✅ **Por debajo de lo que distingue una cinta.** Hasta aquí, todo lo que este
+     cliente había medido era **odometría comparándose consigo misma** —los
+     59,7 cm de la evidencia 70 lo decían explícitamente—. Este es el primer
+     número de la web contrastado contra un instrumento independiente.
+  ⚠️ **n=1**, y una sola corrida de las tres.
+  ⚠️ Queda por confirmar el punto exacto de medida: «total desde el inicio»
+     (30,2) contra «hasta el instante de la parada» (28,0). La diferencia entre
+     las dos ES la frenada, así que no es un detalle.
+  📝 Lo que NO cierra: la especificación pedía además **el mismo movimiento por
+     SSH como control**. Eso sigue sin hacerse. Lo que sí queda cerrado es lo
+     más importante: cuando la web dice 30 cm, el robot recorrió 30 cm.
+
 ── ANTES, UNA SONDA DE SOLO LECTURA ──────────────────────────────────────────
 Sin publicar nada, para comprobar el estado de partida y de paso el contrato:
 
