@@ -107,6 +107,15 @@ cinta coincide con el del mismo movimiento por SSH»*— **sigue sin cumplirse**
 dijo así: los defectos que se arreglaron son **«trampas armadas esperando al primer consumidor»**.
 → **Lo que falta son las tareas 8 y 9 del plan, y necesitan el robot encendido y cinta métrica.**
 
+✅ **Y el bloqueo que tenían, resuelto el 2026-08-04: `/start_scan` no fallaba, el LIDAR estaba
+muerto.** La evidencia 68 §6 dejó abierto un `result:false` y lo atribuyó al robot, con razón:
+**el nodo del X2 tenía el descriptor `/dev/ttyUSB0 (deleted)`** desde que se apagó y encendió el
+RVR nueve horas antes. Abre el puerto una vez al arrancar y no lo reabre; udev rehace
+`/dev/ydlidar` y nadie se lo dice al proceso. Un `systemctl restart atriz-robot` lo arregla, y
+medido después: `/scan` a **11,90 Hz** y `/start_scan` en **1,4-2,1 s** por WebSocket, 6 de 6.
+🔴 **Que se recupere solo sigue SIN HACER** y con 16 robots va a volver: apagar y encender el RVR
+es cotidiano. Evidencia 69, apartado 6, con las dos opciones y sin decidir.
+
 📝 **Y una advertencia sobre el plan, marcada en su cabecera en rojo: YA SE EJECUTÓ y sus bloques de
 código reproducirían defectos ya corregidos.** La fuente de verdad es el repositorio. El plan
 acumuló **veinte defectos propios** y ninguno se encontró releyéndolo: los veinte salieron de

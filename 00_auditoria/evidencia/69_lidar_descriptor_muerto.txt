@@ -1,0 +1,115 @@
+═══════════════════════════════════════════════════════════════════════════════
+69 · El LIDAR se re-enumera y el nodo se queda con el descriptor MUERTO
+═══════════════════════════════════════════════════════════════════════════════
+Fecha: 2026-08-04, ~00:45-01:05 -05:00   ·   Robot: rvr-01
+Origen: la evidencia 68 §6 dejó abierto «/start_scan devuelve result:false, la
+        causa está en el robot y queda por investigar allí». Esto lo cierra.
+Método: diagnóstico de solo lectura sobre el robot, y después medición del
+        efecto. El usuario aportó la pista que lo desatascó: «seguramente es
+        debido a la forma de arranque, hay una forma en la que el lidar va y
+        otra no».
+
+── 1 · EL HALLAZGO ───────────────────────────────────────────────────────────
+
+  El nodo del YDLIDAR abre su puerto UNA SOLA VEZ, al arrancar, y NUNCA lo
+  reabre. Si el adaptador USB-serie se re-enumera después —lo que pasa cada vez
+  que se apaga y enciende el RVR, porque el X2 se alimenta del robot— el proceso
+  se queda agarrado a un descriptor que el kernel ya ha destruido.
+
+    nodo del lidar, fd 29  ->  /dev/ttyUSB0 (deleted)     <── descriptor MUERTO
+    proceso arrancado      ->  Mon Aug  3 15:31:56
+    /dev/ttyUSB1 creado    ->  Tue Aug  4 00:29:34        (nueve horas después)
+    /dev/ydlidar           ->  ttyUSB1                    (udev hizo su trabajo)
+
+  La regla udev es correcta y rehízo el enlace. El problema es que nadie se lo
+  dice al proceso, y no hay `TAG+="systemd"` ni `RUN` que reinicie la unidad
+  cuando el dispositivo reaparece.
+
+── 2 · LA CADENA DE SÍNTOMAS, QUE EXPLICA LA EVIDENCIA 68 §6 ─────────────────
+
+    /start_scan -> turnOn()      escribe en el fd muerto: el motor no arranca
+    escaneando = true            el bucle sondea y doProcessSimple() falla
+                                 -> «Failed to get scan» a 20 Hz
+    rosbridge espera 5 s         -> result:false
+                                    «Timeout exceeded while waiting for
+                                     service response»
+    /stop_scan responde true     y NO es contradicción: solo pone la bandera
+                                 a false, no toca el hardware
+
+  🔴 Y el «Failed to get scan» es el error que CLAUDE.md da por ARREGLADO el
+     2026-08-01. El parche está bien y está aplicado —`std::atomic<bool>
+     escaneando` y la salida temprana, verificado en el fuente instalado—: lo
+     que reaparece no es el bug del parche, es que con el barrido ENCENDIDO
+     sobre un puerto muerto el sondeo falla siempre. El parche calla el ruido
+     en reposo, que es para lo que se escribió.
+
+── 3 · POR QUÉ ES PELIGROSO: EL ROBOT PARECE SANO ────────────────────────────
+
+    systemctl is-active atriz-robot   ->  active
+    el nodo del lidar                 ->  vivo, y sus servicios CONTESTAN
+    /odom                             ->  16.58 Hz
+    /scan                             ->  0 Hz
+
+  Es la misma familia que el RVR dormido con el nodo vivo, el topic registrado
+  y mudo, y el nodo muerto con systemd en verde. Ninguna comprobación de
+  «¿existe?» lo ve; solo el efecto.
+
+  ⚠️ Y bloquea el movimiento entero: sin /scan el collision_monitor no deja
+     conducir (0,0 cm medidos contra 9,9 del control). Un robot con el LIDAR
+     así es un robot que «no obedece» sin ninguna señal de avería.
+
+── 4 · ARREGLO APLICADO, Y VERIFICADO POR EFECTO ─────────────────────────────
+
+  El usuario ejecutó `sudo systemctl restart atriz-robot`.
+
+    fd 29 -> /dev/ttyUSB1        (vivo, sin «(deleted)»)
+    «Failed to get scan»          0 en 15 min
+    /start_scan                   result:true
+    /scan                         11.90 · 11.93 Hz  <- el EFECTO
+
+── 5 · CUÁNTO TARDA /start_scan DE VERDAD, POR EL CAMINO DE LA WEB ───────────
+
+  Cliente WebSocket propio, conexión YA abierta (el mismo camino del navegador),
+  n=6 sobre el robot ya sano:
+
+    sin campo `timeout`   1.40 · 2.10 · 2.07 · 2.09 s     result=true, 4/4
+    con `timeout: 20`     1.52 · 2.09 s                    result=true, 2/2
+    /stop_scan            0.61 s                           result=true
+
+  ✅ Muy dentro de los 5 s de rosbridge. **El fallo de la evidencia 68 §6 era
+     ENTERAMENTE el descriptor muerto**, no la lentitud del servicio.
+
+  🔴 RETRACTADO EN EL ACTO, y conviene que conste: durante este diagnóstico se
+     midió `/start_scan` con `ros2 service call` y salió 4.69 · 4.63 · 6.54 ·
+     6.12 s, y se llegó a escribir que el servicio rozaba el tope de 5 s de
+     rosbridge. **Es falso**: `ros2 service call` arranca un nodo y hace
+     descubrimiento en cada llamada, y ese arranque es la mayor parte del
+     número. Medido con el instrumento correcto son 1.4-2.1 s. Van cinco veces
+     que el instrumento miente en este proyecto.
+
+  ⚠️ Y una segunda vez, en la misma sesión: el primer intento de este cliente
+     WebSocket dio «rosbridge no contesta en 15 s» a un `call_service`, con las
+     suscripciones funcionando (46 mensajes de /odom en 3 s). No era rosbridge:
+     `probar_rosbridge.recibir()` devuelve la tupla `(payload, opcode)` y se le
+     estaba pasando entera a `json.loads`, que lanzaba dentro de un
+     `except: continue`. Lo destapó mirar el journal del robot y ver que
+     rosbridge NO se había quejado de nada.
+
+── 6 · ⏳ LO QUE FALTA: QUE SE RECUPERE SOLO ─────────────────────────────────
+
+  Hoy la recuperación es manual y exige `sudo`. Con 16 robots en un aula, y
+  siendo «apagar y encender el RVR» una operación cotidiana, esto va a volver.
+  Dos caminos, sin decidir:
+
+    a) udev reinicia la unidad cuando el dispositivo reaparece
+       (`TAG+="systemd"` + `ENV{SYSTEMD_WANTS}`, o un `RUN` con systemctl).
+       Barato y no toca código de terceros. Reinicia el robot ENTERO, así que
+       hay que ver qué pasa si ocurre a mitad de una práctica.
+
+    b) que el nodo reabra el puerto al fallar N lecturas seguidas.
+       Es el arreglo correcto, pero toca código de terceros: iría al mismo
+       sitio que el parche del journal, `atriz_rvr_bringup/patches/`.
+
+  📝 Un `Restart=always` NO sirve: el proceso no muere. Es el mismo motivo por
+     el que hizo falta `on_exit=Shutdown()` para los nodos que sí mueren.
+═══════════════════════════════════════════════════════════════════════════════

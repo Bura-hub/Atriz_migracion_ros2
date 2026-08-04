@@ -1015,6 +1015,38 @@ Medido el 2026-08-01: **502 errores en 20 s**, **el 99 % del journal del servici
   leído el fuente. **Antes de rediseñar el arranque de un sistema, mira por qué falla el
   componente.**
 
+**🔴🔴 SI APAGAS Y ENCIENDES EL RVR CON LA PI VIVA, EL LIDAR QUEDA MUERTO Y TODO PARECE SANO.**
+El X2 se alimenta del robot, así que apagarlo re-enumera su adaptador USB. La regla udev rehace
+`/dev/ydlidar` correctamente, pero **el nodo abre el puerto una sola vez al arrancar y no lo
+reabre nunca**: se queda agarrado al descriptor viejo, que el kernel ya destruyó. Medido el
+2026-08-04:
+
+```
+nodo del lidar, fd 29  ->  /dev/ttyUSB0 (deleted)     <- descriptor MUERTO
+proceso arrancado      ->  Aug  3 15:31:56
+/dev/ttyUSB1 creado    ->  Aug  4 00:29:34            (nueve horas después)
+```
+
+→ **El síntoma no se parece a la causa:** `/start_scan` devuelve `result:false` con «Timeout
+  exceeded while waiting for service response» (que es de **rosbridge**, no del robot), el
+  journal se llena de `Failed to get scan` a 20 Hz, y `/scan` se queda a 0 — mientras
+  `systemctl` dice `active`, el nodo vive, sus servicios contestan y `/odom` va a 16,58 Hz.
+→ ⚠️ **Y bloquea el movimiento entero**: sin `/scan` el `collision_monitor` no deja conducir. Un
+  robot así «no obedece» sin ninguna señal de avería.
+→ **Atajo de diagnóstico**, que es lo único que lo ve de un vistazo:
+```bash
+ls -l /proc/$(pgrep -f "[y]dlidar_ros2_dr")/fd | grep tty    # si dice (deleted), es esto
+```
+→ **Arreglo hoy:** `sudo systemctl restart atriz-robot`. Verificado por efecto: fd vivo,
+  0 errores, `/start_scan` `result:true`, **`/scan` a 11,90 Hz**.
+→ ⏳ **Que se recupere solo está SIN HACER**, y con 16 robots va a volver: o udev reinicia la
+  unidad al reaparecer el dispositivo, o el nodo reabre el puerto tras N fallos. Un
+  `Restart=always` **no sirve**: el proceso no muere. Evidencia 69.
+→ 📝 **`/start_scan` NO es lento**, aunque lo pareciera: medido por WebSocket con la conexión ya
+  abierta —el camino de la web— son **1,4-2,1 s**, `result:true` 6 de 6, muy dentro de los 5 s de
+  rosbridge. La medida de 4,6-6,5 s que se llegó a escribir salía de `ros2 service call`, que
+  arranca un nodo entero en cada llamada. **Van cinco veces que el instrumento miente aquí.**
+
 **🔴 EL X2 GIRA SIEMPRE, Y AL PONER systemd PASARÁ A GIRAR SIEMPRE **RÁPIDO**.** DTR no
 enciende el motor: elige su velocidad. Medido el 2026-07-31, diez tramos alternados y
 confirmado por oído: `DTR=1` → **11.8 Hz**, `DTR=0` → **2.7 Hz** (4.3×, checksums 99.8 % en los

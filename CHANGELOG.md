@@ -115,6 +115,61 @@ coautorías, en la Pi: `git -C ~/atriz_migracion status` y luego `fetch` + `rese
 
 ---
 
+## 2026-08-04 — El LIDAR estaba muerto y el robot parecía sano
+
+Cierra el `/start_scan → result:false` que la evidencia 68 §6 dejó abierto con «la causa está en
+el robot». Lo era, y no era el servicio.
+
+**El nodo del X2 tenía el descriptor muerto.** Abre su puerto una sola vez al arrancar y no lo
+reabre nunca. El X2 se alimenta del RVR, así que apagar y encender el robot re-enumera su
+adaptador USB: udev rehace `/dev/ydlidar` correctamente y **nadie se lo dice al proceso**.
+
+```
+nodo del lidar, fd 29  ->  /dev/ttyUSB0 (deleted)     <- descriptor MUERTO
+proceso arrancado      ->  Aug  3 15:31:56
+/dev/ttyUSB1 creado    ->  Aug  4 00:29:34            (nueve horas después)
+```
+
+De ahí salen los tres síntomas en cadena: `turnOn()` escribe en el fd muerto, el bucle sondea y
+falla (`Failed to get scan` a 20 Hz), y rosbridge se rinde a los 5 s con un `result:false` cuyo
+texto —«Timeout exceeded while waiting for service response»— **es suyo, no del robot**.
+
+🔴 **Y todo esto con `systemctl` en `active`, el nodo vivo, sus servicios contestando y `/odom` a
+16,58 Hz.** Misma familia que el RVR dormido con el nodo vivo. Sin `/scan` el `collision_monitor`
+no deja conducir, así que el robot «no obedece» sin ninguna señal de avería.
+
+📝 **La pista la puso el usuario**, no el análisis: *«seguramente es debido a la forma de arranque,
+hay una forma en la que el lidar va y otra no»*. Era eso, con un matiz — no es cómo se arranca el
+stack, es **cuándo respecto al robot**.
+
+✅ Arreglado con `sudo systemctl restart atriz-robot` y verificado por efecto: fd vivo, 0 errores,
+`/scan` a **11,90 Hz**.
+
+⏳ **Que se recupere solo está SIN HACER**, y con 16 robots va a volver. Dos opciones sin decidir
+en la evidencia 69 §6. Un `Restart=always` no sirve: el proceso no muere.
+
+### Dos veces que mintió el instrumento, en el mismo diagnóstico
+
+- **`ros2 service call` dio 4,6-6,5 s para `/start_scan`** y se llegó a escribir que rozaba el
+  tope de 5 s de rosbridge. **Falso:** arranca un nodo y hace descubrimiento en cada llamada. Con
+  un cliente WebSocket ya conectado —el camino real de la web— son **1,4-2,1 s**, `result:true`
+  6 de 6. Retractado en el acto. Van cinco.
+- **El primer cliente WebSocket dijo «rosbridge no contesta en 15 s»** con las suscripciones
+  funcionando (46 mensajes de `/odom` en 3 s). No era rosbridge: `probar_rosbridge.recibir()`
+  devuelve la tupla `(payload, opcode)` y se le pasaba entera a `json.loads`, que lanzaba dentro
+  de un `except: continue`. Lo destapó **mirar el journal del robot y ver que rosbridge no se
+  había quejado de nada**.
+
+### Y un apunte para el cliente web, verificado en el rosbridge instalado
+
+`call_service.py:92` — `timeout: float = message.get("timeout", self.default_call_service_timeout)`.
+**El plazo de rosbridge lo puede fijar el cliente en el propio op**, y `opCallService()` de
+`protocolo.ts` no lo manda: el `ms` de `Transporte.llamar()` solo arma un temporizador **local**,
+así que subirlo no mueve la pared de los 5 s de rosbridge. Hoy no aprieta —ningún servicio medido
+se acerca—, pero las dos paredes deberían moverse juntas.
+
+---
+
 ## 2026-08-03 (parte 7) — Dos ramas muertas de `Atriz_rvr`, y un stash que ya sabía la respuesta
 
 De las cuatro ramas remotas de `Atriz_rvr` quedan **dos**. Las otras dos se borraron hoy, y las
