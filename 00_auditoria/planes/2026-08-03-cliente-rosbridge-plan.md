@@ -721,11 +721,18 @@ describe('llamadas pendientes', () => {
     vi.useFakeTimers()
     const r = new RegistroPendientes()
     const p = r.registrar('y', 5000)
-    // 🔴 Exige LAS DOS posibilidades en el mismo mensaje. Un regex con
-    //    alternancia sin agrupar —`/denegad[ao].*|.*ca[ií]d/`— es en realidad
-    //    `(denegad[ao].*)|(.*ca[ií]d)` y PASA mencionando solo una: la
-    //    salvaguarda seria mas debil de lo que aparenta.
-    const capturado = expect(p).rejects.toThrowError(/denegad[ao][\s\S]*ca[ií]d/)
+    // 🔴 DOS aserciones, no un regex combinado. Tres razones, y las tres se
+    //    aprendieron rompiendolo:
+    //    1. `/denegad[ao].*|.*ca[ií]d/` (la version original) es en realidad
+    //       `(denegad[ao].*)|(.*ca[ií]d)`: PASA mencionando solo una.
+    //    2. `/denegad[ao][\s\S]*ca[ií]d/` arregla eso pero exige un ORDEN:
+    //       si el mensaje se reescribe como «puede estar caido, o denegado»,
+    //       la prueba falla sin que nada este mal.
+    //    3. Un regex combinado no dice CUAL de las dos falta cuando rompe.
+    const capturado = Promise.all([
+      expect(p).rejects.toThrow(/denegad[ao]/),
+      expect(p).rejects.toThrow(/ca[ií]d/),
+    ])
     vi.advanceTimersByTime(5001)
     await capturado
     vi.useRealTimers()
