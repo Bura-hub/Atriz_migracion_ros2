@@ -86,15 +86,43 @@ class Observador(Node):
         self.parada_hasta: float | None = None
         self.ultimo_estado: EstadoRobot | None = None
         self.vio_true = False
+        self.vio_false = False   # ¿hubo un mensaje con la bandera BAJADA antes?
+        self.flanco = False      # ¿se presenció la transición, o ya estaba puesta?
         self.create_subscription(EstadoRobot, '/estado_robot', self._estado, BEST)
 
 
     def _estado(self, m: EstadoRobot) -> None:
+        """🔴 DISTINGUE «vi el flanco» de «ya estaba puesta cuando llegué».
+
+        La versión anterior no lo hacía: `if m.parada_emergencia and not
+        vio_true` dispara en el PRIMER mensaje con `true`, sea una transición o
+        no, e imprimía «-> True» como si hubiera presenciado el flanco.
+
+        Medido el 2026-08-04 sobre la corrida de las 09:30:29. El journal dice
+        que la parada duró 90 s (09:30:29 → 09:31:59) y este script informó de
+        **72,8 s**: llegó ~17 s tarde, encontró la bandera ya puesta y lo contó
+        como si la hubiera visto cambiar.
+
+        → Es el más grave de los tres defectos que ha tenido este observador.
+          Los otros dos daban un número equivocado; este **afirma haber sido
+          testigo de algo que no vio**, que es justo lo que un testigo no puede
+          hacer. Y sostuvo una afirmación falsa en la evidencia 71.
+        → La regla: para dar fe de una transición hay que haber visto **los dos
+          lados**. Si el primer mensaje ya viene en `true`, lo honesto es decir
+          que se llegó tarde.
+        """
         self.ultimo_estado = m
+        if not m.parada_emergencia:
+            self.vio_false = True          # hay un «antes» contra el que comparar
         if m.parada_emergencia and not self.vio_true:
             self.vio_true = True
+            self.flanco = self.vio_false   # ¿había un False previo?
             self.parada_desde = time.monotonic()
-            print(f'\n  🔴 parada_emergencia -> True   (latido={m.latido})')
+            if self.flanco:
+                print(f'\n  🔴 parada_emergencia: False -> True   (latido={m.latido})')
+            else:
+                print(f'\n  ⚠️ parada_emergencia YA estaba en True al llegar '
+                      f'(latido={m.latido}): NO se vio el flanco')
         elif self.vio_true and not m.parada_emergencia and self.parada_hasta is None:
             self.parada_hasta = time.monotonic()
             print(f'  ✅ parada_emergencia -> False  (liberada, latido={m.latido})')
@@ -150,16 +178,21 @@ def main() -> int:
     # ── 2 · el campo nuevo ───────────────────────────────────────────────────
     if n.vio_true:
         dur = (n.parada_hasta - n.parada_desde) if n.parada_hasta else None
-        print('  2· /estado_robot  ✅ parada_emergencia pasó a True'
-              + (f' y volvió a False tras {dur:.1f} s' if dur else
-                 ' (NO se vio volver a False: ¿se liberó?)'))
+        if n.flanco:
+            print('  2· /estado_robot  ✅ se vio el FLANCO False -> True'
+                  + (f', y volvió a False tras {dur:.1f} s' if dur else
+                     ' (NO se vio volver a False: ¿se liberó?)'))
+        else:
+            print('  2· /estado_robot  ⚠️ la bandera ya estaba en True AL LLEGAR:')
+            print('                    hay parada, pero NO se presenció el flanco.')
+            print('                    El instante del corte lo da el log, no esto.')
     else:
         e = n.ultimo_estado
         print('  2· /estado_robot  🔴 parada_emergencia NUNCA pasó a True'
               + ('' if e else '  (y no llegó ningún /estado_robot: ¿está el driver nuevo?)'))
 
     print('═' * 70)
-    ok = n.vio_true and bool(golpes if 'golpes' in dir() else False)
+    ok = n.flanco and bool(golpes if 'golpes' in dir() else False)
     print('  Los DOS tienen que coincidir. Uno solo no prueba nada:')
     print('    log sin parada real  -> la recibió y no la aplicó')
     print('    parada sin log       -> paró por otra cosa (el watchdog corta a 0,3 s)')
