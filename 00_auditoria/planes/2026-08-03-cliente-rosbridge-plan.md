@@ -889,7 +889,20 @@ git commit -m "protocolo: las ops de rosbridge, y el plazo que rosbridge no da"
 > Es la regla de siempre de este proyecto —comprobar el efecto, no el código de retorno— aplicada a
 > un WebSocket, y resuelve la espera creciente sola: `intentos` se reinicia **al recibir**.
 >
-> Cambios de la versión corregida: `conectar()` **idempotente**; bandera `cierreDeliberado` y
+> 📝 **Y la corrección tuvo su propia ronda 2**, porque arreglar abrió dos huecos más — la cuarta
+> vez en este plan:
+> - **`conectar()` no cancelaba un temporizador de reconexión ya pendiente.** Una llamada manual
+>   mientras había uno programado lo dejaba **huérfano**, y disparaba más tarde **incluso después de
+>   un `cerrar()`**: medido, **3 sockets contra 1** en el control. La garantía del crítico 1 no era
+>   completa.
+> - **El bucle que reanuncia al reconectar era CÓDIGO MUERTO:** `onclose` vaciaba `anunciados` justo
+>   antes, así que `onopen` recorría un conjunto vacío. Funcionaba igual porque `publicar()`
+>   reanuncia perezosamente, pero se perdía el reanuncio anticipado — y eso importa justo en
+>   `/emergency_stop`: anunciado de antemano, pulsar la parada es **un** mensaje; sin ello son dos,
+>   y el primero es un `advertise`.
+>
+> Cambios de la versión corregida: `conectar()` **idempotente** y cancelando la reconexión
+> pendiente; bandera `cierreDeliberado` y
 > cancelación del temporizador en `cerrar()`; `opUnsubscribe` al quedarse un topic sin oyentes, más
 > borrar su entrada del `Map`; `publicar()` **lanza** y `llamar()` **rechaza** sin enlace;
 > `intentos = 0` en `entrante()`; `try/catch` en el `JSON.parse`; y un canal `alAviso()` que expone
