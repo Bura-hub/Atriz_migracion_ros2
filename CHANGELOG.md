@@ -4,6 +4,47 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 5) — Las tres señales que le faltan al robot, escritas y SIN VERIFICAR
+
+Rama **`feat/estado-robot`** de `Atriz_rvr`. 🔴 **`ros2` intacta en `65ad124`** — el codigo no se
+puede probar sin robot, y tocar el driver a ciegas es donde este proyecto se ha hecho daño.
+
+Un solo topic, `/estado_robot` a 1 Hz (`atriz_rvr_msgs/EstadoRobot`), con lo que la interfaz web
+necesita y hoy no existe:
+
+    uint64  latido                  la señal de vida DEL NODO
+    bool    parada_emergencia       la bandera del driver, que hoy no sale
+    bool    rvr_responde            distingue «la Pi va y el RVR no» de «no llego a la Pi»
+    float32 antiguedad_muestra_s    -1.0 = «no se sabe», nunca «cero»
+    uint32  reanudaciones_fallidas  distingue CARGANDO de DORMIDO
+
+El diff toca **4 lineas existentes** —la lista blanca, el reflujo de un `import` y un rotulo—; todo
+lo demas es añadido, y el metodo nuevo va entero dentro de `try/except`.
+
+🔴 **Y el encargo estaba MAL, lo encontro quien lo implementaba.** Yo dije que
+`reanudaciones_fallidas` se apoyara en `_t_ultima_muestra`. Ese campo lo reinician **tambien**
+`_conectar_rvr` y `_recuperar_streaming`, asi que significa «hace poco que paso algo», no «hace poco
+que llego un dato» — y con el RVR apagado una reanudacion habria parecido un exito. O sea **el fallo
+del 2026-08-02 reproducido dentro del campo escrito para detectarlo**. Resuelto con un espejo que
+solo tocan los manejadores.
+
+⚠️ **Y sospeche un segundo fallo que NO existe**, conviene decirlo: `g_salud` es
+`MutuallyExclusiveCallbackGroup`, asi que temi que el keepalive bloqueara el latido justo cuando el
+RVR esta muerto. **No pasa**: `_keepalive` y `_vigilar_silencio` usan `_enviar`, que es
+fire-and-forget, no `_pedir`, que si bloquea 5 s. El driver ya tenia esa distincion hecha a
+proposito.
+
+⚠️ **Lo que hay que mirar al fusionarlo NO es el topic nuevo: es que `/odom` e `/imu` sigan
+publicando.** El riesgo de este parche es llevarse por delante la telemetria, no fallar en lo suyo.
+Y un `.msg` nuevo **no basta con `colcon build`**: hay que borrar `build/` e `install/` del paquete.
+
+📝 Y tres cosas que quedan dichas y no medidas: los umbrales «1-2 / >2» **no estan calibrados**, el
+coste «0,03 kB/s» es **aritmetica**, y el `TRANSIENT_LOCAL` del latido hace que un suscriptor nuevo
+reciba el ultimo valor latcheado — **la interfaz tiene que comparar DOS lecturas**, una sola no dice
+nada.
+
+---
+
 ## 2026-08-04 (parte 4) — El auditor de documentacion no corria en el PC, y mentia
 
 Dos fallos suyos, los dos **solo en Windows**, encontrados al pasarlo desde el PC por primera vez.
