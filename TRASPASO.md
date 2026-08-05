@@ -4,10 +4,12 @@
 > Raspberry Pi ya se reflasheó. Está escrito para que no haga falta reconstruir el
 > contexto desde cero.
 >
-> Última actualización: **2026-08-04**, tras cerrar el **cliente de rosbridge** (movió un robot
-> real 60 cm) y diseñar **la estructura de la aplicación web**. Antes de eso: la **revisión final
-> de rama** y su oleada de arreglos. El material docente —`atriz.py` y las diez prácticas— está escrito, revisado y con
-> **89 tests**, y **empujado a los dos repositorios**.
+> Última actualización: **2026-08-04, tarde**, tras cerrar **el direccionamiento de la flota**
+> —una dirección por red, aplicada en rvr-01 y verificada desde el navegador (evidencias 74 y
+> 75)— y dejar la **aplicación web** con sus seis rutas mirándose contra el robot vivo. Antes de
+> eso: el **cliente de rosbridge** (movió un robot real, con cinta y control por SSH), la
+> **revisión final de rama** y su oleada de arreglos. El material docente —`atriz.py` y las diez
+> prácticas— está escrito, revisado y con **89 tests**, y **empujado a los dos repositorios**.
 >
 > 🔴 **Lo que falta es de dos clases, y las dos son del usuario:**
 > 1. **La sesión física, a medias.** El **2026-08-03 se midieron cinco de las siete evidencias**
@@ -27,10 +29,18 @@
 >
 > Y falta también la corrida completa de la prueba de aceptación tras un reinicio real.
 >
-> 🆕 **Y desde el 2026-08-04, la Fase 5 está en marcha y su capa de datos FUNCIONA.** El cliente de
-> rosbridge de `atriz-lab` **movió un RVR real 60 cm** con el código de producción (evidencia 70),
-> **97 pruebas**. Lo que falta de esa tarea es **la medida con cinta** y el control por SSH, más
-> **publicar la parada de emergencia con el robot en marcha** mirando el log del driver.
+> 🆕 **Y desde el 2026-08-04 la Fase 5 está en marcha, y su capa de datos ya no es una promesa.**
+> `atriz-lab` **movió un RVR real** con el código de producción (evidencia 70) y las tres
+> comprobaciones que faltaban están **cerradas**:
+> - **cinta métrica, n=2:** 30 y 30 cm de cinta contra **30,2 y 29,6** de odometría (T1).
+> - **control por SSH:** 31 cm de cinta contra **31,3** — la misma secuencia, solo cambia el
+>   transporte (T9).
+> - **parada de emergencia con el robot EN MARCHA, por WebSocket: 4 de 4**, frenada de
+>   **1,8–2,9 cm** contra los 9,9–10,7 del `collision_monitor`, con el flanco `false→true` visto
+>   desde el robot (T2).
+>
+> Hoy son **358 pruebas** (`tsc` y `eslint` limpios), las seis rutas se abren y se han mirado
+> **renderizadas con datos reales**, y el muro encuentra al robot **por su nombre**.
 > El diseño de la aplicación está en
 > [`00_auditoria/planes/2026-08-04-estructura-app-web.md`](00_auditoria/planes/2026-08-04-estructura-app-web.md)
 > y **todas las dudas abiertas, con recomendación**, en
@@ -72,14 +82,31 @@ medición era correcta y la conclusión incompleta:** se verificó desde el punt
 **robot** —¿puede tener tres direcciones a la vez?— y nunca desde el del **cliente**.
 
 El 2026-08-04, con la web ya construida, el usuario avisó de que «no funciona nada en flota».
-`rvr-NN.local` resuelve a **cuatro** direcciones y el navegador prueba en un orden en el que las
-dos primeras —el `fe80::` sin zona y la estática del otro sitio— **no fallan: se cuelgan** ~21 s
+`rvr-NN.local` resolvía a **cuatro** direcciones y el navegador probaba en un orden en el que las
+dos primeras —el `fe80::` sin zona y la estática del otro sitio— **no fallaban: se colgaban** ~21 s
 cada una. En el aula funcionaba **por suerte**, porque `10.14.7.7` ordenaba antes que las de casa.
 → Rediseñado: **una dirección por red**, emparejada por SSID.
 [`00_auditoria/planes/2026-08-04-direccionamiento-flota.md`](00_auditoria/planes/2026-08-04-direccionamiento-flota.md).
-⏳ **Escrito, sin aplicar todavía** al robot. Ancho de banda
-medido dos veces con dos clientes distintos: **80.7 kB/s navegando → 10.3 Mbit/s los 16**, y
-`/scan` es el **83 %**. Manual, **cap. 19**.
+
+✅ **APLICADO en rvr-01 y VERIFICADO DESDE EL CLIENTE, el 2026-08-04 por la tarde**
+(evidencias [74](00_auditoria/evidencia/74_una_direccion_por_red.txt) y
+[75](00_auditoria/evidencia/75_navegador_por_nombre.txt)):
+`hostname -I` da **una sola** dirección, `[Match] SSID=` casó el fichero de casa sin scripts, y
+**`ws://rvr-01.local:9090` ABRE en el navegador** — 4339 ms con la caché mDNS fría, 2331 caliente.
+El muro pinta `rvr-01 · 7,67 V · en línea` **por nombre y sin override**.
+
+🔴 **Hizo falta `publish-aaaa-on-ipv4=no` ADEMÁS de `use-ipv6=no`**: el primero apaga el
+*transporte* IPv6, pero el registro `AAAA` **se seguía anunciando por el transporte IPv4**.
+⚠️ Y un testigo falso casi lo da por cerrado antes de tiempo: `getent ahosts` **desde la Pi** dio
+una sola dirección mientras el PC recibía dos. **`getent` no ve lo que la Pi anuncia al cable.**
+
+⏳ **Lo que sigue SIN PROBAR es el aula, y ahí está el riesgo:** `05-atriz-lab.network` **nunca ha
+casado con nada**. Si su SSID difiere en un carácter, el robot cae al netplan genérico y se queda
+**sin dirección estática** con 16 alumnos delante. Tampoco está probado que sobreviva a un
+**arranque en frío**, que es justo lo que hará el robot 7.
+
+Ancho de banda medido dos veces con dos clientes distintos: **80.7 kB/s navegando → 10.3 Mbit/s
+los 16**, y `/scan` es el **83 %**. Manual, **cap. 19**.
 
 **🟢 La migración funciona: el robot corre sobre ROS 2 Jazzy y SLAM ya mapea.** Ubuntu Server
 24.04.4 + Jazzy instalados, driver portado a `rclpy` (`/odom` a 16.67 Hz), URDF y árbol TF

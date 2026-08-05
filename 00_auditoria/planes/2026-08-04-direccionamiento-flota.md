@@ -1,6 +1,19 @@
 # Direccionamiento de la flota — una dirección por red, y que el nombre funcione
 
-**Estado:** diseño aprobado por el usuario el 2026-08-04. Sin implementar.
+**Estado:** ✅ **APLICADO en rvr-01 el 2026-08-04 por la tarde, y verificado desde el cliente.**
+Evidencias [74](../evidencia/74_una_direccion_por_red.txt) (el robot) y
+[75](../evidencia/75_navegador_por_nombre.txt) (el navegador).
+
+- `hostname -I` da **una sola** dirección; `[Match] SSID=` casó el fichero de casa sin scripts.
+- 🔴 Hizo falta **`publish-aaaa-on-ipv4=no` además de `use-ipv6=no`** — este apaga el *transporte*
+  IPv6, pero el registro `AAAA` **se seguía anunciando por el transporte IPv4**. No estaba en este
+  plan: salió al medir.
+- ✅ `ws://rvr-01.local:9090` **abre en el navegador** (4339 ms en frío, 2331 caliente) y el muro
+  entra **por nombre**.
+
+⏳ **Sigue sin probarse el aula entera:** `05-atriz-lab.network` **nunca ha casado con nada**, no
+está probado que networkd re-evalúe el `[Match] SSID=` al mudarse sin reiniciar, ni que todo
+sobreviva a un **arranque en frío** — que es justo lo que hará el robot 7.
 
 ---
 

@@ -20,7 +20,22 @@ aceptado), A6 (el editor, depende de A1), B3 (el mapa), B4 (el `fmask`).
 
 ---
 
-## 1 · Los 2,7 s del nombre — 🔴 MEDIR ANTES DE ARREGLAR
+## 1 · Los 2,7 s del nombre — ✅ CERRADO, y no era lo que este apartado suponía
+
+> ✅ **RESUELTO el 2026-08-04 por la tarde.** Se midió en el navegador, como manda este apartado,
+> y **el navegador sí pagaba** — mucho más que los 2,7 s de aquí: **no abría nunca**. La causa no
+> era la latencia sino que `rvr-NN.local` resolvía a **cuatro** direcciones y el navegador se
+> colgaba en las dos primeras, que no fallan.
+>
+> Se arregló **en el robot**, no en la web (una dirección por red, evidencia 74), porque
+> JavaScript no puede elegir dirección. Hoy `ws://rvr-01.local:9090` **abre**: 4339 ms en frío,
+> 2331 caliente, y el muro entra por nombre. Evidencia 75.
+>
+> 📝 **Y el apartado acertó en lo que importaba:** exigir la medida antes de diseñar. Lo que se
+> habría diseñado sobre la hipótesis de «2,7 s de latencia» —una espera más larga, un indicador de
+> carga— **no habría arreglado nada**, porque el problema no era esperar poco.
+
+**Texto original, conservado:**
 
 **Lo observado:** `ws://rvr-01.local:9090` abre en **2743 ms**; `ws://192.168.1.58:9090` en
 **20 ms**. `rvr-01.local` resuelve a cuatro direcciones y la primera es IPv6 *link-local*
