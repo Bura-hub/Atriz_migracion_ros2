@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LIDAR - MARCO_ROBOT_v1.0</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&amp;family=Geist:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-fixed": "#dee0ff",
+                        "surface-container-lowest": "#0c0e17",
+                        "primary-container": "#2b4bf2",
+                        "primary-fixed-dim": "#bbc3ff",
+                        "on-secondary-fixed": "#161e00",
+                        "secondary-container": "#aad301",
+                        "accent-cyan": "#22D3EE",
+                        "surface-container-highest": "#33343e",
+                        "border-glass": "rgba(255, 255, 255, 0.09)",
+                        "surface": "#12131c",
+                        "surface-container-high": "#282933",
+                        "surface-bright": "#383843",
+                        "secondary-fixed-dim": "#acd609",
+                        "on-tertiary-container": "#ffd3ca",
+                        "on-tertiary": "#630e00",
+                        "on-primary-container": "#d7dbff",
+                        "on-primary-fixed-variant": "#002ccd",
+                        "on-secondary": "#293500",
+                        "secondary-fixed": "#c7f335",
+                        "on-tertiary-fixed": "#3d0600",
+                        "inverse-surface": "#e2e1ef",
+                        "background-well": "#07080D",
+                        "error": "#ffb4ab",
+                        "text-primary": "#EDEFF5",
+                        "on-tertiary-fixed-variant": "#8c1800",
+                        "inverse-on-surface": "#2f303a",
+                        "on-primary": "#001d93",
+                        "tertiary-fixed-dim": "#ffb4a4",
+                        "background": "#12131c",
+                        "on-error": "#690005",
+                        "status-action": "#FB6A5A",
+                        "accent-electric": "#5B8CFF",
+                        "on-background": "#e2e1ef",
+                        "tertiary": "#ffb4a4",
+                        "surface-container": "#1e1f29",
+                        "on-secondary-container": "#455700",
+                        "outline-variant": "#444656",
+                        "primary": "#bbc3ff",
+                        "secondary": "#c5f032",
+                        "on-secondary-fixed-variant": "#3c4d00",
+                        "on-surface-variant": "#c4c5d9",
+                        "on-error-container": "#ffdad6",
+                        "inverse-primary": "#2748ef",
+                        "text-muted": "#8B90A3",
+                        "on-primary-fixed": "#000f5d",
+                        "tertiary-fixed": "#ffdad3",
+                        "status-recent": "#4ADE80",
+                        "surface-dim": "#12131c",
+                        "surface-elevated": "#0C0E16",
+                        "outline": "#8e8fa2",
+                        "surface-container-low": "#1a1b24",
+                        "surface-tint": "#bbc3ff",
+                        "on-surface": "#e2e1ef",
+                        "error-container": "#93000a",
+                        "status-watch": "#FBBF24",
+                        "surface-variant": "#33343e",
+                        "tertiary-container": "#b92a0a"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px",
+                        "glass": "20px"
+                    },
+                    spacing: {
+                        "glass-blur": "20px",
+                        "total-entrance": "720ms",
+                        "step-delay": "60ms"
+                    },
+                    fontFamily: {
+                        "display-lg": ["Geist", "sans-serif"],
+                        "card-title": ["Geist", "sans-serif"],
+                        "body-md": ["Geist", "sans-serif"],
+                        "label-xs": ["Geist Mono", "monospace"],
+                        "data-lg": ["Geist Mono", "monospace"],
+                        "headline-robot": ["Geist", "sans-serif"]
+                    },
+                    fontSize: {
+                        "display-lg": ["clamp(2.5rem, 6vw, 4.875rem)", { lineHeight: "1.1", letterSpacing: "-0.045em", fontWeight: "650" }],
+                        "card-title": ["19px", { lineHeight: "1.4", fontWeight: "600" }],
+                        "body-md": ["16px", { lineHeight: "1.55", fontWeight: "400" }],
+                        "label-xs": ["11.5px", { lineHeight: "1.0", fontWeight: "500" }],
+                        "data-lg": ["40px", { lineHeight: "1.0", letterSpacing: "tabular-nums", fontWeight: "600" }],
+                        "headline-robot": ["clamp(1.5rem, 3.2vw, 2.4rem)", { lineHeight: "1.2", fontWeight: "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background-color: rgba(255, 255, 255, 0.045);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 20px;
+        }
+        .status-border-watch {
+            border-top: 1px solid theme('colors.status-watch');
+            background: linear-gradient(180deg, rgba(251, 191, 36, 0.1) 0%, transparent 20%);
+        }
+        .status-border-recent {
+            border-top: 1px solid theme('colors.status-recent');
+            background: linear-gradient(180deg, rgba(74, 222, 128, 0.1) 0%, transparent 20%);
+        }
+        
+        /* Entrance Animations */
+        .animate-stagger-1 { animation: fadeUp 720ms cubic-bezier(0.23, 1, 0.32, 1) 0ms forwards; opacity: 0; transform: translateY(10px); }
+        .animate-stagger-2 { animation: fadeUp 720ms cubic-bezier(0.23, 1, 0.32, 1) 60ms forwards; opacity: 0; transform: translateY(10px); }
+        .animate-stagger-3 { animation: fadeUp 720ms cubic-bezier(0.23, 1, 0.32, 1) 120ms forwards; opacity: 0; transform: translateY(10px); }
+        .animate-stagger-4 { animation: fadeUp 720ms cubic-bezier(0.23, 1, 0.32, 1) 180ms forwards; opacity: 0; transform: translateY(10px); }
+        .animate-stagger-5 { animation: fadeUp 720ms cubic-bezier(0.23, 1, 0.32, 1) 240ms forwards; opacity: 0; transform: translateY(10px); }
+        .animate-stagger-6 { animation: fadeUp 720ms cubic-bezier(0.23, 1, 0.32, 1) 300ms forwards; opacity: 0; transform: translateY(10px); }
+        .animate-stagger-7 { animation: fadeUp 720ms cubic-bezier(0.23, 1, 0.32, 1) 360ms forwards; opacity: 0; transform: translateY(10px); }
+        .animate-stagger-8 { animation: fadeUp 720ms cubic-bezier(0.23, 1, 0.32, 1) 420ms forwards; opacity: 0; transform: translateY(10px); }
+
+        @keyframes fadeUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Diagonal Hatch Pattern for Action Regions */
+        .bg-hatch-pattern {
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.1) 5px, rgba(0,0,0,0.1) 10px);
+        }
+    </style>
+</head>
+<body class="bg-background-well text-on-surface flex h-screen overflow-hidden font-body-md selection:bg-primary-container selection:text-white">
+<!-- Ambient Orbs (Background) -->
+<div class="fixed inset-0 pointer-events-none z-0 overflow-hidden mix-blend-screen">
+<div class="absolute top-[-10%] left-[10%] w-[40vw] h-[40vw] rounded-full bg-accent-electric/5 blur-[120px]"></div>
+<div class="absolute bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-surface-container-highest/30 blur-[100px]"></div>
+</div>
+<!-- Responsive Navigation Shell -->
+<!-- TopAppBar (Desktop) -->
+<header class="hidden md:flex justify-between items-center px-6 w-full fixed top-0 z-50 h-16 border-b border-border-glass backdrop-blur-glass-blur bg-surface-container-lowest text-primary transition-all duration-total-entrance cubic-bezier(0.23,1,0.32,1)">
+<div class="font-headline-robot text-headline-robot text-primary uppercase tracking-tighter">
+            MARCO_ROBOT_v1.0
+        </div>
+<div class="flex items-center gap-4">
+<button class="text-text-muted hover:bg-white/5 p-2 rounded-full transition-colors"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">sensors</span></button>
+<button class="text-text-muted hover:bg-white/5 p-2 rounded-full transition-colors"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">battery_charging_full</span></button>
+<button class="text-text-muted hover:bg-white/5 p-2 rounded-full transition-colors"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">wifi_tethering</span></button>
+</div>
+</header>
+<!-- SideNavBar (Desktop) -->
+<aside class="hidden md:flex flex-col h-screen p-4 space-y-2 w-72 border-r border-border-glass backdrop-blur-glass-blur bg-surface-container pt-20 z-40 relative">
+<div class="mb-8 px-4">
+<h2 class="font-display-lg text-[24px] leading-tight text-primary">PLATAFORMA ATRIZ</h2>
+<p class="font-label-xs text-text-muted mt-1">Fleet Operational Control</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg group" href="#"><span class="material-symbols-outlined group-hover:text-primary transition-colors">precision_manufacturing</span><span class="font-body-md">Taller</span></a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg group" href="#"><span class="material-symbols-outlined group-hover:text-primary transition-colors">sports_esports</span><span class="font-body-md">Conducir</span></a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg group" href="#"><span class="material-symbols-outlined group-hover:text-primary transition-colors">warning</span><span class="font-body-md">No obedece</span></a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg group" href="#"><span class="material-symbols-outlined group-hover:text-primary transition-colors">query_stats</span><span class="font-body-md">Telemetría</span></a>
+<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg font-bold scale-95 duration-step-delay" href="#"><span class="material-symbols-outlined">radar</span><span class="font-body-md">LIDAR</span></a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg group" href="#"><span class="material-symbols-outlined group-hover:text-primary transition-colors">settings_suggest</span><span class="font-body-md">Diagnóstico</span></a>
+</nav>
+<div class="mt-auto pt-4">
+<button class="w-full bg-status-action text-on-error font-card-title py-4 rounded-[4px] uppercase tracking-widest border-[4px] border-white/20 shadow-[0_0_15px_rgba(251,106,90,0.4)] hover:bg-red-500 transition-colors">EMERGENCY_STOP</button>
+</div>
+</aside>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center h-20 px-8 border-t border-border-glass backdrop-blur-glass-blur bg-surface-elevated/80 rounded-t-xl z-50">
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined mb-1">grid_view</span>
+<span class="font-label-xs">Fleet Wall</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary font-bold scale-110 duration-total-entrance" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">settings_remote</span>
+<span class="font-label-xs">Controls</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined mb-1">map</span>
+<span class="font-label-xs">Maps</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined mb-1">description</span>
+<span class="font-label-xs">Logs</span>
+</a>
+</nav>
+<!-- Main Content Canvas (Single Column) -->
+<main class="flex-1 overflow-y-auto relative z-10 p-4 md:p-8 pt-6 md:pt-24 pb-28 md:pb-8 flex flex-col items-center">
+<div class="w-full max-w-[560px] flex flex-col gap-4">
+<!-- 1. Banda fija COSTE -->
+<section class="glass-panel status-border-watch p-5 animate-stagger-1">
+<header class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-status-watch text-[18px]">account_balance</span>
+<h3 class="font-card-title text-text-primary uppercase text-sm tracking-wider">COSTE COMPUTACIONAL Y RESTRICCIONES (§5.8)</h3>
+</header>
+<div class="font-label-xs text-text-muted space-y-2 leading-relaxed opacity-80">
+<p>El renderizado crudo de la nube de puntos LIDAR consume aprox. 14% de la capacidad del nodo secundario. Mantener esta vista activa por periodos prolongados degradará la frecuencia de actualización de la telemetría háptica en un factor de 0.8x.</p>
+<p>Se omite intencionalmente la triangulación de superficies y el modelo a escala del chasis para garantizar una latencia inferior a 90ms. El umbral de descarte algorítmico está fijado en reflexiones de baja intensidad (SNR &lt; 12dB).</p>
+<p>Atención: La correlación espacial en esta matriz es estricta. Las anomalías visuales representan distorsiones físicas o fallos en el fotodiodo del sensor, no artefactos de software. Operar con cautela en entornos polvorientos.</p>
+</div>
+</section>
+<!-- 2. Barra mando -->
+<section class="flex justify-between items-center bg-surface-container-low border border-border-glass rounded-lg p-2 animate-stagger-2">
+<div class="flex gap-2">
+<button class="bg-secondary text-on-secondary font-card-title text-sm px-6 py-2 rounded-[6px] hover:bg-secondary-fixed transition-colors flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-on-secondary"></span> ENCENDER
+                    </button>
+<button class="bg-transparent border border-outline-variant text-text-muted font-card-title text-sm px-6 py-2 rounded-[6px] hover:bg-white/5 transition-colors">
+                        APAGAR
+                    </button>
+</div>
+<div class="text-right px-2">
+<div class="font-label-xs text-text-muted">t_resp: 14ms</div>
+<div class="font-label-xs text-text-muted">lat_red: 42ms</div>
+</div>
+</section>
+<!-- 3. LIENZO CUADRADO (560px) -->
+<section class="w-full aspect-square border border-border-glass bg-[#0A0C13] relative overflow-hidden animate-stagger-3">
+<!-- Sello Mono -->
+<div class="absolute top-4 left-4 z-20 flex flex-col gap-1 pointer-events-none">
+<span class="font-label-xs text-accent-cyan bg-accent-cyan/10 px-2 py-1 rounded-sm border border-accent-cyan/20">hace 84 ms</span>
+<span class="font-label-xs text-text-muted">217 de 260 puntos</span>
+<span class="font-label-xs text-text-muted">ritmo_obs: 12.4 Hz</span>
+</div>
+<!-- SVG Canvas for Rings & Crosshair -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none" preserveaspectratio="xMidYMid meet" viewbox="-100 -100 200 200">
+<!-- Rings (0.5m, 1m, 2m mapped arbitrarily to scale) -->
+<circle cx="0" cy="0" fill="none" r="25" stroke="rgba(255,255,255,0.05)" stroke-dasharray="2 2" stroke-width="0.5"></circle>
+<circle cx="0" cy="0" fill="none" r="50" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"></circle>
+<circle cx="0" cy="0" fill="none" r="100" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"></circle>
+<!-- Center Crosshair -->
+<line stroke="rgba(255,255,255,0.15)" stroke-width="0.5" x1="-105" x2="105" y1="0" y2="0"></line>
+<line stroke="rgba(255,255,255,0.15)" stroke-width="0.5" x1="0" x2="0" y1="-105" y2="105"></line>
+<circle cx="0" cy="0" fill="theme('colors.primary')" r="2"></circle>
+<!-- Up Arrow -->
+<path d="M-4 -15 L0 -22 L4 -15" fill="none" stroke="theme('colors.primary')" stroke-width="1"></path>
+</svg>
+<!-- Lidar Points (Simulated with absolute positioned divs for exact 3px squares) -->
+<!-- Top Left Quadrant -->
+<div class="absolute top-[30%] left-[40%] w-[3px] h-[3px] bg-accent-cyan shadow-[0_0_4px_#22D3EE]"></div>
+<div class="absolute top-[32%] left-[42%] w-[3px] h-[3px] bg-accent-cyan shadow-[0_0_4px_#22D3EE]"></div>
+<div class="absolute top-[28%] left-[38%] w-[3px] h-[3px] bg-accent-cyan shadow-[0_0_4px_#22D3EE]"></div>
+<div class="absolute top-[35%] left-[25%] w-[3px] h-[3px] bg-accent-cyan opacity-60"></div>
+<!-- Front (Top) Barrier -->
+<div class="absolute top-[20%] left-[45%] w-[3px] h-[3px] bg-accent-cyan shadow-[0_0_4px_#22D3EE]"></div>
+<div class="absolute top-[19%] left-[48%] w-[3px] h-[3px] bg-accent-cyan shadow-[0_0_4px_#22D3EE]"></div>
+<div class="absolute top-[19%] left-[52%] w-[3px] h-[3px] bg-accent-cyan shadow-[0_0_4px_#22D3EE]"></div>
+<div class="absolute top-[21%] left-[55%] w-[3px] h-[3px] bg-accent-cyan shadow-[0_0_4px_#22D3EE]"></div>
+<!-- Right Side Cluster -->
+<div class="absolute top-[45%] left-[75%] w-[3px] h-[3px] bg-accent-cyan shadow-[0_0_4px_#22D3EE]"></div>
+<div class="absolute top-[48%] left-[78%] w-[3px] h-[3px] bg-accent-cyan shadow-[0_0_4px_#22D3EE]"></div>
+<div class="absolute top-[52%] left-[76%] w-[3px] h-[3px] bg-accent-cyan shadow-[0_0_4px_#22D3EE]"></div>
+<div class="absolute top-[55%] left-[72%] w-[3px] h-[3px] bg-accent-cyan opacity-40"></div>
+<!-- Sparse Bottom/Back -->
+<div class="absolute top-[80%] left-[48%] w-[3px] h-[3px] bg-accent-cyan opacity-50"></div>
+<div class="absolute top-[82%] left-[55%] w-[3px] h-[3px] bg-accent-cyan opacity-30"></div>
+</section>
+<!-- 4. Pie lienzo -->
+<section class="animate-stagger-4">
+<div class="font-label-xs text-text-muted flex flex-col gap-1 items-center opacity-70">
+<p>REF: PLANO HORIZONTAL_Z=0.4M</p>
+<p>RANGO VISIBLE: 2.5 METROS (TRUNCADO)</p>
+<p>MODO DE ALTO CONTRASTE ACTIVO</p>
+</div>
+</section>
+<!-- 5. Ficha barrido -->
+<section class="glass-panel p-4 animate-stagger-5">
+<table class="w-full font-label-xs text-left border-collapse">
+<thead>
+<tr class="border-b border-white/10 text-text-muted">
+<th class="pb-2 font-normal">PARAM_ID</th>
+<th class="pb-2 font-normal">VALOR_ACTUAL</th>
+<th class="pb-2 font-normal">ESTADO</th>
+</tr>
+</thead>
+<tbody class="text-text-primary">
+<tr class="border-b border-white/5">
+<td class="py-2">V_ROT_MOTOR</td>
+<td class="py-2 tabular-nums">5.12 RPM</td>
+<td class="py-2 text-status-recent">NOMINAL</td>
+</tr>
+<tr class="border-b border-white/5">
+<td class="py-2">TEMP_DIODO</td>
+<td class="py-2 tabular-nums">42.8 °C</td>
+<td class="py-2 text-status-watch">ELEVADO</td>
+</tr>
+<tr class="border-b border-white/5">
+<td class="py-2">RUIDO_AMB</td>
+<td class="py-2 tabular-nums">1.2 dB</td>
+<td class="py-2 text-status-recent">BAJO</td>
+</tr>
+<tr>
+<td class="py-2 text-text-muted">INT_TRAMA</td>
+<td class="py-2 tabular-nums">0x4F2A</td>
+<td class="py-2 text-text-muted">OK</td>
+</tr>
+</tbody>
+</table>
+</section>
+<!-- 6. Tarjeta seguridad -->
+<section class="glass-panel p-4 bg-surface-container-low/50 animate-stagger-6 border-l-2 border-l-status-watch">
+<div class="font-label-xs text-text-muted mb-2">CRÍTICO: ZONA_EXCLUSIÓN_POLY_01</div>
+<div class="font-label-xs text-status-watch bg-background-well p-3 rounded-md border border-white/5 whitespace-pre-wrap break-all">
+POLY_DEF_V2 {
+  vertices: [
+    [x:-0.45, y:0.80],
+    [x:0.45, y:0.80],
+    [x:0.60, y:-0.20],
+    [x:-0.60, y:-0.20]
+  ],
+  intrusions: 0,
+  lock: ACTIVE
+}
+                </div>
+</section>
+<!-- 7. Franja vida nodo -->
+<section class="flex justify-between items-center bg-background-well border border-border-glass rounded-lg p-3 animate-stagger-7">
+<div class="flex flex-col">
+<span class="font-label-xs text-text-muted uppercase">UPTIME</span>
+<span class="font-data-lg text-[20px] text-primary">04:12:45</span>
+</div>
+<div class="w-px h-8 bg-white/10"></div>
+<div class="flex flex-col">
+<span class="font-label-xs text-text-muted uppercase">CICLOS_PWR</span>
+<span class="font-data-lg text-[20px] text-primary">1,402</span>
+</div>
+<div class="w-px h-8 bg-white/10"></div>
+<div class="flex flex-col">
+<span class="font-label-xs text-text-muted uppercase">ESTADO_NODO</span>
+<span class="font-data-lg text-[20px] text-status-recent">SYNC</span>
+</div>
+</section>
+<!-- 8. Caja "Lo que esta pantalla no puede decir" -->
+<section class="border border-outline-variant/30 rounded-lg p-4 bg-surface-container-highest/20 animate-stagger-8">
+<div class="flex gap-3">
+<span class="material-symbols-outlined text-text-muted text-[20px]">info</span>
+<div>
+<h4 class="font-label-xs text-text-muted uppercase mb-1">Lo que esta pantalla no puede decir (§8)</h4>
+<p class="font-body-md text-sm text-text-muted/80 leading-snug">
+                            Esta representación es puramente geométrica en el plano 2D. No infiere densidad de materiales, transparencias (ej. cristal) ni desniveles negativos (fosos). Una zona vacía en el lienzo no garantiza un espacio seguro para el tránsito, solo indica la ausencia de reflexión láser en la cota Z=0.4m. Depender exclusivamente del LIDAR para la navegación ciega violará los protocolos de seguridad.
+                        </p>
+</div>
+</div>
+</section>
+</div>
+</main>
+</body></html>

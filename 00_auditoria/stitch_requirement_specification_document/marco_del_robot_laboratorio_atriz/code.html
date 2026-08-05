@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MARCO_ROBOT_v1.0 - Plataforma Atriz</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        @layer utilities {
+            .glass-panel {
+                @apply bg-white/[0.045] backdrop-blur-[20px] border border-white/[0.09];
+            }
+            .status-border-watch {
+                background: linear-gradient(to right, theme('colors.status-watch'), transparent) top left / 100% 1px no-repeat;
+            }
+            .status-border-recent {
+                background: linear-gradient(to right, theme('colors.status-recent'), transparent) top left / 100% 1px no-repeat;
+            }
+            .status-border-action {
+                background: linear-gradient(to right, theme('colors.status-action'), transparent) top left / 100% 1px no-repeat;
+            }
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed": "#dee0ff",
+                        "surface-container-lowest": "#0c0e17",
+                        "primary-container": "#2b4bf2",
+                        "primary-fixed-dim": "#bbc3ff",
+                        "on-secondary-fixed": "#161e00",
+                        "secondary-container": "#aad301",
+                        "accent-cyan": "#22D3EE",
+                        "surface-container-highest": "#33343e",
+                        "border-glass": "rgba(255, 255, 255, 0.09)",
+                        "surface": "#12131c",
+                        "surface-container-high": "#282933",
+                        "surface-bright": "#383843",
+                        "secondary-fixed-dim": "#acd609",
+                        "on-tertiary-container": "#ffd3ca",
+                        "on-tertiary": "#630e00",
+                        "on-primary-container": "#d7dbff",
+                        "on-primary-fixed-variant": "#002ccd",
+                        "on-secondary": "#293500",
+                        "secondary-fixed": "#c7f335",
+                        "on-tertiary-fixed": "#3d0600",
+                        "inverse-surface": "#e2e1ef",
+                        "background-well": "#07080D",
+                        "error": "#ffb4ab",
+                        "text-primary": "#EDEFF5",
+                        "on-tertiary-fixed-variant": "#8c1800",
+                        "inverse-on-surface": "#2f303a",
+                        "on-primary": "#001d93",
+                        "tertiary-fixed-dim": "#ffb4a4",
+                        "background": "#12131c",
+                        "on-error": "#690005",
+                        "status-action": "#FB6A5A",
+                        "accent-electric": "#5B8CFF",
+                        "on-background": "#e2e1ef",
+                        "tertiary": "#ffb4a4",
+                        "surface-container": "#1e1f29",
+                        "on-secondary-container": "#455700",
+                        "outline-variant": "#444656",
+                        "primary": "#bbc3ff",
+                        "secondary": "#c5f032",
+                        "on-secondary-fixed-variant": "#3c4d00",
+                        "on-surface-variant": "#c4c5d9",
+                        "on-error-container": "#ffdad6",
+                        "inverse-primary": "#2748ef",
+                        "text-muted": "#8B90A3",
+                        "on-primary-fixed": "#000f5d",
+                        "tertiary-fixed": "#ffdad3",
+                        "status-recent": "#4ADE80",
+                        "surface-dim": "#12131c",
+                        "surface-elevated": "#0C0E16",
+                        "outline": "#8e8fa2",
+                        "surface-container-low": "#1a1b24",
+                        "surface-tint": "#bbc3ff",
+                        "on-surface": "#e2e1ef",
+                        "error-container": "#93000a",
+                        "status-watch": "#FBBF24",
+                        "surface-variant": "#33343e",
+                        "tertiary-container": "#b92a0a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "glass-blur": "20px",
+                        "total-entrance": "720ms",
+                        "step-delay": "60ms"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Geist", "sans-serif"],
+                        "card-title": ["Geist", "sans-serif"],
+                        "body-md": ["Geist", "sans-serif"],
+                        "label-xs": ["Geist Mono", "monospace"],
+                        "data-lg": ["Geist Mono", "monospace"],
+                        "headline-robot": ["Geist", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["clamp(2.5rem, 6vw, 4.875rem)", { "lineHeight": "1.1", "letterSpacing": "-0.045em", "fontWeight": "650" }],
+                        "card-title": ["19px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "1.55", "fontWeight": "400" }],
+                        "label-xs": ["11.5px", { "lineHeight": "1.0", "fontWeight": "500" }],
+                        "data-lg": ["40px", { "lineHeight": "1.0", "letterSpacing": "tabular-nums", "fontWeight": "600" }],
+                        "headline-robot": ["clamp(1.5rem, 3.2vw, 2.4rem)", { "lineHeight": "1.2", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background-well text-text-primary min-h-screen overflow-x-hidden relative">
+<!-- Ambient Orbs -->
+<div class="fixed top-[10%] left-[5%] w-96 h-96 bg-accent-electric/10 rounded-full blur-[100px] pointer-events-none"></div>
+<div class="fixed bottom-[20%] right-[10%] w-[500px] h-[500px] bg-primary-container/10 rounded-full blur-[120px] pointer-events-none"></div>
+<!-- Main Container Layout -->
+<div class="flex h-screen w-full relative z-10">
+<!-- Side Navigation (Hidden on Mobile, Visible on md+) -->
+<nav class="hidden md:flex flex-col h-screen p-4 space-y-2 bg-surface-container dark:bg-surface-container border-r border-border-glass backdrop-blur-glass-blur h-full w-72 shrink-0">
+<div class="mb-8 mt-4 px-2">
+<h2 class="font-display-lg text-display-lg text-primary truncate">PLATAFORMA ATRIZ</h2>
+<p class="font-label-xs text-label-xs text-text-muted mt-1 uppercase tracking-wider">Fleet Operational Control</p>
+</div>
+<!-- Nav Items -->
+<!-- Taller (Active semantic intent if no exact match, but let's use Conducir as active based on typical robot view, wait, prompt says "Armazón persistente (MarcoRobot) compartido por las pestañas del robot", let's highlight Conducir as active or Telemetría. Will default to Taller as first, wait, active state logic says "Intent Fallback". Let's make "Taller" inactive and "Telemetría" active for demonstration, or maybe none if it's a general frame. Let's make "Telemetría" active.) -->
+<a class="flex items-center px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined mr-4 opacity-70 group-hover:opacity-100">precision_manufacturing</span>
+<span class="font-body-md text-body-md flex-1">Taller</span>
+<span class="font-label-xs text-label-xs text-status-watch border border-status-watch/30 px-1.5 py-0.5 rounded-sm ml-2">no construido</span>
+</a>
+<a class="flex items-center px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined mr-4 opacity-70 group-hover:opacity-100">sports_esports</span>
+<span class="font-body-md text-body-md">Conducir</span>
+</a>
+<a class="flex items-center px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined mr-4 opacity-70 group-hover:opacity-100">warning</span>
+<span class="font-body-md text-body-md">No obedece</span>
+</a>
+<a class="flex items-center px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg font-bold Active: scale-95 duration-step-delay" href="#">
+<span class="material-symbols-outlined mr-4">query_stats</span>
+<span class="font-body-md text-body-md">Telemetría</span>
+</a>
+<a class="flex items-center px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined mr-4 opacity-70 group-hover:opacity-100">radar</span>
+<span class="font-body-md text-body-md">LIDAR</span>
+</a>
+<a class="flex items-center px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined mr-4 opacity-70 group-hover:opacity-100">settings_suggest</span>
+<span class="font-body-md text-body-md">Diagnóstico</span>
+</a>
+<div class="mt-auto pt-8 w-full">
+<!-- Avatar placeholder if needed, omitted per prompt specifics, keeping clean -->
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col h-full overflow-hidden relative">
+<!-- Top App Bar - Fixed -->
+<header class="fixed top-0 w-full md:w-[calc(100%-18rem)] z-50 bg-surface-elevated border-b border-border-glass backdrop-blur-glass-blur flex justify-between items-center px-6 h-auto min-h-[44px] py-2 transition-all duration-total-entrance cubic-bezier(0.23,1,0.32,1)">
+<!-- Identity -->
+<div class="flex flex-col">
+<div class="flex items-baseline space-x-3">
+<h1 class="text-[28px] leading-none font-semibold text-text-primary" style="font-family: 'Geist', sans-serif;">rvr-07</h1>
+<span class="font-label-xs text-label-xs text-text-muted tracking-wide">ws://rvr-07.local:9090</span>
+</div>
+</div>
+<!-- Status / Socket Right Side -->
+<div class="flex items-center space-x-4">
+<div class="flex items-center space-x-2 bg-white/5 border border-border-glass rounded-full px-3 py-1">
+<div class="w-2 h-2 rounded-full bg-status-action animate-pulse"></div>
+<span class="font-label-xs text-label-xs text-text-primary">en línea</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-label-xs text-label-xs text-text-muted">socket abierto</span>
+<a class="font-label-xs text-label-xs text-accent-electric hover:underline" href="#">ver los 16</a>
+</div>
+<!-- Trailing Icons from JSON -->
+<div class="flex space-x-2 text-primary dark:text-primary ml-4">
+<span class="material-symbols-outlined hover:bg-white/5 p-1 rounded transition-colors cursor-pointer" data-icon="sensors">sensors</span>
+<span class="material-symbols-outlined hover:bg-white/5 p-1 rounded transition-colors cursor-pointer" data-icon="battery_charging_full">battery_charging_full</span>
+<span class="material-symbols-outlined hover:bg-white/5 p-1 rounded transition-colors cursor-pointer" data-icon="wifi_tethering">wifi_tethering</span>
+</div>
+</div>
+</header>
+<!-- Scrollable Content Canvas -->
+<div class="flex-1 overflow-y-auto mt-[44px] md:mt-[60px] pb-24 md:pb-6 px-4 md:px-8 space-y-6">
+<!-- BANDA DE SEGURIDAD -->
+<section class="border-[4px] border-[#FF5C39] bg-[#FF5C39]/10 rounded-xl overflow-hidden mt-6 animate-[fadeInUp_0.72s_cubic-bezier(0.23,1,0.32,1)_both]" style="animation-delay: 60ms;">
+<!-- Botón Parada -->
+<button class="w-full h-[64px] bg-[#FF5C39] text-[#12131c] font-bold text-[20px] uppercase tracking-wider flex items-center justify-center hover:bg-[#ff7557] transition-colors">
+                        PARADA DE EMERGENCIA
+                    </button>
+<!-- Casillas de Estado -->
+<div class="grid grid-cols-1 md:grid-cols-3 border-b border-[#FF5C39]/30">
+<div class="p-4 border-r border-[#FF5C39]/30 border-b md:border-b-0 border-[#FF5C39]/30 last:border-r-0 flex flex-col justify-center bg-white/5">
+<span class="font-label-xs text-label-xs text-[#FF5C39] mb-1">salió por el WebSocket</span>
+</div>
+<div class="p-4 border-r border-[#FF5C39]/30 border-b md:border-b-0 border-[#FF5C39]/30 last:border-r-0 flex flex-col justify-center bg-[#FF5C39]/20">
+<span class="font-label-xs text-label-xs text-[#FF5C39] mb-1 uppercase font-bold">parada ACTIVA (hace 0,4 s)</span>
+</div>
+<div class="p-4 border-r border-[#FF5C39]/30 last:border-r-0 flex flex-col justify-center bg-white/5 opacity-50">
+<span class="font-label-xs text-label-xs text-text-muted mb-1">no se sabe</span>
+</div>
+</div>
+<!-- Meta Data -->
+<div class="p-4 flex justify-between items-center bg-black/20">
+<span class="font-label-xs text-label-xs text-text-muted">enviada hace 6,2 s y la bandera sigue en false</span>
+<span class="font-label-xs text-label-xs text-[#FF5C39] uppercase tracking-wide">liberación presencial</span>
+</div>
+</section>
+<!-- Tira de Datos -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-4 animate-[fadeInUp_0.72s_cubic-bezier(0.23,1,0.32,1)_both]" style="animation-delay: 120ms;">
+<!-- Voltaje -->
+<div class="glass-panel rounded-xl p-5 relative overflow-hidden status-border-watch">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-text-muted uppercase tracking-widest mb-2">voltaje</span>
+<div class="flex items-baseline space-x-2">
+<span class="font-data-lg text-data-lg text-text-primary">8,28 V</span>
+</div>
+<span class="font-label-xs text-label-xs text-status-watch mt-2">(hace 12 s)</span>
+</div>
+</div>
+<!-- Scan -->
+<div class="glass-panel rounded-xl p-5 relative overflow-hidden">
+<div class="flex flex-col justify-center h-full">
+<span class="font-label-xs text-label-xs text-text-muted uppercase tracking-widest mb-2">último /scan</span>
+<span class="font-body-md text-body-md text-text-primary opacity-50">no se sabe</span>
+</div>
+</div>
+<!-- Latido -->
+<div class="glass-panel rounded-xl p-5 relative overflow-hidden status-border-action">
+<div class="flex flex-col justify-center h-full">
+<span class="font-label-xs text-label-xs text-text-muted uppercase tracking-widest mb-2">el robot dice</span>
+<span class="font-body-md text-body-md text-status-action font-semibold">hace 0,06 s</span>
+</div>
+<div class="absolute right-4 top-4 w-2 h-2 rounded-full bg-status-action animate-ping"></div>
+</div>
+</section>
+<!-- Layout Filler to show scrolling capability -->
+<div class="h-32 border border-dashed border-border-glass rounded-xl flex items-center justify-center text-text-muted font-label-xs text-label-xs animate-[fadeInUp_0.72s_cubic-bezier(0.23,1,0.32,1)_both]" style="animation-delay: 180ms;">
+                    CANVAS RESERVADO (CONTENIDO PRINCIPAL)
+                </div>
+</div>
+</main>
+<!-- Bottom NavBar (Visible on Mobile, Hidden on md+) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center h-20 px-8 bg-surface-elevated/80 dark:bg-surface-elevated/80 border-t border-border-glass backdrop-blur-glass-blur z-50 rounded-t-xl transition-transform duration-total-entrance">
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary scale-110 duration-total-entrance group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:opacity-100 opacity-70">grid_view</span>
+<span class="font-label-xs text-label-xs">Fleet Wall</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary font-bold scale-110 duration-total-entrance group" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">settings_remote</span>
+<span class="font-label-xs text-label-xs">Controls</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary scale-110 duration-total-entrance group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:opacity-100 opacity-70">map</span>
+<span class="font-label-xs text-label-xs">Maps</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary scale-110 duration-total-entrance group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:opacity-100 opacity-70">description</span>
+<span class="font-label-xs text-label-xs">Logs</span>
+</a>
+</nav>
+</div>
+<style>
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</body></html>

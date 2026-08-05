@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Laboratorio Atriz</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<style type="text/css">
+        @font-face {
+            font-family: 'Geist';
+            src: url('https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-400-normal.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Geist';
+            src: url('https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-600-normal.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Geist';
+            src: url('https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-700-normal.woff2') format('woff2');
+            font-weight: 650;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Geist Mono';
+            src: url('https://cdn.jsdelivr.net/fontsource/fonts/geist-mono@latest/latin-400-normal.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Geist Mono';
+            src: url('https://cdn.jsdelivr.net/fontsource/fonts/geist-mono@latest/latin-500-normal.woff2') format('woff2');
+            font-weight: 500;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Geist Mono';
+            src: url('https://cdn.jsdelivr.net/fontsource/fonts/geist-mono@latest/latin-600-normal.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+        }
+
+        body {
+            background-color: #07080D;
+            color: #EDEFF5;
+            overflow-x: hidden;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        /* Static ambient orbs */
+        .ambient-orb-1 {
+            position: fixed;
+            top: -150px;
+            left: -150px;
+            width: 620px;
+            height: 620px;
+            background: rgba(91, 140, 255, 0.34);
+            filter: blur(90px);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .ambient-orb-2 {
+            position: fixed;
+            top: 20%;
+            right: -200px;
+            width: 560px;
+            height: 560px;
+            background: rgba(34, 211, 238, 0.20);
+            filter: blur(90px);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Glassmorphism Classes */
+        .glass-card {
+            background-color: rgba(255, 255, 255, 0.045);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 20px;
+            box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.7);
+        }
+
+        /* Staggered Entrance Animation */
+        @keyframes slideUpFade {
+            0% {
+                opacity: 0;
+                transform: translateY(18px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-entrance {
+            opacity: 0;
+            animation: slideUpFade 720ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+
+        .delay-1 { animation-delay: 60ms; }
+        .delay-2 { animation-delay: 120ms; }
+        .delay-3 { animation-delay: 180ms; }
+        .delay-4 { animation-delay: 240ms; }
+        
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 16px;
+            font-family: 'Geist Mono', monospace;
+            font-size: 11.5px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .pill.active {
+            background-color: #5B8CFF;
+            color: #0c0e17;
+            font-weight: 600;
+            border-color: #5B8CFF;
+        }
+
+        .arrow-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.02);
+            transition: background 0.2s ease;
+        }
+        
+        a:hover .arrow-circle {
+            background: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed": "#dee0ff",
+                        "surface-container-lowest": "#0c0e17",
+                        "primary-container": "#2b4bf2",
+                        "primary-fixed-dim": "#bbc3ff",
+                        "on-secondary-fixed": "#161e00",
+                        "secondary-container": "#aad301",
+                        "accent-cyan": "#22D3EE",
+                        "surface-container-highest": "#33343e",
+                        "border-glass": "rgba(255, 255, 255, 0.09)",
+                        "surface": "#12131c",
+                        "surface-container-high": "#282933",
+                        "surface-bright": "#383843",
+                        "secondary-fixed-dim": "#acd609",
+                        "on-tertiary-container": "#ffd3ca",
+                        "on-tertiary": "#630e00",
+                        "on-primary-container": "#d7dbff",
+                        "on-primary-fixed-variant": "#002ccd",
+                        "on-secondary": "#293500",
+                        "secondary-fixed": "#c7f335",
+                        "on-tertiary-fixed": "#3d0600",
+                        "inverse-surface": "#e2e1ef",
+                        "background-well": "#07080D",
+                        "error": "#ffb4ab",
+                        "text-primary": "#EDEFF5",
+                        "on-tertiary-fixed-variant": "#8c1800",
+                        "inverse-on-surface": "#2f303a",
+                        "on-primary": "#001d93",
+                        "tertiary-fixed-dim": "#ffb4a4",
+                        "background": "#12131c",
+                        "on-error": "#690005",
+                        "status-action": "#FB6A5A",
+                        "accent-electric": "#5B8CFF",
+                        "on-background": "#e2e1ef",
+                        "tertiary": "#ffb4a4",
+                        "surface-container": "#1e1f29",
+                        "on-secondary-container": "#455700",
+                        "outline-variant": "#444656",
+                        "primary": "#bbc3ff",
+                        "secondary": "#c5f032",
+                        "on-secondary-fixed-variant": "#3c4d00",
+                        "on-surface-variant": "#c4c5d9",
+                        "on-error-container": "#ffdad6",
+                        "inverse-primary": "#2748ef",
+                        "text-muted": "#8B90A3",
+                        "on-primary-fixed": "#000f5d",
+                        "tertiary-fixed": "#ffdad3",
+                        "status-recent": "#4ADE80",
+                        "surface-dim": "#12131c",
+                        "surface-elevated": "#0C0E16",
+                        "outline": "#8e8fa2",
+                        "surface-container-low": "#1a1b24",
+                        "surface-tint": "#bbc3ff",
+                        "on-surface": "#e2e1ef",
+                        "error-container": "#93000a",
+                        "status-watch": "#FBBF24",
+                        "surface-variant": "#33343e",
+                        "tertiary-container": "#b92a0a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "glass-blur": "20px",
+                        "total-entrance": "720ms",
+                        "step-delay": "60ms"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Geist"],
+                        "card-title": ["Geist"],
+                        "body-md": ["Geist"],
+                        "label-xs": ["Geist Mono"],
+                        "data-lg": ["Geist Mono"],
+                        "headline-robot": ["Geist"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["clamp(2.5rem, 6vw, 4.875rem)", { "lineHeight": "1.1", "letterSpacing": "-0.045em", "fontWeight": "650" }],
+                        "card-title": ["19px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "1.55", "fontWeight": "400" }],
+                        "label-xs": ["11.5px", { "lineHeight": "1.0", "fontWeight": "500" }],
+                        "data-lg": ["40px", { "lineHeight": "1.0", "letterSpacing": "tabular-nums", "fontWeight": "600" }],
+                        "headline-robot": ["clamp(1.5rem, 3.2vw, 2.4rem)", { "lineHeight": "1.2", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-body-md text-text-primary antialiased selection:bg-accent-electric selection:text-white">
+<!-- Ambient Background Orbs -->
+<div class="ambient-orb-1"></div>
+<div class="ambient-orb-2"></div>
+<main class="max-w-6xl mx-auto px-6 py-24 flex flex-col items-center">
+<!-- Header Section -->
+<header class="text-center mb-16 animate-entrance w-full flex flex-col items-center">
+<h1 class="font-display-lg text-display-lg bg-gradient-to-br from-white to-[#A8B0C8] bg-clip-text text-transparent mb-6">
+                Laboratorio Atriz
+            </h1>
+<p class="font-body-md text-body-md text-text-muted" style="max-width: 52ch;">
+                Dieciséis Sphero RVR en el aula, gobernados desde el navegador. Esta portada no habla con ningún robot: solo lleva a donde se habla con ellos.
+            </p>
+</header>
+<!-- Main Navigation Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-6">
+<!-- Card 1: Los 16 -->
+<a class="glass-card p-8 relative flex flex-col justify-between group animate-entrance delay-1 overflow-hidden min-h-[220px] hover:border-white/20 transition-colors" href="#">
+<div class="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-status-recent to-transparent"></div>
+<div class="z-10">
+<h2 class="font-card-title text-card-title text-text-primary mb-2">Los 16 de un vistazo</h2>
+<p class="font-body-md text-body-md text-text-muted">el muro dice a cuál hay que levantarse.</p>
+</div>
+<div class="absolute right-8 bottom-8 z-10">
+<div class="arrow-circle">
+<span class="material-symbols-outlined text-white" style="font-size: 20px;">arrow_forward</span>
+</div>
+</div>
+</a>
+<!-- Card 2: Un robot -->
+<a class="glass-card p-8 relative flex flex-col justify-between group animate-entrance delay-2 overflow-hidden min-h-[220px] hover:border-white/20 transition-colors" href="#">
+<div class="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-accent-electric to-transparent"></div>
+<div class="z-10">
+<div class="flex justify-between items-start mb-6">
+<div>
+<h2 class="font-card-title text-card-title text-text-primary mb-2">Un robot</h2>
+<p class="font-body-md text-body-md text-text-muted">su taller, su mando y su telemetría.</p>
+</div>
+<div class="arrow-circle mt-1">
+<span class="material-symbols-outlined text-white" style="font-size: 20px;">arrow_forward</span>
+</div>
+</div>
+<div class="mt-4">
+<div class="grid grid-cols-8 gap-2 mb-3 max-w-sm">
+<div class="pill">01</div>
+<div class="pill">02</div>
+<div class="pill">03</div>
+<div class="pill">04</div>
+<div class="pill active">05</div>
+<div class="pill">06</div>
+<div class="pill">07</div>
+<div class="pill">08</div>
+<div class="pill">09</div>
+<div class="pill">10</div>
+<div class="pill">11</div>
+<div class="pill">12</div>
+<div class="pill">13</div>
+<div class="pill">14</div>
+<div class="pill">15</div>
+<div class="pill">16</div>
+</div>
+<p class="font-label-xs text-label-xs text-text-muted">Es una preferencia guardada en este navegador, no una identidad. La plataforma no puede saber quién eres.</p>
+</div>
+</div>
+</a>
+</div>
+<!-- Warning Card: Lo que no funciona -->
+<div class="w-full mb-6 glass-card p-8 relative animate-entrance delay-3" style="background-color: rgba(251, 191, 36, 0.05); border-color: rgba(251, 191, 36, 0.12);">
+<div class="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-status-watch to-transparent"></div>
+<h2 class="font-card-title text-card-title text-status-watch mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined" style="font-size: 20px;">warning</span>
+                Lo que todavía no funciona
+             </h2>
+<ul class="font-body-md text-body-md text-text-muted space-y-3 list-none pl-0">
+<li class="flex items-start gap-3">
+<span class="text-status-watch mt-1 text-xs">◆</span>
+<span>El terminal del alumno no existe. Se puede ver la forma que tendrá, y nada más.</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="text-status-watch mt-1 text-xs">◆</span>
+<span>La navegación (Nav2) y el mapa del aula no están arrancados: atriz-nav.service está instalada y NO habilitada, y no existe el mapa.</span>
+</li>
+</ul>
+</div>
+<!-- Critical Security Card -->
+<div class="w-full mb-12 glass-card p-8 relative animate-entrance delay-4">
+<div class="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-text-muted to-transparent"></div>
+<h2 class="font-card-title text-card-title text-text-primary mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined" style="font-size: 20px;">lock_open</span>
+                 No hay control de acceso
+             </h2>
+<div class="font-body-md text-body-md text-text-muted space-y-4">
+<p>rosbridge 2.7.0 no trae autenticación: rosauth no es dependencia, no existe el parámetro authenticate, y check_origin() devuelve True sin mirar nada.</p>
+<p>Cualquiera que esté en la red del aula y sepa la dirección puede mover cualquier robot publicando en <code class="font-label-xs bg-white/5 px-1 py-0.5 rounded text-accent-electric">/cmd_vel_raw</code>, y ya se midió un navegador de otra subred abriendo <code class="font-label-xs bg-white/5 px-1 py-0.5 rounded text-accent-electric">ws://rvr-01.local:9090</code>.</p>
+<p>Se cerrará con un proxy que valide el testigo en cada robot, con rosbridge atado a 127.0.0.1: no está construido.</p>
+</div>
+</div>
+<!-- Footer Link -->
+<footer class="w-full text-center animate-entrance delay-4 mt-8">
+<a class="font-label-xs text-label-xs text-text-muted hover:text-white transition-colors border-b border-text-muted/30 pb-1 hover:border-white/50 uppercase tracking-wider" href="#">
+                Cuaderno de medidas <span class="material-symbols-outlined align-middle" style="font-size: 14px; margin-left: 4px;">arrow_outward</span>
+</a>
+</footer>
+</main>
+</body></html>

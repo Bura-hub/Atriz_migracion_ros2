@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cuaderno de medidas</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&amp;family=Geist:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-fixed": "#dee0ff",
+                        "surface-container-lowest": "#0c0e17",
+                        "primary-container": "#2b4bf2",
+                        "primary-fixed-dim": "#bbc3ff",
+                        "on-secondary-fixed": "#161e00",
+                        "secondary-container": "#aad301",
+                        "accent-cyan": "#22D3EE",
+                        "surface-container-highest": "#33343e",
+                        "border-glass": "rgba(255, 255, 255, 0.09)",
+                        "surface": "#12131c",
+                        "surface-container-high": "#282933",
+                        "surface-bright": "#383843",
+                        "secondary-fixed-dim": "#acd609",
+                        "on-tertiary-container": "#ffd3ca",
+                        "on-tertiary": "#630e00",
+                        "on-primary-container": "#d7dbff",
+                        "on-primary-fixed-variant": "#002ccd",
+                        "on-secondary": "#293500",
+                        "secondary-fixed": "#c7f335",
+                        "on-tertiary-fixed": "#3d0600",
+                        "inverse-surface": "#e2e1ef",
+                        "background-well": "#07080D",
+                        "error": "#ffb4ab",
+                        "text-primary": "#EDEFF5",
+                        "on-tertiary-fixed-variant": "#8c1800",
+                        "inverse-on-surface": "#2f303a",
+                        "on-primary": "#001d93",
+                        "tertiary-fixed-dim": "#ffb4a4",
+                        "background": "#12131c",
+                        "on-error": "#690005",
+                        "status-action": "#FB6A5A",
+                        "accent-electric": "#5B8CFF",
+                        "on-background": "#e2e1ef",
+                        "tertiary": "#ffb4a4",
+                        "surface-container": "#1e1f29",
+                        "on-secondary-container": "#455700",
+                        "outline-variant": "#444656",
+                        "primary": "#bbc3ff",
+                        "secondary": "#c5f032",
+                        "on-secondary-fixed-variant": "#3c4d00",
+                        "on-surface-variant": "#c4c5d9",
+                        "on-error-container": "#ffdad6",
+                        "inverse-primary": "#2748ef",
+                        "text-muted": "#8B90A3",
+                        "on-primary-fixed": "#000f5d",
+                        "tertiary-fixed": "#ffdad3",
+                        "status-recent": "#4ADE80",
+                        "surface-dim": "#12131c",
+                        "surface-elevated": "#0C0E16",
+                        "outline": "#8e8fa2",
+                        "surface-container-low": "#1a1b24",
+                        "surface-tint": "#bbc3ff",
+                        "on-surface": "#e2e1ef",
+                        "error-container": "#93000a",
+                        "status-watch": "#FBBF24",
+                        "surface-variant": "#33343e",
+                        "tertiary-container": "#b92a0a"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "glass-blur": "20px",
+                        "total-entrance": "720ms",
+                        "step-delay": "60ms"
+                    },
+                    fontFamily: {
+                        "display-lg": ["Geist", "sans-serif"],
+                        "card-title": ["Geist", "sans-serif"],
+                        "body-md": ["Geist", "sans-serif"],
+                        "label-xs": ["Geist Mono", "monospace"],
+                        "data-lg": ["Geist Mono", "monospace"],
+                        "headline-robot": ["Geist", "sans-serif"]
+                    },
+                    fontSize: {
+                        "display-lg": ["clamp(2.5rem, 6vw, 4.875rem)", { lineHeight: "1.1", letterSpacing: "-0.045em", fontWeight: "650" }],
+                        "card-title": ["19px", { lineHeight: "1.4", fontWeight: "600" }],
+                        "body-md": ["16px", { lineHeight: "1.55", fontWeight: "400" }],
+                        "label-xs": ["11.5px", { lineHeight: "1.0", fontWeight: "500" }],
+                        "data-lg": ["40px", { lineHeight: "1.0", letterSpacing: "tabular-nums", fontWeight: "600" }],
+                        "headline-robot": ["clamp(1.5rem, 3.2vw, 2.4rem)", { lineHeight: "1.2", fontWeight: "600" }]
+                    },
+                    animation: {
+                        'staggered-entrance': 'staggeredFadeIn 720ms cubic-bezier(0.23, 1, 0.32, 1) both'
+                    },
+                    keyframes: {
+                        staggeredFadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background-color: rgba(255, 255, 255, 0.045);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+        }
+    </style>
+</head>
+<body class="bg-background-well text-text-primary min-h-screen flex flex-col font-body-md overflow-x-hidden relative selection:bg-primary-container selection:text-white">
+<!-- Ambient Orbs (Static for depth) -->
+<div class="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-primary-container/10 blur-[150px] pointer-events-none z-0"></div>
+<div class="fixed bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-accent-electric/5 blur-[150px] pointer-events-none z-0"></div>
+<!-- TopAppBar -->
+<header class="bg-surface-container-lowest dark:bg-surface-container-lowest fixed top-0 w-full z-50 h-16 border-b border-border-glass backdrop-blur-glass-blur flex justify-between items-center px-6 transition-all duration-total-entrance cubic-bezier(0.23,1,0.32,1)">
+<div class="flex items-center gap-8">
+<div class="font-headline-robot text-headline-robot text-primary uppercase tracking-tighter">
+                MARCO_ROBOT_v1.0
+            </div>
+<nav class="hidden md:flex gap-6">
+<!-- Simple top links requested -->
+<a class="text-text-muted hover:text-primary transition-colors font-body-md" href="#">Muro</a>
+<a class="text-text-muted hover:text-primary transition-colors font-body-md" href="#">Robot</a>
+</nav>
+</div>
+<div class="flex items-center gap-4 text-text-muted">
+<span class="material-symbols-outlined hover:bg-white/5 p-1 rounded transition-colors cursor-default" data-icon="sensors">sensors</span>
+<span class="material-symbols-outlined hover:bg-white/5 p-1 rounded transition-colors cursor-default" data-icon="battery_charging_full">battery_charging_full</span>
+<span class="material-symbols-outlined hover:bg-white/5 p-1 rounded transition-colors cursor-default" data-icon="wifi_tethering">wifi_tethering</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="relative z-10 flex-grow pt-28 pb-16 px-6 md:px-12 w-full max-w-[1400px] mx-auto flex flex-col gap-8">
+<!-- 1. Header & Paragraph -->
+<section class="animate-staggered-entrance" style="animation-delay: 0ms;">
+<h1 class="font-display-lg text-display-lg text-primary mb-4">Cuaderno de medidas</h1>
+<p class="font-body-md text-text-muted max-w-[52ch] leading-relaxed">
+                Registro manual de calibraciones y observaciones en entorno asilado. Escrito por una persona, sin interconexión de sistemas. Referencia §5.10 y §8.
+            </p>
+</section>
+<!-- 2. Neutral Storage Notice -->
+<section class="animate-staggered-entrance" style="animation-delay: 60ms;">
+<div class="glass-panel rounded-xl p-4 flex items-start gap-4 border-t-2 border-t-outline-variant">
+<span class="material-symbols-outlined text-outline">dns</span>
+<div>
+<h3 class="font-card-title text-card-title text-text-primary">Almacenamiento Local Activo</h3>
+<p class="font-body-md text-text-muted mt-1">Los datos se conservan únicamente en el volumen estático persistente de esta terminal. Sin sincronización externa.</p>
+</div>
+</div>
+</section>
+<!-- 3. Primary Button -->
+<section class="animate-staggered-entrance" style="animation-delay: 120ms;">
+<button class="bg-primary-container text-on-primary-container font-card-title text-card-title px-8 py-4 rounded-xl flex items-center gap-3 hover:bg-primary-container/90 transition-colors border-t border-white/20 shadow-[0_0_20px_rgba(43,75,242,0.15)] w-full md:w-auto justify-center">
+<span class="material-symbols-outlined" data-weight="fill">edit_document</span>
+                Anotar una medida
+            </button>
+</section>
+<!-- 4. EMPTY TABLE -->
+<section class="animate-staggered-entrance" style="animation-delay: 180ms;">
+<div class="glass-panel rounded-xl overflow-hidden border-t-2 border-t-surface-tint">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-highest/50 border-b border-border-glass">
+<tr>
+<th class="py-3 px-4 font-body-md text-text-muted font-semibold whitespace-nowrap">robot</th>
+<th class="py-3 px-4 font-body-md text-text-muted font-semibold whitespace-nowrap">guion</th>
+<th class="py-3 px-4 font-body-md text-text-muted font-semibold whitespace-nowrap">constantes</th>
+<th class="py-3 px-4 font-body-md text-text-muted font-semibold whitespace-nowrap">instante</th>
+<th class="py-3 px-4 font-body-md text-text-muted font-semibold whitespace-nowrap">impreso</th>
+<th class="py-3 px-4 font-body-md text-text-muted font-semibold whitespace-nowrap">medido</th>
+<th class="py-3 px-4 font-body-md text-text-muted font-semibold whitespace-nowrap">unidad</th>
+<th class="py-3 px-4 font-body-md text-text-muted font-semibold whitespace-nowrap">instrumento</th>
+<th class="py-3 px-4 font-body-md text-text-muted font-semibold whitespace-nowrap">término</th>
+<th class="py-3 px-4 font-body-md text-text-muted font-semibold whitespace-nowrap">nota</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="py-16 text-center font-body-md text-text-muted italic opacity-60" colspan="10">
+                                    vacía a propósito
+                                </td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<!-- 5. Vista corridas -->
+<section class="animate-staggered-entrance" style="animation-delay: 240ms;">
+<h2 class="font-card-title text-card-title text-text-primary mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-text-muted">view_column</span>
+                Vista corridas
+            </h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+<div class="glass-panel rounded-xl h-32 flex items-center justify-center border-dashed border-2 border-border-glass">
+<span class="text-text-muted opacity-50 font-body-md">Sin datos</span>
+</div>
+<div class="glass-panel rounded-xl h-32 flex items-center justify-center border-dashed border-2 border-border-glass">
+<span class="text-text-muted opacity-50 font-body-md">Sin datos</span>
+</div>
+<div class="glass-panel rounded-xl h-32 flex items-center justify-center border-dashed border-2 border-border-glass">
+<span class="text-text-muted opacity-50 font-body-md">Sin datos</span>
+</div>
+</div>
+<p class="font-body-md text-text-muted text-sm italic">Nota: Sin estadísticas calculadas operativas en este momento.</p>
+</section>
+<!-- 6. Amber Reminder -->
+<section class="animate-staggered-entrance mt-8" style="animation-delay: 300ms;">
+<div class="glass-panel rounded-xl p-6 border-t-[3px] border-t-status-watch flex items-start gap-4 bg-status-watch/5">
+<span class="material-symbols-outlined text-status-watch text-3xl">warning</span>
+<div>
+<h3 class="font-card-title text-card-title text-status-watch mb-1 uppercase tracking-wide">Acción Requerida</h3>
+<p class="font-body-md text-text-primary">Recolocar robot a la posición de inicio antes de la siguiente fase de pruebas de medición.</p>
+</div>
+</div>
+</section>
+<!-- 7. Footer -->
+<footer class="animate-staggered-entrance mt-12 text-center" style="animation-delay: 360ms;">
+<div class="inline-flex items-center gap-2 text-text-muted opacity-50 font-body-md bg-surface-container-lowest px-4 py-2 rounded-full border border-border-glass">
+<span class="material-symbols-outlined text-sm">wifi_off</span>
+                no abre ningún WebSocket
+            </div>
+</footer>
+</main>
+</body></html>

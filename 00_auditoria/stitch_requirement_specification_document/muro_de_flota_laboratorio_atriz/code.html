@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Flota Atriz - Fleet Wall</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        @layer utilities {
+            .glass-panel {
+                @apply bg-[rgba(255,255,255,0.045)] backdrop-blur-[20px] border border-[rgba(255,255,255,0.09)];
+            }
+            .block-cobalt {
+                @apply bg-[#2B4BF2] text-white;
+            }
+            .block-lime {
+                @apply bg-[#B6E01E] text-black;
+            }
+            .block-coral {
+                @apply bg-[#FF5C39] text-white;
+            }
+            .status-pill {
+                @apply inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider border border-white/20 bg-black/20;
+            }
+            .hatch-pattern-lime {
+                background-image: repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 7px,
+                    rgba(0,0,0,0.15) 7px,
+                    rgba(0,0,0,0.15) 14px
+                );
+            }
+            .hatch-pattern-coral {
+                background-image: repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(255,255,255,0.2) 3px,
+                    rgba(255,255,255,0.2) 6px
+                );
+            }
+            .data-large {
+                @apply font-['Geist_Mono'] text-[2.4rem] leading-none font-semibold tabular-nums;
+            }
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-fixed": "#dee0ff",
+                        "surface-container-lowest": "#0c0e17",
+                        "primary-container": "#2b4bf2",
+                        "primary-fixed-dim": "#bbc3ff",
+                        "on-secondary-fixed": "#161e00",
+                        "secondary-container": "#aad301",
+                        "accent-cyan": "#22D3EE",
+                        "surface-container-highest": "#33343e",
+                        "border-glass": "rgba(255, 255, 255, 0.09)",
+                        "surface": "#12131c",
+                        "surface-container-high": "#282933",
+                        "surface-bright": "#383843",
+                        "secondary-fixed-dim": "#acd609",
+                        "on-tertiary-container": "#ffd3ca",
+                        "on-tertiary": "#630e00",
+                        "on-primary-container": "#d7dbff",
+                        "on-primary-fixed-variant": "#002ccd",
+                        "on-secondary": "#293500",
+                        "secondary-fixed": "#c7f335",
+                        "on-tertiary-fixed": "#3d0600",
+                        "inverse-surface": "#e2e1ef",
+                        "background-well": "#07080D",
+                        "error": "#ffb4ab",
+                        "text-primary": "#EDEFF5",
+                        "on-tertiary-fixed-variant": "#8c1800",
+                        "inverse-on-surface": "#2f303a",
+                        "on-primary": "#001d93",
+                        "tertiary-fixed-dim": "#ffb4a4",
+                        "background": "#12131c",
+                        "on-error": "#690005",
+                        "status-action": "#FB6A5A",
+                        "accent-electric": "#5B8CFF",
+                        "on-background": "#e2e1ef",
+                        "tertiary": "#ffb4a4",
+                        "surface-container": "#1e1f29",
+                        "on-secondary-container": "#455700",
+                        "outline-variant": "#444656",
+                        "primary": "#bbc3ff",
+                        "secondary": "#c5f032",
+                        "on-secondary-fixed-variant": "#3c4d00",
+                        "on-surface-variant": "#c4c5d9",
+                        "on-error-container": "#ffdad6",
+                        "inverse-primary": "#2748ef",
+                        "text-muted": "#8B90A3",
+                        "on-primary-fixed": "#000f5d",
+                        "tertiary-fixed": "#ffdad3",
+                        "status-recent": "#4ADE80",
+                        "surface-dim": "#12131c",
+                        "surface-elevated": "#0C0E16",
+                        "outline": "#8e8fa2",
+                        "surface-container-low": "#1a1b24",
+                        "surface-tint": "#bbc3ff",
+                        "on-surface": "#e2e1ef",
+                        "error-container": "#93000a",
+                        "status-watch": "#FBBF24",
+                        "surface-variant": "#33343e",
+                        "tertiary-container": "#b92a0a"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "display-lg": ["Geist"],
+                        "card-title": ["Geist"],
+                        "body-md": ["Geist"],
+                        "label-xs": ["Geist Mono"],
+                        "data-lg": ["Geist Mono"],
+                        "headline-robot": ["Geist"]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background-well text-text-primary min-h-screen overflow-x-hidden font-['Geist'] selection:bg-primary-container selection:text-white pb-24 md:pb-8">
+<!-- Background Orbs -->
+<div class="fixed top-0 left-0 w-[620px] h-[620px] rounded-full bg-[rgba(91,140,255,0.34)] blur-[120px] -translate-x-1/4 -translate-y-1/4 pointer-events-none z-0"></div>
+<div class="fixed top-20 right-0 w-[560px] h-[560px] rounded-full bg-[rgba(34,211,238,0.20)] blur-[100px] translate-x-1/4 pointer-events-none z-0"></div>
+<!-- Navigation Shell (TopAppBar on Web, BottomNavBar on Mobile) -->
+<header class="hidden md:flex justify-between items-center px-6 w-full fixed top-0 z-50 h-16 bg-surface-container-lowest dark:bg-surface-container-lowest border-b border-border-glass backdrop-blur-glass-blur transition-all duration-[720ms] cubic-bezier(0.23,1,0.32,1)">
+<div class="font-headline-robot text-[clamp(1.5rem,3.2vw,2.4rem)] leading-[1.2] font-semibold text-primary uppercase tracking-tighter">
+            MARCO_ROBOT_v1.0
+        </div>
+<div class="flex items-center gap-6">
+<nav class="flex gap-4">
+<a class="text-primary border-b-2 border-primary pb-1 hover:bg-white/5 transition-colors text-[16px] font-medium" href="#">Fleet Wall</a>
+<a class="text-text-muted hover:bg-white/5 pb-1 transition-colors text-[16px] font-medium" href="#">Controls</a>
+<a class="text-text-muted hover:bg-white/5 pb-1 transition-colors text-[16px] font-medium" href="#">Maps</a>
+<a class="text-text-muted hover:bg-white/5 pb-1 transition-colors text-[16px] font-medium" href="#">Logs</a>
+</nav>
+<div class="flex gap-3 text-primary">
+<span class="material-symbols-outlined hover:bg-white/5 p-2 rounded-full cursor-pointer">sensors</span>
+<span class="material-symbols-outlined hover:bg-white/5 p-2 rounded-full cursor-pointer">battery_charging_full</span>
+<span class="material-symbols-outlined hover:bg-white/5 p-2 rounded-full cursor-pointer">wifi_tethering</span>
+</div>
+</div>
+</header>
+<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center h-20 px-8 bg-surface-elevated/80 border-t border-border-glass backdrop-blur-[20px] z-50 rounded-t-xl transition-all duration-[720ms]">
+<a class="flex flex-col items-center justify-center text-secondary font-bold hover:text-primary scale-110" href="#">
+<span class="material-symbols-outlined">grid_view</span>
+<span class="font-['Geist_Mono'] text-[11.5px] mt-1">Fleet Wall</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary" href="#">
+<span class="material-symbols-outlined">settings_remote</span>
+<span class="font-['Geist_Mono'] text-[11.5px] mt-1">Controls</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary" href="#">
+<span class="material-symbols-outlined">map</span>
+<span class="font-['Geist_Mono'] text-[11.5px] mt-1">Maps</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-['Geist_Mono'] text-[11.5px] mt-1">Logs</span>
+</a>
+</nav>
+<!-- Main Content -->
+<main class="relative z-10 pt-24 px-6 md:px-12 max-w-[1600px] mx-auto">
+<!-- Header Section -->
+<div class="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-8 gap-6">
+<div>
+<h1 class="text-[clamp(2.5rem,6vw,4.875rem)] leading-[1.1] tracking-[-0.045em] font-[650] bg-gradient-to-r from-white to-[#A8B0C8] bg-clip-text text-transparent">
+                    Flota Atriz
+                </h1>
+</div>
+<div class="flex flex-wrap items-center gap-3">
+<div class="glass-panel px-4 py-2 rounded-lg text-sm font-['Geist_Mono'] text-text-muted flex gap-4">
+<span>POR ROBOT 0,48 kB/s</span>
+<span class="opacity-40">|</span>
+<span class="text-primary-fixed">LOS 16 7,68 kB/s</span>
+</div>
+<button class="glass-panel px-6 py-2 rounded-lg text-sm font-semibold hover:bg-white/10 transition-colors flex items-center gap-2 text-white">
+<span class="material-symbols-outlined text-[18px]">cast</span>
+                    Modo proyección
+                </button>
+<div class="glass-panel p-1 rounded-lg flex text-sm font-medium">
+<button class="px-4 py-1.5 rounded bg-surface-container-highest text-white">Orden: por número</button>
+<button class="px-4 py-1.5 rounded text-text-muted hover:text-white transition-colors">Orden: por voltaje</button>
+</div>
+</div>
+</div>
+<!-- Closed Folded Panel -->
+<div class="glass-panel rounded-[20px] p-4 mb-8 flex items-center justify-between cursor-pointer hover:bg-white/[0.06] transition-colors border-t border-t-white/20">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-text-muted">search</span>
+<span class="text-sm font-['Geist_Mono'] text-text-muted uppercase tracking-wider">Dónde buscar a los robots · todos por nombre</span>
+</div>
+<span class="material-symbols-outlined text-text-muted">expand_more</span>
+</div>
+<!-- Fleet Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-12">
+<!-- Block Tile: Coral (Needs Attention) -->
+<div class="block-coral rounded-[20px] p-6 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+<div class="absolute inset-0 hatch-pattern-coral pointer-events-none"></div>
+<div class="absolute -right-4 -bottom-8 text-[120px] font-bold opacity-[0.13] leading-none pointer-events-none">07</div>
+<div class="relative z-10 flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight">rvr-07</span>
+<span class="status-pill border-white/40">hay que ir</span>
+</div>
+<div class="relative z-10 mt-8">
+<div class="text-[11.5px] font-['Geist_Mono'] opacity-80 uppercase tracking-wider mb-1">Voltaje</div>
+<div class="data-large">8,28 V</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="text-[11.5px] font-['Geist_Mono'] opacity-90">hace 12,4 s</span>
+<span class="opacity-50 text-xs">·</span>
+<span class="text-[11.5px] font-['Geist_Mono'] font-bold">caída crítica</span>
+</div>
+</div>
+</div>
+<!-- Block Tile: Lime (Watch) -->
+<div class="block-lime rounded-[20px] p-6 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+<div class="absolute inset-0 hatch-pattern-lime pointer-events-none"></div>
+<div class="absolute -right-4 -bottom-8 text-[120px] font-bold opacity-[0.13] leading-none pointer-events-none">03</div>
+<div class="relative z-10 flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight">rvr-03</span>
+<span class="status-pill border-black/20 bg-black/10 text-black">mirar</span>
+</div>
+<div class="relative z-10 mt-8">
+<div class="text-[11.5px] font-['Geist_Mono'] opacity-70 uppercase tracking-wider mb-1">Voltaje</div>
+<div class="data-large">11,42 V</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="text-[11.5px] font-['Geist_Mono'] opacity-80">hace 2,1 s</span>
+<span class="opacity-50 text-xs">·</span>
+<span class="text-[11.5px] font-['Geist_Mono'] font-bold">desviación leve</span>
+</div>
+</div>
+</div>
+<!-- Block Tile: Cobalt (Online) x 2 -->
+<div class="block-cobalt rounded-[20px] p-6 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+<div class="absolute -right-4 -bottom-8 text-[120px] font-bold opacity-[0.13] leading-none pointer-events-none">01</div>
+<div class="relative z-10 flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight">rvr-01</span>
+<span class="status-pill border-white/20">en línea</span>
+</div>
+<div class="relative z-10 mt-8">
+<div class="text-[11.5px] font-['Geist_Mono'] opacity-70 uppercase tracking-wider mb-1">Voltaje</div>
+<div class="data-large">12,10 V</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="text-[11.5px] font-['Geist_Mono'] opacity-80">hace 0,4 s</span>
+<span class="opacity-50 text-xs">·</span>
+<span class="text-[11.5px] font-['Geist_Mono']">nominal</span>
+</div>
+</div>
+</div>
+<div class="block-cobalt rounded-[20px] p-6 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+<div class="absolute -right-4 -bottom-8 text-[120px] font-bold opacity-[0.13] leading-none pointer-events-none">02</div>
+<div class="relative z-10 flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight">rvr-02</span>
+<span class="status-pill border-white/20">en línea</span>
+</div>
+<div class="relative z-10 mt-8">
+<div class="text-[11.5px] font-['Geist_Mono'] opacity-70 uppercase tracking-wider mb-1">Voltaje</div>
+<div class="data-large">11,98 V</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="text-[11.5px] font-['Geist_Mono'] opacity-80">hace 0,8 s</span>
+<span class="opacity-50 text-xs">·</span>
+<span class="text-[11.5px] font-['Geist_Mono']">nominal</span>
+</div>
+</div>
+</div>
+<!-- Open Cause Card (Pushing Grid) - Spans 2 columns on lg -->
+<div class="glass-panel rounded-[20px] p-6 col-span-1 md:col-span-2 flex flex-col md:flex-row gap-6 border-l-4 border-l-[#FF5C39]">
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-[#FF5C39]">warning</span>
+<h3 class="text-[19px] font-['Geist'] font-semibold">FICHA DE CAUSA: rvr-07</h3>
+</div>
+<p class="text-[16px] text-text-muted mb-6 leading-relaxed">
+                        Pérdida de telemetría secundaria y caída de tensión en el bus principal. Se requiere intervención manual en el sector 4 para reinicio en frío.
+                    </p>
+<div class="flex gap-4">
+<button class="bg-[#FF5C39] text-white px-6 py-2 rounded-lg font-bold uppercase text-sm tracking-wider hover:bg-[#e04a29] transition-colors">Confirmar recepción</button>
+<button class="glass-panel px-6 py-2 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors">Ver historial</button>
+</div>
+</div>
+<div class="w-full md:w-48 bg-black/20 rounded-xl p-4 flex flex-col justify-center">
+<div class="text-[11.5px] font-['Geist_Mono'] text-text-muted mb-1">Último ping válido</div>
+<div class="text-xl font-['Geist_Mono'] text-white">14:02:11 Z</div>
+<div class="mt-4 text-[11.5px] font-['Geist_Mono'] text-text-muted mb-1">Sector</div>
+<div class="text-xl font-['Geist_Mono'] text-white">4-BETA</div>
+</div>
+</div>
+<!-- Glass Tiles: (12 Units minus the space taken by the expanded card) -->
+<!-- We need 10 glass tiles to complete the 16 total grid spots (4 blocks + 2 spots for expanded + 10 glass = 16 spots) -->
+<div class="glass-panel rounded-[20px] p-6 flex flex-col justify-between min-h-[220px] opacity-60">
+<div class="flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight text-text-muted">rvr-04</span>
+<span class="status-pill text-text-muted border-white/10">no llego</span>
+</div>
+<div class="mt-8 flex items-center justify-center h-full">
+<span class="font-['Geist_Mono'] text-4xl text-text-muted opacity-50">—</span>
+</div>
+</div>
+<div class="glass-panel rounded-[20px] p-6 flex flex-col justify-between min-h-[220px] opacity-60">
+<div class="flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight text-text-muted">rvr-05</span>
+<span class="status-pill text-text-muted border-white/10">no llego</span>
+</div>
+<div class="mt-8 flex items-center justify-center h-full">
+<span class="font-['Geist_Mono'] text-4xl text-text-muted opacity-50">—</span>
+</div>
+</div>
+<div class="glass-panel rounded-[20px] p-6 flex flex-col justify-between min-h-[220px] opacity-60">
+<div class="flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight text-text-muted">rvr-06</span>
+<span class="status-pill text-text-muted border-white/10">no llego</span>
+</div>
+<div class="mt-8 flex items-center justify-center h-full">
+<span class="font-['Geist_Mono'] text-4xl text-text-muted opacity-50">—</span>
+</div>
+</div>
+<div class="glass-panel rounded-[20px] p-6 flex flex-col justify-between min-h-[220px] opacity-60">
+<div class="flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight text-text-muted">rvr-08</span>
+<span class="status-pill text-text-muted border-white/10">no llego</span>
+</div>
+<div class="mt-8 flex items-center justify-center h-full">
+<span class="font-['Geist_Mono'] text-4xl text-text-muted opacity-50">—</span>
+</div>
+</div>
+<div class="glass-panel rounded-[20px] p-6 flex flex-col justify-between min-h-[220px] opacity-60">
+<div class="flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight text-text-muted">rvr-09</span>
+<span class="status-pill text-text-muted border-white/10">no llego</span>
+</div>
+<div class="mt-8 flex items-center justify-center h-full">
+<span class="font-['Geist_Mono'] text-4xl text-text-muted opacity-50">—</span>
+</div>
+</div>
+<div class="glass-panel rounded-[20px] p-6 flex flex-col justify-between min-h-[220px] opacity-60">
+<div class="flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight text-text-muted">rvr-10</span>
+<span class="status-pill text-text-muted border-white/10">no llego</span>
+</div>
+<div class="mt-8 flex items-center justify-center h-full">
+<span class="font-['Geist_Mono'] text-4xl text-text-muted opacity-50">—</span>
+</div>
+</div>
+<div class="glass-panel rounded-[20px] p-6 flex flex-col justify-between min-h-[220px] opacity-60">
+<div class="flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight text-text-muted">rvr-11</span>
+<span class="status-pill text-text-muted border-white/10">no llego</span>
+</div>
+<div class="mt-8 flex items-center justify-center h-full">
+<span class="font-['Geist_Mono'] text-4xl text-text-muted opacity-50">—</span>
+</div>
+</div>
+<div class="glass-panel rounded-[20px] p-6 flex flex-col justify-between min-h-[220px] opacity-60">
+<div class="flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight text-text-muted">rvr-12</span>
+<span class="status-pill text-text-muted border-white/10">no llego</span>
+</div>
+<div class="mt-8 flex items-center justify-center h-full">
+<span class="font-['Geist_Mono'] text-4xl text-text-muted opacity-50">—</span>
+</div>
+</div>
+<div class="glass-panel rounded-[20px] p-6 flex flex-col justify-between min-h-[220px] opacity-60">
+<div class="flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight text-text-muted">rvr-13</span>
+<span class="status-pill text-text-muted border-white/10">no llego</span>
+</div>
+<div class="mt-8 flex items-center justify-center h-full">
+<span class="font-['Geist_Mono'] text-4xl text-text-muted opacity-50">—</span>
+</div>
+</div>
+<div class="glass-panel rounded-[20px] p-6 flex flex-col justify-between min-h-[220px] opacity-60">
+<div class="flex justify-between items-start">
+<span class="font-['Geist'] font-semibold text-xl tracking-tight text-text-muted">rvr-14</span>
+<span class="status-pill text-text-muted border-white/10">no llego</span>
+</div>
+<div class="mt-8 flex items-center justify-center h-full">
+<span class="font-['Geist_Mono'] text-4xl text-text-muted opacity-50">—</span>
+</div>
+</div>
+</div>
+<!-- Footer Section -->
+<footer class="mt-16 pt-8 border-t border-border-glass flex flex-col md:flex-row justify-between items-start gap-8">
+<div class="glass-panel p-6 rounded-xl max-w-md">
+<h4 class="text-white font-semibold mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">info</span>
+                    Cómo leer este muro
+                </h4>
+<p class="text-sm text-text-muted leading-relaxed">
+                    Los bloques saturados indican unidades con datos recientes. El color coral requiere acción inmediata, el lima indica vigilancia, y el cobalto operación normal. Las baldosas translúcidas representan unidades fuera de alcance telemétrico.
+                </p>
+</div>
+<div class="text-xs text-text-muted font-['Geist_Mono'] max-w-sm md:text-right">
+<p class="mb-1 uppercase tracking-wider text-white/50">Limitaciones del Sistema</p>
+<p>Retraso máximo de red: 2.4s. Los datos proyectados a 3 metros pueden sufrir compresión visual. No usar para decisiones críticas de hardware a nivel de milisegundo.</p>
+</div>
+</footer>
+</main>
+</body></html>

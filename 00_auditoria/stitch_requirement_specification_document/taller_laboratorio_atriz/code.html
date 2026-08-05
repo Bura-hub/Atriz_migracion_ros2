@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Plataforma ATRIZ - Terminal</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<!-- Tailwind Config -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed": "#dee0ff",
+                    "surface-container-lowest": "#0c0e17",
+                    "primary-container": "#2b4bf2",
+                    "primary-fixed-dim": "#bbc3ff",
+                    "on-secondary-fixed": "#161e00",
+                    "secondary-container": "#aad301",
+                    "accent-cyan": "#22D3EE",
+                    "surface-container-highest": "#33343e",
+                    "border-glass": "rgba(255, 255, 255, 0.09)",
+                    "surface": "#12131c",
+                    "surface-container-high": "#282933",
+                    "surface-bright": "#383843",
+                    "secondary-fixed-dim": "#acd609",
+                    "on-tertiary-container": "#ffd3ca",
+                    "on-tertiary": "#630e00",
+                    "on-primary-container": "#d7dbff",
+                    "on-primary-fixed-variant": "#002ccd",
+                    "on-secondary": "#293500",
+                    "secondary-fixed": "#c7f335",
+                    "on-tertiary-fixed": "#3d0600",
+                    "inverse-surface": "#e2e1ef",
+                    "background-well": "#07080D",
+                    "error": "#ffb4ab",
+                    "text-primary": "#EDEFF5",
+                    "on-tertiary-fixed-variant": "#8c1800",
+                    "inverse-on-surface": "#2f303a",
+                    "on-primary": "#001d93",
+                    "tertiary-fixed-dim": "#ffb4a4",
+                    "background": "#12131c",
+                    "on-error": "#690005",
+                    "status-action": "#FB6A5A",
+                    "accent-electric": "#5B8CFF",
+                    "on-background": "#e2e1ef",
+                    "tertiary": "#ffb4a4",
+                    "surface-container": "#1e1f29",
+                    "on-secondary-container": "#455700",
+                    "outline-variant": "#444656",
+                    "primary": "#bbc3ff",
+                    "secondary": "#c5f032",
+                    "on-secondary-fixed-variant": "#3c4d00",
+                    "on-surface-variant": "#c4c5d9",
+                    "on-error-container": "#ffdad6",
+                    "inverse-primary": "#2748ef",
+                    "text-muted": "#8B90A3",
+                    "on-primary-fixed": "#000f5d",
+                    "tertiary-fixed": "#ffdad3",
+                    "status-recent": "#4ADE80",
+                    "surface-dim": "#12131c",
+                    "surface-elevated": "#0C0E16",
+                    "outline": "#8e8fa2",
+                    "surface-container-low": "#1a1b24",
+                    "surface-tint": "#bbc3ff",
+                    "on-surface": "#e2e1ef",
+                    "error-container": "#93000a",
+                    "status-watch": "#FBBF24",
+                    "surface-variant": "#33343e",
+                    "tertiary-container": "#b92a0a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "glass-blur": "20px",
+                    "total-entrance": "720ms",
+                    "step-delay": "60ms"
+            },
+            "fontFamily": {
+                    "display-lg": ["Geist"],
+                    "card-title": ["Geist"],
+                    "body-md": ["Geist"],
+                    "label-xs": ["Geist Mono"],
+                    "data-lg": ["Geist Mono"],
+                    "headline-robot": ["Geist"]
+            },
+            "fontSize": {
+                    "display-lg": ["clamp(2.5rem, 6vw, 4.875rem)", {"lineHeight": "1.1", "letterSpacing": "-0.045em", "fontWeight": "650"}],
+                    "card-title": ["19px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "1.55", "fontWeight": "400"}],
+                    "label-xs": ["11.5px", {"lineHeight": "1.0", "fontWeight": "500"}],
+                    "data-lg": ["40px", {"lineHeight": "1.0", "letterSpacing": "tabular-nums", "fontWeight": "600"}],
+                    "headline-robot": ["clamp(1.5rem, 3.2vw, 2.4rem)", {"lineHeight": "1.2", "fontWeight": "600"}]
+            }
+          },
+        }
+      }
+    </script>
+<style>
+        /* Custom animations for the staggered entrance */
+        @keyframes fadeInSlide {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-stagger-1 { animation: fadeInSlide 720ms cubic-bezier(0.23,1,0.32,1) 60ms both; }
+        .animate-stagger-2 { animation: fadeInSlide 720ms cubic-bezier(0.23,1,0.32,1) 120ms both; }
+        .animate-stagger-3 { animation: fadeInSlide 720ms cubic-bezier(0.23,1,0.32,1) 180ms both; }
+        .animate-stagger-4 { animation: fadeInSlide 720ms cubic-bezier(0.23,1,0.32,1) 240ms both; }
+        
+        /* Glass border utility */
+        .glass-panel {
+            background-color: rgba(255, 255, 255, 0.045);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+        }
+    </style>
+</head>
+<body class="bg-background-well text-text-primary min-h-screen overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- Ambient Orbs (Static for depth) -->
+<div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+<div class="absolute top-[10%] left-[20%] w-[40vw] h-[40vw] bg-accent-electric/5 rounded-full blur-[100px] opacity-30"></div>
+<div class="absolute bottom-[20%] right-[10%] w-[30vw] h-[30vw] bg-status-watch/5 rounded-full blur-[80px] opacity-20"></div>
+</div>
+<!-- TopAppBar (JSON Mapping) -->
+<header class="fixed top-0 w-full z-50 h-16 bg-surface-container-lowest border-b border-border-glass backdrop-blur-glass-blur flex justify-between items-center px-6 transition-all duration-total-entrance" style="transition-timing-function: cubic-bezier(0.23,1,0.32,1);">
+<div class="flex items-center gap-4">
+<span class="font-headline-robot text-headline-robot text-primary uppercase tracking-tighter">MARCO_ROBOT_v1.0</span>
+</div>
+<div class="flex items-center gap-4 text-primary">
+<span class="material-symbols-outlined cursor-not-allowed hover:bg-white/5 p-2 rounded-full transition-colors">sensors</span>
+<span class="material-symbols-outlined cursor-not-allowed hover:bg-white/5 p-2 rounded-full transition-colors">battery_charging_full</span>
+<span class="material-symbols-outlined cursor-not-allowed hover:bg-white/5 p-2 rounded-full transition-colors">wifi_tethering</span>
+</div>
+</header>
+<div class="flex h-screen pt-16 z-10 relative">
+<!-- SideNavBar (Web Only - JSON Mapping) -->
+<nav class="hidden md:flex flex-col h-full w-72 p-4 space-y-2 bg-surface-container border-r border-border-glass backdrop-blur-glass-blur flex-shrink-0 relative">
+<div class="mb-8 mt-4 px-2">
+<span class="font-display-lg text-display-lg text-primary block leading-none">PLATAFORMA ATRIZ</span>
+<span class="font-body-md text-body-md text-text-muted mt-2 block">Fleet Operational Control</span>
+</div>
+<button class="w-full bg-status-action text-white font-body-md py-3 rounded-lg font-bold tracking-widest uppercase mb-6 shadow-lg shadow-status-action/20 border border-status-action/50 cursor-not-allowed opacity-80">EMERGENCY_STOP</button>
+<!-- Navigation Tabs (Taller is Active) -->
+<a class="flex items-center gap-3 p-3 bg-secondary-container text-on-secondary-container rounded-lg font-bold scale-95 duration-step-delay transition-transform" href="#" style="transition-timing-function: cubic-bezier(0.23,1,0.32,1);">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">precision_manufacturing</span>
+<span class="font-body-md text-body-md">Taller</span>
+</a>
+<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">sports_esports</span>
+<span class="font-body-md text-body-md">Conducir</span>
+</a>
+<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">warning</span>
+<span class="font-body-md text-body-md">No obedece</span>
+</a>
+<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">query_stats</span>
+<span class="font-body-md text-body-md">Telemetría</span>
+</a>
+<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">radar</span>
+<span class="font-body-md text-body-md">LIDAR</span>
+</a>
+<a class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-highest transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">settings_suggest</span>
+<span class="font-body-md text-body-md">Diagnóstico</span>
+</a>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-y-auto overflow-x-hidden relative pb-24 md:pb-8">
+<!-- Structural Band: Parada (Requested) -->
+<div class="w-full h-12 bg-status-action border-b-4 border-[#ffdad6] flex items-center justify-center sticky top-0 z-40 opacity-90 backdrop-blur-md">
+<span class="font-body-md text-body-md text-white uppercase font-bold tracking-[0.2em]">Banda de Parada Hardware - Sistema Inactivo</span>
+</div>
+<div class="p-6 md:p-10 max-w-7xl mx-auto space-y-8">
+<!-- 1. Cabecera panel -->
+<header class="flex items-center justify-between border-b border-border-glass pb-4 animate-stagger-1">
+<div>
+<h1 class="font-headline-robot text-headline-robot text-text-primary tracking-tight">Terminal · rvr-07</h1>
+</div>
+<div class="flex items-center gap-2 bg-surface-container-highest px-3 py-1.5 rounded-full border border-border-glass">
+<div class="w-[5px] h-[5px] rounded-full bg-outline"></div>
+<span class="font-label-xs text-label-xs text-outline uppercase tracking-wider">no construido</span>
+</div>
+</header>
+<!-- 2. Dos columnas 60/40 (Glass Cards VACÍAS) -->
+<section class="grid grid-cols-1 lg:grid-cols-5 gap-6 animate-stagger-2">
+<!-- Editor (60%) -->
+<div class="lg:col-span-3 glass-panel rounded-xl h-[400px] flex flex-col relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-outline to-transparent"></div>
+<div class="p-4 border-b border-border-glass bg-surface/50">
+<span class="font-label-xs text-label-xs text-text-muted uppercase tracking-wider">Editor · tu código</span>
+</div>
+<div class="flex-1 flex items-center justify-center p-8 bg-[#0a0b10] shadow-inner inset-0 relative">
+<!-- Visual noise pattern overlay -->
+<div class="absolute inset-0 opacity-[0.02]" style="background-image: repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 1px, transparent 10px);"></div>
+<p class="font-body-md text-body-md text-outline-variant text-center max-w-sm relative z-10">
+                                Módulo de inyección de sintaxis no disponible. El compilador JIT no ha sido enlazado a la matriz visual. Espacio reservado estructurado pero vacío.
+                            </p>
+</div>
+</div>
+<!-- Salida (40%) -->
+<div class="lg:col-span-2 glass-panel rounded-xl h-[400px] flex flex-col relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-outline to-transparent"></div>
+<div class="p-4 border-b border-border-glass bg-surface/50">
+<span class="font-label-xs text-label-xs text-text-muted uppercase tracking-wider">Salida del programa</span>
+</div>
+<div class="flex-1 flex flex-col justify-end p-6 bg-[#05060a]">
+<div class="border-t border-dashed border-outline-variant/30 pt-4 mt-auto">
+<span class="font-label-xs text-label-xs text-outline-variant block mb-1">STDOUT / STDERR</span>
+<span class="font-data-lg text-data-lg text-outline-variant opacity-20 block leading-none">_</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. Campo texto VISIBLE Y DESACTIVADO -->
+<section class="animate-stagger-3 glass-panel rounded-xl p-6 relative">
+<div class="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-outline to-transparent"></div>
+<label class="font-label-xs text-label-xs text-text-muted block mb-2 uppercase">Parámetros de Arranque Inicial (ARGV)</label>
+<input class="w-full bg-surface-container-lowest border border-border-glass text-text-muted font-label-xs text-label-xs rounded-lg p-4 opacity-50 cursor-not-allowed focus:ring-0" disabled="" placeholder="--flag-mode=sim" type="text"/>
+<p class="font-body-md text-body-md text-error/70 mt-2 text-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">block</span>
+                        Motivo: Bus de datos temporal desconectado desde el kernel huésped.
+                    </p>
+</section>
+<!-- 4. Barra inferior interna (Botones y PID) -->
+<section class="animate-stagger-4 flex flex-wrap items-center justify-between gap-4 p-4 glass-panel rounded-xl border-t border-border-glass/50 bg-surface/80">
+<div class="flex gap-4">
+<button class="px-6 py-2 bg-surface-container border border-outline-variant text-outline-variant rounded font-body-md text-body-md cursor-not-allowed opacity-60 flex items-center gap-2" disabled="">
+<span class="material-symbols-outlined">play_arrow</span>
+                            Ejecutar
+                        </button>
+<button class="px-6 py-2 bg-surface-container border border-outline-variant text-outline-variant rounded font-body-md text-body-md cursor-not-allowed opacity-60 flex items-center gap-2" disabled="">
+<span class="material-symbols-outlined">stop</span>
+                            Parar
+                        </button>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-label-xs text-label-xs text-text-muted uppercase">Proceso Atado</span>
+<span class="font-data-lg text-data-lg text-outline leading-none mt-1">PID —</span>
+</div>
+</section>
+<!-- 5. Lista NUMERADA 3 eslabones -->
+<section class="animate-stagger-1 pt-8 border-t border-border-glass/30">
+<h3 class="font-card-title text-card-title text-text-primary mb-6">Qué falta, en orden</h3>
+<div class="flex flex-col gap-3">
+<!-- Item 1 -->
+<div class="glass-panel p-4 rounded-lg flex items-start gap-4 hover:bg-white/[0.02] transition-colors border-l-2 border-l-outline">
+<div class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center font-data-lg text-sm text-text-muted shrink-0">01</div>
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-1">
+<span class="font-body-md text-body-md text-text-primary font-semibold">Motor de Renderizado Abstracto</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-high border border-outline-variant text-outline font-label-xs text-label-xs">Bloqueado</span>
+</div>
+<p class="font-body-md text-body-md text-text-muted text-sm">Dependencia circular no resuelta en el pipeline de AST a visual. Requiere reescritura del módulo core.</p>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="glass-panel p-4 rounded-lg flex items-start gap-4 hover:bg-white/[0.02] transition-colors border-l-2 border-l-outline">
+<div class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center font-data-lg text-sm text-text-muted shrink-0">02</div>
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-1">
+<span class="font-body-md text-body-md text-text-primary font-semibold">Socket WebSocket en Tiempo Real</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-high border border-outline-variant text-outline font-label-xs text-label-xs">Ausente</span>
+</div>
+<p class="font-body-md text-body-md text-text-muted text-sm">El servidor de telemetría no acepta conexiones bidireccionales en el puerto asignado para la consola interactiva.</p>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="glass-panel p-4 rounded-lg flex items-start gap-4 hover:bg-white/[0.02] transition-colors border-l-2 border-l-outline">
+<div class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center font-data-lg text-sm text-text-muted shrink-0">03</div>
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-1">
+<span class="font-body-md text-body-md text-text-primary font-semibold">Capa de Aislamiento (Sandboxing)</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-high border border-outline-variant text-outline font-label-xs text-label-xs">Peligro</span>
+</div>
+<p class="font-body-md text-body-md text-text-muted text-sm">Ejecutar código usuario actualmente resultaría en acceso directo a los actuadores físicos sin validación previa.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- 6. Tres tarjetas vidrio requisitos -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6 animate-stagger-2 pt-8">
+<div class="glass-panel p-5 rounded-xl border-t border-t-outline relative">
+<span class="material-symbols-outlined text-outline-variant mb-3 block">memory</span>
+<h4 class="font-card-title text-card-title text-text-primary mb-2 text-sm">Memoria Asignada</h4>
+<div class="font-data-lg text-data-lg text-text-muted text-2xl mb-1">0.0<span class="text-sm ml-1">GB</span></div>
+<span class="font-label-xs text-label-xs text-outline-variant">Límite duro requerido: 4GB</span>
+</div>
+<div class="glass-panel p-5 rounded-xl border-t border-t-outline relative">
+<span class="material-symbols-outlined text-outline-variant mb-3 block">speed</span>
+<h4 class="font-card-title text-card-title text-text-primary mb-2 text-sm">Latencia de Red</h4>
+<div class="font-data-lg text-data-lg text-text-muted text-2xl mb-1">--<span class="text-sm ml-1">ms</span></div>
+<span class="font-label-xs text-label-xs text-outline-variant">Requisito para operar: < 20ms</span>
+</div>
+<div class="glass-panel p-5 rounded-xl border-t border-t-outline relative">
+<span class="material-symbols-outlined text-outline-variant mb-3 block">key</span>
+<h4 class="font-card-title text-card-title text-text-primary mb-2 text-sm">Token de Autorización</h4>
+<div class="font-data-lg text-data-lg text-text-muted text-xl mb-1 tracking-widest">INVALID</div>
+<span class="font-label-xs text-label-xs text-outline-variant">Clave RSA no inyectada en entorno</span>
+</div>
+</section>
+<!-- 7. Tabla densa espacio por práctica -->
+<section class="animate-stagger-3 glass-panel rounded-xl overflow-hidden mt-8">
+<div class="p-4 border-b border-border-glass bg-surface-container/50">
+<h4 class="font-card-title text-card-title text-text-primary text-sm uppercase">Asignación Espacial - Prácticas Planificadas</h4>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-lowest border-b border-border-glass">
+<th class="p-3 font-label-xs text-label-xs text-text-muted uppercase">ID Práctica</th>
+<th class="p-3 font-label-xs text-label-xs text-text-muted uppercase">Volumen de Disco</th>
+<th class="p-3 font-label-xs text-label-xs text-text-muted uppercase">Cuota CPU</th>
+<th class="p-3 font-label-xs text-label-xs text-text-muted uppercase">Estado Sistema Archivos</th>
+</tr>
+</thead>
+<tbody class="font-label-xs text-label-xs text-outline-variant">
+<tr class="border-b border-border-glass/30 hover:bg-white/[0.02]">
+<td class="p-3 font-data-lg text-sm text-text-muted">PR-01_BASIC_MOV</td>
+<td class="p-3">250 MB</td>
+<td class="p-3">0.5 Cores</td>
+<td class="p-3 text-outline">No Montado</td>
+</tr>
+<tr class="border-b border-border-glass/30 hover:bg-white/[0.02]">
+<td class="p-3 font-data-lg text-sm text-text-muted">PR-02_SENSOR_FUS</td>
+<td class="p-3">1.2 GB</td>
+<td class="p-3">2.0 Cores</td>
+<td class="p-3 text-outline">No Montado</td>
+</tr>
+<tr class="hover:bg-white/[0.02]">
+<td class="p-3 font-data-lg text-sm text-text-muted">PR-03_KINEMATICS</td>
+<td class="p-3">500 MB</td>
+<td class="p-3">1.0 Cores</td>
+<td class="p-3 text-outline">No Montado</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- 8. Dos columnas: Ficheros (izq), Enunciado mono literal (der) ámbar -->
+<section class="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-stagger-4 pt-8">
+<!-- Ficheros -->
+<div class="lg:col-span-4 glass-panel rounded-xl p-4">
+<span class="font-label-xs text-label-xs text-text-muted uppercase mb-4 block border-b border-border-glass pb-2">Árbol de Directorio Virtual</span>
+<ul class="space-y-2 font-label-xs text-label-xs text-outline-variant mt-4">
+<li class="flex items-center gap-2 opacity-50"><span class="material-symbols-outlined text-[16px]">folder_off</span> /usr/src/app</li>
+<li class="flex items-center gap-2 opacity-50 pl-4"><span class="material-symbols-outlined text-[16px]">insert_drive_file</span> main.py (0B)</li>
+<li class="flex items-center gap-2 opacity-50 pl-4"><span class="material-symbols-outlined text-[16px]">insert_drive_file</span> config.yaml (0B)</li>
+<li class="flex items-center gap-2 opacity-50"><span class="material-symbols-outlined text-[16px]">folder_off</span> /var/log/taller</li>
+</ul>
+</div>
+<!-- Enunciado Ámbar -->
+<div class="lg:col-span-8 bg-status-watch/5 border border-status-watch/30 rounded-xl p-6 relative overflow-hidden">
+<!-- Striped background pattern for warning -->
+<div class="absolute inset-0 opacity-[0.03]" style="background-image: repeating-linear-gradient(-45deg, transparent, transparent 10px, #FBBF24 10px, #FBBF24 20px);"></div>
+<div class="flex items-center gap-2 text-status-watch mb-4 relative z-10">
+<span class="material-symbols-outlined">warning</span>
+<span class="font-label-xs text-label-xs uppercase font-bold">Aviso Crítico de Integridad del Enunciado</span>
+</div>
+<div class="bg-surface-container-lowest/80 border border-status-watch/20 p-4 rounded relative z-10">
+<pre class="font-label-xs text-label-xs text-status-watch/80 whitespace-pre-wrap leading-relaxed">[ERR_MANIFEST_MISSING]
+El sistema de ficheros no ha podido recuperar el Manifiesto de Práctica Literal (MPL).
+Se intentó leer el volumen distribuido pero retornó código HTTP 404 - Estructura No Inicializada.
+
+Cualquier intento de escritura en este nodo será descartado en /dev/null de forma silenciosa.
+El alumno NO debe intentar operar esta interfaz hasta que el LED de estado de la matriz de talleres
+cambie a verde continuo.</pre>
+</div>
+</div>
+</section>
+<!-- 9. Pie: Filas fin sesión y tarjeta ámbar aviso autoridad -->
+<footer class="mt-12 space-y-6 pb-8">
+<!-- Fila fin sesión -->
+<div class="flex items-center justify-between border-t border-border-glass pt-6">
+<span class="font-label-xs text-label-xs text-text-muted uppercase">Último Ping: Nunca</span>
+<button class="font-body-md text-body-md text-error/50 hover:text-error/80 transition-colors uppercase text-sm tracking-wider cursor-not-allowed border border-error/20 px-4 py-2 rounded" disabled="">Cerrar Sesión Forzosa</button>
+</div>
+<!-- Tarjeta Autoridad -->
+<div class="bg-surface-container border border-status-watch/40 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4 justify-between">
+<div class="flex items-center gap-3 text-status-watch">
+<span class="material-symbols-outlined text-[32px]">admin_panel_settings</span>
+<div>
+<h5 class="font-card-title text-card-title text-status-watch text-sm">Escalada de Autoridad Requerida</h5>
+<p class="font-body-md text-body-md text-text-muted text-xs mt-1">Este módulo requiere validación física por parte del Instructor Jefe (Nivel 4) para su aprovisionamiento.</p>
+</div>
+</div>
+<div class="font-data-lg text-data-lg text-status-watch/30 text-xl tracking-[0.3em]">AUTH_REQ</div>
+</div>
+</footer>
+</div>
+</main>
+</div>
+<!-- BottomNavBar (Mobile Only - JSON Mapping) -->
+<!-- Applying semantic map logic: Highlight 'Controls' as closest proxy for Terminal on mobile nav -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center h-20 px-8 bg-surface-elevated/80 border-t border-border-glass backdrop-blur-glass-blur rounded-t-xl z-50 transition-all duration-total-entrance" style="transition-timing-function: cubic-bezier(0.23,1,0.32,1);">
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">grid_view</span>
+<span class="font-label-xs text-label-xs mt-1">Fleet Wall</span>
+</a>
+<!-- Controls (Active representation for Terminal mapping) -->
+<a class="flex flex-col items-center justify-center text-secondary font-bold scale-110 duration-total-entrance transition-transform" href="#" style="transition-timing-function: cubic-bezier(0.23,1,0.32,1);">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings_remote</span>
+<span class="font-label-xs text-label-xs mt-1">Controls</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">map</span>
+<span class="font-label-xs text-label-xs mt-1">Maps</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-label-xs text-label-xs mt-1">Logs</span>
+</a>
+</nav>
+</body></html>

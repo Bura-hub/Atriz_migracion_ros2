@@ -4,6 +4,57 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 17) — Las diez pantallas construidas sobre lo que devolvió Stitch
+
+Stitch generó las diez a partir de `PLATAFORMA_STITCH.md`. **Acertó el mundo visual y rellenó
+todo lo demás de datos inventados** — exactamente lo que la §8 predecía y para lo que existe la
+§10. La lista de revisión los cazó a los diez:
+
+```
+latencias        «Latencia: 42 ms» · «LATENCIA 14ms» · «latencia inferior a 90ms»
+                 · «Retraso maximo de red: 2.4s»          en cuatro pantallas
+animate-*        pulse / ping / infinite                  en cuatro pantallas
+voltajes         12,10 V · 11,98 V · 11,42 V   (el RVR no pasa de ~8,3)
+prosa            «sector 4-BETA», «Ultimo ping valido 14:02:11 Z»,
+                 «CONFIRMAR RECEPCION»
+ingles y rutas   MARCO_ROBOT_V1.0 · «Fleet Wall» · «Maps» —no hay mapa—
+```
+
+📝 **Y un detalle que vale como confirmación:** Stitch dejó **nombres de iconos como texto
+suelto** —`visibility`, `shield`, `memory`— porque cargaba Material Symbols **desde Google y la
+fuente no llegó**. Es literalmente el fallo por el que aquí la tipografía va empaquetada y los
+iconos se dibujan.
+
+**Lo que sí se adoptó**, porque resolvía tensiones que el documento tenía abiertas: el **modo
+proyección** —que además responde a la objeción del análisis contra el mundo oscuro: el vidrio
+resta contraste en la única pantalla que se mira a tres metros—, el **orden por número/atención**
+y el **titular a dos líneas**. Se rechazó su orden «por voltaje»: la batería se decide por
+umbrales, no por ranking.
+
+**Dos rutas nuevas, las que propuso el análisis multiagente y no el encargo:**
+
+- **`/robot/[id]/no-obedece`** — mira cinco causas contra lo que el robot ya dice. **No elige
+  una** (devuelve todas las que encajan), **nunca dice que el robot esté bien**, y **no ofrece
+  liberar la parada**. Verificada por efecto con el robot apagado: dijo «una causa encaja: no hay
+  enlace» y no inventó las otras cuatro.
+- **`/cuaderno`** — la pareja robot/cinta. No juzga: sin tolerancia medida por práctica, un
+  semáforo sería un juicio que no puede emitir. Con un lado vacío la diferencia es `null`, no `0`.
+  Verificado con los números de la tarea 9: 30,2 contra 30 → **−0,20 cm**.
+
+**Y el Taller, que yo había dado por bloqueado y no lo estaba:** la F0 bloquea *conectarlo*, no
+dibujarlo. Ahora es lo que la §5.4 pedía —la lista de requisitos **medidos** que el agente de
+sesión tendrá que cumplir, con `fichero:línea`— más la **cuenta del espacio por práctica**, que va
+antes de ejecutar porque `Robot()` enciende el barrido y a partir de ahí el robot ya obedece.
+
+⚠️ **Y el estado real de la verificación, que es lo que importa:** la prueba de pantallas
+renderizadas pasó de 6 a **9 rutas** y da **28 de 29**. La que falla es la de **presencia** —«que
+los datos lleguen»— porque **rvr-01 está apagado** por batería. Que se niegue a pasar sin datos es
+para lo que existe: *una batería de comprobaciones de ausencia la cumple una página vacía*.
+
+`atriz-lab`: **391 pruebas + 31 saltadas**, nueve rutas a 200, `tsc` y `eslint` limpios.
+
+---
+
 ## 2026-08-04 (parte 16) — La plataforma repensada para Stitch, y el sesgo que la retrasaba
 
 **El usuario pidió cinco veces un diseño mejor y cinco veces contesté que «las skills no aplican

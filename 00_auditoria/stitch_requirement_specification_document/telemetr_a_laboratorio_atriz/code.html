@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Telemetría Robot</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary-fixed": "#dee0ff",
+                      "surface-container-lowest": "#0c0e17",
+                      "primary-container": "#2b4bf2",
+                      "primary-fixed-dim": "#bbc3ff",
+                      "on-secondary-fixed": "#161e00",
+                      "secondary-container": "#aad301",
+                      "accent-cyan": "#22D3EE",
+                      "surface-container-highest": "#33343e",
+                      "border-glass": "rgba(255, 255, 255, 0.09)",
+                      "surface": "#12131c",
+                      "surface-container-high": "#282933",
+                      "surface-bright": "#383843",
+                      "secondary-fixed-dim": "#acd609",
+                      "on-tertiary-container": "#ffd3ca",
+                      "on-tertiary": "#630e00",
+                      "on-primary-container": "#d7dbff",
+                      "on-primary-fixed-variant": "#002ccd",
+                      "on-secondary": "#293500",
+                      "secondary-fixed": "#c7f335",
+                      "on-tertiary-fixed": "#3d0600",
+                      "inverse-surface": "#e2e1ef",
+                      "background-well": "#07080D",
+                      "error": "#ffb4ab",
+                      "text-primary": "#EDEFF5",
+                      "on-tertiary-fixed-variant": "#8c1800",
+                      "inverse-on-surface": "#2f303a",
+                      "on-primary": "#001d93",
+                      "tertiary-fixed-dim": "#ffb4a4",
+                      "background": "#12131c",
+                      "on-error": "#690005",
+                      "status-action": "#FB6A5A",
+                      "accent-electric": "#5B8CFF",
+                      "on-background": "#e2e1ef",
+                      "tertiary": "#ffb4a4",
+                      "surface-container": "#1e1f29",
+                      "on-secondary-container": "#455700",
+                      "outline-variant": "#444656",
+                      "primary": "#bbc3ff",
+                      "secondary": "#c5f032",
+                      "on-secondary-fixed-variant": "#3c4d00",
+                      "on-surface-variant": "#c4c5d9",
+                      "on-error-container": "#ffdad6",
+                      "inverse-primary": "#2748ef",
+                      "text-muted": "#8B90A3",
+                      "on-primary-fixed": "#000f5d",
+                      "tertiary-fixed": "#ffdad3",
+                      "status-recent": "#4ADE80",
+                      "surface-dim": "#12131c",
+                      "surface-elevated": "#0C0E16",
+                      "outline": "#8e8fa2",
+                      "surface-container-low": "#1a1b24",
+                      "surface-tint": "#bbc3ff",
+                      "on-surface": "#e2e1ef",
+                      "error-container": "#93000a",
+                      "status-watch": "#FBBF24",
+                      "surface-variant": "#33343e",
+                      "tertiary-container": "#b92a0a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "glass-blur": "20px",
+                      "total-entrance": "720ms",
+                      "step-delay": "60ms"
+              },
+              "fontFamily": {
+                      "display-lg": ["Geist"],
+                      "card-title": ["Geist"],
+                      "body-md": ["Geist"],
+                      "label-xs": ["Geist Mono"],
+                      "data-lg": ["Geist Mono"],
+                      "headline-robot": ["Geist"]
+              },
+              "fontSize": {
+                      "display-lg": ["clamp(2.5rem, 6vw, 4.875rem)", {"lineHeight": "1.1", "letterSpacing": "-0.045em", "fontWeight": "650"}],
+                      "card-title": ["19px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "1.55", "fontWeight": "400"}],
+                      "label-xs": ["11.5px", {"lineHeight": "1.0", "fontWeight": "500"}],
+                      "data-lg": ["40px", {"lineHeight": "1.0", "letterSpacing": "tabular-nums", "fontWeight": "600"}],
+                      "headline-robot": ["clamp(1.5rem, 3.2vw, 2.4rem)", {"lineHeight": "1.2", "fontWeight": "600"}]
+              }
+            },
+          }
+        }
+    </script>
+<style>
+        .glass-card {
+            background-color: rgba(255, 255, 255, 0.045);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+        }
+        .status-border-recent { border-top: 1px solid #4ADE80; }
+        .status-border-watch { border-top: 1px solid #FBBF24; }
+        .status-border-action { border-top: 1px solid #FB6A5A; }
+        .hatch-bg {
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.02) 5px, rgba(255,255,255,0.02) 10px);
+        }
+        /* Entrance Animations */
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-stagger-1 { animation: slideUpFade 720ms cubic-bezier(0.23,1,0.32,1) 60ms backwards; }
+        .animate-stagger-2 { animation: slideUpFade 720ms cubic-bezier(0.23,1,0.32,1) 120ms backwards; }
+        .animate-stagger-3 { animation: slideUpFade 720ms cubic-bezier(0.23,1,0.32,1) 180ms backwards; }
+        .animate-stagger-4 { animation: slideUpFade 720ms cubic-bezier(0.23,1,0.32,1) 240ms backwards; }
+        .animate-stagger-5 { animation: slideUpFade 720ms cubic-bezier(0.23,1,0.32,1) 300ms backwards; }
+    </style>
+</head>
+<body class="bg-background-well text-on-surface flex min-h-screen font-body-md text-body-md overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- Ambient Orbs -->
+<div class="fixed top-0 left-0 w-full h-full pointer-events-none z-0 overflow-hidden">
+<div class="absolute top-[10%] left-[5%] w-[40rem] h-[40rem] bg-accent-electric/5 rounded-full blur-[120px] mix-blend-screen"></div>
+<div class="absolute bottom-[20%] right-[5%] w-[30rem] h-[30rem] bg-status-recent/5 rounded-full blur-[100px] mix-blend-screen"></div>
+</div>
+<!-- SideNavBar (Desktop) -->
+<nav class="hidden md:flex bg-surface-container dark:bg-surface-container text-secondary dark:text-secondary font-body-md text-body-md h-full w-72 border-r border-border-glass backdrop-blur-glass-blur flex flex-col h-screen p-4 space-y-2 fixed left-0 top-0 z-40 pt-20">
+<div class="mb-8 px-4">
+<h1 class="font-display-lg text-display-lg text-primary text-2xl tracking-tighter uppercase mb-1">PLATAFORMA ATRIZ</h1>
+<p class="font-label-xs text-label-xs text-text-muted">Fleet Operational Control</p>
+</div>
+<div class="flex-1 flex flex-col space-y-1">
+<a class="flex items-center space-x-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="precision_manufacturing">precision_manufacturing</span>
+<span>Taller</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="sports_esports">sports_esports</span>
+<span>Conducir</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="warning">warning</span>
+<span>No obedece</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg font-bold scale-95 duration-step-delay" href="#">
+<span class="material-symbols-outlined" data-icon="query_stats" data-weight="fill" style="font-variation-settings: 'FILL' 1;">query_stats</span>
+<span>Telemetría</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="radar">radar</span>
+<span>LIDAR</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="settings_suggest">settings_suggest</span>
+<span>Diagnóstico</span>
+</a>
+</div>
+<div class="mt-auto pt-4">
+<button class="w-full bg-status-action text-on-error font-body-md text-body-md uppercase font-bold py-4 rounded-lg hover:bg-error transition-colors flex justify-center items-center space-x-2 shadow-[0_0_20px_rgba(251,106,90,0.3)] border-[4px] border-white/20">
+<span class="material-symbols-outlined" data-icon="stop_circle">stop_circle</span>
+<span>EMERGENCY_STOP</span>
+</button>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col min-h-screen relative md:ml-72 pb-24 md:pb-8">
+<!-- TopAppBar -->
+<header class="bg-surface-container-lowest dark:bg-surface-container-lowest text-primary dark:text-primary font-headline-robot text-headline-robot fixed top-0 w-full z-50 h-16 border-b border-border-glass backdrop-blur-glass-blur transition-all duration-total-entrance flex justify-between items-center px-6 w-full md:w-[calc(100%-18rem)]">
+<div class="font-headline-robot text-headline-robot text-primary uppercase tracking-tighter">
+                MARCO_ROBOT_v1.0
+            </div>
+<div class="flex items-center space-x-4">
+<button class="text-text-muted hover:bg-white/5 p-2 rounded-full transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="sensors">sensors</span>
+</button>
+<button class="text-status-recent hover:bg-white/5 p-2 rounded-full transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="battery_charging_full">battery_charging_full</span>
+</button>
+<button class="text-text-muted hover:bg-white/5 p-2 rounded-full transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="wifi_tethering">wifi_tethering</span>
+</button>
+</div>
+</header>
+<!-- Canvas / Telemetry Data -->
+<div class="flex-1 pt-24 px-6 md:px-12 max-w-[1400px] mx-auto w-full flex flex-col space-y-8 z-10">
+<!-- 0. Línea mono -->
+<div class="flex justify-between items-center font-label-xs text-label-xs text-text-muted border-b border-border-glass pb-2 animate-stagger-1">
+<span class="uppercase tracking-widest text-accent-cyan/70">Subs: /rvr/odom, /rvr/imu, /rvr/enc, /driver/stat</span>
+<span class="font-mono text-secondary-fixed">2.4 kB/s</span>
+</div>
+<!-- 1. Banda BATERÍA -->
+<section class="w-full glass-card status-border-recent rounded-xl p-6 relative animate-stagger-2">
+<div class="absolute top-4 right-4 bg-status-recent/20 border border-status-recent text-status-recent px-3 py-1 rounded-full font-label-xs text-label-xs uppercase tracking-wider flex items-center space-x-1.5">
+<div class="w-1.5 h-1.5 rounded-full bg-status-recent"></div>
+<span>Óptimo</span>
+</div>
+<div class="flex flex-col space-y-2">
+<span class="font-label-xs text-label-xs text-text-muted uppercase tracking-widest">/rvr/battery/raw</span>
+<div class="flex items-baseline space-x-2">
+<span class="font-display-lg text-display-lg text-text-primary tracking-tighter">8,23</span>
+<span class="font-display-lg text-[62%] text-text-muted">V</span>
+</div>
+<div class="flex justify-between items-end mt-2">
+<span class="font-body-md text-body-md text-status-recent uppercase font-bold tracking-wide">Voltaje Nominal</span>
+<span class="font-label-xs text-label-xs text-text-muted">Hace 12ms</span>
+</div>
+</div>
+</section>
+<!-- 2. Sección «Flujo continuo del RVR» -->
+<section class="flex flex-col space-y-4 animate-stagger-3">
+<h2 class="font-card-title text-card-title text-on-surface uppercase tracking-widest text-sm border-b border-white/10 pb-2">Flujo continuo del RVR</h2>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Odometría -->
+<div class="glass-card status-border-watch rounded-xl p-6 lg:col-span-2">
+<h3 class="font-label-xs text-label-xs text-text-muted uppercase mb-6 tracking-widest flex items-center space-x-2">
+<span class="material-symbols-outlined text-[16px]" data-icon="route">route</span>
+<span>Odometría Base</span>
+</h3>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-6">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-accent-electric uppercase">Pos_X</span>
+<div class="flex items-baseline space-x-1"><span class="font-data-lg text-data-lg text-text-primary">12.4</span><span class="font-label-xs text-text-muted">m</span></div>
+<span class="font-label-xs text-label-xs text-text-muted/50 mt-1">4ms</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-accent-electric uppercase">Pos_Y</span>
+<div class="flex items-baseline space-x-1"><span class="font-data-lg text-data-lg text-text-primary">-4.2</span><span class="font-label-xs text-text-muted">m</span></div>
+<span class="font-label-xs text-label-xs text-text-muted/50 mt-1">4ms</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-status-watch uppercase">Rot_Z</span>
+<div class="flex items-baseline space-x-1"><span class="font-data-lg text-data-lg text-text-primary">0.89</span><span class="font-label-xs text-text-muted">rad</span></div>
+<span class="font-label-xs text-label-xs text-text-muted/50 mt-1">4ms</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-text-muted uppercase">Vel_Lin</span>
+<div class="flex items-baseline space-x-1"><span class="font-data-lg text-data-lg text-text-primary">0.5</span><span class="font-label-xs text-text-muted">m/s</span></div>
+<span class="font-label-xs text-label-xs text-text-muted/50 mt-1">8ms</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-text-muted uppercase">Vel_Ang</span>
+<div class="flex items-baseline space-x-1"><span class="font-data-lg text-data-lg text-text-primary">0.0</span><span class="font-label-xs text-text-muted">r/s</span></div>
+<span class="font-label-xs text-label-xs text-text-muted/50 mt-1">8ms</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-text-muted uppercase">Var_Cov</span>
+<div class="flex items-baseline space-x-1"><span class="font-data-lg text-data-lg text-text-primary">0.02</span><span class="font-label-xs text-text-muted">σ</span></div>
+<span class="font-label-xs text-label-xs text-text-muted/50 mt-1">12ms</span>
+</div>
+</div>
+</div>
+<!-- Encoders & IMU Column -->
+<div class="flex flex-col space-y-6">
+<!-- Encoders -->
+<div class="glass-card rounded-xl p-5 border-t border-t-white/10">
+<h3 class="font-label-xs text-label-xs text-text-muted uppercase mb-4 tracking-widest flex items-center space-x-2">
+<span class="material-symbols-outlined text-[16px]" data-icon="settings_ethernet">settings_ethernet</span>
+<span>Encoders Crudos</span>
+</h3>
+<div class="flex justify-between mb-2">
+<div class="flex flex-col">
+<span class="font-data-lg text-data-lg text-text-primary text-[32px]">48291</span>
+<span class="font-label-xs text-label-xs text-accent-electric uppercase">Izq (Ticks)</span>
+</div>
+<div class="flex flex-col text-right">
+<span class="font-data-lg text-data-lg text-text-primary text-[32px]">48304</span>
+<span class="font-label-xs text-label-xs text-accent-electric uppercase">Der (Ticks)</span>
+</div>
+</div>
+<div class="text-right">
+<span class="font-label-xs text-label-xs text-text-muted/70 italic">* Aprox. 24.1 metros funcionales</span>
+</div>
+</div>
+<!-- IMU No Construido -->
+<div class="glass-card rounded-xl p-5 border border-dashed border-white/20 hatch-bg opacity-70 flex-1 flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-4xl text-text-muted mb-2" data-icon="construction">construction</span>
+<span class="font-card-title text-card-title text-text-muted uppercase tracking-widest mb-2">Módulo IMU<br/>NO CONSTRUIDO</span>
+<ol class="font-label-xs text-label-xs text-text-muted/70 text-left space-y-1 list-decimal list-inside">
+<li>Aguardando calibración mag.</li>
+<li>Fusión de sensores inactiva.</li>
+</ol>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. Sección «Sondeo driver» -->
+<section class="flex flex-col space-y-4 animate-stagger-4">
+<h2 class="font-card-title text-card-title text-on-surface uppercase tracking-widest text-sm border-b border-white/10 pb-2">Sondeo driver</h2>
+<div class="glass-card rounded-xl overflow-hidden">
+<!-- Insignias separadas 1px -->
+<div class="flex space-x-[1px] bg-white/5 p-[1px] border-b border-white/5">
+<div class="flex-1 bg-surface py-2 flex justify-center items-center space-x-2">
+<div class="w-1.5 h-1.5 rounded-full bg-status-recent"></div>
+<span class="font-label-xs text-label-xs text-status-recent uppercase tracking-widest">DRV_OK</span>
+</div>
+<div class="flex-1 bg-surface py-2 flex justify-center items-center space-x-2">
+<div class="w-1.5 h-1.5 rounded-full bg-status-recent"></div>
+<span class="font-label-xs text-label-xs text-status-recent uppercase tracking-widest">COM_RX</span>
+</div>
+<div class="flex-1 bg-surface py-2 flex justify-center items-center space-x-2 opacity-50">
+<div class="w-1.5 h-1.5 rounded-full bg-text-muted"></div>
+<span class="font-label-xs text-label-xs text-text-muted uppercase tracking-widest">FAULT_CLR</span>
+</div>
+</div>
+<div class="p-6">
+<h3 class="font-label-xs text-label-xs text-text-muted uppercase mb-6 tracking-widest flex items-center space-x-2">
+<span class="material-symbols-outlined text-[16px]" data-icon="memory">memory</span>
+<span>Motores Internos</span>
+</h3>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-status-watch uppercase">Temp L</span>
+<div class="flex items-baseline space-x-1"><span class="font-data-lg text-data-lg text-text-primary">42</span><span class="font-label-xs text-text-muted">°C</span></div>
+</div>
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-text-muted uppercase">Temp R</span>
+<div class="flex items-baseline space-x-1"><span class="font-data-lg text-data-lg text-text-primary">39</span><span class="font-label-xs text-text-muted">°C</span></div>
+</div>
+<div class="flex flex-col bg-black/20 p-3 rounded-lg border border-white/5">
+<span class="font-label-xs text-label-xs text-text-muted uppercase mb-1">Reg_0x1A</span>
+<span class="font-mono text-accent-cyan text-lg">00101100</span>
+</div>
+<div class="flex flex-col bg-black/20 p-3 rounded-lg border border-white/5">
+<span class="font-label-xs text-label-xs text-text-muted uppercase mb-1">Reg_0x1B</span>
+<span class="font-mono text-accent-cyan text-lg">11000011</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 4. Sección «Solo si alguien pidió» & 5. Banda SALIDAS -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-8 animate-stagger-5">
+<!-- 4. Color Card (Not built) -->
+<section class="flex flex-col space-y-4">
+<h2 class="font-card-title text-card-title text-text-muted/50 uppercase tracking-widest text-sm border-b border-white/5 pb-2">Solo si alguien pidió</h2>
+<div class="glass-card rounded-xl p-5 border border-dashed border-white/10 hatch-bg opacity-50 h-32 flex items-center justify-center">
+<span class="font-label-xs text-label-xs text-text-muted uppercase tracking-widest text-center">Sensor Color<br/>NO CONSTRUIDO</span>
+</div>
+</section>
+<!-- 5. Banda SALIDAS -->
+<section class="flex flex-col space-y-4 lg:col-span-2">
+<h2 class="font-card-title text-card-title text-status-watch uppercase tracking-widest text-sm border-b border-status-watch/30 pb-2">SALIDAS DIRECTAS</h2>
+<div class="glass-card border-t-status-watch rounded-xl p-6">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-label-xs text-label-xs text-text-muted uppercase tracking-widest flex items-center space-x-2">
+<span class="material-symbols-outlined text-[16px]" data-icon="lightbulb">lightbulb</span>
+<span>Matriz LEDs RVR</span>
+</h3>
+<div class="bg-status-watch/10 border border-status-watch text-status-watch px-2 py-0.5 rounded font-label-xs text-label-xs uppercase tracking-wider animate-pulse">
+                                Orden Enviada
+                            </div>
+</div>
+<div class="flex flex-col md:flex-row gap-6">
+<!-- Selector Grupos -->
+<div class="flex-1">
+<label class="font-label-xs text-label-xs text-text-muted uppercase mb-2 block">Grupo Objetivo (1-12)</label>
+<select class="w-full bg-surface-container-highest border border-border-glass text-text-primary rounded-lg p-3 font-mono text-sm focus:ring-1 focus:ring-status-watch focus:border-status-watch outline-none appearance-none">
+<option>Grupo 01 - Frontal Izq</option>
+<option>Grupo 02 - Frontal Centro</option>
+<option>Grupo 03 - Frontal Der</option>
+<option>Grupo 04 - Lateral Izq</option>
+<option selected="">Grupo 05 - Chasis Inferior (ALL)</option>
+<option>Grupo 06 - Trasero</option>
+</select>
+</div>
+<!-- Botones Color -->
+<div class="flex-1">
+<label class="font-label-xs text-label-xs text-text-muted uppercase mb-2 block">Inyección de Color RGB</label>
+<div class="flex space-x-2">
+<button class="flex-1 h-12 bg-red-500 rounded-md border border-white/20 hover:scale-105 transition-transform"></button>
+<button class="flex-1 h-12 bg-green-500 rounded-md border border-white/20 hover:scale-105 transition-transform"></button>
+<button class="flex-1 h-12 bg-blue-500 rounded-md border border-white/20 hover:scale-105 transition-transform"></button>
+<button class="flex-1 h-12 bg-yellow-400 rounded-md border-2 border-white hover:scale-105 transition-transform shadow-[0_0_15px_rgba(250,204,21,0.4)]"></button>
+<button class="flex-1 h-12 bg-white rounded-md border border-white/20 hover:scale-105 transition-transform"></button>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden bg-surface-elevated/80 dark:bg-surface-elevated/80 text-primary dark:text-primary font-label-xs text-label-xs fixed bottom-0 w-full z-50 rounded-t-xl border-t border-border-glass backdrop-blur-glass-blur fixed bottom-0 left-0 w-full flex justify-around items-center h-20 px-8 pb-safe">
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary scale-110 duration-total-entrance" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="grid_view">grid_view</span>
+<span>Fleet Wall</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary font-bold scale-110 duration-total-entrance" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="settings_remote" data-weight="fill" style="font-variation-settings: 'FILL' 1;">settings_remote</span>
+<span>Controls</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary scale-110 duration-total-entrance" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="map">map</span>
+<span>Maps</span>
+</a>
+<a class="flex flex-col items-center justify-center text-text-muted hover:text-primary scale-110 duration-total-entrance" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="description">description</span>
+<span>Logs</span>
+</a>
+</nav>
+</body></html>
