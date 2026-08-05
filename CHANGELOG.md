@@ -4,6 +4,40 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 16) — La plataforma repensada para Stitch, y el sesgo que la retrasaba
+
+**El usuario pidió cinco veces un diseño mejor y cinco veces contesté que «las skills no aplican
+aquí».** Al ponerlo en fila se ve el patrón: las **cinco** propuestas que llegué a hacer —el gris
+plano, el tablero verde, y las maquetas A·Galón, B·Carta y C·Esmalte— eran **la misma familia**:
+apagadas, de papel, derivadas de un objeto físico, fondo claro, contenidas. Ese era mi sesgo, no
+el encargo. El encargo llevaba desde el principio diciendo *color, animación, que se vea caro*.
+
+📝 **La lección, y es de método:** cuando alguien rechaza varias propuestas seguidas, el error
+rara vez está en la última — está en el **eje que todas comparten y que nadie nombró**.
+
+**`03_operacion/PLATAFORMA_STITCH.md`**, nuevo, cubre **la plataforma entera** y no solo el
+sistema: las ocho pantallas una a una, los componentes, los estados, el movimiento, el
+responsive, y **prompts listos para pegar** en Stitch por pantalla.
+
+Registro comprometido: **producto digital contemporáneo**, pozo oscuro azulado, tarjetas de
+vidrio con desenfoque, dos orbes de luz ambiente fijos, acento eléctrico, tipografía grande y
+entrada escalonada. Con **modo claro solo en el muro del profesor**, porque es la única pantalla
+que se proyecta.
+
+🔴 **Y lo que NO cambia:** la sección 8 —las prohibiciones— viaja entera desde el documento
+anterior, palabra por palabra. Nada late, nada se anima al llegar un dato, ningún dato inventado,
+el voltaje manda sobre el porcentaje, «no se sabe» se ve distinto de un cero. **Son fallos
+medidos en el laboratorio, no preferencias estéticas**, y por eso sobreviven a un cambio total
+de piel.
+
+**Se borran** `DESIGN.md` y `ENCARGO_DISENO_UI.md`: describían la versión descartada y tenerlos
+al lado del nuevo solo invita a pegar el equivocado.
+
+📎 Seis maquetas en HTML quedan como referencia de acabado (A-F). Las tres nuevas —**D·Órbita**,
+**E·Bloques**, **F·Aurora**— son el registro nuevo; las tres primeras, el viejo.
+
+---
+
 ## 2026-08-04 (parte 15) — El cierre de la app: las pantallas ya se comprueban, y el acabado
 
 **Paso 3 — las pruebas que miran lo PINTADO.** `pantallas_reales.test.ts`, guardada tras
