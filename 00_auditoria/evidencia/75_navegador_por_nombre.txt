@@ -1,0 +1,75 @@
+═══════════════════════════════════════════════════════════════════════════════
+75 · El navegador, por nombre — cierra el apartado 5 de la evidencia 74
+═══════════════════════════════════════════════════════════════════════════════
+Fecha: 2026-08-04, tarde   ·   Desde: el PC del usuario (Windows 11, Edge 151)
+Robot: rvr-01 en la red de CASA, con «una dirección por red» ya aplicado
+Cierra: evidencia 74, apartado 5 — «🔴 EL NAVEGADOR. […] Falta abrir
+        ws://rvr-01.local:9090 y ver que ABRE. Es el único criterio.»
+
+── 1 · POR QUÉ HACÍA FALTA ESTA MEDIDA ───────────────────────────────────────
+  La evidencia 74 lo dejó escrito y tenía razón: `Resolve-DnsName` ya decía lo
+  correcto y **eso no basta**. El fallo original era exactamente que el
+  navegador se colgaba mientras `ping` y `Resolve-DnsName` daban verde.
+
+── 2 · RESOLUCIÓN, DESDE EL PC ───────────────────────────────────────────────
+    PS> Resolve-DnsName rvr-01.local
+    rvr-01.local   A   192.168.1.200          <- UNA, y ningún AAAA
+
+  ✅ Antes eran cuatro: fe80::da3a:ddff:fed6:c1ee, 10.14.7.7, 192.168.1.58 y
+     192.168.1.200.
+
+── 3 · EL CRITERIO: ABRIR EL WEBSOCKET DESDE EL NAVEGADOR ────────────────────
+  Edge headless por CDP, midiendo `new WebSocket(...)` hasta `onopen`, con la
+  página /flota abierta (o sea, con las 16 baldosas compitiendo):
+
+    ws://rvr-01.local:9090     ✅ ABRE   4339 ms   (caché mDNS fría)
+    ws://rvr-01.local:9090     ✅ ABRE   2331 ms   (caliente)
+    ws://192.168.1.200:9090    ✅ ABRE   4623 ms   (control por IP)
+    ws://10.14.7.7:9090        🔴 12 s sin onopen, sin onerror y sin onclose
+
+  ✅ **ABRE POR NOMBRE.** El apartado 5 de la 74 queda cerrado.
+  📝 `10.14.7.7` sigue siendo un agujero negro desde casa, y es CORRECTO: ya no
+     se anuncia por mDNS. Se deja en la tabla como control negativo — es la
+     firma exacta del fallo original.
+
+── 4 · EL MURO, DE EXTREMO A EXTREMO, CON CONTROL ────────────────────────────
+    por NOMBRE, sin override      rvr-01 · 7,67 V · en línea   ✅  1 de 16
+    con override a 192.168.1.58   no llego                     ✅  0 de 16
+
+  📝 El segundo caso **también es correcto** y vale como control: el DHCP está
+     apagado, así que .58 ya no existe. Confirma que el override apunta a donde
+     dice.
+
+── 5 · CUÁNTO CUESTA EL NOMBRE, Y DE DÓNDE SALE ──────────────────────────────
+  Conexión TCP al 9090, desde el sistema:
+
+    por nombre, 5 tomas seguidas   7293 · 2 · 2 · 2 · 2 ms
+    por IP, control                   2 · 1 · 2 ms
+
+  O sea: **el coste es entero de la primera resolución mDNS**, y después
+  Windows la cachea. Con `ipconfig /flushdns` antes de cada toma:
+
+    caché vacía, 3 tomas           2716 · 2710 · 2729 ms     <- muy consistente
+
+  ⚠️ Aquel **7293 ms** fue la primerísima consulta tras el cambio en el robot y
+     no se ha vuelto a reproducir. **No se explica**, y se anota en vez de
+     redondearlo: es el peor caso observado y el que fijó el plazo del cliente.
+
+── 6 · CONSECUENCIA EN `atriz-lab` ───────────────────────────────────────────
+  🔴 El plazo de conexión estaba en **5 s** y era DEMASIADO JUSTO: 400 ms de
+     margen sobre los 4623 medidos, y la toma de 7,3 s lo habría pasado. Eso no
+     da un fallo: da un «no llego» **intermitente** sobre un robot sano.
+     → Subido a **10 s**. No cuesta nada en pantalla: la baldosa ya dice «no
+       llego» desde el primer instante; el plazo solo decide cuándo se
+       REINTENTA.
+
+  📌 El plazo y el override **no se retiran** aunque la causa esté cerrada:
+     · un robot apagado da exactamente la misma firma (cuelgue mudo);
+     · sin `onclose` la reconexión con espera creciente no llega ni a arrancar;
+     · y **el aula está sin probar entera** (74, apartado 5).
+
+── 7 · LO QUE SIGUE SIN PROBARSE ─────────────────────────────────────────────
+  Todo lo del apartado 5 de la 74 **menos el navegador**: el fichero de red del
+  laboratorio, la re-evaluación del `[Match] SSID=` al mudarse, el arranque en
+  frío, y el aislamiento de clientes del AP del aula (la F0).
+═══════════════════════════════════════════════════════════════════════════════

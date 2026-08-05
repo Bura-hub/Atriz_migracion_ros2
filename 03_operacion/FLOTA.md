@@ -252,7 +252,16 @@ navegando son **80.7 kB/s** → **10.3 Mbit/s** los 16. Evidencia 39.
 
 ---
 
-## ✅ El diseño de red, verificado (2026-08-01)
+## ~~✅ El diseño de red, verificado (2026-08-01)~~ — 🔴 SUSTITUIDO EL 2026-08-04
+
+> 🔴 **Esta sección describe el diseño ANTERIOR y se conserva como registro.** Lo que hay hoy es
+> **una dirección por red**, emparejada por SSID — ver la retractación de más arriba y la
+> evidencia 74.
+>
+> **Lo medido seguía siendo cierto** (las tres direcciones convivían y el robot se mudaba sin
+> tocar un comando); lo que estaba mal era darlo por bueno **mirándolo solo desde el robot**.
+> Desde un cliente, tres direcciones significan que **al menos una es un agujero negro**, y el
+> navegador se cuelga en ella sin dar error: el muro no encontraba ningún robot. Evidencia 75.
 
 `wlan0` con **tres direcciones IPv4 a la vez**, y la ruta por defecto puesta por el DHCP:
 

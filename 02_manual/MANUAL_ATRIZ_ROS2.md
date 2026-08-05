@@ -4639,6 +4639,10 @@ Fase 5 con la web ya escrita:
   **y** `[::]:9090`.
 - *«avahi publica solo la AAAA»* → **falso**: publica `A=192.168.1.58` **y** la AAAA. Windows
   simplemente **prefiere IPv6** (RFC 6724).
+  🔴 **Y desde el 2026-08-04 ya no es así, ni debe serlo:** avahi publica **una sola A** y ninguna
+  AAAA (`use-ipv6=no` **más** `publish-aaaa-on-ipv4=no`). Publicar varias direcciones es lo que
+  colgaba al navegador —se queda en la primera que no sirve, sin dar error— y dejaba el muro sin
+  encontrar ningún robot. Evidencias 74 y 75.
 
 📝 **La lección de método:** el `ping` pasó y parecía un éxito completo. **Una prueba que pasa
 tampoco dice lo que crees hasta que miras qué pasó exactamente.**

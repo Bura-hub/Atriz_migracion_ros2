@@ -4,6 +4,66 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 14) — Una dirección por red, y el navegador ya entra por nombre
+
+**En el robot** (evidencias 74 y el plan `2026-08-04-direccionamiento-flota.md`): se pasó a
+**una dirección por red**. `[Match] SSID=` de systemd-networkd elige el fichero según la red en
+la que esté el robot, y en avahi `use-ipv6=no` **más `publish-aaaa-on-ipv4=no`**.
+
+🔴 **Lo segundo no es un detalle:** `use-ipv6=no` apaga el *transporte* IPv6, pero el registro
+`AAAA` **se seguía anunciando por el transporte IPv4** — la opción venía comentada, corriendo con
+su valor por defecto (`yes`). Sin ella, `Resolve-DnsName` desde el PC seguía viendo la `fe80::`.
+
+⚠️ Y ahí hubo un testigo falso que casi lo da por cerrado: `getent ahosts rvr-01.local` **desde la
+Pi** devolvió una sola dirección mientras el PC recibía dos. **`getent` no ve lo que la Pi anuncia
+al cable.**
+
+**Desde el PC** (evidencia 75) se cierra el único punto que la 74 dejaba abierto de este lado:
+
+> 🔴 **EL NAVEGADOR.** `Resolve-DnsName` ya dice lo correcto, y NO basta […]
+> Falta abrir `ws://rvr-01.local:9090` y ver que ABRE. Es el único criterio.
+
+> 🔴 **EL NAVEGADOR.** `Resolve-DnsName` ya dice lo correcto, y NO basta […]
+> Falta abrir `ws://rvr-01.local:9090` y ver que ABRE. Es el único criterio.
+
+```
+ws://rvr-01.local:9090     ✅ ABRE   4339 ms (caché fría) · 2331 ms (caliente)
+ws://192.168.1.200:9090    ✅ ABRE   4623 ms   (control por IP)
+ws://10.14.7.7:9090        🔴 12 s sin onopen, sin onerror y sin onclose
+```
+
+Y el muro, de extremo a extremo y con control:
+
+```
+por NOMBRE, sin override      rvr-01 · 7,67 V · en línea    ✅  1 de 16
+con override a 192.168.1.58   no llego                      ✅  0 de 16
+```
+
+📝 El segundo **también es correcto**: el DHCP está apagado, así que `.58` ya no existe. Confirma
+que el override apunta a donde dice.
+
+**Cuánto cuesta el nombre, y de dónde sale:** por nombre, cinco tomas seguidas dan
+`7293 · 2 · 2 · 2 · 2 ms`; por IP, `2 · 1 · 2`. O sea que **el coste es entero de la primera
+resolución mDNS**. Con `ipconfig /flushdns` antes de cada toma: **2716 · 2710 · 2729 ms**, muy
+consistente. ⚠️ Aquel **7293 ms** fue la primerísima consulta tras el cambio, **no se ha vuelto a
+reproducir y no se explica** — se anota en vez de redondearlo, porque es el peor caso observado.
+
+🔴 **Y eso obligó a corregir algo mío: el plazo de conexión estaba en 5 s y era demasiado justo**
+—400 ms de margen sobre los 4623 medidos, y la toma de 7,3 s lo habría pasado—. Un plazo corto no
+da un fallo: da un «no llego» **intermitente** sobre un robot sano. Subido a **10 s**, que no
+cuesta nada en pantalla: la baldosa ya dice «no llego» desde el primer instante y el plazo solo
+decide cuándo se **reintenta**.
+
+📌 **El plazo y el override se quedan** aunque la causa esté cerrada: un robot apagado da la misma
+firma, sin `onclose` la reconexión no arranca, y **el aula sigue sin probarse entera**.
+
+⚠️ **Y el diagnóstico fácil engañó DOS veces en este asunto**, en las dos direcciones:
+`ping` + `Resolve-DnsName` daban verde con el navegador colgado; y al arreglarlo, `getent ahosts`
+**desde la Pi** dio una sola dirección mientras el PC recibía dos. → **El testigo válido es el
+cliente.**
+
+---
+
 ## 2026-08-04 (parte 13) — Por qué el muro no encontraba a ningún robot
 
 **El usuario avisó de que «no funciona nada en flota»**, y resultó no ser de la aplicación.

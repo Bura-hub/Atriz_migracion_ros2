@@ -451,8 +451,31 @@ para `/scan`, que es el 83 % del tráfico. Evidencia 68.
     cliente se lo cambia**, sin aviso y sin error. Antes de usar cualquier parámetro de `subscribe`,
     mira si el fuente lo combina entre clientes.
 
-**🔴🔴 `rvr-NN.local` RESUELVE A CUATRO DIRECCIONES, Y EL NAVEGADOR SE CUELGA EN LAS DOS
-PEORES.** Medido el 2026-08-04 en el navegador, con el robot **encendido y sano**:
+**🔴🔴 ~~`rvr-NN.local` RESUELVE A CUATRO DIRECCIONES~~ — ✅ ARREGLADO EL MISMO DÍA, y el
+navegador ya lo confirma.** Se conserva entero porque la forma del fallo vuelve.
+
+✅ **Cerrado la tarde del 2026-08-04** con **una dirección por red** (evidencia 74): `[Match]
+SSID=` de systemd-networkd elige el fichero por la red en la que esté, y en avahi `use-ipv6=no`
+**más `publish-aaaa-on-ipv4=no`** — 🔴 **sin lo segundo no basta**, porque `use-ipv6=no` apaga el
+*transporte* IPv6 y el registro `AAAA` **se seguía anunciando por el transporte IPv4**. Venía
+comentado, o sea corriendo con su valor por defecto (`yes`).
+
+✅ **Y el criterio que la evidencia 74 dejaba abierto está medido:** `ws://rvr-01.local:9090`
+**ABRE en el navegador** — 4339 ms con la caché fría, 2331 ms caliente —, y el muro pinta
+`rvr-01 · 7,67 V · en línea` **por nombre, sin override**. La resolución mDNS es casi todo el
+coste y solo la primera vez: **2716 · 2710 · 2729 ms** con la caché vaciada contra **2 ms** con
+ella caliente.
+
+⚠️ **Lo que sigue sin probarse es el AULA**, y ahí está el riesgo real: `05-atriz-lab.network`
+**nunca ha casado con nada**. Si el SSID difiere en un carácter, el robot cae al netplan
+genérico y se queda **sin dirección estática** con 16 alumnos delante. Tampoco está probado que
+sobreviva a un arranque en frío, que es justo lo que hará el robot 7.
+
+---
+
+**El fallo original, conservado porque la forma vuelve:**
+
+Medido el 2026-08-04 por la mañana en el navegador, con el robot **encendido y sano**:
 
 ```
 ws://rvr-01.local:9090     🔴 12 s sin abrir, sin error y sin cierre
@@ -467,22 +490,27 @@ laboratorio), `192.168.1.58` y `192.168.1.200`. El navegador prueba en ese orden
 primeras no fallan: se cuelgan** — un SYN sin respuesta tarda ~21 s en rendirse, así que nunca
 llega a las buenas.
 
-→ 🔴 **Es la consecuencia directa de la decisión «estática + DHCP conviven en `wlan0`»**, que se
-  verificó y se dio por buena porque el robot se muda de casa al aula sin tocar un comando. Sigue
-  siendo cierto **para el robot**; para un cliente significa que **desde cualquier red al menos
-  una de sus direcciones es un agujero negro**. En el aula pasa lo mismo al revés, y allí solo
-  funciona por suerte: `10.14.7.7` va antes que las de casa.
+→ 🔴 **Era la consecuencia directa de la decisión «estática + DHCP conviven en `wlan0`»**, que se
+  verificó y se dio por buena porque el robot se muda de casa al aula sin tocar un comando. Era
+  cierto **para el robot**; para un cliente significaba que **desde cualquier red al menos una de
+  sus direcciones es un agujero negro**. 📝 **Y esa es la lección que sobrevive al arreglo: una
+  decisión puede ser correcta desde un lado del cable y romper el otro.** La verificación se hizo
+  entera desde el robot.
 → 🔴 **Y JavaScript no puede arreglarlo:** no hay API para enumerar lo que resolvió un nombre ni
   para elegir dirección. El cliente no puede competir entre ellas como hace el sistema operativo.
-→ ✅ Cerrado en `atriz-lab` con **dos** piezas: un **plazo de conexión de 5 s** —sin él un socket
-  colgado **nunca llama a `onclose`**, así que la reconexión con espera creciente no llegaba ni a
-  arrancar y el muro dejaba 16 conexiones colgadas para siempre— y una **dirección por robot**
-  que se escribe a mano. Verificado con control: **0 de 16** baldosas vivas por nombre, **1 de
-  16** con la dirección puesta.
-→ ⚠️ **Cuidado con el diagnóstico fácil:** `ping rvr-01.local` **funciona** (elige la `fe80` con
-  su zona `%10` y contesta en 1 ms) y `Resolve-DnsName` lista las cuatro sin quejarse. Las dos
-  herramientas dicen que el nombre está bien. Lo que falla es **abrir un TCP desde el navegador**,
-  y eso solo se ve midiéndolo ahí.
+  Por eso la solución tuvo que ser del robot, no de la web.
+→ ✅ En `atriz-lab` quedan **dos** piezas, y **ninguna sobra** aunque la causa esté cerrada: un
+  **plazo de conexión de 10 s** —sin él un socket colgado **nunca llama a `onclose`**, así que la
+  reconexión con espera creciente no llegaba ni a arrancar y el muro dejaba 16 conexiones
+  colgadas; y un **robot apagado da exactamente la misma firma**— y una **dirección por robot**
+  escrita a mano, que es el camino de escape para el día que el SSID del aula no case.
+→ ⚠️ **Cuidado con el diagnóstico fácil, que aquí engañó DOS veces:**
+  · `ping rvr-01.local` **funcionaba** (elige la `fe80` con su zona `%10`, 1 ms) y
+    `Resolve-DnsName` listaba las cuatro sin quejarse. Las dos decían que el nombre estaba bien.
+  · Y al arreglarlo, `getent ahosts rvr-01.local` **desde la Pi** devolvió una sola dirección
+    mientras el PC seguía recibiendo dos. **`getent` no ve lo que la Pi anuncia al cable.**
+  → **El testigo válido es el CLIENTE**, y en este caso concreto el navegador: `ping`,
+    `Resolve-DnsName` y `getent` pueden dar verde los tres con el navegador colgado.
 → 📝 **La forma general: un fallo que se CUELGA es peor que uno que falla.** Sin `onerror` ni
   `onclose` no hay nada que reintentar, nada que registrar y nada que enseñar — el mismo perfil
   que el RVR dormido con el nodo vivo, el nodo muerto con systemd en verde, y el descriptor del
@@ -1543,7 +1571,7 @@ lo que produce deriva entre documentación y realidad.
 | ✅ **Fase A de seguridad APLICADA (2026-08-02): `raw_motors` ya NO es alcanzable** | Lista blanca en `robot.launch.py` (`topics_sub_glob`, `topics_pub_glob`, `services_glob`, `actions_glob`, `params_glob`) + `rosapi_node`. Cierra `raw_motors`, `move_timed`, `move_to_pose`, los IR y **publicar en `/cmd_vel`**, que era el agujero más silencioso. ✅ Verificado con el **efecto físico**: `raw_motors` al 30 % por WebSocket → **0.00 cm** de desplazamiento (evidencia 53). `SEGURIDAD_ROSBRIDGE.md` |
 | 🔴 **PERO SIGUE BLOQUEANDO LA FASE 5: no hay identidad por usuario** | La Fase A **no** levanta el pendiente. **rosbridge 2.7.0 en Jazzy NO TIENE AUTENTICACIÓN** —no existe: `rosauth` no es dependencia, no hay parámetro `authenticate`, y `check_origin()` devuelve `True` incondicionalmente—, así que **cualquiera en el aula sigue pudiendo teleoperar cualquier robot** por `cmd_vel_raw`. Se cierra en la **Fase B**: proxy que valida el JWT en cada robot, con rosbridge atado a `127.0.0.1`. ⚠️ «Token en el WebSocket» quedó **descartado por imposible** |
 | ✅ **El camino web ↔ robot está verificado de extremo a extremo** | Navegador del PC → `ws://rvr-01.local:9090` → topics **y** servicios. `03_operacion/probar_conexion_web.html`, sin librerías ni CDN. La web **no necesita SSH para nada operativo**. Evidencia 39 |
-| ✅ **La web localiza a los robots por `rvr-NN.local` (mDNS)**, con la IP como override | Es lo que hace que el mismo código funcione en casa y en el laboratorio sin tocar nada. Verificado el 2026-08-01 desde el PC del usuario: avahi publica **A=192.168.1.58 y AAAA link-local**, y rosbridge escucha en **las dos familias**. Evidencia 39 |
+| ✅ **La web localiza a los robots por `rvr-NN.local` (mDNS)**, con la IP como override | Es lo que hace que el mismo código funcione en casa y en el laboratorio sin tocar nada. ⚠️ **Y estuvo ROTO entre el 2026-08-01 y el 2026-08-04**, sin que nadie lo notara: aquella verificación vio que avahi publicaba **A y AAAA a la vez** y lo dio por bueno — con varias direcciones, el navegador se cuelga en la primera que no sirve y **el muro no encontraba ningún robot**. ✅ Cerrado con **una dirección por red** y `publish-aaaa-on-ipv4=no`; hoy `ws://rvr-01.local:9090` **abre** desde el navegador. Evidencias 39, 74 y 75 |
 | 🔴 **NO se reflashea rvr-01 para probar `provision.sh` entero** | Es el único robot montado. Decisión del usuario el 2026-07-31: se **asume** que funciona hasta tener una tarjeta de repuesto. **Es una suposición, no un hecho** — ver abajo |
 | **🟢 GO: el SDK funciona en Python 3.12** (16.67 Hz) | manual, cap. 5.1 · verificado 2026-07-30 |
 | El driver publica `odom → base_footprint`, **no** `odom → base_link` | manual, cap. 9.4 · REP-105 y un frame = un padre |
