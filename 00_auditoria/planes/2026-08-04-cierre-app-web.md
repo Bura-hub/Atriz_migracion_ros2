@@ -82,7 +82,37 @@ el HTML **ya hidratado**:
 ⚠️ Y una trampa del método, ya pagada: `--virtual-time-budget` **congela el reloj del navegador
 y ahoga la red**. Hay que esperar en tiempo real por CDP. Costó tres capturas vacías.
 
-## 4 · El acabado, con una exclusión que importa
+## 4 · El acabado — ✅ HECHO, y con una parte deliberadamente NO hecha
+
+> ✅ **Estados de foco.** En `.rejilla` las baldosas se tocan con 1 px de hueco, así que el
+> `outline-offset: 2px` invadía a la vecina **y la vecina lo tapaba por dos de sus cuatro lados**:
+> un foco partido justo en el muro, que es donde quien navega con teclado más necesita verlo.
+> Resuelto con `position: relative; z-index: 1` **solo mientras tiene el foco**. Verificado en
+> captura, enfocando una baldosa rodeada por los cuatro lados.
+>
+> ✅ **Transición al cambiar de estado.** `Insignia` no tenía ninguna: un cambio de tono era un
+> salto. Con 16 baldosas, un hipo de WiFi que cruce el umbral y vuelva da un estroboscopio. 200 ms
+> sobre color, fondo y borde — **nada de `transform` ni opacidad**.
+>
+> ✅ **Y un defecto que apareció al mirarlo, no al planearlo:** la franja de atención era
+> `border-l-0 / -4 / -8`, así que **cambiar de estado desplazaba el contenido** 4 u 8 px y el
+> identificador quedaba **desalineado entre baldosas según el estado de cada una** — en una losa
+> 4×4 eso se lee como un borde dentado. Ahora es una barra absoluta de 8 px escalada por
+> `transform`: sin recalcular maquetación, sin mover nada, y las dieciséis alinean igual.
+> Verificado sobre el DOM que Tailwind genera las clases arbitrarias
+> (`matrix(0…)` / `matrix(0.5…)` / `matrix(1…)`, colores `rgb(180,83,9)` y `rgb(190,24,93)`).
+>
+> 🔴 **Lo que NO se hizo, y es una decisión, no un olvido: «tarjetas que dejen de ser todas
+> iguales».** `craft-floor` llama a eso «el contenedor perezoso», y **aquí no aplica**:
+> `impeccable/operate.md:61` dice lo contrario para este modo —*«Consistency over surprise. The
+> same visual vocabulary screen to screen is a virtue»*— y la tabla de precedencia de
+> `atriz-lab/CLAUDE.md` ya resolvió ese choque a favor de la consistencia. Las tarjetas **ya se
+> diferencian por su papel** —la de batería lleva su estado en la cabecera, la parada de
+> emergencia tiene su propio marco, el terminal tiene el estado «no construido»— y fabricar
+> variación decorativa encima sería adorno en un instrumento. Se anota para que nadie lo
+> reabra creyendo que quedó a medias.
+
+**Texto original, conservado:**
 
 Tarjetas que dejen de ser todas iguales —`craft-floor` llama a eso «el contenedor perezoso»—,
 estados de foco trabajados, y transición al **cambiar de estado**.

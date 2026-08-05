@@ -4,6 +4,51 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-04 (parte 15) — El cierre de la app: las pantallas ya se comprueban, y el acabado
+
+**Paso 3 — las pruebas que miran lo PINTADO.** `pantallas_reales.test.ts`, guardada tras
+`ATRIZ_ROBOT=1`: arranca un navegador headless por CDP —**sin instalar nada**, node 22 trae
+`WebSocket` global—, abre las seis rutas contra el robot real y comprueba el HTML **ya
+hidratado**, que es donde vivía «hace hace 7,9 s» y donde el HTML del servidor no llega.
+**19 comprobaciones, 56 s, 19 de 19.**
+
+🔴 **Y su primera ejecución enseñó más que la propia prueba.** Falló porque yo había puesto
+`rvr-01.local` como segmento de `/robot/[id]`, y esa ruta da **404 a propósito**:
+`interpretarIdRobot()` acepta solo un número 1–16 o una IPv4 literal, porque aceptar un anfitrión
+cualquiera la convertiría en «abre un WebSocket a donde diga la URL» sobre una aplicación **sin
+autenticación**.
+
+O sea que las seis rutas eran páginas 404. Y **18 de las 19 comprobaciones pasaron sobre ellas**:
+repetición, hueco disfrazado de dato y frase prohibida son todas de **ausencia**, y una página
+vacía las cumple todas. Solo la que exige que los datos **lleguen** lo vio.
+
+→ **Toda batería de comprobaciones de ausencia necesita al menos una de PRESENCIA**, o es una
+  comprobación muerta que cuenta como aprobada. Este proyecto ya tuvo una: el bloque de `/odom`
+  del verificador del robot solo corría si `/odom` salía en `topic list`, así que con el driver
+  parado no corría **y contaba como correcto**.
+
+**Paso 4 — el acabado.** Estados de foco: en la losa de 1 px el `outline-offset` invadía a la
+baldosa vecina **y la vecina lo tapaba por dos lados** — foco partido justo en el muro. Y
+transición de 200 ms al cambiar de estado, que es **anti-parpadeo**: con 16 baldosas, un hipo de
+WiFi que cruce el umbral y vuelva da un estroboscopio.
+
+🔴 **Y un defecto que apareció al mirar, no al planear:** la franja de atención era
+`border-l-0 / -4 / -8`, así que cambiar de estado **desplazaba el contenido** 4 u 8 px y el
+identificador quedaba **desalineado entre baldosas según el estado de cada una** — en una losa
+4×4 se lee como un borde dentado. Ahora es una barra absoluta escalada por `transform`: no mueve
+nada y las dieciséis alinean igual.
+
+📌 **Lo que NO se hizo, y es una decisión:** «tarjetas que dejen de ser todas iguales». Aquí gana
+`operate.md` —*«Consistency over surprise»*— y las tarjetas ya se diferencian por su **papel**.
+Fabricar variación decorativa encima sería adorno en un instrumento.
+
+⚠️ **Nota operativa:** la batería de rvr-01 fue **8,08 → 7,96 → 7,67 → 7,52 V** a lo largo de la
+sesión. El umbral de «baja» del firmware son 7,0 V.
+
+`atriz-lab`: **358 pruebas + 21 saltadas** (19 nuevas), `tsc`, `eslint` y `contrato` limpios.
+
+---
+
 ## 2026-08-04 (parte 14) — Una dirección por red, y el navegador ya entra por nombre
 
 **En el robot** (evidencias 74 y el plan `2026-08-04-direccionamiento-flota.md`): se pasó a
