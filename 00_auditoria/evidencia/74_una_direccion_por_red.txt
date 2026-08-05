@@ -1,0 +1,121 @@
+═══════════════════════════════════════════════════════════════════════════════
+74 · Una dirección por red — aplicado en rvr-01, y el ajuste que faltaba
+═══════════════════════════════════════════════════════════════════════════════
+Fecha: 2026-08-04, tarde   ·   Robot: rvr-01, en la red de CASA
+Diseño: 00_auditoria/planes/2026-08-04-direccionamiento-flota.md
+Cierra: el fallo de la evidencia del PC «el muro no encontraba a ningún robot»
+
+⚠️ SOLO SE PROBÓ LA MITAD DE CASA. El fichero del laboratorio nunca ha casado
+   con nada. Ver el apartado 5.
+
+── 1 · ANTES ─────────────────────────────────────────────────────────────────
+    $ hostname -I
+    10.14.7.7 192.168.1.200 192.168.1.58
+
+    verificar_robot.sh:
+      ✗ wlan0 tiene una dirección del DHCP: sobra una
+      ✗ wlan0 con 3 direcciones IPv4
+      ! no hay ficheros .network por SSID
+      ! avahi publica IPv6 link-local
+
+  📝 El control importa: el verificador FALLA antes del cambio. Si no fallara,
+     no estaría midiendo lo que se cree.
+
+── 2 · LO QUE SE HIZO ────────────────────────────────────────────────────────
+  · `DHCP=no` en /boot/firmware/red.txt
+  · `first-boot.sh --solo-red` -> netplan sin `addresses:`, y dos ficheros
+    nuevos en /etc/systemd/network/ con `[Match] SSID=`
+  · `netplan try --timeout 90`
+  · avahi: `use-ipv6=no` **y** `publish-aaaa-on-ipv4=no`   <- ver apartado 4
+
+── 3 · DESPUÉS, MEDIDO ───────────────────────────────────────────────────────
+    $ hostname -I
+    192.168.1.200
+
+    $ networkctl status wlan0
+    Network File: /etc/systemd/network/06-atriz-casa.network   <- CASÓ EL SSID
+    State: routable (configured) · Address: 192.168.1.200 · Gateway: 192.168.1.1
+
+    ruta: default via 192.168.1.1 proto static
+    internet: ✅   ·   System clock synchronized: yes
+    /odom: 16.50 Hz (ros2 topic hz)   ·   rosbridge escuchando
+
+  ✅ **`[Match] SSID=` FUNCIONA, y eso era lo único que se había leído y no
+     medido.** networkd eligió el fichero de casa por el SSID, sin scripts.
+  ✅ El robot no se resintió: telemetría en su ritmo de siempre.
+
+── 4 · 🔴 EL AJUSTE QUE FALTABA, Y QUE CASI SE DA POR HECHO ──────────────────
+  Tras poner `use-ipv6=no`, desde la Pi:
+
+    $ getent ahosts rvr-01.local
+    192.168.1.200                                   <- parecía resuelto
+
+  **Y era falso.** Desde el PC, que es quien resuelve de verdad:
+
+    PS> Resolve-DnsName rvr-01.local
+    rvr-01.local   AAAA   fe80::da3a:ddff:fed6:c1ee     <- SEGUÍA AHÍ
+    rvr-01.local   A      192.168.1.200
+
+  La causa está en el manual de avahi y no es caché:
+
+    publish-aaaa-on-ipv4=  «If set to yes avahi-daemon will publish an IPv6 AAAA
+                            record VIA IPV4 […] Defaults to "yes"»
+
+  `use-ipv6=no` apaga el **transporte** IPv6. El registro `AAAA` se seguía
+  anunciando **por el transporte IPv4**. La opción viene comentada en el fichero,
+  así que corría con su valor por defecto.
+
+  ✅ Con `publish-aaaa-on-ipv4=no`:
+
+    PS> Resolve-DnsName rvr-01.local
+    rvr-01.local   A      192.168.1.200                <- y nada más
+
+  🔴 DOS TESTIGOS FALSOS, Y LOS DOS PARECÍAN BUENOS:
+     · `getent` DESDE LA PI no ve lo que la Pi anuncia al cable. Dio una sola
+       dirección mientras el PC recibía dos.
+     · Y la prueba de que no era caché: las conexiones SSH nuevas del usuario
+       seguían entrando por `fe80::` en ese estado intermedio.
+     → **El testigo válido es el CLIENTE.** Este fallo nació justo de mirarlo
+       todo desde el robot, y estuvo a punto de darse por cerrado por lo mismo.
+
+── 5 · ⏳ LO QUE NO ESTÁ PROBADO ─────────────────────────────────────────────
+  🔴 **EL LABORATORIO, ENTERO.** `05-atriz-lab.network` nunca ha casado con
+     nada. Lo único comprobado es que el fichero está bien escrito:
+
+       [Match] Name=wlan0 · SSID=Atriz-server
+       [Network] Address=10.14.7.7/21 · Gateway=10.14.0.1
+
+     · Si el SSID real difiere en un carácter, no casa y el robot cae al netplan
+       genérico: **sin dirección estática** en el aula.
+     · Si `10.14.0.1` no es la puerta buena: habrá dirección, pero sin salida
+       ni NTP — y esta Pi no tiene RTC.
+
+  🔴 **Si networkd re-evalúa el `[Match] SSID=` al MUDARSE sin reiniciar.** El
+     manual lo describe; eso es haberlo leído. Si no lo hiciera, el robot
+     necesitaría un reinicio al llegar al aula. No es grave, pero hay que saberlo
+     antes que descubrirlo con 16 robots delante.
+
+  🔴 **Que sobreviva a un arranque en frío.** Todo se aplicó en caliente con
+     `netplan try`. Nadie ha comprobado que los `.network` se apliquen desde
+     cero, que el emparejamiento ocurra en el arranque y no solo al reconfigurar,
+     ni que la ruta esté antes de que arranque el robot. **Es exactamente lo que
+     hará el robot 7.**
+
+  🔴 **EL NAVEGADOR.** `Resolve-DnsName` ya dice lo correcto, y NO basta: el
+     fallo original era que el navegador se colgaba mientras `ping` y
+     `Resolve-DnsName` daban verde. Falta abrir `ws://rvr-01.local:9090` y ver
+     que ABRE. Es el único criterio.
+
+  ⏳ **El aislamiento de clientes del AP del aula** (la F0). Si aísla clientes,
+     mDNS no llega haga lo que haga este cambio.
+
+── 6 · PARA LA FLOTA ─────────────────────────────────────────────────────────
+  `verificar_robot.sh` cambió de criterio: **tres direcciones IPv4 pasó de ✅ a
+  ✗**, y comprueba por efecto que el `.network` del SSID actual esté aplicado,
+  que no haya dirección `dynamic`, y que avahi no publique IPv6.
+
+  📝 Y una comprobación propia que MENTÍA en su primera versión: el `grep` sobre
+     `60-atriz.yaml` necesita root, y al fallar caía en el `else` cantando
+     «dhcp4 desactivado» con la dirección del DHCP puesta. No distinguía «no» de
+     «no lo sé». Ahora decide por EFECTO y el fichero solo confirma.
+═══════════════════════════════════════════════════════════════════════════════

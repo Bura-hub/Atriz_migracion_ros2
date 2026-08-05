@@ -235,6 +235,60 @@ else
     NO_APLICADO+=("    localizables por nombre. sudo apt install -y avahi-daemon")
 fi
 
+# ── 🔴 Y QUE NO ANUNCIE EL fe80::, QUE CUELGA AL NAVEGADOR ───────────────────
+# Añadido el 2026-08-04. `rvr-NN.local` resolvía a CUATRO direcciones y el
+# navegador probaba en un orden en el que las dos primeras —el `fe80::` sin zona
+# y la estática del otro sitio— no fallan: SE CUELGAN ~21 s cada una. El muro del
+# profesor no encontraba NINGÚN robot. Evidencias 74 y la del PC (parte 13).
+#
+# 🔴 HACEN FALTA LAS DOS OPCIONES, y la segunda es la que casi se escapa:
+#    · use-ipv6=no             apaga el TRANSPORTE IPv6
+#    · publish-aaaa-on-ipv4=no deja de anunciar el AAAA **por el transporte
+#                              IPv4**. Su valor POR DEFECTO es `yes` y viene
+#                              COMENTADA en el fichero, así que no tocarla no es
+#                              neutro: es dejarla encendida.
+#      Medido: con solo `use-ipv6=no`, `getent` DESDE LA PI daba una dirección
+#      mientras el PC seguía recibiendo las dos. El testigo válido es el CLIENTE.
+#
+# ⚠️ El `fe80::` NO desaparece de la interfaz —lo pone el kernel y no se puede
+#    quitar—: lo que se corta es que se ANUNCIE. Un SSH que ya iba por él sigue
+#    funcionando; el que se abra por nombre pasará a la IPv4.
+AV=/etc/avahi/avahi-daemon.conf
+if [[ -f "$AV" ]]; then
+    respalda "$AV"
+    # 🔴 CADA CLAVE EN SU SECCIÓN. `use-ipv6` es de [server] y
+    #    `publish-aaaa-on-ipv4` de [publish]; puesta en la sección equivocada,
+    #    avahi la IGNORA. Una primera versión de esto añadía las dos bajo
+    #    [publish] y la comprobación daba ✅ igual, porque solo miraba que la
+    #    línea existiera. Comprobar que está no es comprobar que sirve.
+    for par in "server:use-ipv6:no" "publish:publish-aaaa-on-ipv4:no"; do
+        seccion="${par%%:*}"; resto="${par#*:}"
+        clave="${resto%%:*}"; valor="${resto##*:}"
+        if grep -qE "^\s*${clave}\s*=" "$AV"; then
+            sed -i "s/^\s*${clave}\s*=.*/${clave}=${valor}/" "$AV"
+        elif grep -qE "^\s*#\s*${clave}\s*=" "$AV"; then
+            # Comentada: se descomenta con el valor bueno, en su sitio.
+            sed -i "s/^\s*#\s*${clave}\s*=.*/${clave}=${valor}/" "$AV"
+        elif grep -qE "^\[${seccion}\]" "$AV"; then
+            sed -i "/^\[${seccion}\]/a ${clave}=${valor}" "$AV"
+        else
+            # Ni la sección existe: se crea al final con su clave dentro.
+            printf '\n[%s]\n%s=%s\n' "$seccion" "$clave" "$valor" >> "$AV"
+        fi
+    done
+    systemctl restart avahi-daemon >/dev/null 2>&1 || true
+    # Se comprueba el EFECTO sobre el fichero, no que el `sed` devolviera 0.
+    if grep -qE '^use-ipv6=no' "$AV" && grep -qE '^publish-aaaa-on-ipv4=no' "$AV"; then
+        ok "avahi no anunciará el fe80:: (ni por IPv6 ni por IPv4)"
+    else
+        NO_APLICADO+=("avahi sigue anunciando el fe80::: el navegador se colgará ~21 s")
+        NO_APLICADO+=("    revisa use-ipv6 y publish-aaaa-on-ipv4 en $AV")
+    fi
+else
+    NO_APLICADO+=("no existe $AV: ¿está instalado avahi-daemon?")
+fi
+unset AV par seccion resto clave valor
+
 # systemd-resolved también tiene que resolver .local, o el robot no encuentra a
 # los demás aunque él sí sea encontrable.
 if [[ -f /etc/systemd/resolved.conf ]]; then

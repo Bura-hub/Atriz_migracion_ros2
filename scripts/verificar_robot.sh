@@ -1265,12 +1265,27 @@ fi
 # --- avahi: que no publique lo que el navegador no puede usar ----------------
 # 🔴 El `fe80::` link-local SIN ZONA es inservible desde un navegador y ordena
 #    ANTES que las direcciones buenas: se cuelga 21 s antes de llegar a ellas.
-if grep -qE '^\s*use-ipv6\s*=\s*no' /etc/avahi/avahi-daemon.conf 2>/dev/null; then
-    _ok "avahi no publica IPv6 (el fe80:: colgaba al navegador)"
+#
+# 🔴 HACEN FALTA LAS DOS OPCIONES, y la segunda casi se nos pasa. `use-ipv6=no`
+#    apaga el TRANSPORTE IPv6, pero `publish-aaaa-on-ipv4` —que **por defecto
+#    vale `yes`** y viene comentada en el fichero— sigue anunciando el registro
+#    AAAA **por el transporte IPv4**. Medido el 2026-08-04: con `use-ipv6=no`
+#    puesto, `getent` DESDE LA PI daba una sola dirección mientras el PC recibía
+#    las dos, y las conexiones SSH nuevas seguían entrando por `fe80::`.
+#    Comprobar solo `use-ipv6` daría un ✅ con el fallo presente. Evidencia 74.
+AV_CONF=/etc/avahi/avahi-daemon.conf
+AV_FALTA=""
+grep -qE '^\s*use-ipv6\s*=\s*no' "$AV_CONF" 2>/dev/null            || AV_FALTA="use-ipv6=no"
+# Si la línea está comentada o ausente, manda el DEFECTO, que es `yes`.
+grep -qE '^\s*publish-aaaa-on-ipv4\s*=\s*no' "$AV_CONF" 2>/dev/null \
+    || AV_FALTA="${AV_FALTA:+$AV_FALTA y }publish-aaaa-on-ipv4=no (¡por defecto vale yes!)"
+if [[ -z "$AV_FALTA" ]]; then
+    _ok "avahi no publica el fe80:: (ni por IPv6 ni por IPv4)"
 else
-    _avi "avahi publica IPv6 link-local: el navegador se cuelga en él antes de llegar a la IPv4" \
-         "use-ipv6=no en /etc/avahi/avahi-daemon.conf — HAZLO DESPUÉS de comprobar que la IPv4 responde"
+    _avi "avahi sigue publicando el IPv6 link-local: el navegador se cuelga en él ~21 s" \
+         "falta $AV_FALTA en $AV_CONF — y compruébalo con Resolve-DnsName DESDE EL PC, no con getent aquí"
 fi
+unset AV_CONF AV_FALTA
 
 # --- rosbridge: por donde habla la web --------------------------------------
 if compgen -G "/opt/ros/jazzy/lib/rosbridge_server/rosbridge_websocket" >/dev/null 2>&1; then
