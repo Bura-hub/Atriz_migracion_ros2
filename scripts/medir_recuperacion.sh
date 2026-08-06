@@ -5,8 +5,25 @@
 #
 #   M6 · ¿QUÉ PASÓ DE VERDAD el 2026-08-06 al poner el RVR a cargar?
 #        Se concluyó «el driver se reinició» por una prueba INDIRECTA (el barrido
-#        estaba apagado). Encajan TRES explicaciones y el journal las separa.
-#        🔴 CADUCA: si se reinicia la Pi, esto se pierde. Va primero.
+#        estaba apagado). Encajan VARIAS explicaciones y el journal las separa.
+#
+#        🔴🔴 CORREGIDO EL 2026-08-06, Y EL ERROR ERA GRAVE. La primera versión
+#        de este guion decía «CADUCA: si se reinicia la Pi, esto se pierde» y
+#        usaba dos instrumentos que miran el sitio equivocado:
+#
+#          · `systemctl show NRestarts` es del ARRANQUE ACTUAL. Con la Pi
+#            reiniciada después del suceso vale 0 — y la guía de lectura decía
+#            «NRestarts = 0 -> el driver NO se ha reiniciado». Un FALSO NEGATIVO
+#            con la firma de siempre: una comprobación que no puede fallar porque
+#            mira donde no ocurrió.
+#          · `journalctl --since "-6 hours"` MEZCLA arranques sin distinguirlos.
+#
+#        Y la premisa era falsa: en este robot `/var/log/journal` existe, así que
+#        el journal es PERSISTENTE y conserva 5 arranques. `fase_1_higiene_so.sh`
+#        lo limita a 32 M pero no lo hace volátil. El dato no se perdía.
+#
+#        → Ahora se acota POR ARRANQUE (`--list-boots` + `-b <id>`), que es la
+#          única forma de responderlo. Lo encontró el usuario revisando el guion.
 #
 #   M10 · ¿systemd propaga un REINICIO a una unidad atada, o solo el paro?
 #        De esto depende si `atriz-nav.service` —que hoy usa `BindsTo=`— se queda
@@ -31,44 +48,69 @@ echo " salida: $SALIDA"
 echo "═══════════════════════════════════════════════════════════════════"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# M6 · ¿Qué pasó de verdad? — VA PRIMERO PORQUE CADUCA
+# M6 · ¿Qué pasó de verdad? — acotado POR ARRANQUE (el journal es persistente)
 # ─────────────────────────────────────────────────────────────────────────────
 echo
-echo "── M6 · el journal de atriz-robot ─────────────────────────────────"
+echo "── M6 · el journal de atriz-robot, ACOTADO POR ARRANQUE ────────────"
 echo
-echo "· ¿cuántas veces ha reiniciado el servicio desde que arrancó la Pi?"
-# NRestarts es el contador de systemd. Si vale 0, el driver NO se ha reiniciado
-# nunca -y entonces la explicación «el driver se reinició» es FALSA.
-systemctl show atriz-robot -p NRestarts -p ActiveEnterTimestamp -p ExecMainStartTimestamp || true
+echo "· ¿es el journal persistente? (si no lo fuera, solo habría el arranque actual)"
+if [[ -d /var/log/journal ]]; then
+  echo "  ✅ /var/log/journal existe -> PERSISTENTE. Hay historial de arranques anteriores."
+else
+  echo "  🔴 /var/log/journal NO existe -> journal VOLÁTIL: solo el arranque actual."
+fi
+journalctl --disk-usage 2>/dev/null || true
 
 echo
-echo "· ¿cuándo arrancó la Pi, y cuándo arrancó el servicio?"
-uptime -s || true
-systemctl show atriz-robot -p ActiveEnterTimestamp --value || true
+echo "· los arranques que conserva la Pi:"
+# 🔴 ESTO ES LO QUE HACE QUE M6 SE PUEDA RESPONDER. Cada arranque es un mundo
+#    aparte: NRestarts se pone a cero, el journal empieza de nuevo, y mezclarlos
+#    con `--since` produce una respuesta que no significa nada.
+journalctl --list-boots --no-pager 2>/dev/null || echo "  (no disponible)"
 
 echo
-echo "· arranques y paradas registrados (los 40 últimos eventos):"
-# Se buscan las líneas que systemd escribe al arrancar/parar, no las del driver:
-# son las que prueban un reinicio de la UNIDAD.
-journalctl -u atriz-robot --since "-6 hours" --no-pager -o short-iso \
-  | grep -Ei "Started|Stopped|Stopping|Starting|Scheduled restart|Main process exited|Failed|Deactivated" \
-  | tail -40 || echo "  (sin coincidencias)"
+echo "· NRestarts del arranque ACTUAL:"
+# ⚠️ Y SOLO DEL ACTUAL. Un 0 aquí NO dice que el driver no se haya reiniciado
+#    nunca: dice que no lo ha hecho DESDE EL ÚLTIMO ARRANQUE DE LA PI. Si el
+#    suceso fue antes, este número no lo puede ver.
+systemctl show atriz-robot -p NRestarts -p ActiveEnterTimestamp || true
+echo "  la Pi arrancó (este arranque): $(uptime -s 2>/dev/null || echo '?')"
 
+# ── Y ahora, arranque por arranque ──────────────────────────────────────────
 echo
-echo "· ¿alguien pidió parar el barrido, o lo apagó el arranque?"
-# El ExecStartPost de la unidad ejecuta `atriz-escaneo off` en CADA arranque. Si
-# aparece junto a un «Started», el barrido se apagó por el arranque -no porque
-# nadie lo pidiera.
-journalctl -u atriz-robot --since "-6 hours" --no-pager -o short-iso \
-  | grep -Ei "escaneo|stop_scan|start_scan" | tail -20 || echo "  (sin coincidencias)"
+echo "· qué pasó en CADA uno de los arranques conservados:"
+# Se recorren los ids de `--list-boots` (columna 1: 0, -1, -2, …) y se pregunta
+# a cada uno por separado. Es la unica forma de no mezclar.
+IDS="$(journalctl --list-boots --no-pager 2>/dev/null | awk '{print $1}' || true)"
+if [[ -z "$IDS" ]]; then
+  echo "  (no se pudieron listar los arranques)"
+else
+  for B in $IDS; do
+    echo
+    echo "  ┌─ arranque $B ────────────────────────────────────────────────"
+    echo "  │  desde: $(journalctl -b "$B" --no-pager -o short-iso -n 1 2>/dev/null | head -1 | awk '{print $1}')"
+    echo "  │  hasta: $(journalctl -b "$B" --no-pager -o short-iso 2>/dev/null | tail -1 | awk '{print $1}')"
 
-echo
-echo "· ¿qué dijo el driver sobre el enlace con el RVR?"
-# 🔴 LA DISCRIMINANTE. Si aparecen «streaming reanudado» / «silencio», el driver
-#    SOBREVIVIÓ y se recuperó -o sea que NO se reinició, y el barrido apagado
-#    tiene otra causa. Si no aparecen y sí hay «Started», se reinició.
-journalctl -u atriz-robot --since "-6 hours" --no-pager -o short-iso \
-  | grep -Ei "reanudad|silencio|dormid|keepalive|RVR" | tail -25 || echo "  (sin coincidencias)"
+    echo "  │  · eventos de la UNIDAD (arrancó, paró, murió):"
+    journalctl -b "$B" -u atriz-robot --no-pager -o short-iso 2>/dev/null \
+      | grep -Ei "Started|Stopped|Stopping|Starting|Scheduled restart|Main process exited|Failed|Deactivated" \
+      | sed 's/^/  │      /' | tail -15 || true
+
+    echo "  │  · lo que dijo el driver del ENLACE con el RVR:"
+    # 🔴 LA DISCRIMINANTE. Si aparecen «streaming reanudado» o «silencio», el
+    #    driver SOBREVIVIÓ al apagón del RVR y se recuperó — que es lo que su
+    #    código dice que hace. Si no aparecen y sí hay un «Started» nuevo, el
+    #    proceso se fue.
+    journalctl -b "$B" -u atriz-robot --no-pager -o short-iso 2>/dev/null \
+      | grep -Ei "reanudad|silencio|dormid|keepalive" \
+      | sed 's/^/  │      /' | tail -10 || true
+
+    echo "  │  · el barrido:"
+    journalctl -b "$B" -u atriz-robot --no-pager -o short-iso 2>/dev/null \
+      | grep -Ei "escaneo|stop_scan|start_scan" | sed 's/^/  │      /' | tail -8 || true
+    echo "  └──"
+  done
+fi
 
 echo
 echo "· el descriptor del LIDAR, ahora mismo:"
@@ -165,14 +207,36 @@ echo "  hecho."
 echo
 echo "── cómo se lee esto ───────────────────────────────────────────────"
 cat <<'LEER'
-  M6:
-    NRestarts = 0            -> el driver NO se ha reiniciado. «El driver se
-                                reinició» es FALSO, y el barrido apagado tiene
-                                otra causa (busca quién llamó a stop_scan).
-    NRestarts > 0 + «Started» -> se reinició. Mira la hora contra la de la carga.
-    Hay «streaming reanudado» -> el driver SOBREVIVIÓ al apagón del RVR y se
-                                recuperó: eso es lo que dice el código que hace.
-    fd con «(deleted)»        -> el descriptor del LIDAR murió: es OTRO fallo.
+  M6 — busca el arranque cuya ventana CONTENGA la hora en que se cargó el RVR,
+       y lee SOLO ese bloque. Los demás no dicen nada del suceso.
+
+    🔴 NRestarts NO sirve para juzgar el pasado: es del arranque ACTUAL. Un 0
+       solo dice «no se ha reiniciado desde que la Pi arrancó esta vez».
+
+    Dentro del arranque del suceso, hay CUATRO desenlaces y son distintos:
+
+    (a) un «Started» a la hora de la carga, y NADA de «reanudado»
+        -> el proceso del driver se fue y systemd lo repuso.
+
+    (b) «streaming reanudado» / «silencio» y NINGÚN «Started»
+        -> el driver SOBREVIVIÓ y se recuperó solo, que es lo que su código
+           dice que hace. Entonces el barrido apagado tiene OTRA causa, y hay
+           que buscar quién llamó a stop_scan.
+
+    (c) el arranque TERMINA a la hora de la carga y empieza otro
+        -> 🔴 NO se reinició el driver: SE REINICIÓ LA PI ENTERA. Es el caso
+           que explica de golpe el barrido apagado, la odometría a cero, el
+           slam_toolbox muerto (se lo lleva la sesión SSH) y NRestarts = 0.
+           La Pi se alimenta del USB del RVR: es una explicación física, no
+           una conjetura.
+
+    (d) nada de lo anterior en ningún arranque
+        -> el suceso no dejó rastro en esta unidad. Mira `journalctl -b <id>`
+           sin `-u` a esa hora.
+
+    Y aparte, en cualquier caso:
+    fd con «(deleted)» -> el descriptor del LIDAR murió: es OTRO fallo, con su
+                          propio remedio (`systemctl restart atriz-robot`).
 
   M10, para cada dependencia, mirando la columna `atada`:
     active   -> la unidad atada SOBREVIVIÓ o volvió sola

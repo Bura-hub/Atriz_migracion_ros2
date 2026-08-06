@@ -5,14 +5,28 @@
 > contexto desde cero.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
-> 🔴 **LO PRIMERO, Y CADUCA: ejecuta `bash scripts/medir_recuperacion.sh` EN LA PI**
+> 🔴 **LO PRIMERO: ejecuta `bash scripts/medir_recuperacion.sh` EN LA PI**
 > ═══════════════════════════════════════════════════════════════════════════════
 > El **2026-08-06**, al poner el RVR a cargar con la Pi viva, el robot se quedó **sano por todos
 > los indicadores habituales y mudo en lo que importaba**: `/odom` 95 msg en 6 s, `/estado_robot`
 > bien, `rvr_responde: true`, `/tf` a 265 en 16 s — y **`/scan` a 0 y `/map` a 0**.
 >
-> Se concluyó «el driver se reinició» a partir de una prueba **indirecta**. **Encajan TRES
-> explicaciones** y el journal las separa, pero **se pierde al reiniciar la Pi**. Ese guion también
+> Se concluyó «el driver se reinició» a partir de una prueba **indirecta**. **Encajan VARIAS
+> explicaciones** y el journal las separa.
+>
+> ⚠️ **La primera versión de este aviso decía que el dato «caduca al reiniciar la Pi». Es FALSO
+> en este robot** y lo encontró el usuario: `/var/log/journal` existe, así que el journal es
+> **persistente** y conserva **5 arranques**. Peor todavía, el guion usaba `NRestarts`, que es
+> **del arranque actual**, y su guía decía «0 → el driver no se reinició»: un **falso negativo**
+> con la firma de siempre, una comprobación que no puede fallar porque mira donde no ocurrió.
+> Corregido: ahora acota por arranque (`--list-boots` + `-b <id>`).
+>
+> 📌 **Sospecha principal, sin confirmar:** la Pi **reinició a las 16:17**, ocho minutos antes de
+> que se relanzara SLAM. Si el arranque del suceso termina ahí, no se reinició el driver — **se
+> reinició la Pi entera**, que explica de golpe el barrido apagado, la odometría a cero, el
+> `slam_toolbox` muerto y el `NRestarts = 0`. La Pi se alimenta del USB del RVR.
+>
+> Ese guion también
 > mide si systemd propaga un **reinicio** a una unidad atada (M10), de lo que depende que
 > `atriz-nav.service` —que hoy usa `BindsTo=` + `Restart=on-failure`— no se quede muerta.
 >
