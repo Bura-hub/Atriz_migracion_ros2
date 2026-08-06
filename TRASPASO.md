@@ -4,7 +4,35 @@
 > Raspberry Pi ya se reflasheó. Está escrito para que no haga falta reconstruir el
 > contexto desde cero.
 >
-> Última actualización: **2026-08-04, tarde**, tras cerrar **el direccionamiento de la flota**
+> ═══════════════════════════════════════════════════════════════════════════════
+> 🔴 **LO PRIMERO, Y CADUCA: ejecuta `bash scripts/medir_recuperacion.sh` EN LA PI**
+> ═══════════════════════════════════════════════════════════════════════════════
+> El **2026-08-06**, al poner el RVR a cargar con la Pi viva, el robot se quedó **sano por todos
+> los indicadores habituales y mudo en lo que importaba**: `/odom` 95 msg en 6 s, `/estado_robot`
+> bien, `rvr_responde: true`, `/tf` a 265 en 16 s — y **`/scan` a 0 y `/map` a 0**.
+>
+> Se concluyó «el driver se reinició» a partir de una prueba **indirecta**. **Encajan TRES
+> explicaciones** y el journal las separa, pero **se pierde al reiniciar la Pi**. Ese guion también
+> mide si systemd propaga un **reinicio** a una unidad atada (M10), de lo que depende que
+> `atriz-nav.service` —que hoy usa `BindsTo=` + `Restart=on-failure`— no se quede muerta.
+>
+> ⚠️ **NO levantes `atriz-nav` antes de M10.** Si el driver se reinicia a mitad, la navegación se
+> para, **no vuelve**, y apaga el barrido de camino. La web no puede levantarla.
+>
+> El análisis entero, con cuatro decisiones que son tuyas, en
+> [`00_auditoria/planes/2026-08-06-plan-slam-color-arranque.md`](00_auditoria/planes/2026-08-06-plan-slam-color-arranque.md).
+> El incidente, en
+> [`00_auditoria/planes/2026-08-06-recuperacion-tras-apagar-el-rvr.md`](00_auditoria/planes/2026-08-06-recuperacion-tras-apagar-el-rvr.md).
+>
+> ✅ **Y lo que sí quedó cerrado el 2026-08-06, contra rvr-01:** conducir desde el navegador de
+> punta a punta (**cinta 30,0 cm contra 29,7 de `/odom`**, 1,0 % de error); la lista blanca
+> **deniega en silencio** (con control positivo); la parada de emergencia **puesta y liberada
+> desde la web** con el robot confirmándolo; el cliente ya habla **acciones**; y hay un **mapa de
+> verdad** de un cuarto (7,41 m², `~/mapas/cuarto.pgm`).
+>
+> Última actualización: **2026-08-06**.
+>
+> Antes de esta sesión, el **2026-08-04** se cerró **el direccionamiento de la flota**
 > —una dirección por red, aplicada en rvr-01 y verificada desde el navegador (evidencias 74 y
 > 75)— y dejar la **aplicación web** con sus seis rutas mirándose contra el robot vivo. Antes de
 > eso: el **cliente de rosbridge** (movió un robot real, con cinta y control por SSH), la

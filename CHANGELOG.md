@@ -4,6 +4,84 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-06 — La sesión de la web, la navegación, y un mapa de verdad
+
+Sesión larga y con **cuatro retractaciones propias**, tres de ellas destapadas por una revisión
+multiagente de 9 agentes al final. Se listan primero porque son lo que más vale.
+
+### 🔴 Lo que se creyó y era falso
+
+1. **«La trampa de la durabilidad de `/map`».** Se escribió que `/map` podía no llegar NUNCA al
+   navegador: va `TRANSIENT_LOCAL`, rosbridge se suscribe VOLATILE si no se le manda `qos`, y un
+   VOLATILE —en teoría— no recibe lo ya publicado. Se llegó a escribir una rama entera de
+   diagnóstico para esa firma. **Medido en cuanto hubo un mapa: cinco suscripciones NUEVAS a
+   `/map` dieron 41 · 38 · 44 · 44 · 48 ms.** Sin entrega del latch habría que esperar ~2,5 s de
+   media. **rosbridge SÍ entrega el valor latcheado**, y no hizo falta mandar `qos` — que era el
+   arreglo obvio y el caro, porque el QoS del primer cliente gobierna a todos los demás.
+   ⚠️ Medido contra `slam_toolbox`, que republica cada 5 s. Con AMCL publica `map_server`, que
+   emite una sola vez: **sigue SIN MEDIR**.
+
+2. **«El driver se reinició al cargar el RVR».** Se dio por establecido a partir de una prueba
+   INDIRECTA —el barrido estaba apagado, que es lo que el `ExecStartPost` fuerza en cada
+   arranque—. **Encajan TRES explicaciones**, y la tercera no se había considerado:
+   `slam_toolbox` en `unconfigured` (proceso vivo, cero TF, cero `/map`, ni un error). Además está
+   verificado que **el driver NO muere cuando el RVR se apaga**: `_recuperar_streaming` reintenta
+   indefinidamente (evidencia 52: 123 reintentos con el proceso vivo). Lo zanja M6, que **caduca
+   al reiniciar la Pi**.
+
+3. **`rvr-01.local` «no resuelve».** Falso: era caché mDNS fría en el propio bucle de sondeo.
+   2777 ms la primera vez, **13 ms** después. El arreglo del 2026-08-04 **sí sobrevivió a un
+   arranque en frío**, que era justo lo que quedaba sin probar.
+
+4. **`/odom` «a 6,08 Hz».** Falso, y es la **sexta** vez que el instrumento miente en este
+   proyecto: el temporizador arrancaba antes de que el socket abriera y la resolución mDNS fría se
+   comió media ventana. Medido con los sellos de tiempo del propio driver: **16,54 · 16,67 ·
+   16,67 Hz**.
+
+### ✅ Lo verificado contra rvr-01
+
+| Qué | Resultado |
+|---|---|
+| **Conducir desde el navegador, de punta a punta** | Manteniendo pulsado «Adelante» con el ratón: 3 s a 0,100 m/s → `/odom` **29,7 cm**, **cinta 30,0 cm**. Error **0,3 cm (1,0 %)**. Rumbo −0,13° |
+| **La lista blanca DENIEGA, y en silencio** | Con control positivo: `/stop_scan` contesta `result=true`; `/raw_motors` (a 80), `/move_timed` y `/move_to_pose` **no contestan nada**; publicar en `/cmd_vel` a 0,15 m/s da **0,00 cm**. **Cero** mensajes `op=status` |
+| **Parada de emergencia y liberación** | Puesta por el camino de la web (`latido` 291 → la bandera sube en el 292) y **liberada desde el navegador**: la pantalla dijo «Liberada» y el robot lo confirmó |
+| **Acciones de rosbridge** | `send_action_goal` funciona. Al fallar, `values` llega como **CADENA** («No action server available»), no como objeto. Y un `op` que rosbridge no entiende **no produce nada**: silencio absoluto en 4 s |
+| **Un mapa de verdad** | Cuarto mapeado conduciendo el robot desde la web: 76 × 84 celdas a 5 cm, **7,41 m²** libres. Guardado en `~/mapas/cuarto.pgm` |
+
+### 📐 «Frontera» en vez de «% sin explorar»
+
+Mapeando, el porcentaje se plantó en 44,8 % y pareció que faltaba media habitación. **No faltaba
+nada:** un relleno por inundación dio **2857 celdas desconocidas y UNA alcanzable**. La rejilla es
+un rectángulo que envuelve al mapa, así que todo lo de fuera de las paredes cuenta como
+desconocido para siempre. Ese número tuvo al robot dando vueltas buscando algo que no existía.
+
+### La web
+
+Sesión con `scrypt`, cookie `httpOnly` firmada con HMAC y bloqueo por intentos **en el servidor**,
+con **cero dependencias nuevas**. Protege la interfaz, **no el robot**: rosbridge no tiene
+autenticación y eso se dice en pantalla. Pantallas nuevas: `/entrar`, `/usuarios` y **Navegar**
+(mapa, pose de AMCL, objetivo por clic, avance y cancelar). Y `/imu`, `/color` y
+`/set_pos_and_yaw`, que estaban en el contrato sin consumidor.
+
+Tres colisiones de color detectadas y cerradas, una de ellas **con un comentario que afirmaba
+haberlas comprobado sin haberlo hecho**. Ahora lo mide una prueba.
+
+### ⏳ Lo que queda abierto, y el plan
+
+`00_auditoria/planes/2026-08-06-plan-slam-color-arranque.md` — cuatro análisis con sus cuatro
+refutaciones. Cubre el color en caliente (A9), arrancar SLAM desde la web (A10) y la recuperación
+tras apagar el RVR. Diez medidas pendientes (M1-M10) y cuatro decisiones (D1-D4).
+
+🔴 **Dos hallazgos que no cubría ninguna propuesta:**
+- **Si rosbridge muere solo, nadie se entera.** El nodo `puente` no lleva `on_exit` ni `respawn`:
+  el launch sigue vivo, systemd en verde, `/odom` a 16,5 Hz — y el socket no abre nunca.
+- **El estado `failed` de systemd es invisible desde la web** y exige `reset-failed` en el robot.
+
+🔴 **Y uno de seguridad:** un reinicio del driver **baja la parada de emergencia sola**, y la web
+**no la re-publica al reconectar**, a propósito. Nadie la repone.
+
+---
+
 ## 2026-08-04 (parte 17) — Las diez pantallas construidas sobre lo que devolvió Stitch
 
 Stitch generó las diez a partir de `PLATAFORMA_STITCH.md`. **Acertó el mundo visual y rellenó
