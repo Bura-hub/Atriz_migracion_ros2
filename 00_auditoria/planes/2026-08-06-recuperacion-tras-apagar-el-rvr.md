@@ -286,3 +286,58 @@ delante de M10.**
   acepta en la sección equivocada **sin decir nada**.
 - **Qué pasa si el RVR se apaga y NO se vuelve a encender.** Ahí la Pi acaba
   perdiendo alimentación, que es otro caso y no se ha caracterizado.
+
+---
+
+## 🔴 CORRECCIÓN del 2026-08-06, noche: M6 SÍ tiene respuesta, y no es la que se buscaba
+
+La sección de arriba concluye «M6 es irrecuperable» porque el **contenido** del journal de los
+arranques anteriores se rotó. El contenido sí; **las cabeceras de arranque no**, y con ellas basta:
+
+```
+arranque -1  termina  2026-08-06 15:09:03
+arranque  0  empieza  2026-08-06 16:17:06     ← más de una HORA de hueco
+```
+
+Es el **caso (c)** de la guía de lectura del propio `medir_recuperacion.sh`: *«el arranque TERMINA
+a la hora de la carga y empieza otro → NO se reinició el driver: SE REINICIÓ LA PI ENTERA»*.
+✅ **El usuario confirmó que el RVR estuvo cargando en esa ventana.**
+
+Explica los cuatro síntomas de golpe, y es física, no conjetura: **la Pi se alimenta del USB del
+RVR**. Barrido apagado (lo fuerza el `ExecStartPost` en cada arranque), `NRestarts=0`,
+`slam_toolbox` muerto (se lo llevó la sesión SSH) y el mapa perdido.
+
+📝 **Lo irrecuperable era el detalle, no el desenlace.** Y la lección de método: se dio por perdida
+una pregunta mirando el sitio donde el dato ya no estaba, teniendo la respuesta en el índice.
+
+## 🔴 Y la causa que se le atribuyó al journal tampoco se sostiene
+
+Esta misma sección dice: *«el ruido de un componente se está comiendo el historial de todos los
+demás»*, señalando al `collision_monitor` y sus «4514 s». **Medido el mismo día, y no:**
+
+```
+19 mensajes en 2 h, TODOS en la ventana con el barrido APAGADO
+ninguno durante los 36 minutos con el LIDAR barriendo
+```
+
+Y los **4514 s no eran un salto de reloj**: son **la edad del último barrido**. Con el LIDAR
+parado desde las 16:55, un mensaje de las 18:10 lleva un sello de 75 minutos ≈ 4500 s. Cuadra al
+segundo. El `collision_monitor` estaba **haciendo su trabajo**: decir que no se fía de un dato
+caducado. Y en ese estado el robot no conduce de todos modos.
+
+**Las tres explicaciones candidatas, medidas:**
+
+| candidato | medida | veredicto |
+|---|---|---|
+| `collision_monitor` | 19 mensajes en 2 h | ❌ no llena nada |
+| La inundación del LIDAR (`Failed to get scan`) | **0 apariciones en todo el journal** | ❌ el parche del 2026-08-01 la cerró |
+| Este arranque entero | **1463 entradas** (31 % kernel, 23 % atriz-robot, 23 % init.scope) | ❌ ni de lejos 32 MB |
+
+→ ⏳ **Qué llenó los 32 MB queda SIN SABER**, y así se escribe. Lo que sí está medido es el
+**efecto**: 34,3 MB contra un tope de 32, cuatro arranques vaciados, y el registro más antiguo del
+**4 de agosto a las 21:25** — o sea **dos días de retención**.
+
+✅ **Lo que sí se sostiene de aquel análisis, y es lo importante:** dos días de retención son pocos
+para un laboratorio donde los fallos son intermitentes y se diagnostican a posteriori.
+📝 Y el matiz que lo corrige: **`SystemMaxUse` es un techo, no una retención.** Subirlo solo compra
+horas. Lo que garantiza arranques conservados es `SystemMaxFiles` o `MaxRetentionSec`.
