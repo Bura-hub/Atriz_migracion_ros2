@@ -11,7 +11,29 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-04
+**Última actualización:** 2026-08-05
+
+## ✅ Cerrado y comprobado — no lo vuelvas a poner como pendiente
+
+> 🔴 **Esta sección existe porque el 2026-08-05 se listaron como pendientes CUATRO cosas que ya
+> estaban hechas.** No fue descuido: quien las listó citaba este mismo fichero, fechado el día
+> anterior, mientras el código y las evidencias habían seguido. **Un fichero de estado que se
+> queda atrás es peor que no tenerlo**, porque manda a repetir trabajo con el sello de «está
+> escrito». Antes de dar algo por pendiente, cruza con la evidencia; y si cierras algo, ciérralo
+> **aquí** el mismo día.
+
+| | evidencia |
+|---|---|
+| ✅ **`atriz-robot.sh` REINSTALADO** con el arreglo del `set -e` + `(( t++ ))` | `/usr/local/bin/atriz-robot.sh:102` tiene `t=$(( t + 1 ))`, `diagnosticar_lidar` está dentro, y `cmp` da **instalado == repositorio**. Manifiesto: 0 divergencias |
+| ✅ **La tarea 9, CERRADA: la cinta y el control por SSH** | Evidencia 71. `web·3` → 30 cm · `web·4` → 30 · **`SSH·control` → 31 contra 31,3 de odometría**. Tres corridas, **dos transportes**, y la odometría acierta siempre dentro de la resolución de la cinta |
+| ✅ **La parada de emergencia, con el robot EN MARCHA y por rosbridge** | **4 de 4** corridas paran el robot. Frenadas de **2,9 · 2,3 · 1,8 cm**, contra los 9,9-10,7 del `collision_monitor` |
+| ✅ **`parada_emergencia` VISTO en `true`**, y en los dos sentidos | Evidencia 71: `🔴 parada_emergencia: False -> True (latido=2181)`, con el **flanco presenciado** —no una bandera encontrada ya puesta— y su vuelta a `false` al liberar |
+| ✅ **El direccionamiento: una dirección por red, y el navegador entra por nombre** | Evidencias 74 y 75. `ws://rvr-01.local:9090` **abre** (4339 ms en frío, 2331 caliente), con control por IP y **control negativo** (`10.14.7.7` colgándose, que es la firma del fallo original) |
+
+⚠️ **Y lo que de `/estado_robot` sigue SIN verificar, que no es lo mismo:** de sus cinco campos,
+`parada_emergencia` y `latido` están comprobados. **`rvr_responde`, `reanudaciones_fallidas` y
+`antiguedad_odom_s` no se han visto nunca en su estado de fallo** — y son justo los campos que
+solo aparecen cuando algo se rompe. Está probado que el mensaje **no estorba**, no que **sirva**.
 
 ## Los repositorios, de un vistazo
 
@@ -237,6 +259,10 @@ muerto, así que un `git clone --recursive` repartía ROS 1 y la web abandonada.
 | **`red.txt` en 755** | 👤 tuyo. La PSK es legible por cualquier usuario; `chmod` no sirve, va `fmask=0177` en `/etc/fstab` |
 | **El mapa del aula** | 👤 tuyo, en el laboratorio. Bloquea la tarea 4 del plan de navegación |
 | **`~/.ssh/authorized_keys` vacío** | 👤 tuyo, desde el PC |
+| **La FOTO del conector USB del LIDAR** | 👤 tuyo, y **obligatoria** desde que se decidió puerto fijo en los 16 (2026-08-04). Es lo único que le dirá a quien monte el robot 7 dónde va el cable. Con el cable en el conector equivocado, el launch **muere en 1 s sin imprimir nada**. Sigue sin existir |
+| 🔴 **Que el LIDAR se recupere solo tras re-enumerar el USB** | Hoy se arregla con `systemctl restart atriz-robot`, y **cualquier apagado del RVR con la Pi viva lo provoca** — o sea, algo cotidiano. Con 16 robots volverá. Evidencia 69, apartado 6: dos opciones y sin decidir |
+| ⏳ **El aula, entero: `05-atriz-lab.network` nunca ha casado con nada** | El fichero está bien escrito y **nada más**. Si el SSID real difiere en un carácter, el robot cae al netplan genérico **sin dirección estática**; si `10.14.0.1` no es la puerta buena, habrá dirección pero sin salida ni NTP — y esta Pi no tiene RTC |
+| ⏳ **Que el direccionamiento sobreviva a un ARRANQUE EN FRÍO** | Todo se aplicó en caliente con `netplan try`. Nadie ha comprobado que los `.network` se apliquen desde cero ni que el emparejamiento por SSID ocurra en el arranque. **Es exactamente lo que hará el robot 7** |
 
 ## Marcado NO VERIFICADO
 
