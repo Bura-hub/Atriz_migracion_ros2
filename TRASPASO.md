@@ -14,20 +14,30 @@
 > Se concluyó «el driver se reinició» a partir de una prueba **indirecta**. **Encajan VARIAS
 > explicaciones** y el journal las separa.
 >
-> ⚠️ **La primera versión de este aviso decía que el dato «caduca al reiniciar la Pi». Es FALSO
-> en este robot** y lo encontró el usuario: `/var/log/journal` existe, así que el journal es
-> **persistente** y conserva **5 arranques**. Peor todavía, el guion usaba `NRestarts`, que es
-> **del arranque actual**, y su guía decía «0 → el driver no se reinició»: un **falso negativo**
-> con la firma de siempre, una comprobación que no puede fallar porque mira donde no ocurrió.
-> Corregido: ahora acota por arranque (`--list-boots` + `-b <id>`).
+> 🔴🔴 **M6 QUEDÓ IRRECUPERABLE, y no por lo que se pensaba.** El guion preguntaba mal —usaba
+> `NRestarts`, que es **del arranque actual**, y su guía decía «0 → el driver no se reinició»:
+> un falso negativo—. Se arregló acotando por arranque… y entonces se vio que **el dato ya no
+> existe**: los arranques anteriores salen en `--list-boots` **vacíos**, 0 líneas. La rotación
+> se los comió. El registro más antiguo es del **4 de agosto**.
 >
-> 📌 **Sospecha principal, sin confirmar:** la Pi **reinició a las 16:17**, ocho minutos antes de
-> que se relanzara SLAM. Si el arranque del suceso termina ahí, no se reinició el driver — **se
-> reinició la Pi entera**, que explica de golpe el barrido apagado, la odometría a cero, el
-> `slam_toolbox` muerto y el `NRestarts = 0`. La Pi se alimenta del USB del RVR.
+> **Y la ironía es del proyecto:** `SystemMaxUse=32M` lo puso `fase_1_higiene_so.sh` por una
+> buena razón medida (784 MB sin límite daban 47 s de bloqueo I/O en 42 min ociosos), y es lo
+> que destruyó la evidencia del único incidente que se ha querido investigar.
 >
-> Ese guion también
-> mide si systemd propaga un **reinicio** a una unidad atada (M10), de lo que depende que
+> 📌 La sospecha que ya no se puede comprobar: la Pi **reinició a las 16:17**, ocho minutos
+> antes de relanzarse SLAM. Sería **la Pi entera**, no el driver — se alimenta del USB del RVR.
+>
+> 🔴 **Y esto destapó dos cosas más importantes que M6**, las dos abiertas:
+> **A11** · el `collision_monitor` escribe «Ignoring the source» sobre el LIDAR. Si es
+> sostenido, **la capa de seguridad está inerte**. Medido después: el reloj está bien (0,5 s de
+> desfase) y `/scan` va a 11,7 Hz, así que la hipótesis es un salto de reloj al sincronizar NTP
+> —la Pi no tiene RTC—. **SIN CONFIRMAR**, y el discriminante es un comando (ver el plan).
+> **Va por delante de M10.**
+> **A12** · con 32 MB este robot no conserva un incidente ni dos días. ⚠️ Y subir el tope **no
+> garantiza retención**: eso lo dan `SystemMaxFiles` o `MaxRetentionSec`.
+>
+> **M10 sigue en pie y NO caduca:** ese guion mide si systemd propaga un **reinicio** a una
+> unidad atada, de lo que depende que
 > `atriz-nav.service` —que hoy usa `BindsTo=` + `Restart=on-failure`— no se quede muerta.
 >
 > ⚠️ **NO levantes `atriz-nav` antes de M10.** Si el driver se reinicia a mitad, la navegación se

@@ -189,6 +189,93 @@ minutos después—, así que un mapa hecho en caliente sale con distorsión evi
 
 ---
 
+## 🔴 M6 ES IRRECUPERABLE. Y la causa no es la que el guion suponía
+
+Actualizado el **2026-08-06, noche**. Lo encontró el usuario revisando el guion, en dos vueltas.
+
+**Primera vuelta — el guion preguntaba mal.** `medir_recuperacion.sh` usaba
+`systemctl show NRestarts` y `journalctl --since "-6 hours"`. Los dos miran el sitio
+equivocado: `NRestarts` es **del arranque actual** —y la Pi había reiniciado *después*
+del suceso, así que valía 0— y `--since` **mezcla arranques**. La guía de lectura decía
+literalmente *«NRestarts = 0 → el driver NO se ha reiniciado»*: un **falso negativo**, una
+comprobación que no puede fallar porque mira donde no ocurrió. Arreglado acotando por
+arranque (`--list-boots` + `-b <id>`).
+
+**Segunda vuelta — y el dato ya no existía.** Con el arreglo puesto, los arranques `-1` a
+`-4` aparecen en `--list-boots` y están **vacíos**: 0 líneas de cualquier unidad. Sus
+cabeceras sobreviven; su contenido lo borró la rotación.
+
+```
+journal en disco   34,3 M        SystemMaxUse = 32 M
+arranques -1 a -4  0 líneas
+registro más antiguo que queda:  4 de agosto, 21:25
+```
+
+### La ironía es del proyecto, no del guion
+
+`fase_1_higiene_so.sh` fija `SystemMaxUse=32M` para proteger la microSD, y lo justifica con
+una medida: *784 MB de journal sin límite causaban 47 s de bloqueo por I/O en 42 min de
+sistema ocioso*. **Es una buena decisión.** Y es la que destruyó la evidencia forense del
+único incidente que se ha querido investigar.
+
+Con un agravante medido el mismo día, dentro del propio journal:
+
+```
+[collision_monitor] Latest source and current collision monitor node timestamps
+differ on 4514.739089 seconds. Ignoring the source.
+```
+
+**El ruido de un componente se está comiendo el historial de todos los demás.**
+
+### Lo que queda escrito, y con su etiqueta
+
+La explicación original —*el driver se reinició*— **sigue siendo un razonamiento indirecto**,
+apoyado en que el barrido estaba apagado y eso es lo que el `ExecStartPost` fuerza en cada
+arranque. **No se puede confirmar ni desmentir.** Se etiqueta así y no se cita como hecho.
+
+📌 Y hay una sospecha mejor que no se pudo comprobar: **la Pi reinició a las 16:17**, ocho
+minutos antes de que se relanzara SLAM. Si el suceso fue ese, no se reinició el driver sino
+**la Pi entera** —la Pi se alimenta del USB del RVR—, y eso explicaría de golpe el barrido
+apagado, la odometría a cero, el `slam_toolbox` muerto y el `NRestarts = 0`. **Sin confirmar,
+y ya no se puede.**
+
+### Las dos decisiones que esto destapa, y son más importantes que M6
+
+**A12 · El journal no aguanta un incidente ni dos días.** Con 16 robots y fallos
+intermitentes que se diagnostican *a posteriori*, eso es un problema de diseño y no una
+molestia.
+⚠️ **Subir `SystemMaxUse` no garantiza retención**: solo pone un techo, y con un emisor
+constante cualquier techo se consume en un tiempo proporcional — más grande solo compra
+horas. Lo que garantiza N arranques es **`SystemMaxFiles`**, y lo que garantiza tiempo es
+**`MaxRetentionSec`**. Las tres opciones no son alternativas.
+
+**A11 · Callar al `collision_monitor` es lo que ataca la causa.** Y antes de silenciarlo hay
+que saber si el aviso es benigno, porque dice **«Ignoring the source»** y la fuente que
+ignora es el LIDAR: si es cierto de forma sostenida, **la capa de seguridad está inerte**.
+
+Medido después del hallazgo, con el barrido encendido: **`/scan` a 11,7 Hz** y el sello del
+barrido a **0,5 s** del reloj de un PC externo — o sea que **el reloj está bien ahora**. Y
+`/collision_monitor_state` a 0 **no prueba nada**: ese topic anuncia cambios de acción, y sin
+nada dentro del polígono no hay cambio que anunciar.
+
+→ Hipótesis principal, **SIN CONFIRMAR**: la Pi **no tiene RTC**, así que arranca con el
+reloj rancio, los nodos sellan mensajes, y al sincronizar NTP el reloj **salta**. 4514 s son
+~75 min, del orden de un arranque sin red inmediata.
+
+→ **El discriminante, y es un comando:**
+
+```bash
+journalctl -b 0 -u atriz-robot --no-pager -o short-iso | grep "Ignoring the source" | head -3
+journalctl -b 0 -u atriz-robot --no-pager -o short-iso | grep "Ignoring the source" | tail -3
+```
+
+**Agrupados en los primeros minutos** → transitorio de arranque; lo que sobra es el ruido.
+**Repartidos hasta ahora** → el monitor lleva ignorando el LIDAR todo el día, y entonces la
+capa de seguridad estuvo inerte mientras se conducía el robot desde la web. **Eso va por
+delante de M10.**
+
+---
+
 ## Lo que este documento NO sabe
 
 - **Si el driver murió de verdad o solo se reconfiguró.** La prueba es indirecta
