@@ -3914,11 +3914,37 @@ vez»—. Y **no hay que esperar** tras encender: 0.0 s da lo mismo que 2.0.
 `[0,0,0]`** — 294 mensajes seguidos. El topic estaba en la lista de «verificado» desde la
 Fase 2. Un fallo silencioso más: el topic existe, el ritmo es correcto, y el dato es basura.
 
-**c) Y no se puede encender bajo demanda.** 🔴 **Con el streaming de `color_detection` ya
-configurado, `enable_color_detection` no hace nada.** Se llamó al servicio mirando `/color` a la
-vez: **481 mensajes, todos ceros**, durante toda la llamada. La primera versión del servicio
-hacía `enable(True) → leer → enable(False)` y devolvía oscuridad con `success=True` — lo peor de
-los dos mundos.
+**c) ✅ Y SÍ se puede encender bajo demanda.** Corregido el **2026-08-06**. Aquí ponía, desde el
+2026-07-31, que con el streaming ya configurado `enable_color_detection` **no hacía nada** — 481
+mensajes de `/color` todos ceros. **Era falso, y la medida no lo probaba.**
+
+El servicio que se probó hacía `enable(True) → leer → enable(False)` **dentro de la misma
+llamada**, y 481 mensajes a 12,7 Hz son ~38 s: casi todos POSTERIORES al apagado. La medida no
+distinguía «el enable no hace nada» de «funcionó 200 ms y la propia llamada lo apagó».
+
+Remedido con el streaming corriendo a 250 ms, reproduciendo la secuencia de ROS 1
+(`mediciones_banco/probar_color_stream_caliente.py`, evidencia 75):
+
+| fase | `/color` no-cero | canal claro |
+|---|---|---|
+| LED nunca encendido | 0 / 24 | 1 |
+| tras `enable(True)` **en caliente** | **24 / 24** | **1321** |
+| 6 s más tarde | 23 / 23 | 1321 |
+| tras `enable(False)` | 0 / 24 | 1 |
+
+Dos rutas independientes se mueven a la vez y vuelven a la línea base; el LED blanco se vio
+encenderse. **1321×.**
+
+→ Por eso existe el servicio **`enable_color`** (`std_srvs/SetBool`, `rvr_driver_node.py`), que
+es el que sostiene el botón «sesión de medición» de la web. Lleva un `sleep(0.1)` dentro, copiado
+de ROS 1 (`Atriz_rvr_node.py:341`): sin él, quien lea justo al volver el servicio se lleva la
+muestra anterior —oscuridad— con `success=True`, que es **exactamente** el fallo de la primera
+versión.
+
+🔴 **La lección:** una medida que da el mismo resultado tanto si la hipótesis es cierta como si es
+falsa no es una medida. Esta bloqueó una función seis días desde la propia documentación, y no la
+destapó ninguna revisión de código: la destapó el usuario al recordar el ciclo funcionando en
+ROS 1 — donde el servicio `enable_color` hacía justo esto (`Atriz_rvr_node.py:331`, `:1636`).
 
 **d) El arreglo:** parámetro **`color_detection`**, por defecto `false`, que enciende el sensor
 **antes** de configurar el streaming. Con `false`, el driver **avisa por el log** en vez de

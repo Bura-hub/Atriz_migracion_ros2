@@ -4,6 +4,79 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-06 (tarde) — El sensor de color SÍ se enciende en caliente
+
+Una afirmación que este proyecto llevaba **seis días** dando por medida resultó no estarlo, y
+bloqueaba una función que el usuario pedía. **No la destapó ninguna revisión de código —tres
+pasadas la dieron por buena—: la destapó el usuario**, al recordar que en ROS 1 el ciclo
+«encender el LED y luego leer el topic» funcionaba.
+
+### 🔴 Lo que se creyó y era falso
+
+> *«Con el streaming de `color_detection` ya configurado, `enable_color_detection` no hace nada —
+> 481 mensajes de `/color`, todos ceros.»* (CLAUDE.md, MANUAL §16.2c, `rvr_driver_node.py:1218`,
+> API_LABORATORIO.md, y el plan de la web.)
+
+**La medida no probaba eso.** El servicio bajo prueba hacía `enable(True) → leer → enable(False)`
+**en la misma llamada**, y 481 mensajes a 12,7 Hz son ~38 s: casi todos posteriores al apagado.
+No distinguía «el enable no funciona» de «funcionó 200 ms y se apagó solo».
+
+📌 **La regla que sale de aquí:** *una medida que da el mismo resultado tanto si la hipótesis es
+cierta como si es falsa no es una medida.* Antes de escribir «medido», hay que poder decir qué se
+habría visto si fuera falso.
+
+### Lo verificado
+
+Banco `mediciones_banco/probar_color_stream_caliente.py`, con el streaming corriendo a 250 ms,
+reproduciendo la secuencia de ROS 1 (`clear→stop→handlers→start(250)` y **luego** el enable):
+
+```
+/color no-cero :  0/24 -> 24/24 -> 23/23 -> 0/24     reversible
+canal claro    :  1 -> 1321 -> 1321 -> 1             1321x
+RGB reales     :  (255, 223, 209)
+```
+
+Y después, ya implementado, **a través del driver y de rosbridge**:
+
+```
+/enable_color  std_srvs/SetBool
+/color no-cero :  0 -> 53 -> 0
+clear directo  :  1 -> 1320 -> 0
+```
+
+👤 El usuario vio encenderse el LED blanco bajo el chasis. Tercer testigo, y el que manda.
+
+⚠️ **Defecto del banco, anotado**: el testigo de luz ambiente dio `0.0` en las cuatro fases,
+incluida la línea base (bajo el driver real mide 4,99-19,98). El instrumento estaba muerto; no
+contradice nada, pero deja el resultado con dos testigos automáticos en vez de tres.
+
+### Lo implementado
+
+- `rvr_driver_node.py`: servicio **`enable_color`** (`std_srvs/SetBool`) + `_encender_color()`,
+  con el `sleep(0.1)` de ROS 1 dentro — sin él, quien lea al volver el servicio se lleva la
+  muestra anterior (oscuridad) con `success=True`, que es el fallo de julio exacto.
+- `robot.launch.py`: `/enable_color` y `/get_rgbc_sensor_values` en la lista blanca. **Van
+  juntos**: sin LED no hay lectura, y sin lectura el LED no sirve.
+- Corregida la afirmación falsa en CLAUDE.md, MANUAL §16.2c, API_LABORATORIO.md y el plan de la
+  web. (Esta bitácora **no** se reescribe: es registro.)
+
+### Y un hallazgo lateral que importa más
+
+🔴 **Reiniciar el driver BAJA la parada de emergencia**: `self._parada_emergencia = False` en el
+constructor (`rvr_driver_node.py:266`). Un robot que un humano detuvo a propósito vuelve a
+aceptar `cmd_vel_raw`. Descarta la opción «reiniciar con el parámetro puesto» por seguridad, no
+por incomodidad. **Sin resolver.**
+
+### Pendiente
+
+- 📌 **Decisión del PC:** `/color` publica `[0,0,0]` cuando el sensor está apagado —no calla, al
+  revés que ROS 1—, así que la web no puede deducir el estado del topic. O mira si algún canal es
+  ≠ 0 (0/53 contra 53/53, discrimina limpio salvo sobre negro), o se añade `color_activo` a
+  `/estado_robot` y se actualiza `contrato.ts`.
+- ⏳ SLAM y Nav2 desde la web siguen sin empezar: ahí el obstáculo es real (no son servicios ROS).
+
+---
+
 ## 2026-08-06 — La sesión de la web, la navegación, y un mapa de verdad
 
 Sesión larga y con **cuatro retractaciones propias**, tres de ellas destapadas por una revisión

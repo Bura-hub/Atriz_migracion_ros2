@@ -875,12 +875,22 @@ que son **−1356**.
 **🔴🔴 EL SENSOR DE COLOR NO DA NADA SIN SU LUZ, y `/color` publicó `[0,0,0]` durante meses.**
 Medido el 2026-07-31: canal claro **4 con la luz apagada contra 741 encendida** — 185×. Y el
 driver **nunca la encendía**: el topic existía, publicaba a 16 Hz, y el dato era oscuridad.
-→ Se enciende con `robot.launch.py color_detection:=true`, **por defecto false** porque deja un
-LED blanco bajo el chasis. Con false el driver lo **avisa por el log**.
+→ Se enciende **en caliente** con el servicio `enable_color` (`std_srvs/SetBool`), o al arrancar
+con `color_detection:=true`. **Por defecto false** porque deja un LED blanco bajo el chasis. Con
+false el driver lo **avisa por el log**.
 
-**🔴 Y NO SE PUEDE ENCENDER BAJO DEMANDA:** con el streaming de `color_detection` ya
-configurado, `enable_color_detection` **no hace nada** — 481 mensajes de `/color`, todos ceros,
-durante la llamada. Hay que encenderlo **ANTES** de `add_sensor_data_handler`. Manual, cap. 16.2.
+**✅ SÍ SE PUEDE ENCENDER BAJO DEMANDA — y aquí decía lo contrario hasta el 2026-08-06.** Con el
+streaming corriendo a 250 ms: `/color` no-cero **0/24 → 24/24 → 0/24** y canal claro **1 → 1321 →
+1**, reversible, con el LED visto encenderse. Evidencia 75.
+
+**🔴 Y LA LECCIÓN VALE MÁS QUE EL DATO.** Lo que había aquí —«`enable_color_detection` no hace
+nada, 481 mensajes todos ceros»— **no estaba medido**: el servicio bajo prueba hacía
+`enable(True) → leer → enable(False)` en la misma llamada, y esos 481 mensajes (~38 s a 12,7 Hz)
+son casi todos POSTERIORES al apagado. Una medida que da lo mismo si la hipótesis es cierta o
+falsa **no es una medida**. Bloqueó una función seis días, y no la destapó ninguna revisión de
+código: la destapó el usuario al recordar el ciclo funcionando en ROS 1 (cuyo servicio
+`enable_color` hacía exactamente esto: `Atriz_rvr_node.py:331` y `:1636`).
+→ **Antes de escribir «medido», di qué se habría visto si fuera falso.**
 
 **📝 `ros2 service list` NO es autoritativo.** Omitió `set_drive_parameters` (17 de 18) mientras
 `ros2 service type` sí lo encontraba y un cliente con `wait_for_service` decía disponible. Es

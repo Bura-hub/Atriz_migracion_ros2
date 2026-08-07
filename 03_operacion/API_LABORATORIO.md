@@ -250,11 +250,15 @@ eso comprueba la aritmética del signo y la magnitud, no que el robot siga una l
 
 Dos límites reales. Escribirlos aquí es más barato que descubrirlos en clase.
 
-**🔴 `robot.color()` no funciona en un robot arrancado normalmente, y no es un fallo de la API.**
-El sensor de color necesita su propia luz, que se enciende **antes** de configurar el streaming y
-**no se puede encender bajo demanda** (`enable_color_detection` con el stream ya montado no hace
-nada: 481 mensajes, todos ceros). Se decide en el arranque, y el servicio systemd arranca con el
-valor por defecto:
+**⚠️ `robot.color()` devuelve oscuridad hasta que enciendas la luz del sensor, y no es un fallo de
+la API.** El sensor necesita su propia luz. Desde el 2026-08-06 **se enciende en caliente** con el
+servicio `enable_color` (`std_srvs/SetBool`) — medido: canal claro **1 → 1321**, y vuelta a 1 al
+apagar (evidencia 75). Antes de esa fecha aquí ponía que era imposible; era falso.
+
+⚠️ **Enciéndelo y apágalo:** deja un LED blanco bajo el chasis gastando batería.
+
+El servicio systemd sigue arrancando con la luz apagada, que es lo que quieres por defecto en un
+laboratorio de 16 robots:
 
 ```
 $ ros2 param get /rvr_driver color_detection

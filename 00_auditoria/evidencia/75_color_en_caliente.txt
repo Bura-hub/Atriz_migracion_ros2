@@ -1,0 +1,119 @@
+════════════════════════════════════════════════════════════════════════════
+ 75 · EL SENSOR DE COLOR SÍ SE ENCIENDE EN CALIENTE
+      Una afirmación de julio, refutada. Y la trajo el usuario, no el código.
+════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-06
+Robot:   rvr-01
+Banco:   mediciones_banco/probar_color_stream_caliente.py
+Motivo:  el usuario quiere un botón «sesión de medición» en la web: arrancar
+         enciende el LED del sensor y empieza a medir, otro botón para parar.
+
+
+1 · LO QUE BLOQUEABA EL BOTÓN
+────────────────────────────────────────────────────────────────────────────
+Desde el 2026-07-31, en TRES sitios (CLAUDE.md, MANUAL §16.2(c) y
+rvr_driver_node.py:1218), este proyecto afirmaba como MEDIDO:
+
+    «Con el streaming de `color_detection` ya configurado,
+     `enable_color_detection` NO HACE NADA. Se llamó al servicio mirando
+     /color a la vez: 481 mensajes, todos [0,0,0], durante toda la llamada.»
+
+Sobre esa frase se diseñaron dos soluciones caras (reiniciar el driver, o
+reordenar el streaming) y se descartó la barata.
+
+
+2 · POR QUÉ ESA MEDIDA NO PROBABA LO QUE DECÍA
+────────────────────────────────────────────────────────────────────────────
+El servicio que se probó hacía, DENTRO DE LA MISMA LLAMADA:
+
+    enable(True) → leer → enable(False)
+
+481 mensajes a 12,7 Hz son ~38 segundos de observación. **Casi todos son
+posteriores al `enable(False)`.** La medida no distingue entre:
+
+    (a) el enable en caliente no hace nada
+    (b) funcionó 200 ms y la propia llamada lo apagó
+
+Una medida que no separa las dos hipótesis no refuta ninguna. Se dio por
+concluyente durante seis días.
+
+Y no tenía espera entre encender y leer. ROS 1 sí: `asyncio.sleep(.1)`
+(Atriz_rvr_node.py:341).
+
+
+3 · LA PISTA: EL USUARIO RECORDABA EL CICLO FUNCIONANDO EN ROS 1
+────────────────────────────────────────────────────────────────────────────
+    «este proceso funcionaba en ROS 1: primero encendía el LED y después
+     leía el topic, y sí había mediciones»
+
+El código de ROS 1 lo respalda línea por línea:
+
+  Atriz_rvr_node.py:1246  handler de color registrado INCONDICIONALMENTE
+  Atriz_rvr_node.py:1313  sensor_control.start(interval=250)
+  Atriz_rvr_node.py:331   servicio `enable_color` (std_srvs/SetBool)
+                          → enable_color_detection + sleep(.1) EN CALIENTE
+  Atriz_rvr_node.py:1019  compuerta: `if not color_enabled: return`
+                          → /color NO publicaba nada hasta encenderlo
+
+En ROS 1 nunca se llamaba a enable_color_detection al arrancar. SIEMPRE en
+caliente. Y funcionaba.
+
+📝 Lo que la migración a ROS 2 perdió no fue el handler —ese se registra
+   igual de incondicionalmente (rvr_driver_node.py:1253)— sino EL SERVICIO.
+
+
+4 · LA MEDIDA, CON EL STREAMING CORRIENDO A 250 ms
+────────────────────────────────────────────────────────────────────────────
+Secuencia de ROS 1 reproducida tal cual: clear → stop → handlers →
+start(250) → **y LUEGO** enable(True) + sleep(0.1).
+
+  fase                          /color no-cero   canal claro (consulta)
+  ───────────────────────────────────────────────────────────────────────
+  1 · LED nunca encendido            0 / 24              1
+  2 · tras enable(True) caliente    24 / 24           1321      ← 1321×
+  2b· 6 s más tarde                 23 / 23           1321
+  3 · tras stop→enable→start        24 / 24           1322
+  4 · tras enable(False)             0 / 24              1      ← reversible
+
+  RGB reales en fase 2, sobre suelo claro: (255, 223, 209)
+
+✅ DOS RUTAS INDEPENDIENTES —el stream y la consulta directa— se mueven a la
+   vez, en la misma dirección, y VUELVEN a la línea base al apagar.
+👤 TERCER TESTIGO, el que manda: el usuario vio encenderse el LED blanco bajo
+   el chasis. «SI SE ENCENDIOOOO».
+
+⚠️ DEFECTO DEL BANCO, anotado y no disimulado: el testigo de luz ambiente dio
+   0.0 en las CUATRO fases, incluida la línea base — cuando bajo el driver
+   real mide 4,99-19,98. El instrumento estaba muerto en este banco. No
+   contradice nada porque tampoco midió nada, pero deja el resultado con dos
+   testigos automáticos en vez de tres.
+
+📝 La fase 3 mide de paso la alternativa B2 (stop→enable→start): funciona
+   igual, pero es innecesaria. El camino barato basta.
+
+
+5 · CONSECUENCIAS
+────────────────────────────────────────────────────────────────────────────
+✅ El botón se construye con un servicio `std_srvs/SetBool`, sin reiniciar
+   nada y sin tocar el streaming.
+🔴 Queda DESCARTADA la opción de «reiniciar el driver con el parámetro
+   puesto», y no solo por incómoda: el constructor hace
+   `self._parada_emergencia = False` (rvr_driver_node.py:266), así que
+   reiniciar BAJA LA PARADA DE EMERGENCIA. Un robot que un humano detuvo a
+   propósito volvería a aceptar cmd_vel_raw.
+📝 `/color` publica [0,0,0] mientras el sensor está apagado: NO calla, al
+   revés que en ROS 1. Un topic que habla no significa un sensor que mide.
+   La web no puede deducir el estado mirando si llegan mensajes.
+
+
+6 · LA LECCIÓN, QUE ES LA DE SIEMPRE EN ESTE PROYECTO
+────────────────────────────────────────────────────────────────────────────
+Una medida mal diseñada bloqueó una función durante seis días, y lo hizo
+DESDE la documentación: cada vez que se leía, confirmaba la creencia. No la
+destapó una revisión de código —tres pasadas la dieron por buena— sino que
+el usuario recordara haberlo visto funcionar.
+
+    🔴 Una trampa documentada también caduca.
+    🔴 Y «medido» no es «medido bien»: hay que poder decir qué habría pasado
+       si la hipótesis fuera falsa. Si la medida da lo mismo en los dos
+       casos, no es una medida.

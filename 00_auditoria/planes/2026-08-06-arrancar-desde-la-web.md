@@ -89,23 +89,39 @@ la trampa de `slam_toolbox` — sobrevive y queda mudo. La elección real es ent
 visiblemente** y **sobrevivir mudo**, y este proyecto tiene medido que lo segundo es peor.
 → Lo que hace falta no es cambiar la directiva: es que la unidad atada **vuelva a arrancar**.
 
-### 3 · 🔴 El LED del sensor de color — NO se puede encender en caliente
+### 3 · ✅ El LED del sensor de color — RESUELTO Y EN EL ROBOT (2026-08-06)
 
-Y esto es lo que hay que saber antes de diseñar ningún botón.
+**Este apartado decía lo contrario, y estaba mal.** Se deja el error a la vista porque es la parte
+útil.
 
-`rvr_driver_node.py:1218`, medido el 2026-07-31:
+Lo que decía: *«con el streaming ya configurado, `enable_color_detection` NO HACE NADA — 481
+mensajes de `/color`, todos ceros»*. **Esa medida no probaba eso.** El servicio bajo prueba hacía
+`enable(True) → leer → enable(False)` en la misma llamada, y 481 mensajes a 12,7 Hz son ~38 s:
+casi todos posteriores al apagado. No distinguía las dos hipótesis.
 
-> **«Con el streaming de `color_detection` ya configurado, `enable_color_detection` NO HACE
-> NADA.»** Se comprobó llamándolo desde un servicio y mirando `/color` a la vez: **481 mensajes,
-> todos `[0, 0, 0]`**, durante toda la llamada.
+Lo destapó el usuario, recordando el ciclo funcionando en ROS 1. Y el código de ROS 1 lo
+respaldaba: servicio `enable_color` (`Atriz_rvr_node.py:331`, registrado en `:1636`) llamado **en
+caliente**, con el streaming ya arrancado en `:1313`.
 
-El sensor **tiene que activarse ANTES de `add_sensor_data_handler`**, o sea antes de que arranque
-el streaming. Hoy es un parámetro de arranque: `color_detection:=false` por defecto, y se pone a
-`true` al lanzar `robot.launch.py`.
+**Remedido** (`mediciones_banco/probar_color_stream_caliente.py`, evidencia 75):
 
-**Un botón «encender el LED del color» que llame a `enable_color_detection` devolvería éxito y no
-haría nada.** Es exactamente el patrón que este proyecto persigue, y ya está medido dos veces en
-este mismo sensor (`undercarriage_white` devuelve `success=True` sin encender nada).
+| fase | `/color` no-cero | canal claro |
+|---|---|---|
+| LED apagado | 0 / 24 | 1 |
+| `enable(True)` en caliente | **24 / 24** | **1321** |
+| `enable(False)` | 0 / 24 | 1 |
+
+**Y ya está implementado y verificado en el robot**, a través del driver y de rosbridge:
+
+```
+servicio  /enable_color   std_srvs/SetBool
+/color no-cero :  0 -> 53 -> 0
+clear directo  :  1 -> 1320 -> 0
+```
+
+🔴 **Lo que la web tiene que saber, y no es evidente:** `/color` **publica `[0,0,0]` cuando el
+sensor está apagado — no calla.** (ROS 1 sí callaba: tenía una compuerta `if not color_enabled:
+return`.) Así que **la web no puede deducir el estado de si llegan mensajes.** Ver §B.
 
 ---
 
@@ -135,20 +151,44 @@ Por dentro, `systemctl start|stop` de dos unidades: `atriz-slam.service` (nueva)
 publica a 1 Hz — añadirle dos campos (`slam_activo`, `nav_activo`) es más barato que un topic
 nuevo, y llega por un camino que la web ya lee.
 
-### B · El LED del color — dos caminos, y ninguno es un botón
+### B · ✅ El LED del color — HECHO en el robot. Lo que falta es la web
 
-**B1 · Reiniciar el driver con el parámetro puesto.** Es lo único que funciona hoy. Un servicio
-`/color_detection` que reescriba el parámetro y **reinicie `atriz-robot`**. Honesto pero brutal:
-tira la telemetría unos 25 s y con ella cualquier sesión en curso.
+**El botón «sesión de medición» ya se puede construir.** Dos servicios, los dos en la lista blanca
+de rosbridge (`robot.launch.py:354`):
 
-**B2 · Arreglarlo en el driver: reordenar el arranque del streaming.** Que
-`enable_color_detection` se pueda aplicar deteniendo y rearmando el streaming —`stop()`,
-`enable_color_detection(True)`, `add_sensor_data_handler`, `start()`—, que es la secuencia que el
-propio driver ya ejecuta en `_recuperar_streaming()`. **Más trabajo, y es la solución de verdad.**
+| servicio | tipo | qué hace |
+|---|---|---|
+| `/enable_color` | `std_srvs/SetBool` | `data:true` enciende el LED y `/color` da valores reales; `data:false` lo apaga |
+| `/get_rgbc_sensor_values` | `atriz_rvr_msgs/GetRGBCSensorValues` | lectura puntual en crudo (R, G, B, claro) |
 
-⚠️ **NO VERIFICADO**: que rearmar el streaming baste para que el sensor se active. Lo medido es
-que llamarlo con el streaming ya configurado no hace nada; que funcione tras un `stop()` es una
-hipótesis razonable **y hay que medirla antes de prometer el botón.**
+**Van los dos o no sirve ninguno:** sin el LED no hay lectura, y el LED solo lo enciende
+`enable_color`.
+
+El botón de arrancar llama a `enable_color(true)`; el de parar, a `enable_color(false)`. Entre
+medias, `/color` a 12,7 Hz o consultas puntuales, lo que prefiera la interfaz.
+
+🔴 **Tres cosas que no se pueden saltar:**
+
+1. **Un botón de PARAR tan visible como el de arrancar.** El LED gasta batería mientras siga
+   encendido, y son 16 robots. El driver lo apaga al cerrar (`_apagar_rvr`), pero eso solo cubre
+   el caso de que el driver muera.
+2. **El estado NO se puede deducir del topic.** `/color` publica `[0,0,0]` cuando está apagado.
+   Si el alumno recarga la página con la sesión encendida, la web no sabe en qué estado está.
+   → 📌 **Decisión pendiente**, y es del PC: o la web mira si algún canal es ≠ 0 (medido: **0/53
+   apagado contra 53/53 encendido**, discrimina limpio salvo sobre superficie negra), o se añade
+   un campo `color_activo` a `/estado_robot` — más honesto, pero **rompe el contrato** hasta que
+   `contrato.ts` lo incorpore. Desde el robot no se ha tocado por eso.
+3. **No fiarse del `success`.** Este sensor ya devolvió `success=True` sobre oscuridad dos veces.
+   El servicio lleva ahora un `sleep(0.1)` dentro para que eso no pueda volver a pasar, pero la
+   web debe confirmar con el dato.
+
+📝 **Descartadas, y conviene que conste por qué:**
+- **B1 (reiniciar el driver con el parámetro puesto)** — 🔴 además de tirar 25 s de telemetría,
+  **el reinicio BAJA LA PARADA DE EMERGENCIA**: `self._parada_emergencia = False` en el
+  constructor (`rvr_driver_node.py:266`). Un robot que un humano detuvo a propósito volvería a
+  aceptar `cmd_vel_raw`. Es un problema de seguridad, no de comodidad.
+- **B2 (reordenar el streaming, `stop → enable → start`)** — medido, funciona igual de bien
+  (fase 3 del banco), pero es innecesario: el camino barato basta y no abre hueco de telemetría.
 
 ### C · El agente de sesión (Fase B) — la solución general, y está bloqueada
 
@@ -169,8 +209,11 @@ encender (y pagar la batería), o **solo cuando la web lo pida** (y entonces hac
 
 ## Lo que le toca al PC
 
-1. **Los botones no existen todavía en ninguna capa.** Antes de dibujar nada, saber que el del
-   color **no puede funcionar como los otros dos**.
+1. **El del color YA SE PUEDE HACER**, y es el más fácil de los tres: `/enable_color`
+   (`std_srvs/SetBool`) y `/get_rgbc_sensor_values` están en la lista blanca y verificados por
+   rosbridge. Los de SLAM y Nav2 siguen sin existir en ninguna capa.
+   → Hay que añadir los dos a `contrato.ts` con sus tipos, o el cliente **lanzará antes de mandar
+   nada** y `comprobar_contrato.mjs` seguirá en rojo.
 2. **Si se implementa A**, la web necesita: cuatro servicios en `contrato.ts` + sus tipos, y dos
    campos nuevos en `EstadoRobot` para pintar el estado sin sondear.
 3. **El estado de arranque no es booleano.** «Arrancando» dura segundos y hay que pintarlo: si la
