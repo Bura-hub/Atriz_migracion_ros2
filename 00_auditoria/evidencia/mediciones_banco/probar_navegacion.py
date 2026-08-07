@@ -121,6 +121,15 @@ if not cli.wait_for_server(timeout_sec=20):
     print('  🔴 /navigate_to_pose no responde. ¿Está la navegación arrancada?')
     raise SystemExit(1)
 
+# 🔴 ASENTAMIENTO. `/navigate_to_pose` acepta objetivos ANTES de que el cableado
+#    interno de Nav2 esté listo: el 2026-08-07 un objetivo mandado nada más
+#    llegar a FUNCIONANDO abortó con «Timed out while waiting for action server
+#    to acknowledge goal request (follow_path)». bt_navigator no alcanzó a
+#    controller_server a tiempo.
+#    ⚠️ Y eso significa que el FUNCIONANDO del supervisor es OPTIMISTA.
+print('  esperando 8 s a que Nav2 se asiente por dentro…', flush=True)
+bombear(8)
+
 g = NavigateToPose.Goal()
 g.pose.header.frame_id = 'map'
 g.pose.header.stamp = n.get_clock().now().to_msg()
@@ -148,10 +157,26 @@ while not fr.done() and time.monotonic() - t0 < 90:
         print(f'    {ult - t0:5.1f}s  odom=({odom.get("x", 0):+.3f},{odom.get("y", 0):+.3f})'
               f'  amcl=({amcl.get("x", 0):+.3f},{amcl.get("y", 0):+.3f})'
               f'  map->odom {a:+7.2f}°' if a is not None else '')
-bombear(2)
+bombear(3)
+
+# 🔴 EL DESENLACE, NO SOLO QUE TERMINE. La primera versión esperaba a `fr.done()`
+#    y daba el recorrido por bueno: el 2026-08-07 una tanda ABORTÓ a los 4,2 s y
+#    se presentó como si fuera una medición. Un objetivo que aborta no mide la
+#    navegación: mide otra cosa.
+ESTADOS = {1: 'ACEPTADO', 2: 'EJECUTANDO', 3: 'CANCELANDO',
+           4: '✅ CON ÉXITO', 5: '🔴 CANCELADO', 6: '🔴 ABORTADO'}
+est = None
+if fr.done() and fr.result() is not None:
+    est = fr.result().status
+    print(f'\n  DESENLACE DEL OBJETIVO: {ESTADOS.get(est, est)}')
+else:
+    print('\n  🔴 el objetivo NO terminó dentro del plazo del banco')
 
 rec_odom = math.hypot(odom.get('x', 0), odom.get('y', 0))
 rec_amcl = math.hypot(amcl.get('x', 0), amcl.get('y', 0))
+# 🔴 Se bombea ANTES de leer la transformada final: el 2026-08-07 esta lectura
+#    dio 0,072 m cuando la real era 0,643. El búfer de TF no se rellena solo.
+bombear(2)
 d, a = correccion()
 giros = [abs(x[2]) for x in traza if x[2] is not None]
 
@@ -163,6 +188,13 @@ print(f'  corrección map->odom final  {d:.3f} m   {a:+.2f}°' if d is not None 
 if giros:
     print(f'  |yaw| de map->odom durante  min {min(giros):.2f}°  max {max(giros):.2f}°')
 print()
+if est != 4:
+    print('  🔴 EL OBJETIVO NO TERMINÓ CON ÉXITO: NO MIDAS.')
+    print('     Esta tanda no mide la navegación. Mira el journal:')
+    print('       journalctl -u atriz-nav --since "-3 min" | grep -iE "abort|fail|timed"')
+    print('=' * 74)
+    n.destroy_node(); rclpy.shutdown(); raise SystemExit(1)
+
 print('  📏 AHORA MIDE, con el robot donde paró:')
 print('       AP = de la marca A al centro del robot   (la diagonal de siempre)')
 print('       BP = de la marca B al centro del robot   ← la que decide')
