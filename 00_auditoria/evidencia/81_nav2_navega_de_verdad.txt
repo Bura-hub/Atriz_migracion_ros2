@@ -1,0 +1,114 @@
+════════════════════════════════════════════════════════════════════════════
+ 81 · NAV2 NAVEGA — Y AMCL NO ESTABA LOCALIZADO
+      El mecanismo funciona. La localización, no. Son dos cosas distintas.
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-07
+Robot:  rvr-01 · mapa del cuarto (3,80 × 4,20 m, hecho el 2026-08-06)
+Testigo físico: el usuario, con cinta métrica
+
+
+1 · LO QUE SE HIZO
+────────────────────────────────────────────────────────────────────────────
+Primera vez que el robot se MUEVE por navegación autónoma en este proyecto.
+
+  1. `set_pos_and_yaw(0,0,0)`      odometría a cero (verificado: 1,9 mm)
+  2. `/pedir_nav data:true`        la web arranca la navegación
+  3. esperar a FUNCIONANDO         ~30 s
+  4. `/initialpose` en (0,0,0)     se le dice a AMCL dónde está
+  5. objetivo `(0,80 · 0,00)`      80 cm recto, en el marco `map`
+
+📌 El objetivo se eligió analizando el PGM del mapa: `(0,80 · 0,00)` está LIBRE
+   con 20 cm de margen despejado alrededor. No se mandó el robot a ciegas.
+
+✅ El objetivo se ACEPTÓ y se completó en **13,5 s**.
+
+
+2 · LOS NÚMEROS, Y EL TESTIGO QUE MANDA
+────────────────────────────────────────────────────────────────────────────
+                        recorrido
+    cinta métrica        70   cm      ← el usuario, centro a centro
+    odometría            70,1 cm      ← 1 mm de diferencia
+    AMCL                 78,4 cm      ← 8 cm de MÁS
+    objetivo             80   cm
+
+✅ **LA ODOMETRÍA ACIERTA.** 70,1 contra 70,0 cm es mejor de lo que la cinta
+   puede resolver. Es coherente con la calibración de encoders del proyecto
+   (7792 ticks/m contra cinta).
+
+🔴 **AMCL SE EQUIVOCA EN 8 cm, y Nav2 se lo cree.** El objetivo se dio por
+   cumplido con el robot a **10 cm** de él — y `xy_goal_tolerance` vale
+   **0,10 m** (`nav2_atriz.yaml:102`). Llegó justo por el borde, en la realidad;
+   AMCL creía estar cómodamente dentro (2,5 cm).
+
+
+3 · 🔴 Y LO QUE DE VERDAD PASÓ: AMCL NO ESTABA LOCALIZADO
+────────────────────────────────────────────────────────────────────────────
+La corrección que AMCL había aplicado al terminar:
+
+    map → odom:   x=+0,138   y=+0,405   yaw=+98,46°
+
+**98 GRADOS DE ROTACIÓN DEL MARCO en un recorrido de 70 cm.**
+
+Eso no es «una corrección»: es que la estimación de pose no vale. Y el usuario
+lo vio sin instrumentos:
+
+    «el robot no fue recto hacia adelante, hizo un giro leve; de hecho ahora
+     está un poco torcido respecto a como estaba inicialmente»
+
+→ Se le dijo a AMCL «estás en (0,0) mirando a yaw 0». AMCL **no lo aceptó**: fue
+  deslizando el marco bajo el robot hasta explicar el barrido con una hipótesis
+  rotada ~98°. Nav2 condujo obedientemente hacia «(0,80 · 0) en map» — que en el
+  mundo real no era donde el usuario creía.
+
+🔴 **EL ÉXITO DEL OBJETIVO NO SIGNIFICA NADA.** Nav2 declaró «llegué» sobre una
+   pose que se había ido 98°. Es exactamente la firma de este proyecto: algo que
+   informa éxito sin que el efecto sea el esperado.
+
+
+4 · HIPÓTESIS, NO CAUSAS
+────────────────────────────────────────────────────────────────────────────
+⏳ Nada de esto está medido. Se escribe para que se pruebe, no para creérselo:
+
+  a) **El cuarto es pequeño y casi rectangular** (3,80 × 4,20 m). Una sala así
+     tiene **ambigüedad de simetría a 90°**: el barrido casa casi igual de bien
+     con el mapa girado un cuarto de vuelta. Los 98° medidos apuntan justo ahí.
+  b) **La orientación inicial real pudo no ser yaw 0.** El robot se colocó «donde
+     estaba al mapear», pero eso fija la posición, no necesariamente el rumbo.
+  c) **La covarianza de `/initialpose`** se puso a 0,25 m² y 0,07 rad². Puede ser
+     demasiado laxa y permitir que AMCL se vaya, o demasiado estrecha y provocar
+     que salte cuando el barrido no encaja.
+
+📌 Y una cuarta, que no es de AMCL: **el mapa tiene un día y el cuarto pudo
+   cambiar.** Un mapa de 3,8 × 4,2 m de una habitación con muebles es frágil.
+
+
+5 · QUÉ SE PUEDE AFIRMAR Y QUÉ NO
+────────────────────────────────────────────────────────────────────────────
+✅ **El mecanismo entero funciona.** Botón → polkit → systemd → exclusión →
+   barrido → AMCL+Nav2 → objetivo aceptado → **el robot se mueve** → objetivo
+   completado → paro por el servicio → barrido apagado. Todo por rosbridge, sin
+   tocar el robot. Eso era lo que esta sesión venía a probar, y pasa.
+
+✅ **La odometría del driver es excelente**, y ahora contra cinta en una
+   trayectoria curva, no solo en línea recta.
+
+🔴 **La localización sobre este mapa NO es usable.** Y eso **no invalida el
+   trabajo de hoy**: son capas distintas. Nadie había afirmado que AMCL
+   funcionara — de hecho `atriz-nav.service` no se había ejecutado nunca hasta
+   esta mañana.
+
+⏳ **Lo que hace falta antes de prometerle navegación a un alumno:**
+   · repetir en el aula, que es grande y con más estructura que un cuarto
+   · o medir si AMCL converge dando vueltas antes de mandar el objetivo
+   · o comprobar la hipótesis (a) mapeando una sala asimétrica a propósito
+   · y en todos los casos: **la cinta, no el `/amcl_pose`**
+
+
+6 · LA LECCIÓN, QUE ES LA DE SIEMPRE CON OTRO SUJETO
+────────────────────────────────────────────────────────────────────────────
+Si esta prueba se hubiera dado por buena mirando `/amcl_pose` —(0,775 · 0,116)
+contra un objetivo de (0,80 · 0)— se habría escrito **«Nav2 navega con 2,5 cm de
+error»**. Y sería falso por partida doble: el error real fue 10 cm, y la
+dirección estaba 98° equivocada.
+
+    🔴 Lo destapó una cinta métrica y una persona mirando el robot.

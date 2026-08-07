@@ -270,6 +270,36 @@ Lo que instala el `sudo`: `atriz-slam.service` + su envoltorio, `atriz-exclusion
 polkit, y `atriz-nav.service` actualizada de `BindsTo=` a **`PartOf=`** — para que la navegación
 **vuelva** cuando el driver se reinicia, en vez de quedarse muerta (medido 9 de 9, evidencia 78).
 
+### 🔴 Y una advertencia que te ahorra dibujar algo inútil: AMCL NO está localizado
+
+**Nav2 navegó de verdad el 2026-08-07** —primera vez que el robot se mueve solo en este
+proyecto— y el mecanismo entero funciona por rosbridge. **Pero la localización, no.**
+
+```
+cinta métrica     70   cm      ← el testigo que manda
+odometría         70,1 cm      ← acierta, 1 mm
+AMCL              78,4 cm      ← 8 cm de más
+map → odom        yaw +98,46°  ← 🔴 el marco rotó 98° en 70 cm de recorrido
+```
+
+🔴 **Nav2 declaró el objetivo cumplido sobre una pose que se había ido 98°.** Si hubiéramos
+mirado `/amcl_pose` habríamos escrito «navega con 2,5 cm de error»: falso por partida doble — el
+error real fue 10 cm y la dirección estaba 98° equivocada. Lo destapó **una cinta métrica y una
+persona mirando el robot**.
+
+**Qué significa para tu pantalla:**
+
+- ✅ El botón de Nav2 **funciona**: pídelo, se arranca, acepta objetivos, el robot se mueve, y
+  `/estado_navegacion` lo refleja. Todo eso está verificado.
+- 🔴 **No pintes la pose de AMCL como si fuera la posición del robot**, ni dibujes una flecha
+  «estás aquí» sobre el mapa. Hoy no lo es.
+- 📌 **`/odom` sí acierta** (70,1 contra 70,0 cm de cinta, en trayectoria curva). Si necesitas
+  mostrar desplazamiento, ese es el bueno.
+
+⏳ **Hipótesis, sin medir:** el cuarto son 3,80 × 4,20 m y casi rectangular — una sala así tiene
+**ambigüedad de simetría a 90°**, y los 98° apuntan justo ahí. Habría que repetirlo en el aula,
+que es grande y con más estructura. Evidencia 81.
+
 ## ✅ Cerrado y comprobado — no lo vuelvas a poner como pendiente
 
 > 🔴 **Esta sección existe porque el 2026-08-05 se listaron como pendientes CUATRO cosas que ya
