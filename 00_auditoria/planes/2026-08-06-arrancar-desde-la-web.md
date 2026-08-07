@@ -136,10 +136,34 @@ return`.) Así que **la web no puede deducir el estado de si llegan mensajes.** 
 
 ## Las soluciones, en orden de coste
 
-### A · Envolver SLAM y Nav2 en servicios ROS que el driver exponga  ← recomendada
+### A · Envolver SLAM y Nav2 en servicios ROS que el driver exponga  🔴 RECHAZADA
+
+> ## 🔴 ESTA PROPUESTA YA HABÍA SIDO TUMBADA CUANDO LA ESCRIBÍ
+>
+> El panel de cuatro agentes de `2026-08-06-plan-slam-color-arranque.md` (D2, opción **c**) la
+> descartó **la misma mañana**, y por seguridad, no por coste. La escribí sin leer ese plan.
+>
+> **El argumento, verificado en el código:**
+>
+> ```
+> rosbridge_server/websocket_handler.py:233   def check_origin(self, origin) -> bool:
+>                                     :234       return True     ← sin condiciones
+> ```
+>
+> rosbridge **no autentica a nadie**, y el driver corre como `sphero`
+> (`systemctl show atriz-robot -p User` → `User=sphero`). Así que un servicio ROS que haga
+> `systemctl start` necesita polkit, y eso convierte *«cualquiera en la red del aula llama a un
+> servicio»* en ***«cualquiera en la red del aula hace que root arranque un proceso»***.
+>
+> 📌 **Y el resto del apartado sigue siendo útil**, porque los cuatro requisitos que lista
+> —callback que no bloquee `/release_emergency_stop`, éxito medido por efecto, Nav2 sin mapa que
+> se niegue— valen para *cualquier* mecanismo que se elija. Lo que no vale es el mecanismo.
+>
+> **Lo que el panel recomienda en su lugar (D2, opción a):** `atriz-slam.service` instalada y
+> **NO habilitada**, y **A10 espera**. Honesto: la web sigue sin poder arrancar SLAM, y se dice.
 
 Cuatro servicios nuevos (`/arrancar_slam`, `/parar_slam`, `/arrancar_nav`, `/parar_nav`) que el
-driver registre junto a los 18 que ya tiene, y cuatro entradas más en la lista blanca.
+driver registre junto a los 19 que ya tiene, y cuatro entradas más en la lista blanca.
 
 Por dentro, `systemctl start|stop` de dos unidades: `atriz-slam.service` (nueva) y
 `atriz-nav.service` (ya existe).
@@ -212,7 +236,32 @@ puede construir sobre él.
 Con 16 robots y alumnos poniendo a cargar, esto va a pasar constantemente. Y no basta con
 `enable`: la unidad de Nav2 exige mapa, y la de SLAM no existe.
 
-📌 **Decisión que corresponde al usuario, no a la web:** si Nav2 y SLAM deben arrancar **solos** al
+> ## ✅ ESTO YA ESTABA DECIDIDO, Y LO PUSE COMO PENDIENTE
+>
+> **Decidido con el usuario el 2026-08-03** y escrito en
+> [`03_operacion/ARRANQUE_NAVEGACION.md`](../../03_operacion/ARRANQUE_NAVEGACION.md):
+>
+> | | |
+> |---|---|
+> | **Nav2** | unidad instalada y **NO habilitada**. *«No sobrevive a un reinicio… es la decisión del usuario y encaja con la línea del proyecto: nada de estado silencioso»* |
+> | **SLAM** | **a mano**, para hacer mapas: *«tarea de administrador, no de operación»* |
+>
+> El dato que la decidió: **la Pi se alimenta del USB del RVR**, la autonomía medida es **~2 h**
+> contra clases de **2-3 h**, y Nav2 son **~58 % de un núcleo**. Con la salvedad que el propio
+> documento ya escribe: **cuánto cuesta en batería ese 58 % no lo sabe nadie** — la dirección está
+> clara, la magnitud no.
+>
+> 🔴 **Que yo la listara como pendiente es el fallo que `ESTADO_ACTUAL.md` documenta en su primera
+> sección:** el 2026-08-05 se listaron como pendientes cuatro cosas ya hechas, citando un fichero
+> que se había quedado atrás. Aquí ha pasado otra vez, con un documento de decisión que llevaba
+> tres días escrito. **Antes de dar algo por pendiente, cruzar con la evidencia.**
+>
+> ⚠️ **Lo que SÍ queda abierto, y es un matiz del panel de agentes (D2, razón 3):** el argumento de
+> Nav2 **no traslada a SLAM**. Nav2 no se habilita porque cuesta 58 % de núcleo; **SLAM cuesta
+> 4,8 %, doce veces menos**. La conclusión puede seguir siendo la buena, pero **por otras razones**,
+> y esas no están escritas. Eso es lo que merece una decisión, no lo de abajo.
+
+📌 ~~**Decisión que corresponde al usuario, no a la web:**~~ si Nav2 y SLAM deben arrancar **solos** al
 encender (y pagar la batería), o **solo cuando la web lo pida** (y entonces hace falta A).
 
 ## Lo que le toca al PC
