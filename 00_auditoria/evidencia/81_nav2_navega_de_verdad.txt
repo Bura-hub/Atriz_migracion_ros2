@@ -2,6 +2,20 @@
  81 · NAV2 NAVEGA — Y AMCL NO ESTABA LOCALIZADO
       El mecanismo funciona. La localización, no. Son dos cosas distintas.
 ════════════════════════════════════════════════════════════════════════════
+
+⚠️⚠️ SUPERADO EL MISMO DÍA POR LA EVIDENCIA 82 — LÉELA ANTES QUE ESTA.
+
+   El diagnóstico de este fichero —«AMCL no está localizado»— **se resolvió
+   horas después**: la causa era la recuperación de «robot secuestrado»
+   (`recovery_alpha_slow/fast`). Apagada, el salto pasa de 98° a 2,4°, dos
+   tandas seguidas.
+
+   Lo que queda es OTRO problema y mucho menor: AMCL sobreestima ~9 %.
+
+   Se conserva entero porque el método vale más que la conclusión: aquí está
+   cómo se destapó, y una atribución falsa propia (§1, paso 1) que solo se vio
+   al repetir la prueba sin reiniciar el driver antes.
+════════════════════════════════════════════════════════════════════════════
 Fecha:  2026-08-07
 Robot:  rvr-01 · mapa del cuarto (3,80 × 4,20 m, hecho el 2026-08-06)
 Testigo físico: el usuario, con cinta métrica
