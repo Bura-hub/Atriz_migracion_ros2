@@ -151,8 +151,18 @@ case "${1:-}" in
         #    alumno: apagar solo lo que uno encendió.
         OTRAS=""
         for U in atriz-slam.service atriz-nav.service; do
-            EST="$(systemctl is-active "$U" 2>/dev/null)"
-            [[ "$EST" == "active" || "$EST" == "activating" ]] && OTRAS="$OTRAS $U"
+            # 🔴 `|| true` OBLIGATORIO. `systemctl is-active` devuelve **3** para
+            #    una unidad inactiva: eso NO es un error, es la respuesta. Con
+            #    `set -e`, la asignación mata el guion antes de decidir nada — y
+            #    con el `-` del ExecStopPost, systemd se lo traga en silencio.
+            #    Medido el 2026-08-07: el barrido se quedaba ENCENDIDO tras
+            #    parar SLAM y no aparecía una sola línea en el journal.
+            #    Es la TERCERA vez que este patrón muerde a este proyecto, tras
+            #    `(( t++ ))` en atriz-robot.sh y `[[ … ]] && kill` en un banco.
+            EST="$(systemctl is-active "$U" 2>/dev/null || true)"
+            if [[ "$EST" == "active" || "$EST" == "activating" ]]; then
+                OTRAS="$OTRAS $U"
+            fi
         done
         if [[ -n "$OTRAS" ]]; then
             echo "escaneo: se DEJA ENCENDIDO —lo necesita:$OTRAS"

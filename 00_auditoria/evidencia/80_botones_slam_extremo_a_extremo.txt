@@ -1,0 +1,104 @@
+════════════════════════════════════════════════════════════════════════════
+ 80 · EL BOTÓN DE SLAM, DE EXTREMO A EXTREMO
+      Funciona. Y destapó tres defectos, uno de ellos por tercera vez.
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-07
+Robot:  rvr-01
+
+
+1 · LA CADENA COMPLETA, VERIFICADA
+────────────────────────────────────────────────────────────────────────────
+    /pedir_slam data:true
+      → success=True, «petición ACEPTADA, no arrancado todavía»
+      → polkit autoriza (sin sudo)
+      → systemd arranca atriz-slam.service
+      → ExecStartPre: exclusión OK, barrido ON
+      → slam.launch.py, ciclo de vida a active
+      → el supervisor pasa a FUNCIONANDO
+
+**Y NO por lo que dijo el supervisor.** Cinco testigos independientes:
+
+    proceso async_slam_tool     1
+    unidad systemd              active / success
+    barrido                     ENCENDIDO (/scan publica)
+    ciclo de vida               active      (no `unconfigured`)
+    TF map -> odom              publicando
+
+Y el paro, también por el servicio: unidad `inactive/success`, proceso 0.
+
+
+2 · M-F · LA REGLA DE POLKIT, EN LAS DOS DIRECCIONES
+────────────────────────────────────────────────────────────────────────────
+    atriz-slam.service    inactive   rc=0   ← autorizada
+    atriz-nav.service     inactive   rc=0   ← autorizada
+    apt-daily.service     inactive   rc=1   Interactive authentication required
+    man-db.service        inactive   rc=1   Interactive authentication required
+    systemd-tmpfiles…     inactive   rc=1   Interactive authentication required
+    ssh.service           active     rc=1   Interactive authentication required
+
+🔴 **El confusor se descartó ANTES de cantar el resultado.** La primera prueba
+   comparó `atriz-slam` (inactiva) con `ssh` (activa), así que el rc=0 podía
+   deberse a que systemd ni consulta a polkit para parar algo ya parado. Las
+   tres unidades **inactivas y fuera de la regla** piden autenticación igual:
+   el rc=0 es la regla, no el estado.
+
+
+3 · TRES DEFECTOS QUE DESTAPÓ LA PRUEBA
+────────────────────────────────────────────────────────────────────────────
+
+a) 🔴 EL SUPERVISOR Y LA UNIDAD MIRABAN MAPAS DISTINTOS
+
+     supervisor:    …/install/atriz_rvr_bringup/share/…/maps/aula.yaml
+     atriz-nav.sh:  …/src/Atriz_rvr/atriz_rvr_bringup/maps/aula.yaml
+
+   `PathJoinSubstitution([bringup, …])` resuelve al directorio INSTALADO; el
+   script usa el FUENTE. Es exactamente lo que el comentario que yo mismo
+   escribí decía evitar: *«si no coinciden, el supervisor diría "hay mapa" y la
+   unidad fallaría por no encontrarlo»* — y el caso peor es el inverso: el botón
+   deshabilitado sobre un mapa que sí está.
+   → El launch ya no impone ruta; el nodo usa el mismo defecto que el script y
+     lee `ATRIZ_MAPA`.
+
+b) ⚠️ LOS RECHAZOS DABAN UN SOLO MOTIVO
+
+   `/pedir_nav` con SLAM corriendo Y sin mapa contestaba solo «no hay mapa».
+   Quien lo leyera iría a hacer un mapa, volvería, y se estrellaría contra la
+   exclusión: **dos viajes para un problema que se podía contar de una vez.**
+   → Ahora devuelve todos los motivos separados por «·».
+
+c) 🔴 EL BARRIDO SE QUEDABA ENCENDIDO, Y ES LA TERCERA VEZ DEL MISMO PATRÓN
+
+   Tras parar SLAM, `/scan` seguía publicando y **el journal no tenía ni una
+   línea** del `ExecStopPost`. Causa:
+
+       systemctl is-active atriz-slam   →  imprime "inactive"  y devuelve 3
+
+   Con `set -euo pipefail`, esa asignación mata el guion **antes de decidir
+   nada**. Y con el `-` del `ExecStopPost`, systemd se lo traga en silencio.
+
+   🔴 **Es la tercera vez que este proyecto tropieza con la misma familia:**
+
+       `(( t++ ))` con t=0 devuelve 1        → desactivó la espera de puertos
+                                                escrita para evitar el fallo
+                                                que luego ocurrió
+       `[[ … ]] && kill`                     → abortaba un banco de medición
+       `EST=$(systemctl is-active …)`        → dejaba el barrido encendido
+
+   **Un comando cuyo código no-cero es una RESPUESTA, no un error.** Con
+   `set -e` los tres mueren sin decir nada.
+
+   → Arreglado con `|| true` y un `if` explícito. Verificado en las dos ramas:
+     apaga cuando no queda nadie (`rc=0`, y el barrido queda apagado de verdad),
+     y la rama «se deja encendido» dispara con una unidad activa.
+
+
+4 · LO QUE SIGUE SIN VERIFICAR
+────────────────────────────────────────────────────────────────────────────
+⏳ **El botón de Nav2 de extremo a extremo.** No hay mapa en la ruta que ambos
+   miran (`maps/aula.yaml`); el del cuarto está en `~/mapas/cuarto.yaml`. Los
+   rechazos sí están verificados; el arranque no.
+⏳ **`off-si-sobra` con DOS unidades activas a la vez.** La rama está verificada
+   por lógica (con `atriz-robot` como unidad activa), no de extremo a extremo:
+   para eso hacen falta SLAM y Nav2 arriba, y Nav2 necesita mapa.
+⏳ **`PartOf=` con carga real**: medido con unidades de juguete (evidencia 78),
+   no con un `slam_toolbox` de verdad.
