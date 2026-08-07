@@ -30,6 +30,10 @@ scripts/atriz-robot.sh	/usr/local/bin/atriz-robot.sh	755	fase_7_systemd.sh	-
 scripts/atriz-escaneo.sh	/usr/local/bin/atriz-escaneo	755	fase_7_systemd.sh	-
 scripts/atriz-robot.service	/etc/systemd/system/atriz-robot.service	644	fase_7_systemd.sh	-
 scripts/atriz-nav.sh	/usr/local/bin/atriz-nav.sh	755	fase_7_systemd.sh	-
+scripts/atriz-slam.sh	/usr/local/bin/atriz-slam.sh	755	fase_7_systemd.sh	-
+scripts/atriz-slam.service	/etc/systemd/system/atriz-slam.service	644	fase_7_systemd.sh	-
+scripts/atriz-exclusion.sh	/usr/local/bin/atriz-exclusion	755	fase_7_systemd.sh	-
+scripts/sistema/49-atriz-unidades.rules	/etc/polkit-1/rules.d/49-atriz-unidades.rules	644	fase_7_systemd.sh	-
 scripts/atriz-nav.service	/etc/systemd/system/atriz-nav.service	644	fase_7_systemd.sh	-
 scripts/sistema/atriz-ros.sh	/etc/profile.d/atriz-ros.sh	644	fase_7_systemd.sh	-
 scripts/sistema/99-rvr.rules	/etc/udev/rules.d/99-rvr.rules	644	fase_0_1_fix_uart.sh	-

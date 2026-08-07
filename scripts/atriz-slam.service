@@ -1,0 +1,109 @@
+# atriz-slam.service — SLAM (slam_toolbox) sobre el robot ya en marcha.
+#
+# SE INSTALA PERO **NO SE HABILITA**, igual que atriz-nav.service. Un reinicio de
+# la Pi no la devuelve. Es la decisión del usuario del 2026-08-03, ampliada el
+# 2026-08-06: *«se arrancan bajo demanda, y la web es quien las pide»* — se añade
+# el mando, no el arranque automático.
+#
+# Quien la enciende es `supervisor_navegacion` (servicio ROS `/pedir_slam`), o un
+# operador con `systemctl start atriz-slam`.
+#
+# Lo instala fase_7_systemd.sh. No copiarlo a mano.
+#
+# ⚠️ NO VERIFICADO: esta unidad se escribió el 2026-08-07 y **nunca se ha
+#    ejecutado**. `atriz-nav.service`, su hermana, estuvo cuatro días igual — y
+#    cuando por fin se arrancó (evidencia 79) funcionó, pero destapó que un solo
+#    `start` sin mapa la dejaba latcheada. Trátala igual: hasta que corra, es
+#    diseño.
+
+[Unit]
+Description=Atriz — SLAM (slam_toolbox, para hacer mapas)
+Documentation=file:///home/sphero/atriz_migracion/03_operacion/ARRANQUE_NAVEGACION.md
+
+# ── PartOf, NO BindsTo. Y esto está MEDIDO ───────────────────────────────────
+# El driver se reinicia solo de forma rutinaria. La pregunta es qué le pasa
+# entonces a esta unidad, y hay tres respuestas posibles que `systemctl is-active`
+# NO distingue:
+#
+#     medido el 2026-08-07, matando el proceso base, con el PID como testigo
+#     (evidencia 78, 9 de 9):
+#
+#       BindsTo=            -> inactive.  NO VUELVE.        🔴
+#       PartOf= (+Requires) -> active CON PID NUEVO.        ✅ vuelve LIMPIA
+#       las dos juntas      -> inactive: BindsTo gana.      🔴
+#
+# 🔴 PID nuevo = proceso nuevo = **búfer TF nuevo**, y eso es justo lo que hace
+#    falta: `slam_toolbox` SOBREVIVIENDO a un reinicio del driver es el fallo, no
+#    el remedio. Se queda vivo y MUDO —con un hueco en su búfer TF deja de
+#    procesar— y el mapa sale idéntico celda a celda tras mover el robot 80 cm.
+#    Invalidó una prueba entera de la Fase 4.
+#
+# ⚠️ La tabla anterior del proyecto decía que `PartOf=` «deja la unidad viva y
+#    muda». Era falso: registraba solo `is-active`, y `active` significa dos
+#    cosas opuestas sin el timestamp. Ver evidencia 78.
+PartOf=atriz-robot.service
+# `Requires=` no cambia la recuperación —medido: `partof-solo` da lo mismo— pero
+# impide arrancar SLAM sobre un driver muerto, que daría un slam_toolbox `active`
+# sin `/scan` y sin TF.
+Requires=atriz-robot.service
+After=atriz-robot.service
+
+# 🔴 En [Unit], NO en [Service]. Medido en systemd 255 el 2026-08-03:
+#    `StartLimitIntervalSec` en [Service] se avisa; `StartLimitBurst` NO se avisa
+#    y simplemente no hace nada. `systemd-analyze verify` coge uno y no el otro.
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=sphero
+Group=sphero
+WorkingDirectory=/home/sphero
+
+# ── 1 · EXCLUSIÓN MUTUA, y va PRIMERO ────────────────────────────────────────
+# Antes de encender nada. Si AMCL está vivo esto falla en ~0,1 s y NO se ha
+# gastado un segundo de LIDAR a 11,8 Hz.
+# Sin `-`: si no se puede garantizar la exclusión, esta unidad NO arranca.
+# 📌 Esto SUSTITUYE a `Conflicts=`, que pararía al otro sin decir una palabra.
+ExecStartPre=/usr/local/bin/atriz-exclusion slam
+
+# ── 2 · El barrido, ANTES de arrancar ────────────────────────────────────────
+# Sin `-`, igual que atriz-nav.service y por el mismo motivo trasladado a SLAM:
+# un slam_toolbox sin /scan queda `active`, suscrito, sin recibir un solo barrido
+# y SIN UN SOLO ERROR. `atriz-escaneo on` comprueba el EFECTO —3 mensajes de
+# /scan en 5 s— y devuelve error si no llegan.
+ExecStartPre=/usr/local/bin/atriz-escaneo on
+
+ExecStart=/usr/local/bin/atriz-slam.sh
+
+# ── 3 · Al parar: DEJAR LAS COSAS COMO SE ENCONTRARON ────────────────────────
+# 🔴 NO es `atriz-escaneo off`. Con DOS unidades que necesitan /scan, un `off`
+#    incondicional al parar SLAM dejaría CIEGA a la navegación en silencio.
+#    `off-si-sobra` solo apaga si ninguna otra sigue activa.
+ExecStopPost=-/usr/local/bin/atriz-escaneo off-si-sobra
+
+# El arranque incluye esperar a que /scan publique (hasta ~7 s) más el launch y
+# las dos transiciones de ciclo de vida.
+# ⚠️ 90 s es un TOPE RAZONADO, no una medida: de Nav2 sí se sabe (24,3 s medidos,
+#    evidencia 79); de SLAM no lo ha medido nadie. SLAM cuesta 4,8 % de núcleo
+#    contra el 58 % de Nav2, así que se espera bastante menos — pero eso es una
+#    expectativa, no un dato.
+TimeoutStartSec=90
+
+# SIGINT para que el LifecycleNode ejecute deactivate/cleanup y no deje el
+# `.posegraph` a medias.
+KillSignal=SIGINT
+KillMode=mixed
+TimeoutStopSec=30
+
+# `on-failure`, NO `always`: una salida limpia significa «alguien lo paró».
+# Quien devuelve la unidad tras un reinicio del driver es el `PartOf=`.
+Restart=on-failure
+RestartSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=atriz-slam
+
+[Install]
+WantedBy=multi-user.target

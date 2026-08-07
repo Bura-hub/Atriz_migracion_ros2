@@ -1,0 +1,80 @@
+/* 49-atriz-unidades.rules — deja que `sphero` arranque y pare SLAM y Nav2.
+ *
+ * Lo instala fase_7_systemd.sh en /etc/polkit-1/rules.d/. No copiarlo a mano.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * POR QUÉ HACE FALTA
+ * ═══════════════════════════════════════════════════════════════════════════
+ * `supervisor_navegacion` corre como `sphero` (hereda de atriz-robot.service) y
+ * llama a `systemctl start|stop`. Gobernar una unidad de SISTEMA exige
+ * autorización aunque la unidad corra como usuario sin privilegios. Sin esta
+ * regla, la llamada devuelve «Interactive authentication required» — verificado
+ * el 2026-08-07.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * QUÉ CONCEDE EXACTAMENTE, Y QUÉ NO
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 🔴 NO es «root arranca un proceso», aunque un panel de agentes lo escribiera
+ *    así y bloqueara la decisión un día. Medido sobre la unidad YA RESUELTA por
+ *    systemd, no sobre el fichero:
+ *
+ *      systemctl show atriz-nav -p User -p AmbientCapabilities
+ *        -> User=sphero · Group=sphero · AmbientCapabilities=(vacío)
+ *      y ninguno de los Exec* lleva '+', '!' ni '!!'
+ *
+ *    Sin esos prefijos, `User=` se aplica a TODOS los Exec*. Lo que ocurre es
+ *    que systemd —que sí es root— arranca unidades cuyos procesos corren como
+ *    `sphero` sin capacidades. **No hay escalada de privilegio en ningún punto.**
+ *
+ * 📝 Y el complemento, también medido: `sphero` NO puede escribir lo que se
+ *    ejecuta (/etc/systemd/system/ y /usr/local/bin/ son root:root), y **ya
+ *    está en el grupo `sudo`**. Esta regla no le da nada nuevo: le quita la
+ *    contraseña.
+ *
+ * 🔴 `enable` y `disable` quedan FUERA A PROPÓSITO. La web puede encender y
+ *    apagar; **no puede hacer que sobreviva a un reinicio de la Pi**. La
+ *    decisión del 2026-08-03 —«ninguna arranca sola, y la batería del RVR es la
+ *    razón»— queda protegida por el sistema de permisos, no por un acuerdo
+ *    entre personas.
+ *
+ * 🔴 `reset-failed` también queda FUERA. Cuando una unidad agota su
+ *    StartLimitBurst —y un solo `start` sin mapa lo agota, medido— que tenga que
+ *    ir un humano. El supervisor lo dice en `/estado_navegacion`
+ *    (`*_latcheado`) para que la web lo explique en vez de reintentar en bucle.
+ *
+ * ⚠️ EXPOSICIÓN RESIDUAL, sin adornos: rosbridge NO AUTENTICA A NADIE
+ *    (`websocket_handler.py:234` devuelve `True` sin condiciones), así que
+ *    «acotado a sphero» significa en la práctica «cualquiera en la red del
+ *    aula». Eso ya es cierto hoy para `/cmd_vel_raw` —o sea, para CONDUCIR el
+ *    robot—, para `/emergency_stop` y para `/stop_scan`. El delta es pequeño.
+ *    Lo que lo cierra de verdad es la Fase B (rosbridge en 127.0.0.1 detrás de
+ *    un proxy que valide el JWT), no esta regla.
+ *
+ * 🔴 Y LA LÍNEA DE LA QUE CUELGA TODO: `User=sphero` en las dos unidades. Si
+ *    alguien la cambiara a `User=root`, esta regla se convertiría en ese
+ *    instante en ejecución como root. `verificar_robot.sh` lo comprueba.
+ */
+
+polkit.addRule(function (action, subject) {
+    if (action.id !== "org.freedesktop.systemd1.manage-units") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    /* `subject.user` y NO `subject.isInGroup`: un nodo ROS bajo una unidad de
+     * sistema NO tiene sesión de logind, así que depender de active/inactive
+     * rompería justo en el caso que hay que cubrir. */
+    if (subject.user !== "sphero") {
+        return polkit.Result.NOT_HANDLED;
+    }
+
+    var unidad = action.lookup("unit");
+    var verbo  = action.lookup("verb");
+    var UNIDADES = ["atriz-slam.service", "atriz-nav.service"];
+    var VERBOS   = ["start", "stop"];
+
+    if (UNIDADES.indexOf(unidad) >= 0 && VERBOS.indexOf(verbo) >= 0) {
+        return polkit.Result.YES;
+    }
+    /* NOT_HANDLED y nunca NO: dejar caer al siguiente manejador preserva que
+     * `sphero` siga pudiendo con `sudo` como cualquier administrador. */
+    return polkit.Result.NOT_HANDLED;
+});

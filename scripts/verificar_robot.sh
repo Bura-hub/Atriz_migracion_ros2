@@ -1380,6 +1380,43 @@ if [[ -f "$LAUNCH_ROBOT" ]]; then
     fi
 fi
 
+# --- Las unidades de navegacion: User=sphero y NO habilitadas ----------------
+# 🔴 `User=sphero` ES LA LINEA DE LA QUE CUELGA TODO EL MODELO DE SEGURIDAD.
+#    La regla de polkit deja que `sphero` arranque estas dos unidades. Eso es
+#    inocuo mientras los procesos corran como `sphero` -- medido: sin '+', '!'
+#    ni '!!' delante de los Exec*, `User=` se aplica a todos. Si alguien pusiera
+#    `User=root` un martes cualquiera, la regla se convertiria EN ESE INSTANTE
+#    en ejecucion como root, y hasta hoy NINGUN test lo veia.
+for U in atriz-nav atriz-slam; do
+    F="/etc/systemd/system/$U.service"
+    [[ -f "$F" ]] || { _nota "$U.service no instalado todavía (lo pone fase_7_systemd.sh)"; continue; }
+
+    if grep -qE '^User=sphero' "$F"; then
+        _ok "$U.service corre como sphero (la regla polkit es inocua)"
+    else
+        _mal "$U.service NO dice User=sphero" \
+             "con polkit puesto, esto seria ejecucion como ROOT desde la red"
+    fi
+    # Y que ningun Exec* se salte ese User= con el prefijo '+'.
+    if grep -qE '^Exec[A-Za-z]*=[+!]' "$F"; then
+        _mal "$U.service tiene un Exec* con prefijo '+' o '!'" \
+             "ese comando corre como root, saltandose User=sphero"
+    else
+        _ok "$U.service: ningun Exec* se salta el User="
+    fi
+
+    # 🔴 Y que NO este habilitada. La decision del 2026-08-03 es que ninguna
+    #    arranque sola: la Pi sale de la bateria del RVR y Nav2 son ~58 % de un
+    #    nucleo. Un `systemctl enable` hecho a mano en un robot SOBREVIVE A LA
+    #    IMAGEN DORADA y se replica por dieciseis.
+    if systemctl is-enabled "$U.service" >/dev/null 2>&1; then
+        _mal "$U.service esta HABILITADA y no debe estarlo" \
+             "sudo systemctl disable $U · 03_operacion/ARRANQUE_NAVEGACION.md"
+    else
+        _ok "$U.service instalada y NO habilitada (correcto)"
+    fi
+done
+
 # --- El mensaje EstadoRobot INSTALADO, no el fuente -------------------------
 # 🔴 LA TRAMPA QUE ESTO CAZA: tocar un `.msg` y compilar con `colcon build` a
 #    secas dice «packages finished» y DEJA EL MENSAJE VIEJO INSTALADO. El

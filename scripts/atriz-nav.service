@@ -25,7 +25,26 @@ Documentation=file:///home/sphero/atriz_migracion/03_operacion/ARRANQUE_NAVEGACI
 #    un Nav2 publicando sobre una odometría muerta es algo que parece vivo y no
 #    lo está — lo mismo que `on_exit=Shutdown()` vino a resolver en
 #    robot.launch.py.
-BindsTo=atriz-robot.service
+# ── PartOf, NO BindsTo. CAMBIADO el 2026-08-07, y está MEDIDO ────────────────
+# Aquí ponía `BindsTo=atriz-robot.service`, y el razonamiento era correcto pero
+# incompleto: `BindsTo=` propaga la PARADA, no el REINICIO. El driver se
+# reinicia solo de forma rutinaria, así que a mitad de clase un nodo muere, el
+# driver se repone, y **la navegación desaparece sin que nadie la haya parado**.
+#
+#   medido el 2026-08-07 matando el proceso base, con el PID como testigo
+#   (evidencia 78, 9 de 9):
+#
+#     BindsTo=            -> inactive.  NO VUELVE.        🔴
+#     PartOf= (+Requires) -> active CON PID NUEVO.        ✅ vuelve LIMPIA
+#     las dos juntas      -> inactive: BindsTo gana.      🔴
+#
+# 🔴 PID nuevo = proceso nuevo = búfer TF nuevo. Sobrevivir es el fallo, no el
+#    remedio: es la trampa del slam_toolbox vivo y mudo.
+# ⚠️ La tabla anterior decía que `PartOf=` «deja la unidad viva y muda». Era
+#    falso: registraba solo `is-active`, y `active` significa dos cosas opuestas
+#    sin el timestamp que las separa.
+PartOf=atriz-robot.service
+Requires=atriz-robot.service
 After=atriz-robot.service
 
 # 🔴 Van en [Unit], NO en [Service]. Y ojo, porque los dos NO se comportan
@@ -51,6 +70,11 @@ WorkingDirectory=/home/sphero
 #    unidad NO debe arrancar.
 # 📝 `atriz-escaneo on` ya comprueba el EFECTO —espera a que /scan publique de
 #    verdad— y devuelve error si no. No hace falta comprobarlo otra vez aquí.
+# 🔴 LA EXCLUSIÓN VA PRIMERO, antes de encender el LIDAR. Si hay un
+#    slam_toolbox vivo, esto falla en ~0,1 s y no se ha gastado un segundo de X2
+#    a 11,8 Hz. Antes lo comprobaba `localizacion.launch.py`, pero DESPUÉS del
+#    barrido y de ~10 s de arranque: fallaba igual, pero tarde y caro.
+ExecStartPre=/usr/local/bin/atriz-exclusion nav
 ExecStartPre=/usr/local/bin/atriz-escaneo on
 
 ExecStart=/usr/local/bin/atriz-nav.sh
@@ -61,7 +85,13 @@ ExecStart=/usr/local/bin/atriz-nav.sh
 #    momento. Se acepta porque parar la navegación es un acto explícito de
 #    operador, no algo que ocurra solo. La dirección contraria —que el guion del
 #    alumno deje ciega a la navegación— sí se arregla, en `atriz.py`.
-ExecStopPost=-/usr/local/bin/atriz-escaneo off
+# 🔴 `off-si-sobra`, NO `off`. El comentario de abajo justificaba el `off`
+#    incondicional diciendo «parar la navegación es un acto explícito de
+#    operador, no algo que ocurra solo». **Esa premisa murió con el botón de la
+#    web** (decisión del usuario, 2026-08-06): ahora lo hace un alumno con un
+#    clic, sobre un robot que puede estar compartido, y apagar /scan deja al
+#    robot sin obedecer cmd_vel para todos los demás SIN NINGÚN ERROR.
+ExecStopPost=-/usr/local/bin/atriz-escaneo off-si-sobra
 
 # Nav2 tarda en levantar sus nodos de ciclo de vida, y el arranque incluye
 # esperar a que /scan publique.

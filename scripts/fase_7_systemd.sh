@@ -108,11 +108,15 @@ hecho() {
 # ─────────────────────────────────────────────────────────────────────────────
 if [[ $MODO == quitar ]]; then
     say "Desinstalando el arranque automático"
+    systemctl disable --now atriz-slam.service 2>/dev/null || true
     systemctl disable --now atriz-nav.service 2>/dev/null || true
     systemctl disable --now atriz-robot.service 2>/dev/null || true
-    rm -f /etc/systemd/system/atriz-robot.service /etc/systemd/system/atriz-nav.service
+    rm -f /etc/systemd/system/atriz-robot.service /etc/systemd/system/atriz-nav.service \
+          /etc/systemd/system/atriz-slam.service
     rm -f /usr/local/bin/atriz-robot.sh /usr/local/bin/atriz-escaneo
-    rm -f /usr/local/bin/atriz-nav.sh
+    rm -f /usr/local/bin/atriz-nav.sh /usr/local/bin/atriz-slam.sh \
+          /usr/local/bin/atriz-exclusion
+    rm -f /etc/polkit-1/rules.d/49-atriz-unidades.rules
     # El entorno de ROS de los shells. Se quita también, o quedaría un fichero
     # huérfano que `verificar_robot.sh` sección 13 no sabría de dónde viene.
     # ⚠️ NO se toca /etc/profile.d/atriz-robot.sh: ese lleva la IDENTIDAD del
@@ -143,6 +147,11 @@ comprobar "existe atriz-escaneo en el repo" "[[ -f $SCRIPTS_DIR/atriz-escaneo.sh
 # instalación y dejaría el robot a medias. Mejor negarse antes de tocar nada.
 comprobar "existe atriz-nav.sh en el repo"     "[[ -f $SCRIPTS_DIR/atriz-nav.sh ]]"
 comprobar "existe atriz-nav.service en el repo" "[[ -f $SCRIPTS_DIR/atriz-nav.service ]]"
+comprobar "existe atriz-slam.sh en el repo"    "[[ -f $SCRIPTS_DIR/atriz-slam.sh ]]"
+comprobar "existe atriz-slam.service en el repo" "[[ -f $SCRIPTS_DIR/atriz-slam.service ]]"
+comprobar "existe atriz-exclusion.sh en el repo" "[[ -f $SCRIPTS_DIR/atriz-exclusion.sh ]]"
+comprobar "existe la regla de polkit en el repo" \
+          "[[ -f $SCRIPTS_DIR/sistema/49-atriz-unidades.rules ]]"
 comprobar "existe sistema/atriz-ros.sh en el repo" "[[ -f $SCRIPTS_DIR/sistema/atriz-ros.sh ]]"
 
 # ── La identidad ROS, que es lo único que systemd no puede heredar ───────────
@@ -331,6 +340,25 @@ hecho "/usr/local/bin/atriz-nav.sh"
 hacer install -m 644 "$SCRIPTS_DIR/atriz-nav.service" /etc/systemd/system/atriz-nav.service
 hecho "/etc/systemd/system/atriz-nav.service"
 
+# ── SLAM y las piezas que comparten las dos unidades (2026-08-07) ────────────
+# 🔴 `atriz-exclusion` va ANTES que las unidades en el orden mental, aunque el
+#    orden de instalación no importe: sin él, los dos `ExecStartPre` fallarían y
+#    NINGUNA de las dos arrancaría. Es dependencia dura, no adorno.
+hacer install -m 755 "$SCRIPTS_DIR/atriz-exclusion.sh" /usr/local/bin/atriz-exclusion
+hecho "/usr/local/bin/atriz-exclusion"
+hacer install -m 755 "$SCRIPTS_DIR/atriz-slam.sh"      /usr/local/bin/atriz-slam.sh
+hecho "/usr/local/bin/atriz-slam.sh"
+hacer install -m 644 "$SCRIPTS_DIR/atriz-slam.service" /etc/systemd/system/atriz-slam.service
+hecho "/etc/systemd/system/atriz-slam.service"
+
+# La regla de polkit: sin ella, `supervisor_navegacion` recibe «Interactive
+# authentication required» al llamar a systemctl (verificado el 2026-08-07) y
+# los botones de la web no hacen nada.
+hacer install -d -m 755 /etc/polkit-1/rules.d
+hacer install -m 644 "$SCRIPTS_DIR/sistema/49-atriz-unidades.rules" \
+                     /etc/polkit-1/rules.d/49-atriz-unidades.rules
+hecho "/etc/polkit-1/rules.d/49-atriz-unidades.rules"
+
 # ─────────────────────────────────────────────────────────────────────────────
 say "4/5 · Habilitar"
 
@@ -346,6 +374,9 @@ hecho "atriz-robot.service habilitado (arrancará en el próximo reinicio)"
 #    El día que haga falta que arranque sola, es un `systemctl enable`.
 #    Razonado en 03_operacion/ARRANQUE_NAVEGACION.md.
 avis "atriz-nav.service instalado pero NO habilitado (a propósito)"
+avis "atriz-slam.service instalado pero NO habilitado (a propósito)"
+avis "  los dos se piden desde la web:  /pedir_slam  ·  /pedir_nav"
+avis "  o a mano:  systemctl start atriz-slam | atriz-nav"
 avis "  arráncalo cuando lo necesites:  sudo systemctl start atriz-nav"
 
 # ─────────────────────────────────────────────────────────────────────────────

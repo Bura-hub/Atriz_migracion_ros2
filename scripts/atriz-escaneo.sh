@@ -5,6 +5,10 @@
 #   atriz-escaneo on       # el robot puede navegar y conducir
 #   atriz-escaneo off      # reposo: el X2 baja de 11.8 a 2.7 Hz
 #   atriz-escaneo estado   # ¿está publicando /scan?
+#   atriz-escaneo off-si-sobra   # apaga SOLO si ninguna unidad de navegación
+#                                # lo necesita. Lo usan atriz-slam y atriz-nav
+#                                # al parar: con DOS consumidores, un `off`
+#                                # incondicional deja ciego al otro EN SILENCIO.
 #
 # Se instala en /usr/local/bin/atriz-escaneo con fase_7_systemd.sh.
 #
@@ -123,6 +127,40 @@ case "${1:-}" in
         echo "✅ escaneo APAGADO — el X2 baja a ~2.7 Hz"
         echo "   ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'"
         ;;
+    off-si-sobra)
+        # ── APAGA SOLO SI NADIE MÁS LO NECESITA ──────────────────────────────
+        # 🔴 POR QUÉ EXISTE. `atriz-nav.service` hacía `ExecStopPost=atriz-escaneo
+        #    off` sin condición, y su comentario lo justificaba así: «se acepta
+        #    porque parar la navegación es un acto explícito de operador, no algo
+        #    que ocurra solo».
+        #
+        #    **Esa premisa murió el día que existe el botón en la web** (decisión
+        #    del usuario, 2026-08-06). Parar la navegación pasa a ser un clic de
+        #    un alumno cualquiera sobre un robot que puede estar compartido — y
+        #    apagar /scan deja al robot SIN OBEDECER cmd_vel para todos los
+        #    demás, sin ningún error: el collision_monitor bloquea el movimiento
+        #    (medido: 0,0 cm contra 9,9). Desde el navegador es indistinguible de
+        #    un robot averiado.
+        #
+        # ⚠️ EL SESGO DEL FALLO ES DELIBERADO: si la comprobación se equivoca,
+        #    deja el barrido ENCENDIDO (desgaste del X2) en vez de apagado (robot
+        #    ciego que parece averiado). El desgaste se ve en la factura; un robot
+        #    que no obedece se lleva una clase por delante.
+        #
+        # 📝 Es el mismo principio que `atriz.py:177-189` ya implementa para el
+        #    alumno: apagar solo lo que uno encendió.
+        OTRAS=""
+        for U in atriz-slam.service atriz-nav.service; do
+            EST="$(systemctl is-active "$U" 2>/dev/null)"
+            [[ "$EST" == "active" || "$EST" == "activating" ]] && OTRAS="$OTRAS $U"
+        done
+        if [[ -n "$OTRAS" ]]; then
+            echo "escaneo: se DEJA ENCENDIDO —lo necesita:$OTRAS"
+            exit 0
+        fi
+        llamar stop_scan
+        echo "✅ escaneo APAGADO — ninguna unidad de navegación lo necesitaba"
+        ;;
     estado)
         if hay_scan; then
             echo "escaneo: ENCENDIDO  (/scan publica)"
@@ -131,7 +169,7 @@ case "${1:-}" in
         fi
         ;;
     *)
-        sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac
