@@ -69,13 +69,26 @@ Argumentos útiles:
 ros2 launch atriz_rvr_bringup robot.launch.py lidar:=false          # solo el RVR
 ros2 launch atriz_rvr_bringup robot.launch.py keepalive_period:=0.0 # reproduce el sueño a propósito
 ros2 launch atriz_rvr_bringup slam.launch.py autostart:=false       # deja slam_toolbox sin activar
-ros2 launch atriz_rvr_bringup robot.launch.py color_detection:=true # enciende el LED del sensor de color
+ros2 launch atriz_rvr_bringup robot.launch.py color_detection:=true # arranca con el LED del color YA encendido
 ros2 launch atriz_rvr_bringup robot.launch.py publicar_inclinacion:=true  # /odom con el pitch de 6.9°
 ```
 
 📝 `color_detection` y `publicar_inclinacion` van a **false** por defecto, y por buenas razones:
 el primero deja un LED blanco encendido bajo el chasis, y el segundo publica una inclinación que
 es un artefacto del acelerómetro descalibrado, no del robot (manual, cap. 13 y 16).
+
+✅ **Para el color NO hace falta reiniciar nada desde el 2026-08-06.** Se enciende y se apaga en
+caliente, y esa es la vía normal — el parámetro solo decide el estado inicial:
+
+```bash
+ros2 service call /enable_color std_srvs/srv/SetBool "{data: true}"    # LED ON
+ros2 service call /enable_color std_srvs/srv/SetBool "{data: false}"   # LED OFF
+```
+
+⚠️ **Se apaga sola** a los 120 s sin que nadie la use, y a los 900 s pase lo que pase. Los dos son
+argumentos del launch (`color_apagado_inactividad_s`, `color_apagado_max_s`); `0` los desactiva.
+Para saber si está encendida, `color_activo` de `/estado_robot` — **no** mirar si `/color` trae
+ceros, que también los trae sobre una superficie negra de verdad.
 
 ### Antes de arrancar, dos comprobaciones de 5 segundos
 

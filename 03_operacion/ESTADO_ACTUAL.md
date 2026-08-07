@@ -90,10 +90,12 @@ de caro, reiniciar **baja la parada de emergencia** (`rvr_driver_node.py:266`).
 | ✅ **El sensor de color se enciende y se apaga EN CALIENTE**, y hay servicio para ello | Evidencia 76. `/enable_color` (`std_srvs/SetBool`): `/color` no-cero **0 → 53 → 0**, canal claro **1 → 1320 → 0**, reversible, con el LED **visto** encenderse. Refuta lo que cinco documentos daban por medido |
 | ✅ **El direccionamiento: una dirección por red, y el navegador entra por nombre** | Evidencias 74 y 75. `ws://rvr-01.local:9090` **abre** (4339 ms en frío, 2331 caliente), con control por IP y **control negativo** (`10.14.7.7` colgándose, que es la firma del fallo original) |
 
-⚠️ **Y lo que de `/estado_robot` sigue SIN verificar, que no es lo mismo:** de sus cinco campos,
-`parada_emergencia` y `latido` están comprobados. **`rvr_responde`, `reanudaciones_fallidas` y
-`antiguedad_odom_s` no se han visto nunca en su estado de fallo** — y son justo los campos que
-solo aparecen cuando algo se rompe. Está probado que el mensaje **no estorba**, no que **sirva**.
+⚠️ **Y lo que de `/estado_robot` sigue SIN verificar, que no es lo mismo:** de sus **seis** campos
+(siete con `color_activo`, añadido el 2026-08-06), están comprobados `parada_emergencia`, `latido`
+y **`color_activo`** —este último en los dos sentidos y contra el valor del sensor, no contra sí
+mismo—. **`rvr_responde`, `reanudaciones_fallidas` y `antiguedad_odom_s` no se han visto nunca en
+su estado de fallo**, y son justo los campos que solo aparecen cuando algo se rompe. De esos tres
+está probado que **no estorban**, no que **sirvan**.
 
 ## Los repositorios, de un vistazo
 

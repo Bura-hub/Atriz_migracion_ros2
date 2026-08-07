@@ -1386,6 +1386,21 @@ else
 fi
 
 if [[ -f "$LAUNCH_ROBOT" ]]; then
+    # 🔴 QUE EL LAUNCH LOS DECLARE, no solo que el nodo los tenga. El 2026-08-06
+    #    estaban declarados en el NODO y no aqui: `ros2 launch ...
+    #    color_apagado_max_s:=20.0` se aceptaba EN SILENCIO y arrancaba con el
+    #    valor por defecto. Un argumento aceptado no es un argumento aplicado, y
+    #    sin esto ajustarlos en el aula obliga a editar ficheros.
+    FALTAN_ARG=""
+    for a in color_apagado_inactividad_s color_apagado_max_s; do
+        grep -q "'$a'" "$LAUNCH_ROBOT" || FALTAN_ARG="$FALTAN_ARG $a"
+    done
+    if [[ -z "$FALTAN_ARG" ]]; then
+        _ok "robot.launch.py declara los umbrales del apagado del color"
+    else
+        _mal "robot.launch.py NO declara:$FALTAN_ARG" \
+             "se aceptarian en la linea de comandos SIN aplicarse; evidencia 77"
+    fi
     grep -q "params_glob" "$LAUNCH_ROBOT" \
         && _ok "rosbridge: params_glob puesto (la web no toca parametros)" \
         || _avi "rosbridge sin params_glob" "ver SEGURIDAD_ROSBRIDGE.md"
