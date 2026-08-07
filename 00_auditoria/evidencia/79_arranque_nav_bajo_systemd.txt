@@ -1,0 +1,144 @@
+════════════════════════════════════════════════════════════════════════════
+ 79 · LA NAVEGACIÓN BAJO SYSTEMD, POR PRIMERA VEZ
+      B2 y B3 cerrados. Y B3 sale PEOR de lo que se temía.
+════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-07
+Robot:   rvr-01 · mapa del cuarto (`/home/sphero/mapas/cuarto.yaml`, del 2026-08-06)
+Banco:   scripts/medir_arranque_nav.sh
+
+`atriz-nav.service` se escribió el 2026-08-03 y **nunca se había ejecutado bajo
+systemd**. Se estaba diseñando encima de él —y extendiéndolo a SLAM— un
+mecanismo que no se había visto correr una sola vez con carga real.
+
+
+1 · B2 · ARRANCA, Y CUÁNTO TARDA
+────────────────────────────────────────────────────────────────────────────
+✅ **Arranca.** `active / success`, con el mapa del cuarto.
+
+    10,5 s   aparece behavior_server
+    10,7 s   aparece controller_server
+    12,3 s   aparece map_server
+    12,5 s   aparece amcl
+    12,7 s   aparece planner_server
+    12,9 s   aparece bt_navigator
+    17,9 s   /navigate_to_pose ACEPTA OBJETIVOS     ← el testigo por EFECTO
+
+⚠️ **CÓMO SE LEE ESE 17,9, Y NO ES «17,9».** El cronómetro arranca su reloj
+   cuando Python ya está en pie, no cuando se lanzó `systemctl start`: entre
+   medias hay un `su - sphero` con dos `source` de `setup.bash`, que en una Pi
+   son segundos. **17,9 s es una COTA INFERIOR.**
+
+   La cota superior la da el propio `systemctl start`, que devolvió a los
+   **26,1 s**. O sea:
+
+       arranque real de Nav2 hasta aceptar objetivos:  entre 18 y 26 s
+
+   Se anota así a propósito. Un «17,9 s» limpio sería más cómodo y menos cierto.
+
+📌 **CONSECUENCIA 1 — `TimeoutStartSec=120` está bien puesto.** Cabe con
+   holgura: 26 s contra 120. No era humo.
+
+🔴 **CONSECUENCIA 2, Y ES LA QUE DECIDE EL DISEÑO: `--no-block` es OBLIGATORIO.**
+   `systemctl start` **bloqueó 26,1 s**. Los tres plazos de la cadena web son de
+   **5,0 s** —`_pedir()` del driver, `default_call_service_timeout` de rosbridge
+   y el `ms = 5000` del cliente—. Un servicio ROS que espere a que `systemctl`
+   vuelva da **timeout en la web sobre una operación que SÍ funcionó**.
+   → El servicio **lanza y vuelve**; el estado se consulta aparte. Esto ya no es
+     una precaución razonada: está medido, y el margen es de 5× por encima.
+
+📌 **CONSECUENCIA 3 — el plazo del estado «arrancando» de la web.** ~26 s es lo
+   esperado; 120 s el tope duro. Y **segundos transcurridos, no porcentaje**:
+   entre 18 y 26 no da para una barra de progreso honesta.
+
+
+2 · B3 · SIN MAPA — CONFIRMADO, Y ES PEOR
+────────────────────────────────────────────────────────────────────────────
+Se temía un «botón de tres pulsaciones». **Es de UNA.**
+
+    primer `systemctl start`  (uno solo)      -> código 0
+    a los 45 s                                -> activating / exit-code, NRestarts=1
+    segundo `systemctl start`                 -> código 1, unidad FAILED
+
+Y el journal lo explica sin ambigüedad:
+
+    11:16:48  Failed with result 'exit-code'
+    11:16:58  Scheduled restart job, restart counter is at 1
+    11:17:11  [atriz-nav] 🔴 no hay mapa legible en /ruta/que/no/existe/mapa.yaml
+    11:17:17  Failed with result 'exit-code'
+    11:17:27  Scheduled restart job, restart counter is at 2
+    11:17:27  🔴 Start request repeated too quickly.
+    11:17:27  Failed to start atriz-nav.service
+
+🔴 **UN SOLO CLIC AGOTA EL PRESUPUESTO.** `StartLimitBurst=3` cuenta *arranques*,
+   no *clics*: el arranque inicial más dos reintentos automáticos **son ya los
+   tres**, en ~40 s. El segundo clic no causó el bloqueo; **llegó cuando ya
+   estaba bloqueado**.
+
+🔴 **Y la unidad queda `failed`, que solo se recupera con `reset-failed`** — o
+   sea con privilegio, que nadie tiene desde el navegador. Desde la web,
+   *«no arrancó»* y *«bloqueado hasta que alguien entre por SSH»* son
+   **indistinguibles**: los dos son un botón que no hace nada.
+
+📌 **CONSECUENCIAS, y son de diseño, no de detalle:**
+
+  a) **El servicio ROS tiene que NEGARSE antes de llamar a `systemctl`** si no
+     hay mapa legible. Es un `os.path.isfile` de coste cero que evita el único
+     estado del que la web no puede salir sola.
+  b) **`Restart=no` merece considerarse** para una unidad que se pide a mano: un
+     fallo debe verse **una vez**, no tres, y no debe consumir un presupuesto
+     que deja el botón muerto.
+  c) **La web tiene que distinguir `failed` de `failed y latcheado`**, y decir
+     el remedio: *«hace falta `reset-failed` desde el robot»*. Un estado que no
+     se puede explicar es un estado que genera una llamada de teléfono.
+
+
+3 · EL CONFLICTO DEL BARRIDO — CONFIRMADO
+────────────────────────────────────────────────────────────────────────────
+    barrido tras arrancar la navegación:  ENCENDIDO  (/scan publica)
+    barrido tras PARARLA:                 apagado
+
+`atriz-nav.service:64` hace `ExecStopPost=-atriz-escaneo off` **sin condición**.
+Su comentario lo justificaba así:
+
+    «Se acepta porque parar la navegación es un acto explícito de operador,
+     no algo que ocurra solo.»
+
+🔴 **Esa premisa muere el día que existe el botón en la web.** Parar la
+navegación pasa a ser un clic de un alumno cualquiera sobre un robot que puede
+estar compartido — y apagar `/scan` deja al robot **sin obedecer `cmd_vel` para
+todos los demás**, sin ningún error: el `collision_monitor` bloquea el
+movimiento (medido: 0,0 cm contra 9,9). Desde el navegador es indistinguible de
+un robot averiado.
+
+→ Hace falta `atriz-escaneo off-si-sobra`: apagar solo si **ninguna** otra
+  unidad sigue activa. Con el sesgo del fallo hacia dejarlo **encendido**
+  (desgaste) en vez de apagado (robot ciego que parece averiado). Es el mismo
+  principio ya implementado en `atriz.py:177-189`.
+
+
+4 · LO QUE SIGUE SIN VERIFICAR
+────────────────────────────────────────────────────────────────────────────
+⏳ **Que Nav2 NAVEGUE.** Esto midió que arranca y que acepta objetivos. **No se
+   envió ni un objetivo**: el robot no se movió en ningún momento. Que la
+   navegación funcione de verdad sobre el mapa del cuarto es otra sesión.
+⏳ **`PartOf=` con carga real.** Está medido con unidades de juguete (9 de 9,
+   evidencia 78). Que devuelva un Nav2 de verdad —que tarda 26 s en levantar—
+   es extrapolación razonable, no medida. `atriz-nav.service` **sigue con
+   `BindsTo=`**: cambiarla y estrenarla a la vez sería estrenar dos cosas a
+   ciegas.
+⏳ **El arranque en frío**, con el reloj sin sincronizar (A11, §0.3 del plan).
+   Aquí el sistema llevaba horas arriba y con la hora buena.
+
+
+5 · LO QUE CAMBIA EN EL PLAN
+────────────────────────────────────────────────────────────────────────────
+De los cinco bloqueantes, **quedan CERO**:
+
+    B1 · el reloj             ⚠️ medido, rebajado a condición de diseño
+    B2 · nunca corrió         ✅ corre, 18-26 s
+    B3 · botón de N clics     ✅ confirmado, y es de UNO
+    B4 · exclusión a medias   ✅ cerrado (guardia en slam.launch.py)
+    B5 · Upholds sin medir    ✅ innecesario (PartOf basta, evidencia 78)
+
+Lo siguiente ya no es medir: es escribir el supervisor, con las tres
+consecuencias de §2 metidas desde el primer día.
