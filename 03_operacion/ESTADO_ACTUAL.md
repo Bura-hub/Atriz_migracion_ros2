@@ -241,6 +241,23 @@ estados y los mensajes son los definitivos.
 📌 **Rompe el contrato, y es correcto** — precedente ya aceptado con `/estado_robot` y
 `enable_color`. `SERVICIOS` pasa de 10 a **12**; `TOPICS_LECTURA` de 14 a **15**.
 
+### 🔧 Lo que falta para que tus botones funcionen de verdad — **un `sudo` del usuario**
+
+Todo está escrito y subido (`6de38fa`), **nada instalado**. Mientras no se ejecute `fase_7`, tus
+llamadas a `/pedir_*` devolverán `success=false` con un mensaje honesto:
+
+```
+/pedir_slam → «atriz-slam.service no está instalada en este robot»
+/pedir_nav  → «no hay mapa legible …»   (o «Interactive authentication required»)
+```
+
+**Eso NO es un fallo de tu cliente.** Puedes construir la pantalla contra ello: los estados y los
+mensajes son los definitivos.
+
+Lo que instala el `sudo`: `atriz-slam.service` + su envoltorio, `atriz-exclusion`, la regla de
+polkit, y `atriz-nav.service` actualizada de `BindsTo=` a **`PartOf=`** — para que la navegación
+**vuelva** cuando el driver se reinicia, en vez de quedarse muerta (medido 9 de 9, evidencia 78).
+
 ## ✅ Cerrado y comprobado — no lo vuelvas a poner como pendiente
 
 > 🔴 **Esta sección existe porque el 2026-08-05 se listaron como pendientes CUATRO cosas que ya
