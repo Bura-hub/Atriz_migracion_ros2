@@ -4,6 +4,58 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-07 (noche, 2) — **Revisión de la app entera: tres defectos que solo se ven mirando**
+
+Se abrieron **las once rutas en un navegador de verdad**, con datos, y se midió lo que ninguna
+prueba miraba. El disparador fue que la pantalla nueva de navegación traía tres defectos de esa
+clase, y la pregunta obvia era si el resto de la aplicación tenía más. Tenía.
+
+### Los tres reales, todos anteriores
+
+| | dónde | por qué nadie lo vio |
+|---|---|---|
+| **once** cadenas con markdown sin renderizar | casi todas en «por qué no obedece» —la pantalla que lee un alumno cuyo robot no obedece— y una en diagnóstico | ese texto se pinta plano: un backtick sale como backtick. `tsc`, `eslint` y 538 pruebas verdes |
+| `/api/sesion/quien` devolvía **401 en el estado normal** | las once rutas, en cada carga | el consumidor llevaba escrito «401 es la respuesta normal de quien no ha entrado: no es un error». El código lo sabía; el navegador no lee comentarios |
+| «no llego» sin tilde | las **16 baldosas** del muro del profesor | dice «yo no llego» |
+
+🔴 **El 401 es la forma exacta de un fallo que este proyecto ya pagó en el robot**: el nodo del
+LIDAR escupía 25 errores por segundo en su estado *normal* y ahogaba cualquier error de verdad
+—47 291 líneas de journal, el 99 % ruido—. Un error permanente en el sitio donde se buscan los
+errores no es ruido inocente: **entrena a no mirar**. Ahora contesta `200` con `usuario: null`.
+Las otras rutas conservan su 401 y no es incoherencia: `/usuarios` es una **puerta**, y esto es
+una **pregunta** — «nadie» es una respuesta correcta.
+
+📝 **Los once se encontraron en TRES tandas, y eso es lo interesante:** seis con el robot mudo,
+tres más al darle datos al doble —la rama «el robot responde» no se alcanzaba antes—, y los dos
+últimos con un barrido del fuente, porque viven en ramas que el doble no produce. **La cobertura
+de una guardia que mira la pantalla depende del estado en que esté la pantalla.**
+
+### Dos guardias nuevas
+
+- **Markdown sin renderizar**, en la prueba que **abre el navegador** — no en un `grep` del
+  fuente, donde un backtick es sintaxis legítima de plantilla y no se distingue.
+- **`tokensQueNoPintan`**, en `estilo.ts` con 8 pruebas: un token que no existe o un triplete RGB
+  sin `rgb()` son **CSS válido que no pinta nada**. Nació con **ocho falsos positivos** y por eso
+  su código parece retorcido: hay que resolver la indirección y distinguir *asignar* de *pintar*.
+
+### 🔴 Y seis falsas alarmas mías, todas comprobadas antes de reportarlas
+
+Merecen listarse porque el coste de reportarlas habría sido mandar a arreglar lo que funciona:
+
+- el **desajuste de hidratación** de `/diagnostico` era **mi propio servidor rancio**
+- los **16 WebSocket fallidos** son correctos: el muro **debe** intentar los 16
+- el «quitar» **cortado** del cuaderno es un `sr-only`, accesibilidad correcta
+- los **anillos elípticos** del LIDAR eran mi ojo: el canvas mide 698×698 exactos y usa `arc()`
+- «**PEDIDO 0,100 sin pulsar nada**» es deliberado y está razonado en el fuente
+- tres palabras **sin tilde** eran nombres de fichero y de topic
+
+⚠️ **Y el doble de rosbridge mintió**, que es lo de siempre: tenía mal los nombres de campo de
+`/encoders` y `/motor_status` —el `.msg` dice `left_wheel_count` y `temperatura_izquierdo`—, así
+que telemetría pintaba `—` **con datos llegando** y **parecía un fallo de la web**. Corregido
+contra el `.msg`. Van **siete** veces que el instrumento miente en este proyecto.
+
+---
+
 ## 2026-08-07 (noche) — **La web se alinea con el supervisor, y la captura destapa seis defectos**
 
 Con el robot cargando, todo el trabajo es del lado web y **nada de esto está verificado contra
