@@ -1357,6 +1357,35 @@ if [[ -f "$LAUNCH_ROBOT" ]]; then
         _mal "rosbridge: falta en la lista blanca:$FALTAN_COLOR" \
              "la web no podra medir color; ver evidencia 76"
     fi
+fi
+
+# --- El mensaje EstadoRobot INSTALADO, no el fuente -------------------------
+# 🔴 LA TRAMPA QUE ESTO CAZA: tocar un `.msg` y compilar con `colcon build` a
+#    secas dice «packages finished» y DEJA EL MENSAJE VIEJO INSTALADO. El
+#    sintoma no aparece aqui sino en el suscriptor, como un AttributeError, y
+#    parece un fallo de la web. Hay que borrar `build/` e `install/` del paquete
+#    de mensajes. Por eso se interroga al mensaje INSTALADO y no al fichero.
+CAMPOS_ESTADO="$(timeout 30 python3 -c "
+from atriz_rvr_msgs.msg import EstadoRobot
+print(','.join(EstadoRobot.get_fields_and_field_types()))
+" 2>/dev/null)"
+if [[ -z "$CAMPOS_ESTADO" ]]; then
+    _avi "no se pudo interrogar a EstadoRobot" "¿esta compilado atriz_rvr_msgs?"
+else
+    FALTAN_CAMPOS=""
+    for c in latido parada_emergencia rvr_responde antiguedad_muestra_s \
+             antiguedad_odom_s reanudaciones_fallidas color_activo; do
+        [[ "$CAMPOS_ESTADO" == *"$c"* ]] || FALTAN_CAMPOS="$FALTAN_CAMPOS $c"
+    done
+    if [[ -z "$FALTAN_CAMPOS" ]]; then
+        _ok "EstadoRobot instalado: los 7 campos, con color_activo"
+    else
+        _mal "EstadoRobot INSTALADO sin:$FALTAN_CAMPOS" \
+             "rm -rf build/atriz_rvr_msgs install/atriz_rvr_msgs y recompila"
+    fi
+fi
+
+if [[ -f "$LAUNCH_ROBOT" ]]; then
     grep -q "params_glob" "$LAUNCH_ROBOT" \
         && _ok "rosbridge: params_glob puesto (la web no toca parametros)" \
         || _avi "rosbridge sin params_glob" "ver SEGURIDAD_ROSBRIDGE.md"

@@ -181,12 +181,11 @@ medias, `/color` a 12,7 Hz o consultas puntuales, lo que prefiera la interfaz.
 1. **Un botón de PARAR tan visible como el de arrancar.** El LED gasta batería mientras siga
    encendido, y son 16 robots. El driver lo apaga al cerrar (`_apagar_rvr`), pero eso solo cubre
    el caso de que el driver muera.
-2. **El estado NO se puede deducir del topic.** `/color` publica `[0,0,0]` cuando está apagado.
-   Si el alumno recarga la página con la sesión encendida, la web no sabe en qué estado está.
-   → 📌 **Decisión pendiente**, y es del PC: o la web mira si algún canal es ≠ 0 (medido: **0/53
-   apagado contra 53/53 encendido**, discrimina limpio salvo sobre superficie negra), o se añade
-   un campo `color_activo` a `/estado_robot` — más honesto, pero **rompe el contrato** hasta que
-   `contrato.ts` lo incorpore. Desde el robot no se ha tocado por eso.
+2. ✅ **RESUELTO: `color_activo` en `/estado_robot`** (2026-08-06 tarde). `EstadoRobot` pasa a 8
+   campos. **Y ya no es «más honesto» sino necesario**, porque la luz **se apaga sola**: un flag
+   local pintaría el botón encendido sobre un sensor a oscuras.
+   → 🔴 **El testigo del botón es `color_activo`, no `/color`.** Esperar a que `/color` deje de
+   ser `[0,0,0]` sirve para encender, pero falla para apagar y sobre negro.
 3. **No fiarse del `success`.** Este sensor ya devolvió `success=True` sobre oscuridad dos veces.
    El servicio lleva ahora un `sleep(0.1)` dentro para que eso no pueda volver a pasar, pero la
    web debe confirmar con el dato.

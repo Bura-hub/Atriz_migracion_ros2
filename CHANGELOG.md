@@ -92,12 +92,76 @@ verificar_robot    126 correctas · 0 fallos · 6 avisos conocidos
 llamaban a `/enable_color`. La migración se dejó el servicio, y en vez de notarlo
 se escribió que era imposible.
 
+### La luz se apaga sola, y `color_activo` deja de ser opcional
+
+El botón de la web puede encender un LED que gasta batería, y **el navegador no
+puede prometer que lo apagará**: pestaña cerrada de golpe, recarga (que pierde el
+flag, y es el caso más común en clase) o corte de WiFi —el transporte reconecta
+solo y vuelve sin memoria de haber encendido nada—. Las tres dejan el LED puesto.
+
+📌 **Cortesía en el navegador, garantía en el robot.**
+
+🔴 **Y el diseño obvio estaba mal, lo destapó el usuario ANTES de escribir código.**
+«Apagar si nadie está suscrito a `/color`» le habría cortado la práctica 5 a un
+alumno a los 120 s: `atriz.py:903` lee **por servicio**, no por el topic. Más una
+segunda pega suya: rosbridge abre **una sola** suscripción ROS para todos sus
+clientes, así que una pestaña olvidada mantendría el contador a 1 para siempre.
+
+Diseño final (`_vigilar_luz_color`, 1 Hz), la que ocurra antes:
+
+```
+color_apagado_inactividad_s  120.0   sin suscriptores Y sin llamadas al servicio
+color_apagado_max_s          900.0   desde el enable, pase lo que pase
+```
+
+Parámetros del launch, no constantes. `0` los desactiva. La luz de
+`color_detection:=true` **no** se apaga sola: la puso alguien a propósito.
+
+**Medido — y las tres mitades importan** (evidencia 77):
+
+```
+sin actividad          color_activo True -> False a los 126 s · claro 1321 -> 1
+                       log: «APAGADA sola: nadie la usa desde hace 121 s»
+con servicio (alumno)  sigue encendida a los 160 s, umbral 120
+con topic (la web)     sigue encendida a los 150 s, 14574 mensajes recibidos
+```
+
+Sin las dos últimas, la primera solo probaría que el apagado dispara — no que
+dispare **cuando debe**. Un apagado que se dispara siempre es peor que ninguno.
+
+🔴 El instrumento **no podía tocar `/color` ni el servicio** durante la espera:
+las dos cosas cuentan como actividad y habrían reiniciado el contador medido.
+
+**`EstadoRobot` pasa a 8 campos** con `bool color_activo`. Con apagado automático
+el estado no se puede recordar: hay que leerlo. Y no vale mirar si `/color` trae
+ceros — publica igual con la luz apagada, y una superficie negra de verdad también
+da valores muy bajos. El topic dice qué se ve; el campo, si hay luz para verlo.
+
+📝 Detalles que no son cosméticos: reloj **monótono** y no el de ROS (esto decide
+una acción física y un salto de NTP no debe decidirla); se apaga con `_enviar` y
+no con `_pedir`, porque bloquear en `g_salud` congelaría el latido y el detector
+de silencio; y la bandera se baja **antes** de encolar, o el temporizador
+dispararía en bucle cada segundo hasta que llegara el primer apagado.
+
+**Verificador:** interroga ahora al `EstadoRobot` **instalado**, no al fichero.
+Caza la trampa que avisó el usuario — tocar un `.msg` y compilar con `colcon
+build` a secas dice «packages finished» y deja el mensaje viejo instalado; el
+síntoma sale en el suscriptor como `AttributeError` y parece un fallo de la web.
+126 correctas · 0 fallos · 7 avisos conocidos.
+
+⏳ **NO VERIFICADO: el tope duro de 900 s.** No se ha esperado. Comparte función y
+camino de apagado con la rama de inactividad, que sí está medida, pero **su
+condición no se ha visto disparar nunca**. «Es el mismo código con otra
+constante» es exactamente el razonamiento que la evidencia 76 desmontó. El
+comando que lo cierra, 30 s, está en la evidencia 77 §5.
+
 ### Pendiente
 
-- 📌 **Decisión del PC:** `/color` publica `[0,0,0]` cuando el sensor está apagado —no calla, al
-  revés que ROS 1—, así que la web no puede deducir el estado del topic. O mira si algún canal es
-  ≠ 0 (0/53 contra 53/53, discrimina limpio salvo sobre negro), o se añade `color_activo` a
-  `/estado_robot` y se actualiza `contrato.ts`.
+- ✅ ~~Decisión del PC sobre cómo sabe la web el estado del color~~ — **resuelta la misma tarde**
+  con `color_activo` en `/estado_robot`, y no como preferencia: el apagado automático la volvió
+  obligatoria. Ver la sección de arriba.
+- ⏳ **Al PC le toca ahora** `contrato.ts` (dos servicios + el campo nuevo de `EstadoRobot`),
+  `useTopic.ts` y `PanelColor`, con `npm run contrato` en verde antes de dar nada por hecho.
 - ⏳ SLAM y Nav2 desde la web siguen sin empezar: ahí el obstáculo es real (no son servicios ROS).
 
 ---

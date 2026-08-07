@@ -1,0 +1,145 @@
+════════════════════════════════════════════════════════════════════════════
+ 77 · LA LUZ DEL SENSOR SE APAGA SOLA, Y NO LE CORTA LA PRÁCTICA AL ALUMNO
+════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-06
+Robot:   rvr-01
+Motivo:  el botón de color de la web puede encender un LED que gasta batería, y
+         **el navegador no puede prometer que lo apagará**.
+
+
+1 · EL PROBLEMA, Y POR QUÉ NO SE RESUELVE EN EL NAVEGADOR
+────────────────────────────────────────────────────────────────────────────
+`atriz.py` resolvió el suyo con `_luz_color_mia`: apaga al cerrar solo lo que
+encendió él. Funciona porque el proceso vive EN el robot y tiene `atexit` y
+manejador de señales — verificado: tras un Ctrl-C el sensor quedaba en clear=0.
+
+El navegador no tiene ese equivalente, y hay TRES formas de perderlo:
+
+  · pestaña cerrada de golpe / portátil cerrado → no corre ningún beforeunload
+  · recarga de la página                        → el flag es por pestaña
+  · corte de WiFi                               → el transporte reconecta solo,
+                                                  con espera creciente, y vuelve
+                                                  SIN memoria de haber encendido
+
+Las tres dejan el LED puesto. La limpieza del navegador funciona justo cuando no
+hacía falta y falla justo cuando importa.
+
+📌 DECISIÓN: cortesía en el navegador, GARANTÍA en el robot.
+
+
+2 · EL DISEÑO, Y LA CONDICIÓN QUE FALTABA
+────────────────────────────────────────────────────────────────────────────
+La primera propuesta fue «apagar si nadie está suscrito a /color». **Estaba
+mal, y lo destapó el usuario antes de escribir el código:**
+
+  🔴 `atriz.py:903` lee el color POR SERVICIO (`get_rgbc_sensor_values`), no por
+     el topic. Con `count_subscribers` a secas, un alumno haciendo la práctica 5
+     vería apagarse la luz a los 120 s: **el apagado de seguridad rompiendo el
+     caso legítimo.**
+
+Y una segunda, del mismo usuario:
+
+  ⚠️ rosbridge abre UNA SOLA suscripción ROS para todos sus clientes WebSocket.
+     El contador no distingue una pestaña de ocho, así que **una pestaña
+     olvidada mantendría la luz encendida indefinidamente** — justo el caso a
+     cubrir. Hace falta ADEMÁS un tope duro.
+
+Diseño final, en `_vigilar_luz_color()` a 1 Hz. Manda la que ocurra antes:
+
+  inactividad   nadie suscrito a /color **y** ninguna llamada al servicio
+                `color_apagado_inactividad_s`, por defecto 120 s
+  tope duro     `color_apagado_max_s` desde el enable, por defecto 900 s
+
+Los dos son PARÁMETROS del launch, no constantes: si en el aula resultan cortos,
+cambiarlos no debe exigir recompilar. 0 los desactiva.
+
+📝 La luz encendida por `color_detection:=true` NO se apaga sola: la puso alguien
+   a propósito. Misma regla que `_luz_color_mia`.
+📝 Reloj MONÓTONO (`_time.monotonic`), no el de ROS: esto decide una acción
+   física y un salto de NTP no debe decidirla.
+📝 Se apaga con `_enviar` (no espera) y no con `_pedir`: esto corre en el grupo
+   `g_salud`, que lleva el latido y el detector de silencio. Bloquear ahí los
+   congelaría. `_enviar` no espera pero SÍ registra el fallo.
+
+
+3 · LO MEDIDO — LAS DOS MITADES, Y LAS DOS IMPORTAN
+────────────────────────────────────────────────────────────────────────────
+a) SIN actividad: se apaga sola
+
+    color_activo antes           False
+    enable_color(True)           success=True
+    color_activo tras encender   True
+    claro (una consulta)         1321
+
+    esperando SIN tocar /color ni el servicio...
+      🔴 color_activo True -> False  a los 126 s del enable
+    ✅ y el sensor lo confirma: claro = 1
+
+  Los 6 s de más son la consulta inicial, que cuenta como actividad. Correcto.
+
+  Log del driver:
+    «luz del sensor de color APAGADA sola: nadie la usa desde hace 121 s»
+
+  🔴 EL INSTRUMENTO NO PODÍA TOCAR /color NI EL SERVICIO durante la espera: las
+     dos cosas cuentan como actividad y habrían reiniciado el contador que se
+     estaba midiendo. El guion solo lee /estado_robot, que no cuenta.
+
+b) CON actividad por SERVICIO: NO se apaga  (el caso del alumno)
+
+    midiendo cada 15 s, como hace atriz.py:
+       16s  claro=1322  color_activo=True
+       ...
+      160s  claro=1319  color_activo=True
+    ✅ sigue encendida a los 160 s, con el umbral en 120
+
+c) CON actividad por TOPIC: NO se apaga  (el caso de la web)
+
+    suscriptor de /color, sin llamar al servicio ni una vez:
+      ~40s   color_activo: true   (3912 líneas recibidas)
+      ~80s   color_activo: true   (7500)
+     ~120s   color_activo: true   (11070)
+     ~150s   color_activo: true   (14574)
+
+  Sin (b) y (c), (a) solo demostraría que el apagado dispara — no que dispare
+  cuando debe. Un apagado que se dispara siempre es peor que ninguno.
+
+
+4 · EL CAMPO `color_activo` DE /estado_robot
+────────────────────────────────────────────────────────────────────────────
+Con apagado automático, **el estado no se puede recordar: hay que leerlo.** Un
+cliente que guarde «yo la encendí» pintaría el botón encendido sobre un sensor a
+oscuras — el patrón exacto que este proyecto persigue.
+
+    EstadoRobot instalado:  8 campos, con `color_activo: boolean`
+
+⚠️ Y no vale mirar si /color trae ceros: publica igual con la luz apagada (no
+   calla, al revés que ROS 1) y una superficie NEGRA de verdad también da valores
+   muy bajos. El topic dice qué se ve; el campo, si hay luz para verlo.
+
+
+5 · LO QUE QUEDA SIN VERIFICAR
+────────────────────────────────────────────────────────────────────────────
+⏳ **El tope duro de 900 s.** No se ha esperado. Comparte función y camino de
+   apagado con la rama de inactividad —que sí está medida— pero la condición que
+   lo dispara NO se ha visto disparar nunca. Se cierra así, y son 30 s:
+
+     sudo systemctl stop atriz-robot
+     ros2 launch atriz_rvr_bringup robot.launch.py color_apagado_max_s:=20.0 \
+          color_apagado_inactividad_s:=0.0
+     # en otra terminal: enable_color(true), leer cada 5 s (para que la
+     # inactividad no lo tape) y comprobar que se apaga hacia los 20 s
+     sudo systemctl start atriz-robot
+
+   🔴 Mientras no se corra: NO VERIFICADO. «Es el mismo código con otra
+      constante» es exactamente el razonamiento que la evidencia 76 desmontó.
+
+
+6 · AÑADIDO AL VERIFICADOR
+────────────────────────────────────────────────────────────────────────────
+`verificar_robot.sh` interroga ahora al mensaje **INSTALADO**, no al fichero
+fuente. La trampa que caza: tocar un `.msg` y compilar con `colcon build` a
+secas dice «packages finished» y deja el mensaje viejo instalado. El síntoma
+aparece en el suscriptor, como un `AttributeError`, y parece un fallo de la web.
+
+    ✓ EstadoRobot instalado: los 7 campos, con color_activo
+    126 comprobaciones correctas · 0 fallos · 7 avisos conocidos

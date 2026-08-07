@@ -28,19 +28,43 @@ servicios están en la lista blanca de rosbridge y **verificados a través de el
 Medido por el driver y por rosbridge: `/color` no-cero **0 → 53 → 0**, canal claro **1 → 1320 → 0**,
 RGB reales `(255, 224, 208)`. Evidencia 76.
 
-🔴 **Lo que te toca, y sin esto el cliente lanza antes de mandar nada:** añadir los dos a
-`contrato.ts` con sus tipos. `comprobar_contrato.mjs` seguirá en rojo hasta entonces (la política es
-«gana el robot»).
+✅ **Y `color_activo` YA ESTÁ**, decidido y medido (2026-08-06 tarde). `EstadoRobot` pasa a **8
+campos**; el nuevo va el último:
 
-🔴 **El estado NO se puede deducir del topic.** `/color` publica `[0,0,0]` cuando el sensor está
-apagado — **no calla**. Si el alumno recarga la página con la sesión encendida, la web no sabe en
-qué estado está. 📌 **Decisión tuya:** o miras si algún canal es ≠ 0 (0/53 apagado contra 53/53
-encendido: discrimina limpio salvo sobre superficie negra), o se añade `color_activo` a
-`/estado_robot` — más honesto, pero vuelve a romper el contrato hasta que lo incorpores. **Desde el
-robot no se ha tocado por eso.**
+```
+bool color_activo        # ¿hay luz en el sensor?
+```
+
+🔴 **Lo que te toca, y sin esto el cliente lanza antes de mandar nada:** añadir los dos servicios a
+`contrato.ts` con sus tipos **y el campo nuevo a `EstadoRobot`**. `comprobar_contrato.mjs` seguirá
+en rojo hasta entonces (la política es «gana el robot»). **Va todo en un solo commit del robot**
+para que solo tengas que alinear una vez.
+
+**Los tipos exactos:**
+
+| | |
+|---|---|
+| `/enable_color` | `std_srvs/srv/SetBool` — petición `bool data`; respuesta `bool success`, `string message` |
+| `/get_rgbc_sensor_values` | `atriz_rvr_msgs/srv/GetRGBCSensorValues` — petición **vacía**; respuesta `uint16 red_channel_value`, `uint16 green_channel_value`, `uint16 blue_channel_value`, `uint16 clear_channel_value`, `bool success`, `string message` |
+
+🔴 **`enable_color` devuelve `success`, y NO hay que creérselo** — clasifícalo como los otros
+cuatro de `confirmaEfecto()`. **El testigo es `color_activo`, no `/color`.** Esperar a que `/color`
+deje de ser `[0,0,0]` funciona para encender, pero **falla para apagar y sobre negro**: el topic
+publica ceros con la luz apagada *y* una superficie negra de verdad da valores muy bajos. `/color`
+dice qué se ve; `color_activo` dice si hay luz para verlo.
+
+🔴 **Y el estado hay que LEERLO, no recordarlo: la luz se apaga sola.** El driver la apaga por
+inactividad (120 s sin nadie usándola) y por tope duro (900 s desde el enable), los dos como
+parámetros del launch. Un flag local pintaría el botón encendido sobre un sensor a oscuras.
+
+📝 **La actividad cuenta las dos vías** —suscriptores de `/color` **o** llamadas a
+`get_rgbc_sensor_values`— porque `atriz.py` lee por servicio y si no se le cortaba la práctica al
+alumno. Medido: con actividad sigue encendida a los 160 s; sin actividad se apaga a los 126 s.
+Evidencia 77.
 
 ⚠️ **El botón de PARAR tiene que ser tan visible como el de arrancar.** El LED blanco gasta batería
-mientras siga encendido, y son 16 robots.
+mientras siga encendido, y son 16 robots. **Sin cifra**: cuánto gasta este LED en concreto no está
+medido, y con el apagado automático puesto la exposición deja de ser indefinida.
 
 📝 **Y por qué esto no estaba hecho antes:** el proyecto afirmaba en cinco documentos que era
 imposible encender el sensor en caliente. **Era falso y nunca estuvo medido** — la prueba de julio
