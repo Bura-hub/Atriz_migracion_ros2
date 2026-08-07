@@ -1,7 +1,7 @@
 # Cómo se asegura rosbridge en los 16 robots
 
 > **El problema.** `robot.launch.py` levanta `rosbridge_websocket` en el **9090, sin autenticación
-> ni TLS, escuchando en todas las interfaces**, y expone los 18 servicios del driver — incluido
+> ni TLS, escuchando en todas las interfaces**, y expone los 19 servicios del driver — incluido
 > `raw_motors`, que se salta el `collision_monitor` y el watchdog y **no tiene corte automático**.
 > Cualquiera en la red del aula puede abrir un WebSocket y mover un robot. Está verificado de
 > extremo a extremo: un navegador de otra subred abrió `ws://rvr-01.local:9090` y **encendió los

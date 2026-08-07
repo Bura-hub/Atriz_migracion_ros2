@@ -879,7 +879,7 @@ if [[ $HARDWARE -eq 1 ]] && command -v ros2 >/dev/null && [[ -n "${ROS_DISTRO:-}
 import rclpy
 from rclpy.node import Node
 from atriz_rvr_msgs import srv as S
-from std_srvs.srv import Empty
+from std_srvs.srv import Empty, SetBool
 PARES = [
     (S.GetEncoders, 'get_encoders'), (S.GetSystemInfo, 'get_system_info'),
     (S.GetControlState, 'get_control_state'),
@@ -893,6 +893,9 @@ PARES = [
     (S.RawMotors, 'raw_motors'), (S.MoveToPose, 'move_to_pose'),
     (S.MoveToPosAndYaw, 'move_to_pos_and_yaw'),
     (Empty, 'release_emergency_stop'),
+    # 2026-08-06: enciende el LED del sensor de color EN CALIENTE. Sin el, la
+    # web no puede hacer la sesion de medicion y /color solo da [0,0,0].
+    (SetBool, 'enable_color'),
 ]
 rclpy.init(); n = Node('verif_srv')
 faltan = [nom for tipo, nom in PARES
@@ -902,7 +905,7 @@ n.destroy_node(); rclpy.shutdown()
 PYEOF
 )"
         if [[ -z "$FALTAN" ]]; then
-            _ok "los 18 servicios del driver responden"
+            _ok "los 19 servicios del driver responden"
         else
             _mal "servicios que NO responden: $FALTAN" "manual, cap. 16"
         fi
@@ -1339,6 +1342,20 @@ if [[ -f "$LAUNCH_ROBOT" ]]; then
     else
         _mal "rosbridge SIN lista blanca: raw_motors alcanzable desde la red" \
              "ver 03_operacion/SEGURIDAD_ROSBRIDGE.md, Fase A"
+    fi
+    # 🔴 La sesion de medicion de color necesita LOS DOS: sin `enable_color` no
+    #    hay luz, y sin luz `get_rgbc_sensor_values` devuelve oscuridad con
+    #    success=True. Que este uno solo es peor que que no este ninguno, porque
+    #    parece que funciona. Anadidos el 2026-08-06 (evidencia 76).
+    FALTAN_COLOR=""
+    for s in enable_color get_rgbc_sensor_values; do
+        grep -q "'/$s'" "$LAUNCH_ROBOT" || FALTAN_COLOR="$FALTAN_COLOR $s"
+    done
+    if [[ -z "$FALTAN_COLOR" ]]; then
+        _ok "rosbridge: la sesion de color esta expuesta (enable_color + rgbc)"
+    else
+        _mal "rosbridge: falta en la lista blanca:$FALTAN_COLOR" \
+             "la web no podra medir color; ver evidencia 76"
     fi
     grep -q "params_glob" "$LAUNCH_ROBOT" \
         && _ok "rosbridge: params_glob puesto (la web no toca parametros)" \

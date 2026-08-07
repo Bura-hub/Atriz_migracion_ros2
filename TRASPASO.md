@@ -791,8 +791,11 @@ luz —canal claro **4 apagada contra 741 encendida**, 185×— y el driver **nu
 El topic estaba en la lista de «verificado». Arreglado con el parámetro `color_detection`
 (por defecto `false`, porque enciende un LED bajo el chasis).
 
-🔴 Y **no se puede encender bajo demanda**: con el streaming ya configurado,
-`enable_color_detection` no hace nada. Hay que encenderlo **antes**.
+✅ Y **SÍ se puede encender bajo demanda**, desde el 2026-08-06: servicio
+**`enable_color`** (`std_srvs/SetBool`), y en la biblioteca del alumno
+`robot.sensor_color(True)`. Canal claro **1 apagada contra 1320 encendida**, reversible.
+🔴 Aquí ponía lo contrario —«con el streaming ya configurado no hace nada»— y **nunca estuvo
+medido**: la prueba de julio encendía y apagaba dentro de la misma llamada. Evidencia 76.
 
 ⚠️ **Los servicios de movimiento se saltan el `collision_monitor` y el watchdog** — hablan al
 RVR por el puerto serie, no por un topic. Solo los para la parada de emergencia. Manual,
@@ -863,7 +866,7 @@ reconstruirlo. En resumen:
   y desde la web se verá igual que uno averiado.
 - 📝 La web ya **no tiene que arrancar nada por SSH**: `atriz-robot.service` lo hace, y se
   recupera solo de un reinicio (probado).
-- La web puede usar ya **18 servicios y 5 topics**. 🔴 Con dos avisos: los servicios de
+- La web puede usar ya **19 servicios y 5 topics**. 🔴 Con dos avisos: los servicios de
   movimiento **se saltan la capa de seguridad**, y hay que publicar en **`/cmd_vel_raw`**, no en
   `/cmd_vel`.
 - 📝 `/color` publica `[0,0,0]` salvo que se arranque con `color_detection:=true`.

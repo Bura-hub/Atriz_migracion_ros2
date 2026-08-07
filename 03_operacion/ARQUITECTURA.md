@@ -153,7 +153,7 @@ comunicación PC↔robot si el PC va por WiFi.
 ### Los otros servicios del driver — la web puede llamarlos, y algunos son peligrosos
 
 La tabla de arriba solo lista los tres que la web necesita en su ciclo normal. **El driver
-expone 18**, y **todos son alcanzables por rosbridge**, así que conviene saber qué hay:
+expone 19**, y **todos son alcanzables por rosbridge**, así que conviene saber qué hay:
 
 > 🔴 **ESTA TABLA LISTABA CINCO SERVICIOS QUE NO EXISTEN** hasta el 2026-08-01: `set_all_leds`,
 > `turn_leds_off`, `enable_color_detection`, `reset_locator` y `reset_yaw`. Son **métodos del
@@ -161,11 +161,17 @@ expone 18**, y **todos son alcanzables por rosbridge**, así que conviene saber 
 > plausible y difícil de ver. Quien programara la web escribiría el cliente, no obtendría
 > respuesta, y buscaría el fallo en el QoS. Lista verificada contra el código y contra
 > `ros2 service list`.
+>
+> 📝 **Y sigue siendo cierto con un matiz nuevo (2026-08-06):** `enable_color_detection` **no
+> existe** como servicio y nunca existió — es el método del SDK. Lo que sí existe desde esa fecha
+> es **`enable_color`** (`std_srvs/SetBool`), que es quien lo llama por dentro. El nombre importa:
+> pedirle a rosbridge el largo sigue sin devolver nada.
 
 | Grupo | Servicios (**los reales**) | Riesgo |
 |---|---|---|
 | LEDs | `set_led_rgb`, `set_leds`, `set_multiple_leds`, `trigger_led_event` | ninguno |
 | Lectura | `get_rgbc_sensor_values`, `get_encoders`, `get_system_info`, `get_control_state` | ninguno |
+| Sensor de color | **`enable_color`** (`std_srvs/SetBool`) — añadido el **2026-08-06** | ninguno, pero ⚠️ deja un **LED blanco encendido** bajo el chasis gastando batería hasta que se llame con `false` |
 | Configuración | `set_drive_parameters`, `set_pos_and_yaw` | bajo |
 | Parada | `release_emergency_stop` | — |
 | 🔴 **Movimiento** | `move_timed`, `raw_motors`, `move_to_pose`, `move_to_pos_and_yaw` | **alto** |
@@ -219,7 +225,7 @@ funciona —el robot obedece— y por eso es peligroso. Manual, cap. 12.
 ### 🔴🔴 SEGURIDAD: rosbridge está ABIERTO, y expone `raw_motors`
 
 `robot.launch.py` levanta `rosbridge_websocket` en el **9090, sin autenticación ni TLS,
-escuchando en todas las interfaces**. Y el contrato de arriba dice —correctamente— que **los 18
+escuchando en todas las interfaces**. Y el contrato de arriba dice —correctamente— que **los 19
 servicios son alcanzables por rosbridge**, incluidos los cinco de riesgo alto.
 
 🔴 **Cualquiera en la red del aula puede abrir un WebSocket y llamar a `raw_motors`**, que se

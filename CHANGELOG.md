@@ -67,6 +67,31 @@ constructor (`rvr_driver_node.py:266`). Un robot que un humano detuvo a propósi
 aceptar `cmd_vel_raw`. Descarta la opción «reiniciar con el parámetro puesto» por seguridad, no
 por incomodidad. **Sin resolver.**
 
+### Escalado a todo lo que la imagen dorada necesita
+
+Un servicio nuevo toca más sitios de los que parece. Alineado y **verificado
+ejecutando**, no leyendo:
+
+| dónde | qué |
+|---|---|
+| `verificar_robot.sh` | `enable_color` en la lista de clientes (18 → **19 servicios**), y un aserto nuevo: los **dos** servicios de color en la lista blanca. **Con control negativo**: sobre un launch sin ellos, falla |
+| `atriz.py` | **`sensor_color(True/False)`**. `cerrar()` apaga la luz si la encendió el programa —paso 2 del cierre, después de parar el robot y sin tocar `secuencia_de_cierre()`, que es pura y tiene tests |
+| prácticas 05, 11 y seguidor de línea | encienden la luz ellas solas; se cae el `sys.exit(1)` de las tres |
+| `GUIA_PASO_A_PASO`, `REFERENCIAS`, `SEGUIDOR_LINEA_EXPLICACION` | ya no mandan pedirle al profesor que reinicie el robot |
+| `ARQUITECTURA`, `SEGURIDAD_ROSBRIDGE`, `TRASPASO`, `README` de `Atriz_rvr` | 18 → **19 servicios**, con su aviso del LED |
+
+```
+91 tests           pasan (ninguno tocado)
+biblioteca         color() (1,1,0,1) sin luz -> (411,758,310,1335) con luz
+practica 05        lecturas reales sostenidas, claro ~1321-1335
+cierre tras Ctrl-C sensor en clear=0 -> el LED quedo APAGADO
+verificar_robot    126 correctas · 0 fallos · 6 avisos conocidos
+```
+
+📝 **Y un dato que refuerza al usuario:** dos guiones de alumno de ROS 1 ya
+llamaban a `/enable_color`. La migración se dejó el servicio, y en vez de notarlo
+se escribió que era imposible.
+
 ### Pendiente
 
 - 📌 **Decisión del PC:** `/color` publica `[0,0,0]` cuando el sensor está apagado —no calla, al

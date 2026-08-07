@@ -581,6 +581,9 @@ class Robot:
         # EFECTO, que es un /scan de verdad.
         self._ultimo('_scan', timeout=8.0, que='/scan')
 
+    # ⚠️ SUPERADO EL 2026-08-06: la premisa de este bloque era falsa. La luz SÍ
+    #    se enciende bajo demanda, y `atriz.py` tiene ya `sensor_color(True)`.
+    #    Se deja el diseño original para que se vea de dónde venía. Evidencia 76.
     def _comprobar_color(self):
         """¿Se arranco el robot con el sensor de color encendido?
 
