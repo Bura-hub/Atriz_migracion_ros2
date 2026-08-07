@@ -1,0 +1,112 @@
+════════════════════════════════════════════════════════════════════════════
+ 83 · AMCL EMPEORA LA POSE EN VEZ DE MEJORARLA
+      Medido con trilateración. La odometría sola sería mejor.
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-07
+Robot:  rvr-01 · mapa del cuarto (3,80 × 4,20 m)
+Testigo físico: el usuario, con cinta métrica, DOS distancias
+
+
+1 · LA MEDIDA QUE FALTABA, Y POR QUÉ NO SE PODÍA ANTES
+────────────────────────────────────────────────────────────────────────────
+Las tres tandas anteriores midieron **una sola distancia**, la diagonal desde el
+punto de partida. Y con eso **no se puede saber dónde acabó el robot**: lo deja
+en cualquier punto de una circunferencia.
+
+🔴 No es un tecnicismo. Las predicciones de las dos fuentes para esta tanda,
+   **escritas ANTES de medir**:
+
+                        AP (la diagonal)     BP (la segunda)
+      odometría              0,741                1,526
+      AMCL                   0,762                1,213
+      ────────────────────────────────────────────────────
+      las distingue en       2,1 cm              31,3 cm
+
+   **La diagonal las separaba 2 cm.** Cualquier medida con cinta las habría dado
+   por igual de buenas. Por eso ninguna de las tandas anteriores zanjó nada: se
+   estaba midiendo el número que no discrimina.
+
+Con dos marcas en el suelo —`A` bajo el robot, `B` a 1,00 m a su izquierda— y
+dos distancias, la posición sale por trilateración
+(`mediciones_banco/comparar_con_cinta.py`).
+
+
+2 · EL RESULTADO
+────────────────────────────────────────────────────────────────────────────
+    medido:  AB = 1,000 m    AP = 0,730 m    BP = 1,511 m
+
+                     x         y      distancia   rumbo    ERROR DE POSICIÓN
+    cinta         +0,626    -0,375      73,0 cm   -30,9°         —
+    odometría     +0,631    -0,389      74,1 cm   -31,7°       1,5 cm   ✅
+    AMCL          +0,760    +0,055      76,2 cm    +4,1°      45,0 cm   🔴
+
+✅ **LA ODOMETRÍA ACIERTA A 1,5 cm** sobre 73 de recorrido, y en trayectoria
+   CURVA. Es el cuarto dato que apunta a lo mismo: 70,1/70,0 · 64,8/66,0 ·
+   65,4 y 64,8 con 0,6 de dispersión · y ahora 1,5 cm en las dos coordenadas.
+
+🔴 **AMCL SE EQUIVOCA EN 45 cm.** No es un error de escala: **acierta la
+   distancia (76,2 contra 73,0) y falla el RUMBO en 35°.** Cree que el robot fue
+   casi recto cuando se desvió 37,5 cm a la derecha.
+
+
+3 · LA CONSECUENCIA, Y ES PEOR DE LO QUE SE HABÍA ESCRITO
+────────────────────────────────────────────────────────────────────────────
+    objetivo      (+0,800 · +0,000)
+    real          (+0,626 · −0,375)
+    🔴 el robot acabó a 41,3 cm del objetivo
+
+Y `xy_goal_tolerance` son **10 cm**. **Nav2 declaró ÉXITO.**
+
+📌 La evidencia 82 decía «para a 14 cm del objetivo». **Era optimista**, y por la
+   misma razón que todo lo demás: se calculó con la distancia, no con la
+   posición. El error real es **tres veces mayor**.
+
+
+4 · LO QUE ESTO SIGNIFICA DE VERDAD
+────────────────────────────────────────────────────────────────────────────
+🔴 **AMCL no está corrigiendo la odometría: la está estropeando.**
+
+   La transformada `map -> odom` valía 0,424 m al terminar. Como la odometría
+   acierta a 1,5 cm, **esa corrección de 42 cm es enteramente error introducido
+   por AMCL.** Sin AMCL, usando solo la odometría, la pose sería 30 veces mejor.
+
+   Eso invierte el propósito del componente. AMCL existe para corregir la deriva
+   de la odometría; aquí la odometría no tiene deriva apreciable en 73 cm y AMCL
+   añade 45.
+
+⚠️ **Y no es el problema de la evidencia 81.** Aquél era la recuperación de
+   «robot secuestrado» rotando el marco 98°, y **está arreglado**: el yaw de
+   `map -> odom` se queda ahora en 1-3°. Esto es distinto: AMCL mantiene su
+   hipótesis, pero la hipótesis es mala.
+
+
+5 · HIPÓTESIS, SIN MEDIR
+────────────────────────────────────────────────────────────────────────────
+⏳ Ninguna comprobada. Se escriben para que se prueben:
+
+  a) **El mapa está mal.** Lo hizo SLAM en una sala de 3,8 × 4,2 m; si tiene una
+     distorsión, AMCL casa el barrido con una geometría equivocada y coloca al
+     robot donde no está. **Es la candidata más fuerte**, porque explica que el
+     error sea sistemático y no ruido.
+  b) **El cuarto cambió** entre el mapeo (2026-08-06) y hoy.
+  c) **`update_min_d: 0.15`** — sobre 73 cm son ~5 actualizaciones. Pocas.
+  d) **Los `alpha1..4` a 0.1** pueden estar mal escalados para un robot de 22 cm:
+     si AMCL cree que la odometría es más ruidosa de lo que es, se fía más del
+     barrido, y el barrido en una sala casi cuadrada es ambiguo.
+
+📌 **La forma barata de separar (a) de las demás:** mapear otra vez el mismo
+   cuarto ahora, y navegar sobre el mapa nuevo. Si el error baja, el mapa era el
+   problema.
+
+
+6 · QUÉ NO CAMBIA
+────────────────────────────────────────────────────────────────────────────
+✅ **Todo el mecanismo del 2026-08-07 sigue verificado**: los botones, el
+   supervisor, las unidades, la exclusión, el barrido condicional, la regla de
+   polkit y el estado de seis valores. Nada de eso depende de que AMCL acierte.
+
+✅ **El driver y su odometría salen reforzados** de todas estas medidas.
+
+🔴 **Lo que NO se puede prometer todavía es navegación autónoma útil**, ni a un
+   alumno ni a la web. Que Nav2 acepte un objetivo y diga «llegué» está
+   verificado; que llegue, no.

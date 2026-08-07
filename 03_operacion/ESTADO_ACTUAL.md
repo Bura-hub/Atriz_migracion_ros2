@@ -291,8 +291,27 @@ map → odom, yaw máximo:   98,46°  →  2,57°  ·  2,43°
 cinta 66,0 cm  ·  odometría 64,8 cm (1,8 % de error)  ·  AMCL 72,1 cm (9,2 %)
 ```
 
-**AMCL ya NO se pierde.** Lo que queda es otra cosa y mucho menor: **sobreestima ~9 %**, así que
-Nav2 para **14 cm antes** de un objetivo de 80 cm creyendo estar dentro de la tolerancia (10 cm).
+**AMCL ya NO se pierde** —el marco no rota— **pero su pose es mala igual.** Medido con
+trilateración (dos marcas en el suelo, dos distancias; evidencia 83):
+
+```
+              x        y      ERROR DE POSICIÓN
+cinta      +0,626   -0,375          —
+odometría  +0,631   -0,389        1,5 cm   ✅
+AMCL       +0,760   +0,055       45,0 cm   🔴
+```
+
+🔴 **El robot acabó a 41 cm de un objetivo de 80 cm, y Nav2 declaró ÉXITO** (la tolerancia son
+10 cm). AMCL acierta la distancia y **falla el rumbo en 35°**: cree que fue casi recto cuando se
+desvió 37 cm a la derecha.
+
+🔴 **Y lo peor: AMCL no corrige la odometría, la estropea.** La corrección `map → odom` valía
+42 cm, y como la odometría acierta a 1,5 cm, esos 42 cm son **error introducido por AMCL**. Sin
+AMCL la pose sería 30 veces mejor.
+
+⚠️ **Lo que este bloque decía antes —«para 14 cm antes»— era optimista**, y por la misma razón que
+todo lo demás: se calculó con la distancia y no con la posición. El error real es **tres veces
+mayor**.
 
 📌 **Para tu pantalla, la regla no cambia:** `/odom` es fiable (1,8 % contra cinta, n=2, en
 trayectoria curva); la pose de AMCL, no del todo. Pinta desplazamiento con `/odom`.

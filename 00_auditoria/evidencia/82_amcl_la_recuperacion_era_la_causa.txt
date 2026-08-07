@@ -63,6 +63,13 @@ dice la traza de odometría (avanza en `x`, luego se desvía en `y`).
    está localizado»— **deja de ser cierto**. Con la recuperación apagada el marco
    se mantiene: 2,4° de rotación en 66 cm es ruido, no una hipótesis distinta.
 
+🔴 **CORREGIDO POR LA EVIDENCIA 83: NO es un error de escala, y no es del ~9 %.**
+   Medido con trilateración —dos marcas y dos distancias— AMCL se equivoca
+   **45 cm en POSICIÓN**: acierta la distancia y falla el RUMBO en 35°. Y el
+   robot acabó a **41 cm** del objetivo, no a 14. Lo de abajo se escribió con la
+   diagonal, que **no distingue** las dos hipótesis (2 cm de diferencia entre
+   ellas). Se conserva para que se vea de dónde salía el error.
+
 ⚠️ **PENDIENTE, y es otra cosa: un error de ESCALA del ~9 %.** No es que el robot
    esté perdido; es que AMCL cree haber avanzado más de lo que avanzó. Para «ve a
    la mesa 3» en un aula, 14 cm de más pueden dar igual. Para prometer precisión,
