@@ -11,7 +11,7 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-06
+**Última actualización:** 2026-08-07
 
 ---
 
