@@ -120,6 +120,64 @@ medir_b2() {
   echo "  ┌── vuelta $1 ─────────────────────────────────────────────────"
   poner_mapa "$MAPA"
 
+  # 🔴 EL OBSERVADOR SE ESCRIBE AQUI, EN CADA VUELTA. La version anterior de
+  #    este guion lo daba por presente en /tmp -- y una edicion mia se comio el
+  #    bloque que lo creaba. El resultado fue que se ejecuto el fichero VIEJO de
+  #    la tanda anterior, que no escribe la marca: las dos vueltas midieron
+  #    NADA y lo dijeron con un mensaje que parecia un resultado del robot.
+  #    Escribirlo cada vez cuesta milisegundos y elimina la dependencia de un
+  #    estado invisible en /tmp.
+  cat > /tmp/cronometro_nav.py <<'PYFIN'
+"""Espera a que /navigate_to_pose acepte objetivos e informa en EPOCH.
+
+🔴 POR QUE EPOCH Y NO UN CRONOMETRO PROPIO. La primera version media desde que
+   este proceso arrancaba, no desde el `systemctl start`. Entre medias hay un
+   `su - sphero` con dos `source` de setup.bash, que en una Pi son segundos, asi
+   que el numero salia como COTA INFERIOR y habia que darlo como intervalo
+   (18-26 s). Informando en tiempo absoluto, el shell resta y el numero es
+   exacto. Es la leccion de la evidencia 78: el instrumento midiendose a si
+   mismo.
+"""
+import time, rclpy
+from rclpy.node import Node
+from rclpy.action import ActionClient
+from nav2_msgs.action import NavigateToPose
+
+CICLO = ['controller_server', 'planner_server', 'behavior_server',
+         'bt_navigator', 'smoother_server', 'map_server', 'amcl']
+
+rclpy.init()
+n = Node('cronometro_nav')
+cli = ActionClient(n, NavigateToPose, 'navigate_to_pose')
+
+# La marca: le dice al shell "ya estoy observando, lanza el systemctl".
+with open('/tmp/cronometro_listo', 'w') as f:
+    f.write(str(time.time()))
+print('    (observador en pie)', flush=True)
+
+t0 = time.monotonic()
+hitos = {}
+listo = False
+while time.monotonic() - t0 < 200:
+    rclpy.spin_once(n, timeout_sec=0.0)
+    vistos = [x for x, _ in n.get_node_names_and_namespaces()]
+    for c in CICLO:
+        if c not in hitos and c in vistos:
+            hitos[c] = time.time()
+            print('    EPOCH_NODO %s %.3f' % (c, hitos[c]), flush=True)
+    if cli.server_is_ready():
+        print('    EPOCH_LISTO %.3f' % time.time(), flush=True)
+        listo = True
+        break
+    time.sleep(0.2)
+if not listo:
+    print('    EPOCH_LISTO 0', flush=True)
+    print('    NO llego a aceptar objetivos. Nodos vistos: %s'
+          % (', '.join(hitos) or 'ninguno'), flush=True)
+n.destroy_node(); rclpy.shutdown()
+PYFIN
+  chmod 644 /tmp/cronometro_nav.py
+
   rm -f /tmp/cronometro_listo /tmp/cronometro_salida.txt
   # 🔴 EL OBSERVADOR VA PRIMERO. Se espera a su marca antes de tocar systemd: asi
   #    el instante cero es el `systemctl start` de verdad, y no el arranque de
@@ -131,7 +189,16 @@ medir_b2() {
   PID_CRONO=$!
   for _ in $(seq 1 60); do [[ -f /tmp/cronometro_listo ]] && break; sleep 1; done
   if [[ ! -f /tmp/cronometro_listo ]]; then
-    echo "  🔴 el observador no llegó a ponerse en pie. Esta vuelta no mide nada."
+    # 🔴 SE ABANDONA LA VUELTA. Antes solo avisaba y seguia: arrancaba la
+    #    navegacion igual y luego imprimia "NO llegó a aceptar objetivos", que
+    #    parece un resultado del robot y es un fallo del instrumento. Gastaba
+    #    bateria y producia una linea enganosa. Un instrumento roto no mide:
+    #    se calla y lo dice.
+    echo "  🔴 el observador no llegó a ponerse en pie: INSTRUMENTO ROTO."
+    echo "     Esta vuelta se ABANDONA sin tocar la navegación."
+    kill "$PID_CRONO" 2>/dev/null
+    sed -n '1,5p' /tmp/cronometro_salida.txt 2>/dev/null | sed 's/^/     /'
+    return 1
   fi
 
   T0=$(date +%s.%N)
