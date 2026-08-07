@@ -1,6 +1,24 @@
 # Plan único — color en caliente, SLAM que no queda mudo, y que la web se entere sola
 **Fecha: 2026-08-06 · Cubre A9 (color en caliente), A10 (arrancar SLAM desde la web) y la recuperación tras apagar el RVR**
 
+> ## ⚠️ SUPERADO EN LA PARTE DEL COLOR — el mismo día, por la tarde
+>
+> **A9 está hecho y verificado.** El servicio `/enable_color` (`std_srvs/SetBool`) existe, funciona
+> en caliente y está en la lista blanca; `EstadoRobot` tiene `color_activo`; y la luz se apaga sola
+> por inactividad y por tope duro. Evidencias **76** y **77**.
+>
+> 🔴 **Y la fila de abajo que dice «este proyecto YA INTENTÓ el servicio `enable_color` y lo
+> declaró imposible» citaba una afirmación FALSA.** No estaba medida: el servicio de julio hacía
+> `enable(True) → leer → enable(False)` dentro de la misma llamada, así que los 481 mensajes eran
+> casi todos posteriores al apagado. La medida no distinguía las dos hipótesis.
+>
+> Se deja el plan entero sin tocar porque **su parte de SLAM y de recuperación sigue vigente**, y
+> porque razonó bien sobre premisas malas — que es justo lo que conviene poder releer.
+>
+> 📌 Lo que sí acertó de lleno, y hay que reconocerlo: la fila de `stop()`/`clear()` y la de
+> `_recuperar_streaming` describían el mecanismo correcto. La conclusión falsa no venía del
+> análisis, venía de fiarse de un comentario del código.
+
 Este plan sale de cuatro análisis y sus cuatro refutaciones. **Donde el escéptico tumbó algo, gana el escéptico** y lo digo abajo. Donde dos análisis se contradicen, lo dejo escrito como contradicción abierta y no elijo.
 
 He comprobado a mano en los tres repositorios lo que aparece en el apartado 1. Lo que no pude comprobar desde Windows va en el apartado 2 con su comando.
