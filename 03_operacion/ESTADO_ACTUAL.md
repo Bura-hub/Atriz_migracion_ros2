@@ -167,9 +167,21 @@ está en pie (18 s es cota **inferior**) y `systemctl start` devolvió a los 26,
 
 | para tu pantalla | |
 |---|---|
-| plazo esperado de «arrancando» | **~26 s** |
+| plazo esperado de «arrancando» | **~30 s** ⚠️ corregido, ver abajo |
 | tope duro | **120 s** (`TimeoutStartSec`, y **cabe** — no era humo) |
-| cómo pintarlo | 🔴 **segundos transcurridos, NO porcentaje.** Entre 18 y 26 no da para una barra honesta |
+| cómo pintarlo | 🔴 **segundos transcurridos, NO porcentaje** |
+
+⚠️ **DOS NÚMEROS, Y EL TUYO ES EL SEGUNDO.** No se contradicen: miden cosas distintas.
+
+| medida | qué mide | valor |
+|---|---|---|
+| B2 (evidencia 79, **n=2**) | hasta que `/navigate_to_pose` acepta objetivos | 24,3 s |
+| **el supervisor** (evidencia 80, **n=1**) | hasta `FUNCIONANDO` en `/estado_navegacion` | **30,2 s** |
+
+El supervisor exige **más**: además del servidor de acción, el proceso vivo y `/scan` fresco, y
+sondea a 1 Hz. **Lo que verá el alumno es el segundo**, así que dimensiona con ~30 s.
+📝 Y es **n=1**: una segunda medida lo afianzaría. En cualquier caso queda muy por debajo del tope
+duro de 120 s, así que no cambia el diseño — solo el texto que pintas.
 
 ### 🔴 Dos cosas más que salieron, y las dos te afectan
 

@@ -203,3 +203,30 @@ aparecía **ninguna** y el barrido se quedaba encendido.
    lógica, y así está. **Es honesto decir que existe una comprobación para un
    caso que el diseño actual no permite alcanzar**: la dejamos porque el diseño
    podría cambiar, no porque se haya visto disparar.
+
+
+11 · EL ARREGLO DEL `CIEGO`, VERIFICADO — y un número que no cuadraba
+────────────────────────────────────────────────────────────────────────────
+Con el observador suscrito ANTES de pedir nada, para ver la secuencia entera:
+
+     0,7 s   nav=ARRANCANDO
+    30,2 s   nav=FUNCIONANDO
+
+✅ **Sin pasar por CIEGO.** El arreglo funciona: `APAGADO → ARRANCANDO →
+   FUNCIONANDO`, que es lo que la web debe pintar en un arranque sano.
+
+📊 Y la latencia de la petición, con cliente persistente: **0,223 s**.
+
+⚠️ **PERO 30,2 s NO ES EL 24,3 s DE B2, y hay que decirlo.** No se contradicen:
+   miden cosas distintas.
+
+     B2 (n=2)            hasta que /navigate_to_pose ACEPTA OBJETIVOS   24,3 s
+     el supervisor (n=1) hasta FUNCIONANDO                              30,2 s
+
+   El supervisor exige **más**: además del servidor de acción, el proceso vivo y
+   `/scan` fresco — y sondea a 1 Hz.
+
+   🔴 **El número que verá el alumno es el del supervisor.** El plazo que se le
+      había dado al PC (~26 s) se queda corto y se corrige a ~30 s.
+   📝 Es **n=1**. Queda muy por debajo del tope duro de 120 s, así que no cambia
+      el diseño; solo el texto que pinta la web.
