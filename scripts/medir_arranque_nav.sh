@@ -111,78 +111,63 @@ fi
 echo
 echo "── B2 · arranque real, cronometrado ───────────────────────────────"
 echo "  ⚠️ ENCIENDE EL BARRIDO (11,8 Hz) y ~58 % de un núcleo. NO mueve el robot."
-poner_mapa "$MAPA"
+# 🔴 SE MIDE DOS VECES. Una sola vuelta no distingue "asi es" de "asi salio esa
+#    vez": si los dos numeros se parecen, el arranque es reproducible y la web
+#    puede fiarse del plazo; si no, hay que averiguar de que depende antes de
+#    pintar nada. Es la misma correccion que la evidencia 78 (n=1 -> n=3).
+medir_b2() {
+  echo
+  echo "  ┌── vuelta $1 ─────────────────────────────────────────────────"
+  poner_mapa "$MAPA"
 
-T0=$(date +%s.%N)
-systemctl start atriz-nav.service &          # --no-block equivalente: no esperar
-PID_START=$!
+  rm -f /tmp/cronometro_listo /tmp/cronometro_salida.txt
+  # 🔴 EL OBSERVADOR VA PRIMERO. Se espera a su marca antes de tocar systemd: asi
+  #    el instante cero es el `systemctl start` de verdad, y no el arranque de
+  #    Python. Esto es lo que convierte "entre 18 y 26 s" en un numero exacto.
+  su - sphero -c "source /opt/ros/jazzy/setup.bash; \
+                  source /home/sphero/atriz_ws/install/setup.bash; \
+                  timeout 210 python3 -u /tmp/cronometro_nav.py" \
+      > /tmp/cronometro_salida.txt 2>&1 &
+  PID_CRONO=$!
+  for _ in $(seq 1 60); do [[ -f /tmp/cronometro_listo ]] && break; sleep 1; done
+  if [[ ! -f /tmp/cronometro_listo ]]; then
+    echo "  🔴 el observador no llegó a ponerse en pie. Esta vuelta no mide nada."
+  fi
 
-# 🔴 EL TESTIGO NO ES `is-active`, y esa es la razón de ser de esta medición:
-#    la unidad puede estar `active` con Nav2 todavía sin poder aceptar nada.
-#    Se espera al EFECTO: que el servidor de acción de /navigate_to_pose esté
-#    listo. Se usa un CLIENTE, no `ros2 action list` — el descubrimiento DDS no
-#    es autoritativo (omitió 1 de 18 servicios el 2026-08-01).
-cat > /tmp/cronometro_nav.py <<'PYFIN'
-import time, rclpy
-from rclpy.node import Node
-from rclpy.action import ActionClient
-from nav2_msgs.action import NavigateToPose
+  T0=$(date +%s.%N)
+  # --no-block: encola el job y vuelve. Es lo que hara el servicio ROS, asi que se
+  # mide lo que se va a usar, no otra cosa.
+  systemctl start --no-block atriz-nav.service
+  T_NOBLOCK=$(date +%s.%N)
+  echo "  systemctl start --no-block devolvió en $(echo "$T_NOBLOCK - $T0" | bc) s"
 
-CICLO = ['controller_server', 'planner_server', 'behavior_server',
-         'bt_navigator', 'smoother_server', 'map_server', 'amcl']
+  wait "$PID_CRONO" 2>/dev/null
+  grep -E "observador|EPOCH_NODO|NO llego" /tmp/cronometro_salida.txt | sed 's/^/  /'
+  EP=$(grep -oP 'EPOCH_LISTO \K[0-9.]+' /tmp/cronometro_salida.txt | tail -1)
+  if [[ -n "$EP" && "$EP" != "0" ]]; then
+    echo "  🎯 ACEPTA OBJETIVOS a los $(echo "$EP - $T0" | bc) s del systemctl start"
+  else
+    echo "  🔴 NO llegó a aceptar objetivos"
+  fi
+  echo "  estado de la unidad:  $(systemctl is-active atriz-nav) / $(systemctl show atriz-nav -p Result --value)"
+  echo "  barrido tras arrancar: $(su - sphero -c '/usr/local/bin/atriz-escaneo estado' 2>/dev/null | tail -1)"
 
-rclpy.init()
-n = Node('cronometro_nav')
-cli = ActionClient(n, NavigateToPose, 'navigate_to_pose')
-t0 = time.monotonic()
-hitos = {}
-listo = None
-while time.monotonic() - t0 < 170:
-    rclpy.spin_once(n, timeout_sec=0.0)
-    t = time.monotonic() - t0
-    vistos = [x for x, _ in n.get_node_names_and_namespaces()]
-    for c in CICLO:
-        if c not in hitos and c in vistos:
-            hitos[c] = t
-            print('    %6.1fs  aparece el nodo %s' % (t, c))
-    if listo is None and cli.server_is_ready():
-        listo = t
-        print('    %6.1fs  /navigate_to_pose ACEPTA OBJETIVOS' % t)
-        break
-    time.sleep(0.2)
-print()
-if listo is None:
-    print('    NO llego a aceptar objetivos en %.0f s.' % (time.monotonic() - t0))
-    print('    Nodos que si aparecieron: %s' % (', '.join(hitos) or 'ninguno'))
-else:
-    cabe = 'cabe' if listo < 120 else 'NO CABE'
-    print('    LISTO EN %.1f s desde el systemctl start' % listo)
-    print('    (TimeoutStartSec=120 en la unidad: %s)' % cabe)
-n.destroy_node(); rclpy.shutdown()
-PYFIN
-chmod 644 /tmp/cronometro_nav.py
+  echo
+  echo "  ── al parar: ¿qué pasa con el barrido? (conflicto 2 de ARRANQUE_NAVEGACION) ──"
+  systemctl stop atriz-nav.service
+  sleep 3
+  echo "  barrido tras parar:    $(su - sphero -c '/usr/local/bin/atriz-escaneo estado' 2>/dev/null | tail -1)"
+  echo "  🔴 si dice APAGADO, parar la navegación deja ciego a cualquier otro"
+  echo "     consumidor de /scan — y con el botón en la web eso lo hace un alumno."
+  echo "  └──"
+  # Entre vueltas se deja el sistema en reposo, o la segunda arrancaria sobre
+  # los restos de la primera y mediria otra cosa.
+  systemctl stop atriz-nav.service 2>/dev/null || true
+  systemctl reset-failed atriz-nav.service 2>/dev/null || true
+  sleep 5
+}
 
-# 🔴 El Python va en un FICHERO, no incrustado en el `-c` de `su`. Anidar
-#    comillas dentro de comillas ya rompio este guion una vez: las comillas
-#    escapadas de una f-string se las comia el shell antes de que Python las
-#    viera. Un fichero no tiene ese problema y ademas se puede probar suelto.
-su - sphero -c "source /opt/ros/jazzy/setup.bash; \
-                source /home/sphero/atriz_ws/install/setup.bash; \
-                timeout 180 python3 -u /tmp/cronometro_nav.py"
-wait "$PID_START" 2>/dev/null
-T1=$(date +%s.%N)
-echo
-echo "  systemctl start devolvió en $(echo "$T1 - $T0" | bc) s (eso NO es el arranque)"
-echo "  estado de la unidad:  $(systemctl is-active atriz-nav) / $(systemctl show atriz-nav -p Result --value)"
-echo "  barrido tras arrancar: $(su - sphero -c '/usr/local/bin/atriz-escaneo estado' 2>/dev/null | tail -1)"
-
-echo
-echo "  ── al parar: ¿qué pasa con el barrido? (conflicto 2 de ARRANQUE_NAVEGACION) ──"
-systemctl stop atriz-nav.service
-sleep 3
-echo "  barrido tras parar:    $(su - sphero -c '/usr/local/bin/atriz-escaneo estado' 2>/dev/null | tail -1)"
-echo "  🔴 si dice APAGADO, parar la navegación deja ciego a cualquier otro"
-echo "     consumidor de /scan — y con el botón en la web eso lo hace un alumno."
+for V in 1 2; do medir_b2 "$V"; done
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # B3 · sin mapa: ¿corta el StartLimitBurst, o el botón se queda muerto?
