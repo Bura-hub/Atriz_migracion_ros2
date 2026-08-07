@@ -39,6 +39,33 @@ parte del tiempo quieto mientras se edita código — y ahí un Nav2 arrancado s
 
 ---
 
+## 🔴 AMPLIACIÓN DEL 2026-08-06 (tarde) — decisión del usuario
+
+> *«Ambas deberían poderse habilitar desde la web según la necesidad del usuario. **Apruebo que
+> estén disponibles.**»*
+
+**Lo que NO cambia:** ni Nav2 ni SLAM arrancan solos al encender el robot. La decisión de arriba
+—instaladas y no habilitadas— sigue entera, y por la misma razón: la Pi se alimenta de la batería
+del RVR y Nav2 son ~58 % de un núcleo.
+
+**Lo que SÍ cambia:** deja de ser *«se arrancan por SSH»* y pasa a ser ***«se arrancan bajo demanda,
+y la web es quien las pide»***. El estado por defecto sigue siendo apagado; lo que se añade es el
+mando.
+
+⚠️ **Y eso reabre un punto que un panel anterior usó para rechazar el mecanismo**: rosbridge **no
+autentica a nadie** (`websocket_handler.py:233-234` devuelve `True` sin condiciones, y las 15
+capacidades instaladas de `rosbridge_library` no incluyen ninguna de autenticación). Exponer
+`start`/`stop` por ahí es exponerlo a cualquiera en la red del aula.
+→ **No se esquiva: se resuelve.** Análisis en curso con cuatro agentes (seguridad, mecanismo
+systemd, integración ROS y un escéptico). El diseño resultante irá en un plan aparte.
+
+📌 **Y una cosa que este documento ya no puede seguir dando por hecha:** el argumento que mantiene
+Nav2 sin habilitar es su coste, **~58 % de un núcleo**. **SLAM cuesta 4,8 %, doce veces menos.** La
+conclusión para SLAM puede seguir siendo la buena, pero **no por esta razón**, y ninguna otra está
+escrita.
+
+---
+
 ## El diseño
 
 ### `atriz-nav.service` — instalada, NO habilitada
