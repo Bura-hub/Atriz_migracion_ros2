@@ -271,6 +271,7 @@ de prioridad al material docente.
 | Telemetría del RVR a 16.59 Hz | ✅ 12 min, 0 huecos, 0 pérdidas | ✅ **12 min, 0 huecos** con el driver ROS 2 y keepalive | `12_keepalive_rvr.txt` |
 | SDK de Sphero | ✅ GO en Python 3.8 | 🟢 **GO en 3.12**, 16.67 Hz | `04_gonogo_sdk_py312_*.txt` |
 | Enlace estable sin tocar nada | — | ✅ el RVR se dormía a los **300.6 s**; arreglado | `12_keepalive_rvr.txt` |
+| Sensor de color **encendido en caliente** | ✅ servicio `enable_color` (así funcionaba) | ✅ **recuperado el 2026-08-06**: `/color` no-cero 0→53→0, claro 1→1320→0 | `76_color_en_caliente.txt` |
 
 Firmware del RVR: **9.1.462** (Nordic), confirmado también en 24.04 leyendo el payload de
 `get_version` (`09 00 01 01`).

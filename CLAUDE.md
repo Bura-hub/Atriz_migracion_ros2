@@ -881,7 +881,7 @@ false el driver lo **avisa por el log**.
 
 **✅ SÍ SE PUEDE ENCENDER BAJO DEMANDA — y aquí decía lo contrario hasta el 2026-08-06.** Con el
 streaming corriendo a 250 ms: `/color` no-cero **0/24 → 24/24 → 0/24** y canal claro **1 → 1321 →
-1**, reversible, con el LED visto encenderse. Evidencia 75.
+1**, reversible, con el LED visto encenderse. Evidencia 76.
 
 **🔴 Y LA LECCIÓN VALE MÁS QUE EL DATO.** Lo que había aquí —«`enable_color_detection` no hace
 nada, 481 mensajes todos ceros»— **no estaba medido**: el servicio bajo prueba hacía

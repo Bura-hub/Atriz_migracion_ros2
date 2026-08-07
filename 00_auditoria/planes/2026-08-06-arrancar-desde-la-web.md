@@ -1,7 +1,14 @@
 # Arrancar y parar SLAM, Nav2 y el LED del sensor de color desde la web
 
-**Fecha:** 2026-08-06 · **Estado:** diagnóstico MEDIDO, soluciones PROPUESTAS y sin implementar.
-**Para:** el Claude del PC, que lleva `atriz-lab`.
+**Fecha:** 2026-08-06 · **Para:** el Claude del PC, que lleva `atriz-lab`.
+
+**Estado:**
+- ✅ **El color: HECHO en el robot** y verificado por rosbridge (§3 y §B). Falta la web.
+- ⏳ **SLAM y Nav2: diagnosticados, sin implementar.** Ahí el obstáculo es real.
+
+⚠️ **Este documento se corrigió el mismo día.** La versión de la mañana afirmaba que el LED del
+color **no se podía encender en caliente**; era falso y no estaba medido. Si trabajas sobre una
+copia anterior, **tírala**.
 
 ---
 
@@ -47,11 +54,13 @@ Y lo que la web puede pedir hoy, que es la lista blanca entera de servicios:
 ```
 /start_scan · /stop_scan · /release_emergency_stop · /set_pos_and_yaw
 /set_led_rgb · /set_multiple_leds · /set_leds · /trigger_led_event
+/enable_color · /get_rgbc_sensor_values          ← añadidos el 2026-08-06
 ```
 
-🔴 **Ocho servicios y ninguno arranca nada.** Encienden el barrido, liberan la parada, ponen LEDs.
-**Nav2 y SLAM no son servicios ROS: son unidades de systemd y ficheros de launch**, y rosbridge
-solo sabe hablar ROS. La web no tiene a quién pedírselo — no es que falte un botón.
+🔴 **Diez servicios, y ninguno arranca SLAM ni Nav2.** Encienden el barrido, liberan la parada,
+ponen LEDs y ahora hacen la sesión de color. **Nav2 y SLAM no son servicios ROS: son unidades de
+systemd y ficheros de launch**, y rosbridge solo sabe hablar ROS. La web no tiene a quién
+pedírselo — no es que falte un botón.
 
 ---
 
@@ -103,7 +112,7 @@ Lo destapó el usuario, recordando el ciclo funcionando en ROS 1. Y el código d
 respaldaba: servicio `enable_color` (`Atriz_rvr_node.py:331`, registrado en `:1636`) llamado **en
 caliente**, con el streaming ya arrancado en `:1313`.
 
-**Remedido** (`mediciones_banco/probar_color_stream_caliente.py`, evidencia 75):
+**Remedido** (`mediciones_banco/probar_color_stream_caliente.py`, evidencia 76):
 
 | fase | `/color` no-cero | canal claro |
 |---|---|---|

@@ -53,7 +53,7 @@ Ejecutado sobre `~/atriz_ws/src/Atriz_rvr/scripts/estudiantes/`, no deducido:
 | Scripts que arrancan | **0 de 10.** `python3 01_avanzar.py` → `ModuleNotFoundError: No module named 'rospy'` |
 | Scripts con `import rospy` | **10 de 10.** Con `rclpy`: **0** |
 | Publicaciones a `/cmd_vel` | **15**, en 8 ficheros |
-| `/enable_color`, que usan dos scripts | **NO EXISTE.** `ros2 service type /enable_color` no devuelve nada |
+| `/enable_color`, que usan dos scripts | **NO EXISTÍA** el 2026-08-02. ✅ **Existe desde el 2026-08-06** (`std_srvs/SetBool`), y hace justo lo que aquellos dos scripts esperaban: encender el LED del sensor en caliente |
 | Documentos | 5 `.md`, 1923 líneas |
 
 Y una cosa más, que no estaba en el encargo y cambia una prioridad:
@@ -253,7 +253,7 @@ Dos límites reales. Escribirlos aquí es más barato que descubrirlos en clase.
 **⚠️ `robot.color()` devuelve oscuridad hasta que enciendas la luz del sensor, y no es un fallo de
 la API.** El sensor necesita su propia luz. Desde el 2026-08-06 **se enciende en caliente** con el
 servicio `enable_color` (`std_srvs/SetBool`) — medido: canal claro **1 → 1321**, y vuelta a 1 al
-apagar (evidencia 75). Antes de esa fecha aquí ponía que era imposible; era falso.
+apagar (evidencia 76). Antes de esa fecha aquí ponía que era imposible; era falso.
 
 ⚠️ **Enciéndelo y apágalo:** deja un LED blanco bajo el chasis gastando batería.
 

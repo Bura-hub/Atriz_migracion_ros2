@@ -11,7 +11,42 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-05
+**Última actualización:** 2026-08-06
+
+---
+
+## 📣 PARA EL CLAUDE DEL PC — el botón de color ya se puede construir
+
+**El robot expone desde hoy el ciclo completo de la sesión de medición de color.** Los dos
+servicios están en la lista blanca de rosbridge y **verificados a través de ella**:
+
+| servicio | tipo | qué hace |
+|---|---|---|
+| `/enable_color` | `std_srvs/SetBool` | `data:true` enciende el LED del sensor y `/color` pasa a dar valores reales; `data:false` lo apaga |
+| `/get_rgbc_sensor_values` | `atriz_rvr_msgs/srv/GetRGBCSensorValues` | lectura puntual en crudo (R, G, B, claro) |
+
+Medido por el driver y por rosbridge: `/color` no-cero **0 → 53 → 0**, canal claro **1 → 1320 → 0**,
+RGB reales `(255, 224, 208)`. Evidencia 76.
+
+🔴 **Lo que te toca, y sin esto el cliente lanza antes de mandar nada:** añadir los dos a
+`contrato.ts` con sus tipos. `comprobar_contrato.mjs` seguirá en rojo hasta entonces (la política es
+«gana el robot»).
+
+🔴 **El estado NO se puede deducir del topic.** `/color` publica `[0,0,0]` cuando el sensor está
+apagado — **no calla**. Si el alumno recarga la página con la sesión encendida, la web no sabe en
+qué estado está. 📌 **Decisión tuya:** o miras si algún canal es ≠ 0 (0/53 apagado contra 53/53
+encendido: discrimina limpio salvo sobre superficie negra), o se añade `color_activo` a
+`/estado_robot` — más honesto, pero vuelve a romper el contrato hasta que lo incorpores. **Desde el
+robot no se ha tocado por eso.**
+
+⚠️ **El botón de PARAR tiene que ser tan visible como el de arrancar.** El LED blanco gasta batería
+mientras siga encendido, y son 16 robots.
+
+📝 **Y por qué esto no estaba hecho antes:** el proyecto afirmaba en cinco documentos que era
+imposible encender el sensor en caliente. **Era falso y nunca estuvo medido** — la prueba de julio
+encendía y apagaba en la misma llamada. Detalle completo en el `CHANGELOG` del 2026-08-06 (tarde) y
+en la evidencia 76. Si tenías algo diseñado sobre «hay que reiniciar el driver», **tíralo**: además
+de caro, reiniciar **baja la parada de emergencia** (`rvr_driver_node.py:266`).
 
 ## ✅ Cerrado y comprobado — no lo vuelvas a poner como pendiente
 
@@ -28,6 +63,7 @@ para saber por dónde vas.
 | ✅ **La tarea 9, CERRADA: la cinta y el control por SSH** | Evidencia 71. `web·3` → 30 cm · `web·4` → 30 · **`SSH·control` → 31 contra 31,3 de odometría**. Tres corridas, **dos transportes**, y la odometría acierta siempre dentro de la resolución de la cinta |
 | ✅ **La parada de emergencia, con el robot EN MARCHA y por rosbridge** | **4 de 4** corridas paran el robot. Frenadas de **2,9 · 2,3 · 1,8 cm**, contra los 9,9-10,7 del `collision_monitor` |
 | ✅ **`parada_emergencia` VISTO en `true`**, y en los dos sentidos | Evidencia 71: `🔴 parada_emergencia: False -> True (latido=2181)`, con el **flanco presenciado** —no una bandera encontrada ya puesta— y su vuelta a `false` al liberar |
+| ✅ **El sensor de color se enciende y se apaga EN CALIENTE**, y hay servicio para ello | Evidencia 76. `/enable_color` (`std_srvs/SetBool`): `/color` no-cero **0 → 53 → 0**, canal claro **1 → 1320 → 0**, reversible, con el LED **visto** encenderse. Refuta lo que cinco documentos daban por medido |
 | ✅ **El direccionamiento: una dirección por red, y el navegador entra por nombre** | Evidencias 74 y 75. `ws://rvr-01.local:9090` **abre** (4339 ms en frío, 2331 caliente), con control por IP y **control negativo** (`10.14.7.7` colgándose, que es la firma del fallo original) |
 
 ⚠️ **Y lo que de `/estado_robot` sigue SIN verificar, que no es lo mismo:** de sus cinco campos,

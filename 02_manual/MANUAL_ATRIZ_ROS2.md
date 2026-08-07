@@ -3923,7 +3923,7 @@ llamada**, y 481 mensajes a 12,7 Hz son ~38 s: casi todos POSTERIORES al apagado
 distinguía «el enable no hace nada» de «funcionó 200 ms y la propia llamada lo apagó».
 
 Remedido con el streaming corriendo a 250 ms, reproduciendo la secuencia de ROS 1
-(`mediciones_banco/probar_color_stream_caliente.py`, evidencia 75):
+(`mediciones_banco/probar_color_stream_caliente.py`, evidencia 76):
 
 | fase | `/color` no-cero | canal claro |
 |---|---|---|
