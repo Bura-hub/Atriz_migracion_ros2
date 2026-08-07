@@ -90,6 +90,35 @@ argumentos del launch (`color_apagado_inactividad_s`, `color_apagado_max_s`); `0
 Para saber si está encendida, `color_activo` de `/estado_robot` — **no** mirar si `/color` trae
 ceros, que también los trae sobre una superficie negra de verdad.
 
+### SLAM y navegación: **se piden, no se lanzan** (desde el 2026-08-07)
+
+Ya no se arrancan a mano por SSH. Son unidades de systemd que gobierna el
+`supervisor_navegacion`, y la web las pide por rosbridge:
+
+```bash
+ros2 service call /pedir_slam std_srvs/srv/SetBool "{data: true}"    # mapear
+ros2 service call /pedir_nav  std_srvs/srv/SetBool "{data: true}"    # navegar
+#                                                    data: false      # parar
+ros2 topic echo /estado_navegacion --once                            # ¿funciona?
+```
+
+🔴 **`success=true` significa PETICIÓN ACEPTADA, jamás «arrancado».** Quien dice
+si funciona es `/estado_navegacion`, con **seis** estados. Los dos que importan
+y que `systemctl is-active` esconde: **`CIEGO`** (encendido y sin `/scan`: el
+`collision_monitor` bloquea y el robot *parece averiado*) y **`MUDO`**.
+
+⏱️ Nav2 tarda **~30 s** hasta `FUNCIONANDO` (medido). SLAM, menos.
+
+⚠️ **Son EXCLUYENTES** — los dos publican `map → odom`. El `ExecStartPre` de
+exclusión se niega y lo dice, en vez de parar al otro en silencio.
+
+⚠️ **Si una unidad queda `failed`**, `/estado_navegacion` lo marca en
+`*_latcheado` y hace falta ir al robot: `sudo systemctl reset-failed atriz-nav`.
+Un solo `start` sin mapa agota el presupuesto de reintentos.
+
+📌 **El mapa se configura en UN sitio:** `/etc/default/atriz` (`ATRIZ_MAPA`), que
+leen las tres unidades. Tras editarlo, `sudo systemctl restart atriz-robot`.
+
 ### Antes de arrancar, dos comprobaciones de 5 segundos
 
 ```bash

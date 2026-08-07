@@ -4,6 +4,105 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-07 — SLAM y Nav2 desde la web, y **cinco instrumentos que mintieron**
+
+El día que la web ganó los dos botones que faltaban. Y el día en que la misma
+lección apareció **cinco veces seguidas**, que es lo que de verdad conviene
+conservar de esta sesión.
+
+### ✅ Lo que quedó funcionando
+
+| | |
+|---|---|
+| `/pedir_slam` · `/pedir_nav` | `std_srvs/SetBool`. **PETICIÓN ACEPTADA**, jamás «arrancado» |
+| `/estado_navegacion` | `EstadoNavegacion`, 11 campos, 1 Hz, **seis estados** |
+| `supervisor_navegacion` | nodo aparte del driver: aísla el privilegio de `systemctl` |
+| `atriz-slam.service` | nueva, instalada y **no habilitada** |
+| `atriz-exclusion` | `ExecStartPre` de las dos, falla en 0,1 s antes de subir el X2 |
+| `atriz-escaneo off-si-sobra` | apaga el barrido solo si nadie más lo necesita |
+| `49-atriz-unidades.rules` | polkit acotado a **dos unidades y dos verbos** |
+| `/etc/default/atriz` | **una** ruta del mapa, leída por las tres unidades |
+| `atriz-nav.service` | `BindsTo=` → **`PartOf=` + `Requires=`** |
+
+**Verificado de extremo a extremo**, con testigos independientes del supervisor:
+unidad `active/success`, procesos vivos, los cinco nodos de ciclo de vida en
+`active`, barrido encendido, y `/navigate_to_pose` **aceptando objetivos**.
+⚠️ **No se envió ningún objetivo: el robot no se movió.** Que Nav2 *navegue*
+sigue sin probarse.
+
+### 📊 Los números que no existían
+
+```
+Nav2 hasta aceptar objetivos      24,3 s   (n=2, dispersión 0,44)
+Nav2 hasta FUNCIONANDO             30,2 s   (n=1) ← ES EL QUE VE EL ALUMNO
+systemctl start --no-block          0,05 s  (n=4)
+systemctl start SIN --no-block     26,1 s   🔴
+/pedir_nav, cliente persistente     0,22-1,02 s   (plazo de la web: 5,0 s)
+```
+
+### 🔴 CINCO INSTRUMENTOS QUE MINTIERON, Y ES LA MISMA LECCIÓN
+
+1. **`is-active` sin timestamp.** La tabla `BindsTo`/`PartOf` registró solo
+   `active`, que significa **dos cosas opuestas**. Con el PID como testigo:
+   `PartOf=` **sí** devuelve la unidad, 9 de 9 → el diseño pasó de 4 unidades
+   nuevas a 2 y se cayó el `Upholds=` entero.
+2. **El cronómetro midiéndose a sí mismo.** Empezaba a contar cuando Python ya
+   estaba en pie: el resultado hubo que darlo como intervalo (18-26 s). Con
+   epoch y el observador arrancando antes, **24,3 s** exactos.
+3. **`ros2 service call` como cronómetro.** Dio 6,3 s, **por encima del plazo de
+   la web**. Es el arranque del CLI. Con cliente persistente, 0,22-1,02 s.
+   📌 Este proyecto **ya se equivocó así en julio** con `/start_scan`.
+4. **Un `param get` que no discriminaba.** El fichero decía lo mismo que el
+   defecto del nodo, así que habría salido igual sin leerlo. Se cambió el valor
+   y entonces sí probó algo.
+5. **Dos supervisores a la vez.** Matar `ros2 run` no siempre se lleva al nodo
+   hijo: la primera prueba de los rechazos fue contra el proceso viejo.
+
+> **Antes de anotar una medida: ¿qué habría salido si la hipótesis fuera falsa?
+> Si la respuesta es «lo mismo», no es una medida.**
+
+### 🔴 Y `set -e` mordió por TERCERA vez
+
+```
+(( t++ )) con t=0                → desactivó la espera de puertos del LIDAR
+[[ … ]] && kill                  → abortaba un banco de medición
+EST=$(systemctl is-active …)     → dejaba el barrido ENCENDIDO
+```
+
+El tercero: `systemctl is-active` devuelve **3** para una unidad inactiva — eso
+no es un error, es la respuesta. Con `set -e` la asignación mata el guion, y con
+el `-` del `ExecStopPost` systemd se lo traga **en silencio**.
+
+### Dos defectos que solo aparecen ejecutando
+
+- 🔴 **El supervisor y la unidad miraban mapas distintos.** `PathJoinSubstitution`
+  resuelve al directorio **instalado**; el script usa el **fuente**. Arreglado con
+  `/etc/default/atriz`, que ataca la clase y no el síntoma.
+- 🔴 **`CIEGO` en un arranque sano.** La máquina de estados lo comprobaba antes que
+  `ARRANCANDO`, así que Nav2 pasaba ~1 s por «encendido pero SIN barrido». La web
+  habría pintado una avería que no existe.
+
+### Escalado a la imagen dorada
+
+`fase_7_systemd.sh` en sus tres sitios, `MANIFIESTO.tsv` con cuatro líneas nuevas,
+y **siete asertos** en `verificar_robot.sh` — el que más importa:
+
+> **`User=sphero` es la línea de la que cuelga todo el modelo de seguridad.** La
+> regla de polkit es inocua mientras los procesos corran como `sphero`. Si alguien
+> pusiera `User=root`, se convertiría en ese instante en ejecución como root desde
+> la red, y hasta hoy **ningún test lo veía**.
+
+`145 comprobaciones correctas · 0 fallos.`
+
+### Pendiente
+
+- ⏳ **Que Nav2 navegue.** Mueve el robot y necesita espacio despejado.
+- 🔴 **`off-si-sobra` con dos unidades activas NO SE PUEDE PROBAR**: son excluyentes
+  por diseño. Esa rama solo se verifica por lógica, y así queda escrito.
+- ⏳ Al PC: `contrato.ts` (12 servicios, 15 topics), `useTopic.ts` y las pantallas.
+
+---
+
 ## 2026-08-06 (tarde) — El sensor de color SÍ se enciende en caliente
 
 Una afirmación que este proyecto llevaba **seis días** dando por medida resultó no estarlo, y

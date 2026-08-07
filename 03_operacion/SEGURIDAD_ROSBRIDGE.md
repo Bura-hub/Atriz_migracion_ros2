@@ -1,7 +1,7 @@
 # Cómo se asegura rosbridge en los 16 robots
 
 > **El problema.** `robot.launch.py` levanta `rosbridge_websocket` en el **9090, sin autenticación
-> ni TLS, escuchando en todas las interfaces**, y expone los 19 servicios del driver — incluido
+> ni TLS, escuchando en todas las interfaces**, y expone **doce** de los 19 servicios del driver más los **dos** del supervisor de navegación — incluido
 > `raw_motors`, que se salta el `collision_monitor` y el watchdog y **no tiene corte automático**.
 > Cualquiera en la red del aula puede abrir un WebSocket y mover un robot. Está verificado de
 > extremo a extremo: un navegador de otra subred abrió `ws://rvr-01.local:9090` y **encendió los
@@ -70,7 +70,7 @@ Cuatro parámetros en `robot.launch.py`. Cero código nuevo, cero cambios en el 
 |---|---|
 | `topics_sub_glob` | lo que la web **lee**: `/odom`, `/scan`, `/imu`, `/battery_state`, `/motor_status`, `/encoders`, `/color`, `/map`, `/tf`, `/tf_static`, `/collision_monitor_state`, `/amcl_pose` |
 | `topics_pub_glob` | lo que la web **manda**: **solo** `/cmd_vel_raw`, `/emergency_stop`, `/initialpose` |
-| `services_glob` | `/start_scan`, `/stop_scan`, `/release_emergency_stop`, **`/set_pos_and_yaw`**, y los cuatro de LED (`/set_led_rgb`, `/set_multiple_leds`, `/set_leds`, `/trigger_led_event`) para que la web identifique robots |
+| `services_glob` | **DOCE**: `/start_scan`, `/stop_scan`, `/release_emergency_stop`, **`/set_pos_and_yaw`**, los cuatro de LED (`/set_led_rgb`, `/set_multiple_leds`, `/set_leds`, `/trigger_led_event`), la sesión de color (`/enable_color`, `/get_rgbc_sensor_values`) y los botones de navegación (**`/pedir_slam`**, **`/pedir_nav`**, del `supervisor_navegacion` — NO del driver) |
 | | 🔴 **`set_pos_and_yaw` se añadió el 2026-08-02; la primera versión de este diseño lo dejaba FUERA.** Es el **único** modo de poner la odometría a cero entre alumnos: `reset_odom` no existe, y lo que hay es `set_pos_and_yaw(0,0,0)`, que llama a `reset_locator_x_and_y()` y pone `_yaw_offset = None`. Sin él la web no puede resetear entre sesiones. Solo acepta (0,0,0), así que exponerlo es seguro. Lo destapó **cruzar este documento con la evidencia 34** — ningún fichero lo decía por sí solo |
 | `actions_glob` | `/navigate_to_pose` |
 | `params_glob` | `"[]"` — **nada**. La web no cambia parámetros |

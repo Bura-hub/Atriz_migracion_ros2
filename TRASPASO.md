@@ -866,10 +866,16 @@ reconstruirlo. En resumen:
   y desde la web se verá igual que uno averiado.
 - 📝 La web ya **no tiene que arrancar nada por SSH**: `atriz-robot.service` lo hace, y se
   recupera solo de un reinicio (probado).
-- La web puede usar ya **19 servicios y 5 topics**. 🔴 Con dos avisos: los servicios de
+- La web puede usar ya **doce servicios** por la lista blanca —de los 19 del driver más los dos
+  del `supervisor_navegacion`— y **15 topics de lectura**. 🔴 Con dos avisos: los servicios de
   movimiento **se saltan la capa de seguridad**, y hay que publicar en **`/cmd_vel_raw`**, no en
   `/cmd_vel`.
-- 📝 `/color` publica `[0,0,0]` salvo que se arranque con `color_detection:=true`.
+- ✅ **Y desde el 2026-08-07 puede arrancar y parar SLAM y Nav2**: `/pedir_slam` y `/pedir_nav`
+  (`std_srvs/SetBool`), con `/estado_navegacion` diciendo si funcionan de verdad. Los dos
+  verificados de extremo a extremo (evidencia 80).
+- 📝 `/color` publica `[0,0,0]` hasta encender la luz con `/enable_color`, que funciona **en
+  caliente** desde el 2026-08-06 (evidencia 76). El parámetro `color_detection` solo fija el
+  estado inicial.
 - 🔴 La **credencial sigue expuesta**, y quitarla exige limpiar el **historial** de git.
 
 ### 🔴 Suposición aceptada: `provision.sh` no se ha probado entero
