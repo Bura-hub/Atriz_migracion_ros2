@@ -1,0 +1,100 @@
+════════════════════════════════════════════════════════════════════════════
+ 82 · EL SALTO DE 98° ERA LA RECUPERACIÓN DE AMCL
+      Arreglado. Y lo que queda es otro problema, mucho más pequeño.
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-07
+Robot:  rvr-01 · mapa del cuarto (3,80 × 4,20 m)
+Testigo físico: el usuario, con cinta métrica
+
+
+1 · LA HIPÓTESIS, Y DE DÓNDE SALIÓ
+────────────────────────────────────────────────────────────────────────────
+La evidencia 81 midió que `map -> odom` acababa rotado **+98,46°** en un
+recorrido de 70 cm. Al buscar la causa en `localizacion_amcl.yaml`:
+
+    recovery_alpha_slow: 0.001
+    recovery_alpha_fast: 0.1
+
+🔴 **Eran los DOS ÚNICOS parámetros del fichero sin una razón escrita al lado.**
+   Todos los demás la llevan medida: «el alcance útil real, no los 12 de la
+   ficha», «base_footprint NO base_link», «0.15 contra los 0.25 del ejemplo».
+   Esa ausencia fue la pista: venían copiados del ejemplo de Nav2.
+
+Qué hacen: cuando la verosimilitud a corto plazo cae por debajo de la de largo
+plazo, AMCL **inyecta partículas al azar por el mapa** y puede abandonar su
+hipótesis y saltar a otra. En una sala casi cuadrada, donde el barrido casa
+parecido girado un cuarto de vuelta, es el mecanismo exacto del salto.
+
+
+2 · LA MEDIDA — DOS TANDAS CON `recovery_alpha` EN CERO
+────────────────────────────────────────────────────────────────────────────
+                              antes        tanda 1      tanda 2
+    map -> odom, yaw MÁXIMO   +98,46°      2,57°        2,43°
+    recorrido por odometría    70,1 cm     65,4 cm      64,8 cm
+    recorrido por AMCL         78,4 cm     80,4 cm      72,1 cm
+    corrección de traslación   0,427 m     0,482 m      0,426 m
+
+✅ **EL SALTO DESAPARECIÓ, y es reproducible.** De 98° a 2,4-2,6° de máximo, dos
+   veces seguidas. La hipótesis se sostiene: **era la recuperación**.
+
+📝 Y una comprobación lateral que sale gratis: la odometría dio **65,4 y 64,8 cm**
+   en dos recorridos nominalmente iguales —0,6 cm de dispersión— mientras AMCL
+   dio **80,4 y 72,1** —8 cm—. Quién es fiable no hace falta discutirlo.
+
+
+3 · LA CINTA, QUE ES QUIEN DECIDE
+────────────────────────────────────────────────────────────────────────────
+    cinta métrica     66,0 cm     ← el usuario, centro a centro
+    odometría         64,8 cm     ← 1,2 cm de diferencia (1,8 %)
+    AMCL              72,1 cm     ← 6,1 cm de MÁS (9,2 %)
+    objetivo          80,0 cm
+
+Y el usuario, mirando: *«salió recto y luego curvó»* — que es exactamente lo que
+dice la traza de odometría (avanza en `x`, luego se desvía en `y`).
+
+✅ **LA ODOMETRÍA ACIERTA**, ahora con n=2 y contra cinta en trayectoria curva.
+🔴 **AMCL SOBREESTIMA ~9 %.** Y como Nav2 se lo cree y la tolerancia son 10 cm,
+   **para a 14 cm del objetivo real** creyendo estar dentro.
+
+
+4 · QUÉ CAMBIA, Y QUÉ NO
+────────────────────────────────────────────────────────────────────────────
+✅ **RESUELTO: AMCL ya no se pierde.** El diagnóstico de la evidencia 81 —«no
+   está localizado»— **deja de ser cierto**. Con la recuperación apagada el marco
+   se mantiene: 2,4° de rotación en 66 cm es ruido, no una hipótesis distinta.
+
+⚠️ **PENDIENTE, y es otra cosa: un error de ESCALA del ~9 %.** No es que el robot
+   esté perdido; es que AMCL cree haber avanzado más de lo que avanzó. Para «ve a
+   la mesa 3» en un aula, 14 cm de más pueden dar igual. Para prometer precisión,
+   no.
+
+⏳ **Sin medir, y son las candidatas:**
+   · el mapa lo hizo SLAM con esta misma odometría: si hay una escala mal, está
+     en el mapa y no en AMCL
+   · `update_min_d: 0.15` — sobre 66 cm son ~4 actualizaciones, pocas
+   · el modelo de movimiento (`alpha1..4` a 0.1) puede estar mal escalado para
+     un robot de 22 cm
+
+📌 Y una que NO es candidata: la simetría del cuarto. Esa explicaba el giro, y el
+   giro ya no está.
+
+
+5 · UN ERROR DE ATRIBUCIÓN QUE ESTA TANDA DESTAPÓ
+────────────────────────────────────────────────────────────────────────────
+🔴 La evidencia 81 dice «`set_pos_and_yaw(0,0,0)` — odometría a cero (verificado:
+   1,9 mm)». **La verificación era correcta y la atribución NO.**
+
+   La llamada estaba mal escrita —el servicio no tiene campo `x`, sino
+   `position.x`— y **falló en silencio**. La odometría estaba a cero porque el
+   usuario acababa de reiniciar el driver, no por la llamada.
+
+   Se descubrió al repetir la prueba sin reinicio previo: la odometría siguió en
+   (−0,378, −0,599) y entonces sí se miró la respuesta del servicio:
+
+       Failed to populate field: 'SetPosAndYaw_Request' object has no attribute 'x'
+
+   Con los campos correctos: `success=True`, y la odometría a **3,7 micras**.
+
+📌 **Comprobar el efecto no basta si no se descarta la otra causa del efecto.**
+   El cero estaba ahí; lo que no estaba era la relación con lo que yo había
+   hecho. Es «medir antes de atribuir» fallando en la parte de atribuir.

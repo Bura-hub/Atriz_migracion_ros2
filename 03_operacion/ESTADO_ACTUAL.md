@@ -282,7 +282,23 @@ AMCL              78,4 cm      ← 8 cm de más
 map → odom        yaw +98,46°  ← 🔴 el marco rotó 98° en 70 cm de recorrido
 ```
 
-🔴 **Nav2 declaró el objetivo cumplido sobre una pose que se había ido 98°.** Si hubiéramos
+✅ **ARREGLADO EL MISMO DÍA (evidencia 82).** Era la **recuperación de «robot secuestrado»** de
+AMCL: `recovery_alpha_slow/fast`, copiados del ejemplo de Nav2 y **los dos únicos parámetros de
+ese fichero sin una razón escrita al lado**. Con los dos en cero, dos tandas seguidas:
+
+```
+map → odom, yaw máximo:   98,46°  →  2,57°  ·  2,43°
+cinta 66,0 cm  ·  odometría 64,8 cm (1,8 % de error)  ·  AMCL 72,1 cm (9,2 %)
+```
+
+**AMCL ya NO se pierde.** Lo que queda es otra cosa y mucho menor: **sobreestima ~9 %**, así que
+Nav2 para **14 cm antes** de un objetivo de 80 cm creyendo estar dentro de la tolerancia (10 cm).
+
+📌 **Para tu pantalla, la regla no cambia:** `/odom` es fiable (1,8 % contra cinta, n=2, en
+trayectoria curva); la pose de AMCL, no del todo. Pinta desplazamiento con `/odom`.
+
+🔴 **Lo que decía antes este bloque, y ya no es cierto:** «Nav2 declaró el objetivo cumplido sobre
+una pose que se había ido 98°». Si hubiéramos
 mirado `/amcl_pose` habríamos escrito «navega con 2,5 cm de error»: falso por partida doble — el
 error real fue 10 cm y la dirección estaba 98° equivocada. Lo destapó **una cinta métrica y una
 persona mirando el robot**.

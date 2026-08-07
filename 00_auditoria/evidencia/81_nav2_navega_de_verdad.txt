@@ -11,7 +11,12 @@ Testigo físico: el usuario, con cinta métrica
 ────────────────────────────────────────────────────────────────────────────
 Primera vez que el robot se MUEVE por navegación autónoma en este proyecto.
 
-  1. `set_pos_and_yaw(0,0,0)`      odometría a cero (verificado: 1,9 mm)
+  1. `set_pos_and_yaw(0,0,0)`      🔴 **ESTA LLAMADA FALLÓ** — ver evidencia 82 §5.
+                                   Estaba mal escrita (el servicio pide
+                                   `position.x`, no `x`) y falló EN SILENCIO. La
+                                   odometría estaba a cero, sí, pero porque el
+                                   driver acababa de reiniciarse. La verificación
+                                   era buena; la ATRIBUCIÓN, falsa.
   2. `/pedir_nav data:true`        la web arranca la navegación
   3. esperar a FUNCIONANDO         ~30 s
   4. `/initialpose` en (0,0,0)     se le dice a AMCL dónde está
@@ -91,6 +96,13 @@ lo vio sin instrumentos:
 
 ✅ **La odometría del driver es excelente**, y ahora contra cinta en una
    trayectoria curva, no solo en línea recta.
+
+⚠️ **SUPERADO EL MISMO DÍA — ver evidencia 82.** El salto de 98° era la
+   **recuperación de «robot secuestrado»** de AMCL (`recovery_alpha_slow/fast`,
+   copiados del ejemplo de Nav2 sin justificar). Con los dos en cero, el marco se
+   mantiene: **2,4-2,6° de rotación máxima en dos tandas**, contra los 98°.
+   Lo que queda es otro problema y mucho menor: un error de **escala del ~9 %**
+   (cinta 66 cm · odometría 64,8 · AMCL 72,1).
 
 🔴 **La localización sobre este mapa NO es usable.** Y eso **no invalida el
    trabajo de hoy**: son capas distintas. Nadie había afirmado que AMCL
