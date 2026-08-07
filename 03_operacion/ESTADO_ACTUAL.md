@@ -305,16 +305,42 @@ AMCL       +0,760   +0,055       45,0 cm   🔴
 10 cm). AMCL acierta la distancia y **falla el rumbo en 35°**: cree que fue casi recto cuando se
 desvió 37 cm a la derecha.
 
-🔴 **Y lo peor: AMCL no corrige la odometría, la estropea.** La corrección `map → odom` valía
-42 cm, y como la odometría acierta a 1,5 cm, esos 42 cm son **error introducido por AMCL**. Sin
-AMCL la pose sería 30 veces mejor.
-
 ⚠️ **Lo que este bloque decía antes —«para 14 cm antes»— era optimista**, y por la misma razón que
 todo lo demás: se calculó con la distancia y no con la posición. El error real es **tres veces
 mayor**.
 
-📌 **Para tu pantalla, la regla no cambia:** `/odom` es fiable (1,8 % contra cinta, n=2, en
-trayectoria curva); la pose de AMCL, no del todo. Pinta desplazamiento con `/odom`.
+### ✅ Y ERA EL MAPA — cerrado el mismo día (evidencia 84)
+
+La evidencia 83 dejó cuatro hipótesis y marcó una como la más fuerte: **el mapa está mal**. Traía
+escrita su propia prueba —remapear el mismo cuarto y volver a navegar— y eso es lo que se hizo,
+**sin tocar ni un parámetro de AMCL**:
+
+```
+                          mapa viejo      MAPA NUEVO
+  error de AMCL             45,0 cm    →     8,9 cm      5×
+  corrección map → odom      0,424 m   →     0,028 m    15×
+  distancia al objetivo     41,3 cm    →     6,1 cm
+  tolerancia de Nav2           10 cm            10 cm
+  desenlace              ABORTADO ×2    →  ✅ SUCCEEDED
+```
+
+✅ **Lo que de verdad cambia: el «llegué» de Nav2 ya es cierto.** Antes declaraba éxito a 41,3 cm
+de un objetivo con 10 cm de tolerancia — o sea que mentía. Ahora paró a **6,1 cm**, dentro de
+verdad. **Se puede prometer «ve a ese punto» con ~10 cm.**
+
+⚠️ **Pero AMCL sigue siendo PEOR que la odometría**: 8,9 cm contra 4,2. Sigue añadiendo error en
+vez de quitarlo; lo que cambió es la magnitud, de absurda a pequeña. Y **4,2 contra 8,9 está cerca
+del límite de la cinta**: propagando ±1 cm por la trilateración, la incertidumbre es ±1,7 cm, así
+que la diferencia son ~2,7σ. Se distingue, sin mucho margen. ⏳ Y es **n=1** sobre el mapa nuevo.
+
+🔴 **LA CONDICIÓN OPERATIVA, que hay que meter en el procedimiento del aula: el mapa tiene que ser
+del sitio y estar FRESCO.** Un mapa de otro día con los muebles movidos reproduce el fallo de
+45 cm, y **el síntoma es que Nav2 dice que llegó**. Mapear es parte de montar el aula, no una
+tarea de una sola vez.
+
+📌 **Para tu pantalla, la regla no cambia:** `/odom` es la fuente fiable (4 medidas contra cinta:
+70,1/70,0 · 64,8/66,0 · 1,5 cm · 4,2 cm, y 3,3 cm de deriva acumulada en un ciclo completo con
+giros de 125°). Pinta desplazamiento con `/odom`.
 
 🔴 **Lo que decía antes este bloque, y ya no es cierto:** «Nav2 declaró el objetivo cumplido sobre
 una pose que se había ido 98°». Si hubiéramos
@@ -326,14 +352,14 @@ persona mirando el robot**.
 
 - ✅ El botón de Nav2 **funciona**: pídelo, se arranca, acepta objetivos, el robot se mueve, y
   `/estado_navegacion` lo refleja. Todo eso está verificado.
-- 🔴 **No pintes la pose de AMCL como si fuera la posición del robot**, ni dibujes una flecha
-  «estás aquí» sobre el mapa. Hoy no lo es.
+- ⚠️ **Puedes pintar la pose de AMCL, pero con ~10 cm de incertidumbre**, no como un punto exacto.
+  Sobre un mapa fresco vale 8,9 cm; sobre uno rancio se fue a 45 y **sin avisar**.
 - 📌 **`/odom` sí acierta** (70,1 contra 70,0 cm de cinta, en trayectoria curva). Si necesitas
   mostrar desplazamiento, ese es el bueno.
 
-⏳ **Hipótesis, sin medir:** el cuarto son 3,80 × 4,20 m y casi rectangular — una sala así tiene
-**ambigüedad de simetría a 90°**, y los 98° apuntan justo ahí. Habría que repetirlo en el aula,
-que es grande y con más estructura. Evidencia 81.
+⏳ **Sigue sin probarse el AULA**, y es un escenario **mejor** en las tres cosas que hacen difícil
+este cuarto: más grande (menos ambigüedad de barrido), menos simétrico, y sin Claude Code comiendo
+un núcleo de la Pi. Evidencias 81, 82, 83 y 84.
 
 ## ✅ Cerrado y comprobado — no lo vuelvas a poner como pendiente
 

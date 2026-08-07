@@ -215,6 +215,38 @@ rm -f  "$REAL_HOME/atriz_ws"/frames_*.gv "$REAL_HOME/atriz_ws"/frames_*.pdf
 find "$REAL_HOME/atriz_ws/src" -type d \( -name build -o -name install -o -name log \) \
      -prune -exec rm -rf {} + 2>/dev/null
 
+# 🔴🔴 LOS MAPAS DEL ROBOT DE REFERENCIA NO SE CLONAN, Y ESTO NO ES HIGIENE:
+#    ES CORRECCIÓN. Un mapa que no es del sitio hace que **Nav2 mienta**.
+#
+#    Medido el 2026-08-07 (evidencias 83 y 84), mismo cuarto, mismo recorrido,
+#    lo único distinto el mapa:
+#
+#              mapa rancio    mapa fresco
+#      AMCL       45,0 cm   ->    8,9 cm
+#      al objetivo 41,3 cm  ->    6,1 cm     (tolerancia de Nav2: 10 cm)
+#      Nav2 dijo   ÉXITO         ÉXITO       <- 🔴 LAS DOS VECES
+#
+#    🔴 El síntoma es que **no hay síntoma**: Nav2 declara el objetivo cumplido,
+#       `/estado_navegacion` dice FUNCIONANDO y el robot está medio metro de
+#       donde cree. Clonar el mapa de esta Pi repartiría eso por 16, y en 15 de
+#       ellos ni siquiera sería el mismo cuarto.
+#
+#    Y se borra TAMBIÉN la línea `ATRIZ_MAPA` de /etc/default/atriz: dejarla
+#    apuntando a un fichero que ya no existe hace que `atriz-nav.sh` falle alto
+#    —que es lo correcto y lo que se quiere— pero con un mensaje que habla de un
+#    mapa del robot 01. Se deja el fichero SIN esa línea, y entonces el aviso
+#    que sale es el suyo: «no hay mapa, mapea el aula».
+if [[ -d "$REAL_HOME/mapas" ]]; then
+    N_MAPAS=$(find "$REAL_HOME/mapas" -maxdepth 1 -name '*.yaml' | wc -l)
+    rm -rf "${REAL_HOME:?}/mapas"/*
+    ok "mapas del robot de referencia borrados ($N_MAPAS) — cada aula mapea el suyo"
+fi
+if [[ -f /etc/default/atriz ]] && grep -q '^ATRIZ_MAPA=' /etc/default/atriz; then
+    sed -i 's|^ATRIZ_MAPA=.*|# ATRIZ_MAPA=  <- 🔴 SIN VALOR A PROPÓSITO. Mapea TU aula y pon aquí su .yaml.\n#              Un mapa que no es de este sitio hace que Nav2 diga «llegué»\n#              estando a medio metro (evidencia 84). Ver maps/README.md.|' \
+        /etc/default/atriz
+    ok "ATRIZ_MAPA vaciado en /etc/default/atriz — se rellena por aula"
+fi
+
 # Los .bak-* de /etc: son el rollback de fase_1, así que se MUEVEN, no se
 # borran. Y el de apt hace que apt avise en cada ejecución (verificar_robot.sh).
 # ⚠️ NO se tocan /etc/.resolv.conf.systemd-resolved.bak ni /boot/firmware/*.dtb.bak:
@@ -325,6 +357,11 @@ fi
 if [[ ! -d "$REAL_HOME/atriz_migracion" ]]; then
     avis "🔴 no está ~/atriz_migracion: los clones no tendrán verificar_robot.sh"
 fi
+# 🔴 Y el mapa, que es lo ÚLTIMO que hay que hacer y lo primero que se olvida.
+avis "🔴 LOS CLONES SALEN SIN MAPA, a propósito. Antes de que naveguen, en CADA"
+avis "   aula: mapear con atriz-slam, guardar en ~/mapas, y poner su .yaml en"
+avis "   ATRIZ_MAPA de /etc/default/atriz. Un mapa de otro sitio NO da error:"
+avis "   Nav2 dice «llegué» estando a medio metro (evidencia 84)."
 # 🔴 La divergencia que rompe la regla del proyecto («provision.sh es la verdad»)
 if [[ -f /etc/systemd/system/atriz-robot.service ]] \
    && ! grep -q 'fase_7_systemd' "$SCRIPTS_DIR/provision.sh" 2>/dev/null; then

@@ -89,6 +89,42 @@ Se verifica **por efecto**: que las unidades lo declaren y que el mapa sea legib
 
 ⚠️ Tras editarlo: `sudo systemctl restart atriz-robot` (y las unidades que estén activas).
 
+### 🔴🔴 Y el mapa al que apunta tiene que ser DEL SITIO y estar FRESCO
+
+Esto no es una recomendación de calidad: es la diferencia entre que Nav2 funcione y que **mienta**.
+Medido el 2026-08-07 (evidencias 83 y 84) con el mismo robot, el mismo recorrido y los mismos
+parámetros de AMCL — **lo único distinto era el mapa**:
+
+```
+                          mapa rancio     mapa fresco
+  error de AMCL              45,0 cm    →     8,9 cm
+  corrección map → odom       0,424 m   →     0,028 m
+  distancia real al objetivo  41,3 cm   →     6,1 cm
+  tolerancia de Nav2             10 cm           10 cm
+  lo que dijo Nav2            ✅ ÉXITO      ✅ ÉXITO    ← 🔴 LAS DOS VECES
+```
+
+🔴 **No hay ningún síntoma.** El objetivo termina `SUCCEEDED`, `/estado_navegacion` dice
+`FUNCIONANDO`, no hay una línea de error en ningún log, y el robot está a medio metro de donde
+cree. Nada dentro del sistema lo detecta — **lo destapó una cinta métrica**.
+
+📌 **Por tanto: mapear es parte de MONTAR EL AULA, no una tarea de una sola vez.** Si se mueven
+las mesas, se remapea. Y **la imagen dorada sale sin mapa a propósito**
+(`fase_6_preparar_imagen_dorada.sh` borra `~/mapas` y vacía `ATRIZ_MAPA`): clonar el mapa del
+robot de referencia repartiría a los 16 un mapa que en 15 no es ni del mismo sitio.
+
+✅ `verificar_robot.sh` lo comprueba en tres líneas, y **discriminan** (probadas contra un mapa
+huérfano, uno sin `image:` y uno de hace 18 días):
+
+```
+✓ ATRIZ_MAPA apunta a un mapa legible
+✓ la imagen del mapa existe (cuarto3.pgm)     ← el .yaml solo NO basta
+✓ el mapa se hizo hace 0 dia(s)               ← avisa a partir de 7
+```
+
+⚠️ La frescura es un **aviso**, no un fallo: solo la persona sabe si el aula cambió. Lo que el
+verificador puede hacer es recordarlo.
+
 ## El diseño
 
 ### `atriz-nav.service` — instalada, NO habilitada

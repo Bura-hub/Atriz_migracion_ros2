@@ -4,6 +4,79 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-07 (tarde) — **Nav2 navega de verdad. Era el mapa.**
+
+El robot se movió solo por primera vez en este proyecto. Y con ello se abrió el problema que
+ocupó la tarde entera: **Nav2 declaraba el objetivo cumplido estando a 41 cm de él**, con una
+tolerancia de 10.
+
+Hicieron falta cuatro evidencias (81, 82, 83, 84) porque eran **dos fallos distintos con el mismo
+síntoma aparente**, y arreglar el primero dejó el segundo en pie.
+
+| | causa | arreglo | evidencia |
+|---|---|---|---|
+| el marco `map→odom` rotaba **98,46°** | la recuperación de «robot secuestrado» de AMCL — `recovery_alpha_slow/fast`, **los dos únicos parámetros del fichero sin una razón escrita al lado** | los dos a **0.0** | 82 |
+| AMCL erraba **45 cm en posición** con el marco ya quieto | **el mapa** | remapear el sitio | 84 |
+
+```
+                          mapa rancio     mapa fresco
+  error de AMCL              45,0 cm    →     8,9 cm
+  corrección map → odom       0,424 m   →     0,028 m
+  distancia real al objetivo  41,3 cm   →     6,1 cm     (tolerancia 10 cm)
+  lo que dijo Nav2            ✅ ÉXITO      ✅ ÉXITO      🔴 LAS DOS VECES
+```
+
+✅ **Se puede prometer «ve a ese punto» con ~10 cm.** Es exactamente lo que la evidencia 83 decía
+que **no** se podía. ⚠️ Con **n=1** sobre el mapa nuevo, y con AMCL todavía **peor que la
+odometría** (8,9 contra 4,2 cm) — sigue añadiendo error, solo que poco.
+
+### 🔴 Lo que se escaló a todo el repositorio
+
+Porque el modo de fallo es silencioso y la imagen dorada lo habría repartido por 16:
+
+| Dónde | Qué |
+|---|---|
+| `fase_6_preparar_imagen_dorada.sh` | **borra `~/mapas` y vacía `ATRIZ_MAPA`** — clonar el mapa del robot de referencia lo llevaría a 15 sitios donde no es del mismo cuarto |
+| `verificar_robot.sh` | comprueba que **el `.pgm` exista** (el `.yaml` solo no basta) y **avisa a los 7 días**. Las tres probadas contra un mapa huérfano, uno sin `image:` y uno de hace 18 días |
+| `maps/README.md` (Atriz_rvr) | reescrito: el fallo, los dos sitios donde viven los mapas, y el orden de marcado para medir |
+| `ARRANQUE_NAVEGACION.md` · `CLAUDE.md` · `ESTADO_ACTUAL.md` | la condición operativa: **mapear es parte de montar el aula**, no una tarea de una sola vez |
+| `localizacion_amcl.yaml` | el `⏳ NO VERIFICADO` de `recovery_alpha` era **rancio**: la evidencia 82 ya lo había verificado dos veces |
+
+### 📝 Lo que se aprendió, que vale más que el arreglo
+
+🔴 **Con UNA sola distancia de cinta no se puede saber dónde acabó el robot.** Deja al robot en
+cualquier punto de una circunferencia. Con la diagonal sola, odometría y AMCL se separaban **2 cm**
+mientras estaban a **45** la una de la otra: por eso las tres tandas anteriores no zanjaron nada.
+Se resolvió con **trilateración desde dos marcas** (`mediciones_banco/comparar_con_cinta.py`).
+
+🔴 **El instrumento competía por el recurso que medía.** Dos objetivos ABORTARON con
+`Timed out while waiting for action server to acknowledge goal request (follow_path)`. No era
+falta de asentamiento —se probó con 8 s—: era la **Pi saturada**, load **8,39 sobre 4 núcleos**,
+con Claude Code al **21,6 %**. Cada `ros2 service call` levanta un intérprete de Python entero.
+Arreglado juntando la prueba en **un solo proceso** que además **espera a que la carga baje**.
+📝 Van **siete** veces que el medidor miente aquí, y esta es de familia nueva: no daba un número
+falso, **perturbaba el sistema**.
+
+🔴 **Y un error de método propio: se lanzó una tanda sin esperar a que el usuario marcara el
+suelo.** «Lo anterior lo empezaste sin yo haber marcado nada». Esa tanda se descartó. También se
+explicó mal dónde iba la marca `B` —«el lado corto del rectángulo»— y el usuario corrigió: la
+línea tiene que pasar **por `A`**. Cuantificado después: 5 cm de desvío en `B` → ~2,4 cm de error.
+
+📝 **De regalo:** la **deriva acumulada de la odometría** es **3,3 cm** tras un ciclo completo con
+giros de 125°, medido por el usuario con cinta a la marca de partida. Quinta medida contra cinta,
+y la odometría vuelve a salir reforzada.
+
+### ⏳ Lo que queda
+
+- **n=1.** La evidencia 82 ya enseñó que una tanda limpia puede sostener una conclusión que la
+  réplica desmonta. Esto pide repetirse.
+- **AMCL sigue siendo peor que la odometría.** 8,9 contra 4,2 cm, y esa diferencia está a ~2,7σ
+  del error de la cinta: se distingue, sin mucho margen.
+- **El aula sigue sin probarse**, y es un escenario **mejor** en las tres cosas que hacen difícil
+  este cuarto: más grande, menos simétrico, y sin Claude Code comiendo un núcleo de la Pi.
+
+---
+
 ## 2026-08-07 — SLAM y Nav2 desde la web, y **cinco instrumentos que mintieron**
 
 El día que la web ganó los dos botones que faltaban. Y el día en que la misma

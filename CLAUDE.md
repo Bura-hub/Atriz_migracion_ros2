@@ -704,6 +704,35 @@ método bueno, así que el orden de magnitud aguanta. → Para comparar procesos
 4.8 %. → **El argumento para AMCL no es la CPU, es el marco compartido**: 16 robots sobre un
 mismo `map` es lo que permite que la web diga «ve a la mesa 3». Manual, cap. 14.1.
 
+**🔴🔴 UN MAPA QUE NO ES DEL SITIO HACE QUE NAV2 DIGA «LLEGUÉ» ESTANDO A MEDIO METRO, Y NO HAY
+NINGÚN OTRO SÍNTOMA.** Medido el 2026-08-07 con el mismo robot, el mismo recorrido de 80 cm y los
+mismos parámetros de AMCL — **lo único distinto era el mapa**:
+
+```
+                          mapa rancio     mapa fresco
+  error de AMCL              45,0 cm    →     8,9 cm
+  corrección map -> odom      0,424 m   →     0,028 m
+  distancia real al objetivo  41,3 cm   →     6,1 cm
+  tolerancia de Nav2             10 cm           10 cm
+  lo que dijo Nav2            ✅ ÉXITO      ✅ ÉXITO    <- 🔴 LAS DOS VECES
+```
+
+→ **El objetivo termina `SUCCEEDED`, `/estado_navegacion` dice `FUNCIONANDO`, y no hay una línea
+  de error en ningún log.** Nada dentro del sistema lo detecta: lo destapó **una cinta métrica**.
+  Misma familia que el RVR dormido con el nodo vivo y el nodo muerto con systemd en verde, pero
+  peor: aquí el componente **contesta que le fue bien**.
+→ 📌 **Mapear es parte de MONTAR EL AULA, no una tarea de una sola vez.** Si se mueven las mesas,
+  se remapea. Y la **imagen dorada sale SIN mapa a propósito** (`fase_6` borra `~/mapas` y vacía
+  `ATRIZ_MAPA`): clonarlo repartiría a los 16 un mapa que en 15 ni siquiera es del mismo sitio.
+→ ⚠️ **Y fueron DOS fallos distintos con el mismo síntoma aparente**, que es lo que costó tres
+  tandas: el marco `map -> odom` rotando **98°** era la recuperación de «robot secuestrado»
+  (`recovery_alpha_slow/fast`, evidencia 82); el error de **45 cm en posición** con el marco ya
+  quieto era el mapa (evidencia 84). **Arreglar el primero dejó el segundo en pie**, y durante un
+  rato pareció que no había mejorado nada.
+→ ⚠️ **AMCL sigue siendo peor que la odometría** incluso con el mapa bueno: 8,9 cm contra 4,2. Lo
+  que cambió es la magnitud, de absurda a pequeña. Y esa diferencia está a ~2,7σ del error de la
+  cinta: se distingue, sin mucho margen. **n=1** sobre el mapa nuevo. Evidencias 81-84.
+
 **📝 `/amcl_pose` no llega con el robot quieto, y no es un fallo.** AMCL solo actualiza tras
 moverse `update_min_d` (0.15 m). Mueve el robot antes de dar por roto nada.
 
@@ -1425,6 +1454,16 @@ probar_sdk_tanda2.py         # temperaturas con los IDs buenos, color async, bat
 probar_lista_blanca.py       # ¿la lista blanca de rosbridge DENIEGA de verdad? (sin mover el robot)
 probar_sdk_no_usados.py      # los métodos del SDK que el driver NO usa: ¿cuáles responden?
 #                              ⚠️ necesita el driver parado (sudo systemctl stop atriz-robot)
+
+prueba_navegacion_completa.py # ⚠️ MUEVE EL ROBOT ~80 cm: la prueba de Nav2 ENTERA en UN proceso.
+#                              Resetea odometría, pide nav, espera FUNCIONANDO, ESPERA A QUE LA
+#                              CARGA BAJE de 4.0, manda el objetivo y lee su DESENLACE.
+#                              🔴 Es un proceso solo a propósito: encadenar `ros2 service call`
+#                                 satura la Pi (load 8.39/4) y bt_navigator ABORTA el objetivo.
+#                                 El instrumento competía por el recurso que medía.
+comparar_con_cinta.py        # sin robot: convierte AB/AP/BP en una POSICIÓN por trilateración
+#                              🔴 con UNA sola distancia no se puede: la diagonal dejó pasar un
+#                                 error de 45 cm porque separaba las hipótesis solo 2 cm
 ```
 
 ⚠️ **`medir_slam_ros2.py` necesita espacio, y el robot NO esquiva obstáculos** (solo tiene
@@ -1502,6 +1541,8 @@ de verdad. Dos consecuencias que cambian el día a día:
 | ✅ **GIRO POR ANGULO** | **n=3**: 90°→**86.6 / 86.2 / 87.7°** · 180°→**179.6 / 179.6 / 179.6°** · 360°→**358.4 / 357.9 / 358.8°**. Rango 1.5° / **0.0°** / 0.9°. Deslizamiento **0.0–0.3 cm** · signo REP-103. 📝 Con baterías del 55 al 100 %: **el déficit NO depende de la carga**, y el de 180° sale idéntico las tres veces | 2026-08-02, evidencias 48 y 55 |
 | ✅ **Nav2: error de RUMBO al llegar** | **13.6 · 10.1 · 14.1°** — dato NUEVO. Nav2 los da por `SUCCEEDED` (su `yaw_goal_tolerance` lo permite), pero **un robot que llega mirando 14° a un lado importa para la web** | 2026-08-02, evidencia 55 |
 | **Nav2 navegando** | error final **9–10 cm** (= la tolerancia configurada) | 2026-07-31 |
+| ✅ **Nav2, error REAL contra cinta** (trilateración, no la diagonal) | **6,1 cm** de un objetivo de 80, sobre un mapa **fresco** del sitio · AMCL **8,9 cm** de error de posición, odometría **4,2** · corrección `map→odom` **0,028 m**. 🔴 Con el mapa **rancio**, lo mismo daba **41,3 · 45,0 · 0,424** y **Nav2 declaraba ÉXITO igual**. n=1 | 2026-08-07, evidencia 84 |
+| ✅ **Deriva acumulada de la odometría** | **3,3 cm** tras un ciclo completo (ida 45 cm, giro de 125°, vuelta, ×2), medido con cinta a la marca de partida | 2026-08-07 |
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |
 | Nav2 solo | ~58 % de un núcleo — la pieza más pesada | 2026-07-31 |
 | **Parada del `collision_monitor`** | **9.9 cm** a 0.25 m/s · **10.6-10.7 cm** a 0.40 (n=2) | 2026-07-31 |
@@ -1630,7 +1671,8 @@ lo que produce deriva entre documentación y realidad.
 bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
 ```
 
-**105 aserciones** con `--hardware` ✅ medido 2026-08-01 (102 sin él), 0 fallos, código de salida ≠ 0 si algo falla, y cada
+**150 comprobaciones** sin `--hardware` ✅ medido 2026-08-07 (eran 105 con `--hardware` el
+2026-08-01), 0 fallos, código de salida ≠ 0 si algo falla, y cada
 fallo viene con el comando que lo arregla. Existe porque el 2026-07-30 se verificó este robot a
 mano con ~25 comandos y aparecieron **cinco fallos silenciosos**. No repitas eso: pásalo al
 empezar y al cerrar.

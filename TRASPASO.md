@@ -51,10 +51,50 @@
 > ✅ **Y lo que sí quedó cerrado el 2026-08-06, contra rvr-01:** conducir desde el navegador de
 > punta a punta (**cinta 30,0 cm contra 29,7 de `/odom`**, 1,0 % de error); la lista blanca
 > **deniega en silencio** (con control positivo); la parada de emergencia **puesta y liberada
-> desde la web** con el robot confirmándolo; el cliente ya habla **acciones**; y hay un **mapa de
-> verdad** de un cuarto (7,41 m², `~/mapas/cuarto.pgm`).
+> desde la web** con el robot confirmándolo; y el cliente ya habla **acciones**.
 >
-> Última actualización: **2026-08-06**.
+> ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-07 · NAV2 NAVEGA DE VERDAD, Y ERA EL MAPA**
+> ═══════════════════════════════════════════════════════════════════════════════
+> El robot se movió solo por primera vez en este proyecto, y con ello se abrió el problema que
+> ocupó el día: **Nav2 declaraba el objetivo cumplido estando a 41 cm de él**, con 10 cm de
+> tolerancia. Tres tandas y cuatro evidencias (81, 82, 83, 84) para separar **dos fallos
+> distintos con el mismo síntoma aparente**:
+>
+> | | causa | arreglo | evidencia |
+> |---|---|---|---|
+> | el marco `map→odom` rotaba **98°** | la recuperación de «robot secuestrado» de AMCL | `recovery_alpha_slow/fast` a **0.0** | 82 |
+> | AMCL erraba **45 cm** con el marco ya quieto | **el mapa** | remapear el sitio | 84 |
+>
+> 🔴 **Arreglar el primero dejó el segundo en pie**, y durante un rato pareció que no había
+> mejorado nada. Y el segundo **solo se ve con dos distancias de cinta**: con la diagonal sola,
+> odometría y AMCL parecían igual de buenas (2 cm) estando a 45 cm la una de la otra.
+>
+> ```
+>                           mapa rancio     mapa fresco
+>   error de AMCL              45,0 cm    →     8,9 cm
+>   distancia real al objetivo 41,3 cm    →     6,1 cm   (tolerancia 10 cm)
+>   lo que dijo Nav2           ✅ ÉXITO       ✅ ÉXITO    <- 🔴 LAS DOS VECES
+> ```
+>
+> ✅ **Se puede prometer «ve a ese punto» con ~10 cm**, que es lo que la evidencia 83 decía que
+> **no** se podía. ⚠️ Con **n=1** sobre el mapa nuevo, y con AMCL todavía peor que la odometría
+> (8,9 contra 4,2 cm).
+>
+> 🔴 **Y una condición operativa nueva, escalada a todo el repositorio: el mapa tiene que ser del
+> sitio y estar FRESCO.** No hay ningún síntoma cuando no lo está. Por eso ahora:
+> `fase_6_preparar_imagen_dorada.sh` **borra `~/mapas` y vacía `ATRIZ_MAPA`** (clonar el mapa del
+> robot de referencia lo repartiría a 16 sitios distintos), `verificar_robot.sh` comprueba que el
+> `.pgm` exista y **avisa a los 7 días**, y está escrito en `maps/README.md`,
+> `ARRANQUE_NAVEGACION.md` y `CLAUDE.md`.
+>
+> 📝 De regalo, dos datos: la **deriva acumulada de la odometría** es **3,3 cm** tras un ciclo
+> completo con giros de 125°; y los abortos de `follow_path` que parecían falta de asentamiento
+> eran **la Pi saturada** (load 8,39/4 núcleos) — encadenar `ros2 service call` levanta un
+> intérprete por llamada. **El instrumento competía por el recurso que medía**, y por eso la
+> prueba vive ahora en **un solo proceso** (`mediciones_banco/prueba_navegacion_completa.py`).
+>
+> Última actualización: **2026-08-07**.
 >
 > Antes de esta sesión, el **2026-08-04** se cerró **el direccionamiento de la flota**
 > —una dirección por red, aplicada en rvr-01 y verificada desde el navegador (evidencias 74 y

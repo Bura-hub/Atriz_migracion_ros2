@@ -1397,6 +1397,32 @@ if [[ -f /etc/default/atriz ]]; then
         RUTA_MAPA="$(grep -E '^\s*ATRIZ_MAPA=' /etc/default/atriz | tail -1 | cut -d= -f2-)"
         if [[ -r "$RUTA_MAPA" ]]; then
             _ok "ATRIZ_MAPA apunta a un mapa legible"
+            # 🔴 EL .yaml NO BASTA. `image:` se resuelve RELATIVA al directorio
+            #    del yaml, y un yaml sin su .pgm hace fallar a map_server
+            #    DESPUES de arrancar la unidad -- consume reintentos igual que
+            #    no tener mapa, pero pasando esta comprobacion.
+            IMG_MAPA="$(grep -E '^\s*image:' "$RUTA_MAPA" 2>/dev/null | tail -1 | sed 's/^[^:]*:[[:space:]]*//')"
+            if [[ -z "$IMG_MAPA" ]]; then
+                _mal "el mapa no declara 'image:': $RUTA_MAPA" \
+                     "no es un yaml de map_server valido"
+            elif [[ -r "$(dirname "$RUTA_MAPA")/$IMG_MAPA" ]]; then
+                _ok "la imagen del mapa existe ($IMG_MAPA)"
+            else
+                _mal "el mapa referencia una imagen que no existe: $IMG_MAPA" \
+                     "map_server fallara DESPUES de arrancar; copia el .pgm junto al .yaml"
+            fi
+            # ⚠️ FRESCURA. No es cosmetica: medido el 2026-08-07 (evidencias 83
+            #    y 84), con un mapa que no es del sitio AMCL se equivoca 45 cm y
+            #    **Nav2 declara EXITO igual**. No hay ningun otro sintoma. Es un
+            #    aviso y no un fallo porque solo la persona sabe si el aula
+            #    cambio -- lo que el verificador puede hacer es recordarlo.
+            DIAS_MAPA="$(( ( $(date +%s) - $(stat -c %Y "$RUTA_MAPA") ) / 86400 ))"
+            if [[ "$DIAS_MAPA" -le 7 ]]; then
+                _ok "el mapa se hizo hace $DIAS_MAPA dia(s)"
+            else
+                _avi "el mapa tiene $DIAS_MAPA dias: $RUTA_MAPA" \
+                     "si el aula cambio, Nav2 dira 'llegue' estando a medio metro; remapea"
+            fi
         else
             _avi "ATRIZ_MAPA apunta a un mapa que no existe: $RUTA_MAPA" \
                  "la navegacion no arrancara; genera uno con SLAM o edita el fichero"
