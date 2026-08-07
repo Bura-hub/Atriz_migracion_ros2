@@ -11,45 +11,50 @@ systemd**. Se estaba diseñando encima de él —y extendiéndolo a SLAM— un
 mecanismo que no se había visto correr una sola vez con carga real.
 
 
-1 · B2 · ARRANCA, Y CUÁNTO TARDA
+1 · B2 · ARRANCA, Y TARDA 24,3 s  (n=2, dispersión 0,44 s)
 ────────────────────────────────────────────────────────────────────────────
-✅ **Arranca.** `active / success`, con el mapa del cuarto.
+✅ **Arranca.** `active / success` con el mapa del cuarto, las dos veces.
 
-    10,5 s   aparece behavior_server
-    10,7 s   aparece controller_server
-    12,3 s   aparece map_server
-    12,5 s   aparece amcl
-    12,7 s   aparece planner_server
-    12,9 s   aparece bt_navigator
-    17,9 s   /navigate_to_pose ACEPTA OBJETIVOS     ← el testigo por EFECTO
+    vuelta 1   ACEPTA OBJETIVOS a los  24,489 s del systemctl start
+    vuelta 2   ACEPTA OBJETIVOS a los  24,044 s
+    ──────────────────────────────────────────────────────────
+    dispersión                          0,445 s
 
-⚠️ **CÓMO SE LEE ESE 17,9, Y NO ES «17,9».** El cronómetro arranca su reloj
-   cuando Python ya está en pie, no cuando se lanzó `systemctl start`: entre
-   medias hay un `su - sphero` con dos `source` de `setup.bash`, que en una Pi
-   son segundos. **17,9 s es una COTA INFERIOR.**
+**El arranque es REPRODUCIBLE.** Medio segundo de diferencia sobre 24: la web
+puede fiarse del plazo.
 
-   La cota superior la da el propio `systemctl start`, que devolvió a los
-   **26,1 s**. O sea:
+⚠️ **LA PRIMERA TANDA DIO «ENTRE 18 Y 26 s», Y ERA UN DEFECTO DEL INSTRUMENTO.**
+   El cronómetro empezaba a contar cuando Python ya estaba en pie, no cuando se
+   lanzaba `systemctl start`; entre medias hay un `su - sphero` con dos `source`
+   de `setup.bash`. Se corrigió haciendo que informe en **epoch** y que el
+   observador **arranque ANTES** del `systemctl`, avisando con una marca. El
+   intervalo se convirtió en un número.
+   📌 Es la lección de la evidencia 78 otra vez: **el instrumento midiéndose a
+      sí mismo.** Aquí no produjo una conclusión falsa —el intervalo contenía la
+      verdad— pero sí un número que no se podía usar.
 
-       arranque real de Nav2 hasta aceptar objetivos:  entre 18 y 26 s
+📌 **CONSECUENCIA 1 — `TimeoutStartSec=120` está bien puesto.** 24,3 contra 120:
+   cinco veces de margen. No era humo.
 
-   Se anota así a propósito. Un «17,9 s» limpio sería más cómodo y menos cierto.
+🔴 **CONSECUENCIA 2, LA QUE DECIDE EL DISEÑO — `--no-block` cabe de sobra:**
 
-📌 **CONSECUENCIA 1 — `TimeoutStartSec=120` está bien puesto.** Cabe con
-   holgura: 26 s contra 120. No era humo.
+    systemctl start --no-block devolvió en   0,053 · 0,054 · 0,052 · 0,050 s
+                                             (cuatro medidas, dos tandas)
 
-🔴 **CONSECUENCIA 2, Y ES LA QUE DECIDE EL DISEÑO: `--no-block` es OBLIGATORIO.**
-   `systemctl start` **bloqueó 26,1 s**. Los tres plazos de la cadena web son de
-   **5,0 s** —`_pedir()` del driver, `default_call_service_timeout` de rosbridge
-   y el `ms = 5000` del cliente—. Un servicio ROS que espere a que `systemctl`
-   vuelva da **timeout en la web sobre una operación que SÍ funcionó**.
-   → El servicio **lanza y vuelve**; el estado se consulta aparte. Esto ya no es
-     una precaución razonada: está medido, y el margen es de 5× por encima.
+   Contra los **5,0 s** de los tres plazos de la cadena web —`_pedir()` del
+   driver, `default_call_service_timeout` de rosbridge y el `ms = 5000` del
+   cliente—. **Tres órdenes de magnitud de margen.** El servicio ROS lanza y
+   vuelve; el estado se consulta aparte. Ya no es una precaución razonada.
 
-📌 **CONSECUENCIA 3 — el plazo del estado «arrancando» de la web.** ~26 s es lo
-   esperado; 120 s el tope duro. Y **segundos transcurridos, no porcentaje**:
-   entre 18 y 26 no da para una barra de progreso honesta.
+   ⚠️ Y el contraste importa: **sin `--no-block`, `systemctl start` bloqueó
+      26,1 s** (primera tanda). Un servicio que esperase daría timeout en la web
+      sobre una operación que sí funcionó.
 
+📌 **CONSECUENCIA 3 — el plazo del estado «arrancando».** ~25 s es lo esperado,
+   120 s el tope duro. **Segundos transcurridos, no porcentaje**: con una
+   dispersión de 0,44 s se podría hasta estimar, pero una barra de progreso
+   sobre una sola medida repetida sigue siendo una promesa que nadie ha probado
+   bajo carga (16 robots, batería baja, aula llena).
 
 2 · B3 · SIN MAPA — CONFIRMADO, Y ES PEOR
 ────────────────────────────────────────────────────────────────────────────
