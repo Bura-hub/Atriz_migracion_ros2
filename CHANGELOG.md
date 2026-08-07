@@ -4,6 +4,73 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-07 (noche) — **La web se alinea con el supervisor, y la captura destapa seis defectos**
+
+Con el robot cargando, todo el trabajo es del lado web y **nada de esto está verificado contra
+hardware**. El comprobador de contrato señalaba tres divergencias con el robot; se cierran y se
+construye el control de SLAM y Nav2.
+
+```
+antes   🔴 LEER / TOPICS_LECTURA divergen · solo en el ROBOT: /estado_navegacion
+        🔴 SERVICIOS divergen · solo en el ROBOT: /pedir_nav /pedir_slam
+después ✅ LEER: 14 · ESCRIBIR: 3 · SERVICIOS: 12 · TIPOS: 5 de 5
+```
+
+El disparadero `toHaveLength(10)` cumplió su función: hizo fallar la prueba y obligó a clasificar
+`/pedir_slam` y `/pedir_nav` en `confirmaEfecto()` **a mano**. Olvidarlo no habría dado error —
+el fallback los clasifica solo y en silencio.
+
+### Seis estados, no un interruptor
+
+Es la decisión que sostiene la pantalla, y viene de un fallo ya medido en este proyecto: un
+`slam_toolbox` que sobrevive a un reinicio del driver se queda con el búfer TF roto, `systemctl`
+dice `active`, y **el mapa sale idéntico celda a celda tras mover el robot 80 cm**. Un booleano
+pintaría verde justo ese caso. `CIEGO` y `MUDO` tienen casilla propia y **las dos son rojas, no
+ámbar**: sin barrido el robot no conduce (0,0 cm contra 9,9 del control), que para el alumno es
+indistinguible de una avería.
+
+Y `slam_latcheado` evita una llamada de teléfono: con `StartLimitBurst=3`, **un solo arranque sin
+mapa agota el presupuesto** y la unidad queda `failed`, de donde solo se sale con `reset-failed`
+y privilegio. Sin ese campo, «no arrancó» y «bloqueado hasta que alguien entre por SSH» son el
+mismo botón que no hace nada.
+
+### 🔴 Un número de la pantalla, desmentido por el robot
+
+`PanelNavegar` decía *«el error de posición medido al llegar es de 8-10 cm, que es la tolerancia
+configurada»*. **Falso**, y lo desmintió la medición de la tarde: con el mapa rancio Nav2 dio el
+objetivo por `SUCCEEDED` **a 41,3 cm**; remapeado, a 6,1. El error **no es una propiedad de Nav2**:
+depende de lo viejo que sea el mapa, y Nav2 no puede saberlo porque se cree su localización. Era
+una cifra de un día bueno presentada como una constante.
+
+### 🔴🔴 Y la captura destapó lo que 538 pruebas verdes no veían
+
+Se construyó un **rosbridge de mentira** (`atriz-lab/herramientas/`, sin dependencias) para
+conducir la pantalla por estados que el robot tarda minutos en producir. Mirando el resultado:
+
+| defecto | por qué no lo vio nadie |
+|---|---|
+| `--estado-bien` y `--estado-mal` **no existen**, y los tokens son tripletes RGB que hay que envolver en `rgb()` | la clase se genera y no pinta: **CIEGO y BLOQUEADO salían en negro**, los dos estados más graves indistinguibles de un texto normal |
+| los backticks se pintaban **como caracteres** | ese texto es plano, no markdown ni JSX |
+| la frase de estado se aplastaba contra el título | solo se ve en una captura |
+
+Se añadió una guardia a `pantallas_reales.test.ts` — *ninguna marca de markdown sin renderizar* —
+y **encontró cinco casos más, todos anteriores**, en «por qué no obedece» —la pantalla que lee un
+alumno cuyo robot no obedece— y en diagnóstico, incluido un `**negrita**` sin renderizar.
+
+📝 **Dos lecciones, y la segunda es la que vale:**
+- Es la **segunda vez** que invento un token de color en este repositorio. El vocabulario se
+  lee, no se recuerda.
+- La guardia va en la prueba que **abre el navegador**, no en un `grep` del fuente: ahí un
+  backtick es sintaxis legítima de plantilla y no se distingue. **Comprueba el efecto, no la
+  intención** — otra vez.
+
+⏳ **Pendiente y bloqueado por el hardware:** el supervisor no ha corrido nunca. Hasta que esté
+instalado, `/pedir_slam` y `/pedir_nav` **no existen en el robot** y la llamada agota el plazo;
+la pantalla nombra el servicio para que eso no se busque como una avería. Nada de esta entrada
+está verificado contra rvr-01.
+
+---
+
 ## 2026-08-07 (tarde) — **Nav2 navega de verdad. Era el mapa.**
 
 El robot se movió solo por primera vez en este proyecto. Y con ello se abrió el problema que
