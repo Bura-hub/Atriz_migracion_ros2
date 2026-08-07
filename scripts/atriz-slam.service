@@ -59,6 +59,14 @@ Type=simple
 User=sphero
 Group=sphero
 WorkingDirectory=/home/sphero
+# ── Los ajustes compartidos ──────────────────────────────────────────────────
+# 🔴 El `-` delante NO es decorativo: sin él, la unidad NO ARRANCA si el fichero
+#    falta. Con él, arranca con los valores por defecto de sus envoltorios — que
+#    es lo correcto: un ajuste ausente no debe dejar el robot muerto.
+# 📌 Existe porque la ruta del mapa vivía en dos sitios y se desincronizaron de
+#    verdad el 2026-08-07 (evidencia 80).
+EnvironmentFile=-/etc/default/atriz
+
 
 # ── 1 · EXCLUSIÓN MUTUA, y va PRIMERO ────────────────────────────────────────
 # Antes de encender nada. Si AMCL está vivo esto falla en ~0,1 s y NO se ha

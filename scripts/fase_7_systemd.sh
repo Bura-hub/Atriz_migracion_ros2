@@ -117,6 +117,10 @@ if [[ $MODO == quitar ]]; then
     rm -f /usr/local/bin/atriz-nav.sh /usr/local/bin/atriz-slam.sh \
           /usr/local/bin/atriz-exclusion
     rm -f /etc/polkit-1/rules.d/49-atriz-unidades.rules
+    # /etc/default/atriz NO se borra: lo edita el operador y puede llevar la
+    # ruta de un mapa que costó una sesión de mapeo. Se avisa y se deja.
+    [[ -f /etc/default/atriz ]] && \
+        echo "  · /etc/default/atriz se DEJA (lo edita el operador). Bórralo a mano si quieres."
     # El entorno de ROS de los shells. Se quita también, o quedaría un fichero
     # huérfano que `verificar_robot.sh` sección 13 no sabría de dónde viene.
     # ⚠️ NO se toca /etc/profile.d/atriz-robot.sh: ese lleva la IDENTIDAD del
@@ -152,6 +156,8 @@ comprobar "existe atriz-slam.service en el repo" "[[ -f $SCRIPTS_DIR/atriz-slam.
 comprobar "existe atriz-exclusion.sh en el repo" "[[ -f $SCRIPTS_DIR/atriz-exclusion.sh ]]"
 comprobar "existe la regla de polkit en el repo" \
           "[[ -f $SCRIPTS_DIR/sistema/49-atriz-unidades.rules ]]"
+comprobar "existe la plantilla de ajustes en el repo" \
+          "[[ -f $SCRIPTS_DIR/sistema/atriz-defaults ]]"
 comprobar "existe sistema/atriz-ros.sh en el repo" "[[ -f $SCRIPTS_DIR/sistema/atriz-ros.sh ]]"
 
 # ── La identidad ROS, que es lo único que systemd no puede heredar ───────────
@@ -354,6 +360,19 @@ hecho "/etc/systemd/system/atriz-slam.service"
 # La regla de polkit: sin ella, `supervisor_navegacion` recibe «Interactive
 # authentication required» al llamar a systemctl (verificado el 2026-08-07) y
 # los botones de la web no hacen nada.
+# ── Los ajustes compartidos, y NO se sobrescriben ────────────────────────────
+# 🔴 `/etc/default/atriz` está pensado para que el OPERADOR lo edite: la ruta del
+#    mapa de SU aula, o de su cuarto si está probando. Reinstalar no puede
+#    borrarle eso. Por la misma razón NO está en el manifiesto —que es para
+#    ficheros idénticos en los 16, comprobados con `cmp`— y se verifica POR
+#    EFECTO: que las unidades lo declaren y que defina el mapa.
+if [[ -f /etc/default/atriz ]]; then
+    hecho "/etc/default/atriz ya existe: NO se toca (lo edita el operador)"
+else
+    hacer install -m 644 "$SCRIPTS_DIR/sistema/atriz-defaults" /etc/default/atriz
+    hecho "/etc/default/atriz (plantilla; edítalo si tu mapa está en otro sitio)"
+fi
+
 hacer install -d -m 755 /etc/polkit-1/rules.d
 hacer install -m 644 "$SCRIPTS_DIR/sistema/49-atriz-unidades.rules" \
                      /etc/polkit-1/rules.d/49-atriz-unidades.rules

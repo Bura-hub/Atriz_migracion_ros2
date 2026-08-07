@@ -66,6 +66,29 @@ escrita.
 
 ---
 
+## 🔧 Dónde se configura el mapa — UN sitio, `/etc/default/atriz`
+
+```
+ATRIZ_MAPA=/home/sphero/atriz_ws/src/Atriz_rvr/atriz_rvr_bringup/maps/aula.yaml
+ATRIZ_DIR_MAPAS=/home/sphero/mapas
+```
+
+Lo leen las **tres** unidades por `EnvironmentFile=-/etc/default/atriz`:
+`atriz-robot` (y con ella `supervisor_navegacion`, que corre dentro), `atriz-nav` y `atriz-slam`.
+
+🔴 **Existe porque la ruta vivía en dos sitios independientes y se desincronizaron de verdad** el
+2026-08-07: el launch resolvía al directorio **instalado** y el script al **fuente**. El síntoma
+fue `hay_mapa: false` sobre un robot que sí podía navegar — y el caso inverso es peor: la web
+habilita el botón, la unidad falla al arrancar y **gasta su presupuesto de reintentos hasta quedar
+latcheada**, que solo se recupera con `reset-failed`. Evidencia 80.
+
+📝 **No está en el manifiesto**, y es a propósito: el manifiesto es para ficheros idénticos en los
+16 comprobados con `cmp`, y este lo edita el operador. `fase_7` **no lo sobrescribe si ya existe**
+y `--quitar` **no lo borra** — puede llevar la ruta de un mapa que costó una sesión entera.
+Se verifica **por efecto**: que las unidades lo declaren y que el mapa sea legible.
+
+⚠️ Tras editarlo: `sudo systemctl restart atriz-robot` (y las unidades que estén activas).
+
 ## El diseño
 
 ### `atriz-nav.service` — instalada, NO habilitada

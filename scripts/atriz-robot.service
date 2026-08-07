@@ -30,6 +30,15 @@ StartLimitIntervalSec=300
 StartLimitBurst=5
 
 [Service]
+# ── Los ajustes compartidos ──────────────────────────────────────────────────
+# 🔴 El `-` delante NO es decorativo: sin él, la unidad NO ARRANCA si el fichero
+#    falta. Con él, arranca con los valores por defecto de sus envoltorios — que
+#    es lo correcto: un ajuste ausente no debe dejar el robot muerto.
+# 📌 Existe porque la ruta del mapa vivía en dos sitios y se desincronizaron de
+#    verdad el 2026-08-07 (evidencia 80). Aquí lo lee `supervisor_navegacion`,
+#    que corre dentro de esta unidad: sin esta línea miraría un mapa distinto
+#    del que usa `atriz-nav.service`, y la web pintaría el botón al revés.
+EnvironmentFile=-/etc/default/atriz
 Type=simple
 User=sphero
 Group=sphero

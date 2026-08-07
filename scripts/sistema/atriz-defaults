@@ -1,0 +1,50 @@
+# /etc/default/atriz — los ajustes que MÁS DE UN COMPONENTE necesita.
+#
+# Lo leen, vía `EnvironmentFile=-/etc/default/atriz`:
+#     atriz-robot.service   (y con él supervisor_navegacion, que corre dentro)
+#     atriz-nav.service     (y su envoltorio atriz-nav.sh)
+#     atriz-slam.service    (y su envoltorio atriz-slam.sh)
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+# POR QUÉ EXISTE ESTE FICHERO
+# ═══════════════════════════════════════════════════════════════════════════════
+# 🔴 Porque la ruta del mapa vivía en DOS SITIOS INDEPENDIENTES y coincidían por
+#    convención, no por construcción:
+#
+#      supervisor_navegacion  ->  parámetro del nodo, puesto por robot.launch.py
+#      atriz-nav.service      ->  ATRIZ_MAPA de su propio entorno
+#
+#    El 2026-08-07 se desincronizaron de verdad: el launch resolvía al directorio
+#    INSTALADO (`install/.../share/...`) y el script al FUENTE (`src/...`). El
+#    síntoma fue `hay_mapa: false` sobre un robot que sí podía navegar — y el
+#    caso inverso es peor: la web habilitaría el botón y la unidad fallaría al
+#    arrancar, gastando su presupuesto de reintentos (evidencia 80).
+#
+# 📌 Una ruta, un fichero, imposible desincronizarlas. Y de paso es el sitio
+#    natural para cualquier ajuste que un robot concreto necesite distinto del
+#    resto de la flota.
+#
+# ⚠️ NO ESTÁ EN EL MANIFIESTO, y es a propósito: el manifiesto es para ficheros
+#    de CATEGORÍA A —completos e idénticos en los 16, comprobados con `cmp`— y
+#    este está pensado para que el operador lo edite. Se comprueba POR EFECTO:
+#    `verificar_robot.sh` mira que las unidades lo declaren y que defina el mapa.
+#    `fase_7_systemd.sh` NO lo sobrescribe si ya existe.
+#
+# Tras editarlo:   sudo systemctl restart atriz-robot   (y las que estén activas)
+
+# ── El mapa que usa la navegación ────────────────────────────────────────────
+# AMCL lo necesita; `localizacion.launch.py` no tiene valor por defecto y
+# `atriz-nav.sh` falla alto si no es legible — a propósito, porque una
+# navegación sin mapa arrancaría ciega.
+#
+# ⚠️ El `.yaml` NO basta: tiene que existir también la imagen que referencia en
+#    su línea `image:`, que se resuelve RELATIVA AL DIRECTORIO DEL YAML. Un
+#    `.yaml` sin su `.pgm` hace fallar a `map_server` DESPUÉS de arrancar la
+#    unidad, y eso consume reintentos igual que no tener mapa.
+ATRIZ_MAPA=/home/sphero/atriz_ws/src/Atriz_rvr/atriz_rvr_bringup/maps/aula.yaml
+
+# ── Dónde guarda SLAM los mapas que crea ─────────────────────────────────────
+# `atriz-slam.sh` se niega a arrancar si no existe o no es escribible: un SLAM
+# de veinte minutos que no puede guardar es la misma familia de fallo que Nav2
+# sin mapa.
+ATRIZ_DIR_MAPAS=/home/sphero/mapas

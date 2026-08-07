@@ -1380,6 +1380,42 @@ if [[ -f "$LAUNCH_ROBOT" ]]; then
     fi
 fi
 
+# --- Los ajustes compartidos: UNA ruta del mapa, no dos -----------------------
+# 🔴 QUE CAZA ESTO. Hasta el 2026-08-07 la ruta del mapa vivia en DOS SITIOS
+#    INDEPENDIENTES -- el parametro del supervisor y el ATRIZ_MAPA de la unidad --
+#    y coincidian por convencion, no por construccion. Se desincronizaron de
+#    verdad: el launch resolvia al directorio INSTALADO y el script al FUENTE.
+#    Sintoma: hay_mapa=false sobre un robot que si podia navegar. Y el caso
+#    inverso es peor: la web habilita el boton, la unidad falla al arrancar y
+#    gasta su presupuesto de reintentos hasta quedar latcheada.
+#    Ahora las tres unidades leen /etc/default/atriz. Esto comprueba que sigan
+#    haciendolo -- POR EFECTO, no por cmp: el fichero lo edita el operador y por
+#    eso NO esta en el manifiesto.
+if [[ -f /etc/default/atriz ]]; then
+    _ok "/etc/default/atriz existe (los ajustes compartidos)"
+    if grep -qE '^\s*ATRIZ_MAPA=' /etc/default/atriz; then
+        RUTA_MAPA="$(grep -E '^\s*ATRIZ_MAPA=' /etc/default/atriz | tail -1 | cut -d= -f2-)"
+        if [[ -r "$RUTA_MAPA" ]]; then
+            _ok "ATRIZ_MAPA apunta a un mapa legible"
+        else
+            _avi "ATRIZ_MAPA apunta a un mapa que no existe: $RUTA_MAPA" \
+                 "la navegacion no arrancara; genera uno con SLAM o edita el fichero"
+        fi
+    else
+        _avi "/etc/default/atriz no define ATRIZ_MAPA" "cada componente usara su defecto"
+    fi
+else
+    _avi "/etc/default/atriz no existe" "sudo bash scripts/fase_7_systemd.sh"
+fi
+for U in atriz-robot atriz-nav atriz-slam; do
+    F="/etc/systemd/system/$U.service"
+    [[ -f "$F" ]] || continue
+    grep -qE '^EnvironmentFile=-?/etc/default/atriz' "$F" \
+        && _ok "$U.service lee /etc/default/atriz" \
+        || _mal "$U.service NO lee /etc/default/atriz" \
+                "volveria a haber dos rutas del mapa que se desincronizan"
+done
+
 # --- Las unidades de navegacion: User=sphero y NO habilitadas ----------------
 # 🔴 `User=sphero` ES LA LINEA DE LA QUE CUELGA TODO EL MODELO DE SEGURIDAD.
 #    La regla de polkit deja que `sphero` arranque estas dos unidades. Eso es
