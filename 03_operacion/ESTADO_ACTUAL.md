@@ -158,14 +158,39 @@ autenticación eso es escritura de fichero en ruta arbitraria. Guardar el mapa e
 ✅ Y con una unidad que siempre falla, el `StartLimit` **corta** → **Nav2 sin mapa no entra en
 bucle indefinido**.
 
-### 🔴 El número que TE FALTA a ti, y que nadie tiene
+### ✅ Y EL NÚMERO QUE TE FALTABA, MEDIDO (2026-08-07) — evidencia 79
 
-**Cuánto tarda Nav2 desde `systemctl start` hasta aceptar objetivos.** `TimeoutStartSec=120` es un
-tope que alguien escribió, no una medida. De ese número sale **el plazo del estado «arrancando»**
-que tu pantalla tiene que pintar. Sale de la sesión B2/B3, pendiente de una ventana con el robot.
+**Nav2 tarda entre 18 y 26 s desde `systemctl start` hasta aceptar objetivos.**
 
-📌 **Hasta que exista: segundos transcurridos, NO porcentaje.** Un porcentaje inventado es una
-mentira con aspecto de dato.
+Se da como intervalo y no como cifra limpia a propósito: el cronómetro empieza cuando Python ya
+está en pie (18 s es cota **inferior**) y `systemctl start` devolvió a los 26,1 s (cota superior).
+
+| para tu pantalla | |
+|---|---|
+| plazo esperado de «arrancando» | **~26 s** |
+| tope duro | **120 s** (`TimeoutStartSec`, y **cabe** — no era humo) |
+| cómo pintarlo | 🔴 **segundos transcurridos, NO porcentaje.** Entre 18 y 26 no da para una barra honesta |
+
+### 🔴 Dos cosas más que salieron, y las dos te afectan
+
+**1 · `systemctl start` bloqueó 26,1 s.** Los tres plazos de la cadena son de **5,0 s** —`_pedir()`
+del driver, `default_call_service_timeout` de rosbridge y tu `ms = 5000`—. Un servicio que espere a
+que `systemctl` vuelva **da timeout sobre una operación que sí funcionó**. Por eso el servicio
+**lanza y vuelve**, y el estado se consulta aparte. Ya no es una precaución razonada: hay **5× de
+margen medido**.
+
+**2 · Sin mapa, el botón es de UNA pulsación, no de tres.** `StartLimitBurst=3` cuenta *arranques*,
+no clics: el inicial más dos reintentos automáticos son ya los tres, en ~40 s. **La unidad queda
+`failed` y solo sale con `reset-failed`** — privilegio que nadie tiene desde el navegador.
+
+→ Lo resuelve el robot (el servicio se negará antes de llamar a `systemctl` si no hay mapa), pero
+**tu interfaz tiene que distinguir `failed` de `failed y latcheado`** y decir el remedio:
+*«hace falta `reset-failed` desde el robot»*. Un estado que no se puede explicar acaba en una
+llamada de teléfono.
+
+⏳ **Y lo que sigue sin medir, para que no lo des por hecho:** esto midió que Nav2 **arranca y
+acepta objetivos**. **No se envió ni un objetivo** — el robot no se movió. Que navegue de verdad
+sobre el mapa del cuarto es otra sesión.
 
 ## ✅ Cerrado y comprobado — no lo vuelvas a poner como pendiente
 
