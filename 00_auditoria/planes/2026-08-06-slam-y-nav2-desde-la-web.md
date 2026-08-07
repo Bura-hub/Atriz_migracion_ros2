@@ -239,32 +239,58 @@ Los dos del medio son los que `is-active` esconde, y son los que este proyecto y
   **segundos transcurridos, no porcentaje**: un porcentaje inventado es una mentira con aspecto de
   dato.
 
-### 1.5 · Que la unidad atada VUELVA — el patrón `Upholds=`
+### 1.5 · Que la unidad atada VUELVA — `PartOf=`, y NO `BindsTo=`
 
-El problema conocido: `BindsTo=` propaga la **parada**, no el **reinicio**. Si el driver se
-reinicia —y lo hace solo, de forma rutinaria—, la navegación se apaga y **no vuelve**.
+**MEDIDO el 2026-08-07, 9 de 9** (evidencia 78, `scripts/medir_partof.sh`). Esta sección proponía
+un patrón `Upholds=` con dos unidades extra por servicio; la medición lo hizo innecesario.
+
+El problema: `BindsTo=` propaga la **parada**, no el **reinicio**. Si el driver se reinicia —y lo
+hace solo, de forma rutinaria—, la navegación se apaga y **no vuelve**.
 
 ```
-atriz-slam-deseada.service   el DESEO — oneshot, RemainAfterExit, NO habilitada
-        │ Upholds=            "mientras yo esté activa, mantén esa unidad arriba"
-        ▼
-atriz-slam.service           la EJECUCIÓN
-        │ BindsTo= + After=   "si el driver se va, yo me voy" — morir visible, no mudo
-        ▼
-atriz-robot.service          el driver — la única habilitada
+atriz-slam.service
+   PartOf=atriz-robot.service      ← propaga el paro Y EL REINICIO. La pieza que devuelve
+   Requires=atriz-robot.service    ← impide arrancar SLAM sobre un driver muerto
+   After=atriz-robot.service       ← el orden
+   🔴 NADA de BindsTo=
 ```
 
-**Separa el deseo de la ejecución.** `BindsTo=` se queda: aquí **queremos** que SLAM muera con el
-driver, porque sobrevivir es el fallo. El deseo lo vuelve a levantar **limpio**, sobre un búfer TF
-nuevo.
+**Lo medido, matando el proceso base —que es lo que pasó de verdad, por `Restart=always`— con el
+PID como testigo:**
 
-Ninguna de las unidades nuevas se habilita → **un reinicio de la Pi no devuelve nada**, y la
-decisión del 2026-08-03 queda intacta.
+```
+partof-requires   PID 2007→2054 · 2213→2264 · 2423→2473    ✅ proceso NUEVO
+partof-solo       PID 2658→2699 · 2856→2904 · 3063→3113    ✅ proceso NUEVO
+bindsto-upholds   PID 3271→3320 · 3481→3524 · 3687→3735    ✅ (control positivo)
+```
 
-⚠️ **Punto de fricción que hay que documentar en voz alta:** con el deseo puesto,
-`systemctl stop atriz-slam` **no funciona** — el deseo la revive en un segundo y el operador
-concluirá que el sistema está roto. Por eso el punto de entrada único es `atriz-modo slam on|off`,
-que comprueba el efecto igual que hace `atriz-escaneo`.
+PID distinto = proceso distinto. **`PartOf=` no deja la unidad viva y muda: la reinicia LIMPIA**,
+con búfer TF nuevo, que es exactamente lo que se necesitaba.
+
+🔴 **Y NO `BindsTo=` junto con `PartOf=`.** La rama «ambas» dio `inactive` tras matar el proceso:
+**BindsTo gana y la unidad no vuelve.** Ponerlas juntas rompe justo lo que se busca.
+
+📝 **Por qué `Requires=` aunque no cambie la recuperación** (`partof-solo` da lo mismo): impide
+arrancar SLAM sobre un driver muerto, que daría un `slam_toolbox` `active` **sin `/scan` y sin
+TF** — la trampa exacta que este proyecto persigue.
+
+**Lo que esta medición se lleva por delante:**
+
+| | antes (`Upholds=`) | ahora (`PartOf=`) |
+|---|---|---|
+| unidades nuevas | 4 | **2** |
+| envoltorio `atriz-modo` | necesario | **innecesario** |
+| `systemctl stop atriz-slam` | **no funcionaba** (el deseo la revivía) | funciona |
+
+Ninguna de las dos unidades se habilita → **un reinicio de la Pi no devuelve nada**, y la decisión
+del 2026-08-03 queda intacta.
+
+✅ **Y de paso quedó medido el riesgo que más pesaba:** con una unidad que SIEMPRE falla, el
+`StartLimit` **corta** (`failed`, `NRestarts=3`). **Nav2 sin mapa no entra en bucle indefinido.**
+
+⏳ **NO VERIFICADO:** todo esto es con unidades de juguete (`sleep infinity`). Que `PartOf=`
+devuelva un `slam_toolbox` real —que tarda segundos en levantar y tiene ciclo de vida— es una
+extrapolación razonable, no una medida.
 
 ### 1.6 · Exclusión mutua sin `Conflicts=`
 
@@ -360,7 +386,7 @@ verdad protege el laboratorio**, y es más importante que todo el debate sobre p
 | **B2** | 🔴 **`atriz-nav.service` NUNCA se ha ejecutado bajo systemd**, desde el 2026-08-03. Y **hoy no hay mapa** (`maps/` solo tiene README) | Verificado | Se quiere extender a SLAM un mecanismo que no se ha visto correr ni una vez |
 | **B3** | 🔴 **Botón de tres pulsaciones.** `Restart=on-failure` + `StartLimitBurst=3`/300 s: **un solo `start` sin mapa produce tres intentos en ~20 s** y deja la unidad latcheada. Revivirla pide `reset-failed` con privilegio | Config verificada; el latch NO VERIFICADO | Desde el navegador, «no arrancó» y «bloqueado hasta que alguien entre por SSH» son indistinguibles |
 | **B4** | 🔴 **`slam.launch.py` no comprueba nada**: la exclusión es de un solo sentido, y hay TOCTOU si dos clientes piden a la vez | **Verificado leyendo los dos launch** | «Nav2 y luego SLAM» parte el árbol TF **sin un solo error** |
-| **B5** | ⏳ **`Upholds=` no está verificado.** Solo que systemd 255.4 **acepta la sintaxis** | NO VERIFICADO | Es la pieza central de §1.5. Y este proyecto tiene medido que `systemd-analyze verify` calla ante un `StartLimitBurst` mal colocado: **aceptar no es hacer** |
+| ~~B5~~ | ✅ **CERRADO el 2026-08-07.** `Upholds=` ya no hace falta: `PartOf=` devuelve la unidad con proceso nuevo, **9 de 9** (evidencia 78). Y el `StartLimit` **corta** con una unidad que siempre falla | **MEDIDO** | Se cae también el riesgo de bucle de Nav2 sin mapa. El diseño pasa de 4 unidades nuevas a 2 |
 
 ---
 
@@ -386,7 +412,7 @@ verdad protege el laboratorio**, y es más importante que todo el debate sobre p
 |---|---|---|---|
 | **M-A** | ¿Rompe TF el salto de reloj? | Con SLAM activo: `sudo timedatectl set-ntp false` · `sudo date -s "+90 minutes"` · ¿sigue publicando el grafo? | Sí |
 | **M-B** | ¿Cuánto tarda este robot en sincronizar desde el arranque? | `journalctl -b 0 \| grep -E "Initial clock synchronization\|restored from recorded"` | No |
-| **M-C** | `Upholds=` y la columna ambigua de `BindsTo` | `sudo bash scripts/medir_recuperacion.sh` (M10) **ampliado con un cuarto caso** con `Upholds=`, y leyendo `ExecMainStartTimestamp` además de `is-active` | No — unidades de juguete |
+| ~~M-C~~ | ✅ **HECHA el 2026-08-07.** `Upholds=` funciona, pero **`PartOf=` también y con dos unidades menos** — 9 de 9 con el PID como testigo. Y el `StartLimit` corta. Evidencia 78 | — | — |
 | **M-D** | ¿Arranca `atriz-nav` de verdad, y en cuánto? | `sudo systemctl start atriz-nav` con un mapa cualquiera vía `ATRIZ_MAPA`; cronometrar hasta `server_is_ready()` | Sí |
 | **M-E** | ¿Corta el `StartLimitBurst`? | Con el mapa ausente: `start`, `sleep 45`, `status`, `start` otra vez → ¿«repeated too quickly»? | Sí |
 | **M-F** | La regla polkit | `systemctl start atriz-slam-deseada` como `sphero` **sin sudo**: ¿arranca? Y `systemctl start ssh`: ¿**sigue** pidiendo autenticación? | No |

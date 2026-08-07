@@ -93,10 +93,23 @@ BindsTo=      active                     inactive   🔴 no vuelve
 PartOf=       active                     active
 ```
 
-Parece que `PartOf=` es la respuesta. **No lo es:** «active» no es «funcionando». Es exactamente
-la trampa de `slam_toolbox` — sobrevive y queda mudo. La elección real es entre **morir
-visiblemente** y **sobrevivir mudo**, y este proyecto tiene medido que lo segundo es peor.
-→ Lo que hace falta no es cambiar la directiva: es que la unidad atada **vuelva a arrancar**.
+🔴 **AQUÍ SE CONCLUYÓ QUE `PartOf=` NO VALÍA, Y ERA FALSO.** Se escribió: *«"active" no es
+"funcionando": sobrevive y queda mudo»*. **Refutado el 2026-08-07, evidencia 78.**
+
+La tabla de arriba registró solo `is-active`, y `active` significa **dos cosas opuestas** que no se
+distinguen sin el timestamp. Remedido con el PID como testigo, **9 de 9**:
+
+```
+partof-requires   PID 2007→2054 · 2213→2264 · 2423→2473    proceso NUEVO
+partof-solo       PID 2658→2699 · 2856→2904 · 3063→3113    proceso NUEVO
+```
+
+`PartOf=` **no deja la unidad muda: la reinicia limpia.** Y el diseño se simplifica —
+`PartOf=` + `Requires=` + `After=`, **y NO `BindsTo=`**, que gana y deja la unidad `inactive`.
+
+📝 Y el proyecto tenía lo correcto escrito el mismo día en otro documento:
+`2026-08-06-recuperacion-tras-apagar-el-rvr.md:100` — *«`PartOf=` propaga el paro y el REINICIO»*.
+Se eligió el equivocado porque su tabla parecía medida.
 
 ### 3 · ✅ El LED del sensor de color — RESUELTO Y EN EL ROBOT (2026-08-06)
 

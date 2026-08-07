@@ -1,0 +1,132 @@
+════════════════════════════════════════════════════════════════════════════
+ 78 · `PartOf=` SÍ DEVUELVE LA UNIDAD, Y CON PROCESO NUEVO
+      El diseño pasa de cuatro unidades nuevas a dos.
+════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-07
+Robot:   rvr-01 · systemd 255 (255.4-1ubuntu8.16)
+Banco:   scripts/medir_partof.sh
+Motivo:  decidir el mecanismo de recuperación de SLAM y Nav2 bajo demanda.
+
+
+1 · LA CREENCIA QUE SE REFUTA
+────────────────────────────────────────────────────────────────────────────
+`2026-08-06-arrancar-desde-la-web.md:96`, escrito el mismo día:
+
+    «Parece que `PartOf=` es la respuesta. NO LO ES: "active" no es
+     "funcionando". Es exactamente la trampa de slam_toolbox — sobrevive y
+     queda mudo.»
+
+Sobre esa frase se construyó todo el diseño de recuperación con `Upholds=`:
+dos unidades extra por cada servicio, más un envoltorio `atriz-modo` para
+esconder que `systemctl stop` dejaba de funcionar.
+
+📝 Y el mismo proyecto, en OTRO documento del MISMO día, tenía lo correcto:
+   `2026-08-06-recuperacion-tras-apagar-el-rvr.md:100` — «`PartOf=` propaga el
+   paro y el REINICIO». Dos documentos contradiciéndose, y se eligió el
+   equivocado porque su tabla parecía medida.
+
+
+2 · POR QUÉ LA TABLA ORIGINAL NO SE PODÍA LEER
+────────────────────────────────────────────────────────────────────────────
+La medición del 2026-08-06 registró SOLO `is-active`:
+
+    dependencia   tras `systemctl restart`   tras MATAR el proceso
+    BindsTo=      active                     inactive
+    PartOf=       active                     active        <- se leyó «sobrevivió»
+
+🔴 `active` significa DOS COSAS OPUESTAS y no se distinguen sin el timestamp:
+
+      active + timestamp CAMBIADO  ->  murió y VOLVIÓ      (lo que se busca)
+      active + timestamp IGUAL     ->  ni se enteró         (la trampa)
+
+La guía de lectura que el propio proyecto había escrito lo decía. La tabla no
+la cumplía. **Una medida que no distingue las dos hipótesis no es una medida** —
+la misma lección de la evidencia 76, con otro sujeto.
+
+
+3 · LA MEDIDA, CON EL INSTRUMENTO CORRECTO
+────────────────────────────────────────────────────────────────────────────
+Se corrigieron TRES defectos del banco anterior:
+
+  · Se mide SOLO el caso que decide: MATAR el proceso base (que es lo que pasó
+    de verdad, por `Restart=always`), no el `systemctl restart`, que es un job
+    explícito y se propaga por otro camino.
+  · SIN el `systemctl start` intermedio que hacía el guion viejo para dejar la
+    unidad arriba: ese `start` pone un timestamp nuevo POR SÍ SOLO, así que la
+    columna del caso 1 no discriminaba nada en ninguna rama.
+  · Se registra el PID además del timestamp. **El PID manda**: un PID distinto
+    es un proceso distinto, sin depender de cómo systemd rellene la marca.
+
+Y n=3 por rama en vez de n=1.
+
+    ┌── partof-requires
+    │  vuelta 1   PID 2007 -> 2054    ✅ proceso NUEVO
+    │  vuelta 2   PID 2213 -> 2264    ✅ proceso NUEVO
+    │  vuelta 3   PID 2423 -> 2473    ✅ proceso NUEVO
+    ┌── partof-solo
+    │  vuelta 1   PID 2658 -> 2699    ✅ proceso NUEVO
+    │  vuelta 2   PID 2856 -> 2904    ✅ proceso NUEVO
+    │  vuelta 3   PID 3063 -> 3113    ✅ proceso NUEVO
+    ┌── bindsto-upholds        (control positivo)
+    │  vuelta 1   PID 3271 -> 3320    ✅ proceso NUEVO
+    │  vuelta 2   PID 3481 -> 3524    ✅ proceso NUEVO
+    │  vuelta 3   PID 3687 -> 3735    ✅ proceso NUEVO
+
+**9 de 9.** `PartOf=` no deja la unidad viva y muda: la reinicia LIMPIA.
+Y `PartOf=` SOLO basta — `Requires=` no cambia el resultado.
+
+
+4 · LO QUE ESTO CAMBIA EN EL DISEÑO
+────────────────────────────────────────────────────────────────────────────
+                        antes (Upholds=)          ahora (PartOf=)
+  unidades nuevas       4                         2
+  envoltorio atriz-modo necesario                 innecesario
+  `systemctl stop`      NO funcionaba             funciona
+
+El `Upholds=` funciona igual de bien —está medido—, pero **compraba con dos
+unidades y un envoltorio algo que una directiva da gratis**. Y arrastraba una
+fricción real: con el deseo puesto, `systemctl stop atriz-slam` era revivido en
+un segundo, y el operador por SSH habría concluido que el sistema está roto.
+
+📌 LA COMBINACIÓN ELEGIDA:  `PartOf=` + `Requires=` + `After=`
+
+  · `PartOf=`   propaga el paro Y EL REINICIO. Es la pieza que devuelve la
+                unidad. Medido aquí.
+  · `Requires=` no cambia la recuperación (partof-solo da lo mismo), pero
+                impide arrancar SLAM sobre un driver muerto — que daría un
+                slam_toolbox `active` sin `/scan` y sin TF, o sea la trampa
+                exacta que este proyecto persigue.
+  · `After=`    el orden. Sin él, la unidad podría subir antes que el driver.
+
+🔴 **Y NO `BindsTo=`.** La rama «ambas» del banco anterior (BindsTo + PartOf)
+   dio `inactive` tras matar el proceso: **BindsTo gana y la unidad NO vuelve**.
+   Ponerlas juntas rompe justo lo que se quiere.
+
+
+5 · LO QUE SIGUE SIN VERIFICAR
+────────────────────────────────────────────────────────────────────────────
+⏳ Todo esto es con unidades de JUGUETE (`sleep infinity`). Que `PartOf=`
+   devuelva un `slam_toolbox` REAL —que tarda segundos en levantar y tiene
+   ciclo de vida— es una extrapolación razonable, no una medida.
+⏳ Y lo de siempre: `atriz-nav.service` NUNCA se ha ejecutado bajo systemd
+   desde el 2026-08-03. Se está diseñando sobre un mecanismo que no se ha visto
+   correr una sola vez con carga real.
+
+📝 Lo que SÍ quedó medido de paso, en la pasada anterior: con una unidad que
+   SIEMPRE falla, el `StartLimit` CORTA (`failed`, `NRestarts=3`). O sea que
+   **Nav2 sin mapa no entra en bucle indefinido** — el riesgo que más pesaba.
+
+
+6 · LA LECCIÓN
+────────────────────────────────────────────────────────────────────────────
+Es la tercera vez esta semana que el mismo patrón produce una conclusión falsa:
+
+    76 · una medida que apagaba el LED dentro de la misma llamada
+    77 · una prueba que se creía la bandera del propio driver
+    78 · una tabla que registró `active` sin el timestamp que lo desambigua
+
+🔴 En los tres casos el instrumento **no podía distinguir** la hipótesis cierta
+   de la falsa, y en los tres se escribió el resultado como si sí.
+
+   Antes de anotar una medida: **¿qué habría salido si la hipótesis fuera
+   falsa?** Si la respuesta es «lo mismo», no es una medida.
