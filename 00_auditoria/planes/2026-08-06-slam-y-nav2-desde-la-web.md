@@ -60,9 +60,55 @@ con `cmd_vel`.
 
 ⚠️ Sigue siendo razón suficiente para no meter esto en el driver, **pero por el motivo correcto**.
 
-### 0.3 · 🔴 LA CUARTA TRAMPA, y no estaba en ninguna lista: **el reloj**
+### 0.3 · 🔴 El reloj: **A11 deja de ser hipótesis y pasa a estar MEDIDO**
 
-La encontró el escéptico. **Verificada en el arranque actual:**
+⚠️ **CORREGIDO. La primera versión de este apartado decía «la cuarta trampa, y no estaba en
+ninguna lista». Es falso, y es el mismo fallo que este documento denuncia dos apartados más
+arriba: me fié de un agente sin cruzarlo con el repositorio.**
+
+Lo que ya estaba escrito, y llevaba dos días:
+
+| dónde | qué decía |
+|---|---|
+| `2026-08-04-direccionamiento-flota.md:65` | *«La Pi **no tiene RTC** \| sin NTP arranca con la hora mal»* |
+| `00_auditoria/INFORME_AUDITORIA.md:160` | `who -b` da `1970-01-01`; *«la Pi no tiene RTC»* |
+| `TRASPASO.md:33` — **A11, abierto** | *«la hipótesis es **un salto de reloj al sincronizar NTP** —la Pi no tiene RTC—. **SIN CONFIRMAR**, y el discriminante es un comando. **Va por delante de M10**»* |
+
+🔴 **Y la otra afirmación que relayé también era falsa:** *«en el aula no hay internet para NTP»*.
+`2026-08-04-direccionamiento-flota.md:64` dice lo contrario, y se estableció **con el usuario**:
+*«Las dos redes dan puerta de enlace y DNS, **con internet**»* → *«apagar el DHCP **no** cuesta
+NTP»*. Así que el escenario de «16 robots con 16 relojes distintos» **no está sostenido**.
+
+**Lo que sí aporta este análisis es la MEDIDA que A11 pedía**, con reloj monótono:
+
+```
+t = 10,5 s   reloj restaurado desde la marca guardada (~1 h 28 m atrasado)
+t = 15,6 s   atriz-robot lanza robot.launch.py        ← DENTRO de la ventana mala
+t = 17,5 s   NTP sincroniza  →  salto de +1 h 27 m 52 s
+t = 18,6 s   [launch] All log files can be found below…
+t = 32,2 s   rvr_driver arranca                       ← 14,7 s DESPUÉS del salto
+```
+
+**A11 queda CONFIRMADO: el salto existe y es de +1 h 27 m 52 s.** Y ahora se puede dimensionar:
+
+- La ventana de reloj malo dura **17,5 s reales** desde el arranque, con internet.
+- `atriz-robot` entra en ella por **1,9 s**, pero los nodos ROS arrancaron **14,7 s después** del
+  salto. **Este arranque no sufrió el problema** — al contrario de lo que sugería el informe del
+  escéptico, el margen no fue de ~1 s.
+- 📝 Pero **el margen depende de cuánto tarde NTP**, y eso depende de la red. Nada garantiza los
+  17,5 s.
+
+**Consecuencia para el diseño, que es barata y no depende de nada de lo anterior:**
+`systemd-time-wait-sync` está **`disabled`** y ninguna unidad depende de `time-sync.target`
+(`systemctl show atriz-robot -p After` → solo `network-online.target`). Añadirlo cierra la ventana
+por construcción en vez de por suerte.
+
+⚠️ **NO VERIFICADO**: que un salto de esa magnitud rompa el búfer TF *de verdad*. Sigue siendo
+deducción del modelo de tiempo de ROS 2. Se cierra provocándolo (§5, M-A).
+
+---
+
+**Los datos crudos del arranque**, para que se puedan releer:
 
 ```
 $ timedatectl              → RTC time: n/a
@@ -94,9 +140,10 @@ adelante de 5 272 s **caduca el búfer TF entero de golpe** — que es el estado
 medido: `slam_toolbox` vivo y mudo, mapa idéntico celda a celda tras mover el robot 80 cm. Esta vez
 el driver se salvó por ~1 s de margen.
 
-Y en el aula es peor: el servidor NTP es `ntp.ubuntu.com`, **hace falta internet**, y
-`05-atriz-lab.network` no ha casado nunca con nada. Sin NTP, **16 robots con 16 relojes distintos
-separados por horas**.
+📝 **Y lo que aquí decía sobre el aula era falso** (ver §0.3): las dos redes dan puerta de enlace
+y DNS **con internet**, establecido con el usuario el 2026-08-04, así que NTP funciona también en
+el laboratorio. Lo que queda en pie es que **`05-atriz-lab.network` no ha casado nunca con nada** —
+eso sigue sin probar, y es otro pendiente.
 
 ⚠️ **NO VERIFICADO**: que el salto rompa TF *de verdad*. Es deducción del modelo de tiempo de
 ROS 2, no una medida. Se cierra provocándolo (ver §5).
@@ -306,7 +353,7 @@ verdad protege el laboratorio**, y es más importante que todo el debate sobre p
 
 | # | Qué | Estado | Por qué bloquea |
 |---|---|---|---|
-| **B1** | 🔴 **El reloj.** Sin RTC; salto de +1 h 27 m **dentro** del arranque; sin `time-sync.target` en ninguna unidad; `systemd-time-wait-sync` **disabled** | **MEDIDO** en este arranque | Un salto adelante caduca el búfer TF entero — el estado exacto del `slam_toolbox` vivo y mudo. Y en el aula no hay internet para NTP |
+| **B1** | ⚠️ **El reloj — A11, ahora MEDIDO.** Salto de **+1 h 27 m 52 s** a los 17,5 s del arranque; `systemd-time-wait-sync` **disabled** y ninguna unidad depende de `time-sync.target` | **MEDIDO**. Rebajado de 🔴 a ⚠️: los nodos ROS arrancaron **14,7 s DESPUÉS** del salto, y el aula **sí tiene internet** | Un salto adelante caduca el búfer TF — el estado del `slam_toolbox` vivo y mudo. El margen existe pero **no está garantizado**: depende de lo que tarde NTP. El arreglo (`After=time-sync.target`) es barato y no depende de medir nada más |
 | **B2** | 🔴 **`atriz-nav.service` NUNCA se ha ejecutado bajo systemd**, desde el 2026-08-03. Y **hoy no hay mapa** (`maps/` solo tiene README) | Verificado | Se quiere extender a SLAM un mecanismo que no se ha visto correr ni una vez |
 | **B3** | 🔴 **Botón de tres pulsaciones.** `Restart=on-failure` + `StartLimitBurst=3`/300 s: **un solo `start` sin mapa produce tres intentos en ~20 s** y deja la unidad latcheada. Revivirla pide `reset-failed` con privilegio | Config verificada; el latch NO VERIFICADO | Desde el navegador, «no arrancó» y «bloqueado hasta que alguien entre por SSH» son indistinguibles |
 | **B4** | 🔴 **`slam.launch.py` no comprueba nada**: la exclusión es de un solo sentido, y hay TOCTOU si dos clientes piden a la vez | **Verificado leyendo los dos launch** | «Nav2 y luego SLAM» parte el árbol TF **sin un solo error** |
