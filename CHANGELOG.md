@@ -182,6 +182,71 @@ a propósito, porque existe para la pestaña olvidada.
 
 ---
 
+## 2026-08-06 (tarde) — El botón del color, y una afirmación que sobrevivió a su refutación
+
+Lado **web** de `enable_color`. El robot lo implementó y midió; esto es lo que le tocaba a
+`atriz-lab`, y lo que enseñó de paso.
+
+### 🔴 Este cliente afirmó que ese botón no podía existir
+
+`PanelColor` decía: *«no se puede encender desde aquí; con el streaming ya configurado,
+`enable_color_detection` no hace nada — 481 mensajes de `/color`, todos ceros»*. Se copió del
+driver, que lo llevaba marcado **«🔴 MEDIDO»**, y se citó como establecido — incluso para
+recomendar **no construir el botón**.
+
+**Aquella medida estaba mal hecha:** el servicio bajo prueba **se apagaba a sí mismo dentro de
+la misma llamada**, así que casi todos aquellos mensajes eran posteriores al `enable(False)`.
+Una medida que no separa las dos hipótesis no refuta ninguna.
+
+📝 **La lección de segundo orden:** una trampa documentada también caduca, y esta venía con el
+sello de «ya medido» que hizo que nadie la volviera a mirar en seis días.
+
+### Lo que quedó en la web
+
+| | |
+|---|---|
+| `contrato.ts` | `/enable_color` y `/get_rgbc_sensor_values`, los dos en `SOLO_QUE_NO_LANZO` |
+| `useTopic.ts` | `color_activo` en `MensajeEstadoRobot` |
+| `PanelColor` | el botón, **leyendo** `color_activo` en vez de recordarlo |
+
+**El estado se lee, no se recuerda**, y ese es el punto del diseño: la luz se apaga sola, así
+que un flag local pintaría el botón encendido sobre un sensor a oscuras.
+
+### Dos correcciones que llegaron del robot, y las dos estaban en mi primera versión
+
+1. **El testigo no podía ser «`/color` deja de ser `[0,0,0]`».** Sobre una superficie muy oscura
+   eso puede no llegar **nunca** → falso negativo: el botón diría «no se encendió» con el LED
+   encendido. Y no hay número que lo acote: **no está medido** cuánto da `/color` sobre negro con
+   luz. El testigo es `color_activo`, exacto en los dos sentidos.
+2. **El aviso anunciaba un plazo que nunca se cumple.** Con la pantalla abierta, estar suscrito a
+   `/color` **ya cuenta como actividad**, así que los 120 s no saltan. Se anuncia el **tope duro
+   de 15 min**, que ignora la actividad a propósito.
+
+Y una tercera de cosecha propia: `/estado_robot` va `TRANSIENT_LOCAL`, así que el testigo lleva
+la **guardia del `latido`** — el primer mensaje solo es referencia.
+
+### El escalado, que es donde estuvo el trabajo de verdad
+
+Pasar de ocho a diez servicios dejó deriva en **seis sitios**, y ninguno rompía nada:
+`contrato.ts`, `contrato.test.ts`, `lenguaje.ts`, `lenguaje.test.ts`, la entrada de
+`LO_QUE_NO_SE_PUEDE_DECIR` y el README.
+
+🔴 **Y una era un hueco de cobertura, no prosa.** Las dos enumeraciones de `contrato.test.ts`
+comprueban servicio por servicio **a propósito** —su comentario dice «la primera versión solo
+miraba dos y dejaba pasar el error en los otros seis»— y se quedaron cubriendo **ocho de diez**.
+La prueba de cobertura seguía en verde porque deriva de las constantes.
+
+→ Se añadió un **cable trampa**: `expect(SERVICIOS).toHaveLength(10)`. No comprueba nada por sí
+mismo; obliga a que alguien mire las enumeraciones al añadir un servicio.
+
+**Verificado contra rvr-01**, por rosbridge y por el navegador:
+`/color` no-cero 0 → 76 → 0 · `color_activo` false → true → false · el botón dijo «Hecho:
+`color_activo` ha bajado».
+
+508 pruebas · `npm run contrato`: 10 servicios, coinciden.
+
+---
+
 ## 2026-08-06 — La sesión de la web, la navegación, y un mapa de verdad
 
 Sesión larga y con **cuatro retractaciones propias**, tres de ellas destapadas por una revisión
