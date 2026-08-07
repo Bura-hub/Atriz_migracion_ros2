@@ -149,11 +149,27 @@ build` a secas dice «packages finished» y deja el mensaje viejo instalado; el
 síntoma sale en el suscriptor como `AttributeError` y parece un fallo de la web.
 126 correctas · 0 fallos · 7 avisos conocidos.
 
-⏳ **NO VERIFICADO: el tope duro de 900 s.** No se ha esperado. Comparte función y
-camino de apagado con la rama de inactividad, que sí está medida, pero **su
-condición no se ha visto disparar nunca**. «Es el mismo código con otra
-constante» es exactamente el razonamiento que la evidencia 76 desmontó. El
-comando que lo cierra, 30 s, está en la evidencia 77 §5.
+✅ **El tope duro, VERIFICADO el mismo día — y destapó un defecto.** El primer
+intento no midió nada: `ros2 launch ... color_apagado_max_s:=20.0` se aceptaba
+**en silencio** y el driver arrancaba con 900.0. Los dos parámetros estaban
+declarados en el nodo y **no en `robot.launch.py`**, así que ajustarlos en el
+aula habría obligado a editar ficheros — lo contrario de lo que se prometió.
+
+📌 Lo destapó comprobar el parámetro **efectivo** en vez de fiarse de haberlo
+escrito en la línea de comandos. **Un argumento aceptado no es un argumento
+aplicado**, y es la misma clase de fallo silencioso que este proyecto persigue,
+cometido al añadir la función escrita para evitar otro.
+
+Arreglado y re-medido:
+
+```
+19.9s  claro=1321  color_activo=True
+23.9s  claro=   0  color_activo=False      tope 20.0
+```
+
+Y la mitad que importa: se leyó el sensor **cada 3 s durante toda la prueba** y
+**no lo salvó**. Eso separa el tope duro de la inactividad — ignora la actividad
+a propósito, porque existe para la pestaña olvidada.
 
 ### Pendiente
 

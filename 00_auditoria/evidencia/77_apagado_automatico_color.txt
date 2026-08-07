@@ -140,21 +140,46 @@ oscuras — el patrón exacto que este proyecto persigue.
    muy bajos. El topic dice qué se ve; el campo, si hay luz para verlo.
 
 
-5 · LO QUE QUEDA SIN VERIFICAR
+5 · EL TOPE DURO — VERIFICADO, Y DESTAPÓ UN DEFECTO POR EL CAMINO
 ────────────────────────────────────────────────────────────────────────────
-⏳ **El tope duro de 900 s.** No se ha esperado. Comparte función y camino de
-   apagado con la rama de inactividad —que sí está medida— pero la condición que
-   lo dispara NO se ha visto disparar nunca. Se cierra así, y son 30 s:
+Se cerró el mismo día, arrancando el driver con el tope en 20 s y la
+inactividad DESACTIVADA (0.0), para que la rama medida no tapara a la otra.
 
-     sudo systemctl stop atriz-robot
-     ros2 launch atriz_rvr_bringup robot.launch.py color_apagado_max_s:=20.0 \
-          color_apagado_inactividad_s:=0.0
-     # en otra terminal: enable_color(true), leer cada 5 s (para que la
-     # inactividad no lo tape) y comprobar que se apaga hacia los 20 s
-     sudo systemctl start atriz-robot
+🔴 Y EL PRIMER INTENTO NO MIDIÓ NADA, porque los parámetros NO LLEGABAN:
 
-   🔴 Mientras no se corra: NO VERIFICADO. «Es el mismo código con otra
-      constante» es exactamente el razonamiento que la evidencia 76 desmontó.
+     pedido en la línea de comandos   color_apagado_max_s:=20.0
+     parámetro EFECTIVO del driver    900.0
+
+   `ros2 launch` **aceptó el argumento en silencio y lo tiró**: los dos
+   parámetros estaban declarados en el NODO pero no en `robot.launch.py`, así
+   que no se reenviaban. Sin esto, ajustarlos en el aula obliga a editar
+   ficheros — exactamente lo que se había prometido que no haría falta, y lo que
+   el usuario había pedido explícitamente («que el valor sea un parámetro del
+   launch y no una constante»).
+
+   📌 Lo destapó comprobar el parámetro EFECTIVO en vez de fiarse de haberlo
+      escrito en la línea de comandos. Un argumento aceptado no es un argumento
+      aplicado. Arreglado (`arg_color_inact`, `arg_color_max`) y re-medido.
+
+Con los parámetros llegando de verdad:
+
+    antes                claro=1      color_activo=False
+    tras enable_color    claro=1325   color_activo=True
+      3.9s   claro=1325   color_activo=True
+      7.9s   claro=1322   color_activo=True
+     11.9s   claro=1321   color_activo=True
+     15.9s   claro=1324   color_activo=True
+     19.9s   claro=1321   color_activo=True
+     23.9s   claro=   0   color_activo=False    ← tope 20.0
+
+✅ TOPE DURO VERIFICADO. Los ~4 s de más son el temporizador a 1 Hz más el
+   muestreo cada 3 s del instrumento.
+
+🔴 Y LA MITAD QUE IMPORTA: se leyó el sensor CADA 3 SEGUNDOS durante toda la
+   prueba, o sea con actividad constante, **y no lo salvó**. Eso es lo que
+   distingue el tope duro de la inactividad: ignora la actividad a propósito,
+   porque su razón de ser es la pestaña olvidada que mantiene el contador a 1
+   para siempre.
 
 
 6 · AÑADIDO AL VERIFICADOR
