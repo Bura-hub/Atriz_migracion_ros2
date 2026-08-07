@@ -192,6 +192,55 @@ llamada de teléfono.
 acepta objetivos**. **No se envió ni un objetivo** — el robot no se movió. Que navegue de verdad
 sobre el mapa del cuarto es otra sesión.
 
+## 📣 PARA EL PC — los botones de SLAM y Nav2 ya están en el robot (2026-08-07)
+
+`Atriz_rvr@9c2ad6f`. **Un solo commit**, para que solo tengas que alinear una vez.
+
+| | tipo | qué es |
+|---|---|---|
+| `/pedir_slam` | `std_srvs/srv/SetBool` | `data:true` **pide** arrancar SLAM; `false`, pararlo |
+| `/pedir_nav` | `std_srvs/srv/SetBool` | igual para Nav2 |
+| `/estado_navegacion` | `atriz_rvr_msgs/msg/EstadoNavegacion` | **11 campos, 1 Hz.** Quien dice si funciona |
+
+🔴 **`success=true` significa PETICIÓN ACEPTADA, jamás «arrancado».** El servicio encola y vuelve
+en 0,05 s. Clasifícalos en `confirmaEfecto()` como los otros: **el testigo es
+`/estado_navegacion`**, igual que `color_activo` lo es de `enable_color`.
+
+**Seis estados, no un interruptor** (`uint8`, constantes en el `.msg`):
+
+```
+APAGADO=0  ARRANCANDO=1  FUNCIONANDO=2  CIEGO=3  MUDO=4  FALLO=5  DESCONOCIDO=6
+```
+
+Los dos del medio son los que `systemctl is-active` esconde, y los que este proyecto ya ha pagado:
+**`CIEGO`** = encendido y sin `/scan` (el `collision_monitor` bloquea y el robot **parece
+averiado**); **`MUDO`** = el `slam_toolbox` vivo que no procesa.
+
+**Los campos que te resuelven la pantalla:**
+
+| campo | para qué |
+|---|---|
+| `slam` / `nav` | el estado (los seis de arriba) |
+| `slam_detalle` / `nav_detalle` | **muéstralo tal cual**: «no hay mapa», «hace falta reset-failed desde el robot» |
+| `slam_arrancando_s` / `nav_arrancando_s` | segundos desde la petición. **-1.0 = no aplica**. ⏱️ Nav2 tarda **24,3 s** medidos (n=2, dispersión 0,44) |
+| `hay_mapa` | **deshabilita el botón de Nav2** si es `false`: sin mapa no puede arrancar |
+| `slam_latcheado` / `nav_latcheado` | 🔴 la unidad está bloqueada y **solo se recupera con `reset-failed` desde el robot**. Sin este campo, «no arrancó» y «bloqueado» son indistinguibles |
+| `latido` | si no avanza, **todo lo demás es viejo**: pinta «no se sabe», no el último valor |
+
+⚠️ **Lo que verás HOY si lo pruebas, y es correcto, no un fallo:**
+
+```
+slam: 6 (DESCONOCIDO)   «atriz-slam.service no está instalada en este robot»
+nav:  0 (APAGADO)        hay_mapa: false
+```
+
+`atriz-slam.service` **todavía no existe** y la regla de polkit **no está puesta**. El supervisor
+lo dice con todas las letras en vez de fingir. Puedes construir la pantalla contra esto: los
+estados y los mensajes son los definitivos.
+
+📌 **Rompe el contrato, y es correcto** — precedente ya aceptado con `/estado_robot` y
+`enable_color`. `SERVICIOS` pasa de 10 a **12**; `TOPICS_LECTURA` de 14 a **15**.
+
 ## ✅ Cerrado y comprobado — no lo vuelvas a poner como pendiente
 
 > 🔴 **Esta sección existe porque el 2026-08-05 se listaron como pendientes CUATRO cosas que ya

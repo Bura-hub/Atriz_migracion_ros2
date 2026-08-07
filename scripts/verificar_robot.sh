@@ -1406,7 +1406,48 @@ else
     fi
 fi
 
+# El mensaje del supervisor, tambien INSTALADO y no el fichero.
+CAMPOS_NAV="$(timeout 30 python3 -c "
+from atriz_rvr_msgs.msg import EstadoNavegacion
+print(','.join(EstadoNavegacion.get_fields_and_field_types()))
+" 2>/dev/null)"
+if [[ -z "$CAMPOS_NAV" ]]; then
+    _avi "no se pudo interrogar a EstadoNavegacion" "¿esta compilado atriz_rvr_msgs?"
+else
+    FALTAN_NAVC=""
+    for c in latido slam nav slam_detalle nav_detalle hay_mapa \
+             slam_latcheado nav_latcheado; do
+        [[ "$CAMPOS_NAV" == *"$c"* ]] || FALTAN_NAVC="$FALTAN_NAVC $c"
+    done
+    if [[ -z "$FALTAN_NAVC" ]]; then
+        _ok "EstadoNavegacion instalado, con los campos que la web necesita"
+    else
+        _mal "EstadoNavegacion INSTALADO sin:$FALTAN_NAVC" \
+             "rm -rf build/atriz_rvr_msgs install/atriz_rvr_msgs y recompila"
+    fi
+fi
+
 if [[ -f "$LAUNCH_ROBOT" ]]; then
+    # ── Los botones de SLAM y Nav2 ──────────────────────────────────────────
+    # 🔴 LOS TRES O NINGUNO. Sin `/estado_navegacion` la web no puede saber si
+    #    arranco: el `success` de los servicios significa PETICION ACEPTADA, no
+    #    «arrancado». Un boton que solo puede pedir y no puede mirar es
+    #    exactamente el patron que este proyecto persigue.
+    FALTAN_NAV=""
+    for s in pedir_slam pedir_nav estado_navegacion; do
+        grep -q "'/$s'" "$LAUNCH_ROBOT" || FALTAN_NAV="$FALTAN_NAV $s"
+    done
+    if [[ -z "$FALTAN_NAV" ]]; then
+        _ok "rosbridge: los botones de SLAM/Nav2 estan expuestos (con su estado)"
+    else
+        _mal "rosbridge: falta en la lista blanca:$FALTAN_NAV" \
+             "la web no podra arrancar ni ver la navegacion; evidencia 79"
+    fi
+    grep -q "supervisor_navegacion" "$LAUNCH_ROBOT" \
+        && _ok "robot.launch.py arranca el supervisor_navegacion" \
+        || _mal "robot.launch.py NO arranca el supervisor_navegacion" \
+                "sin el, /pedir_* no existe y /estado_navegacion no se publica"
+
     # 🔴 QUE EL LAUNCH LOS DECLARE, no solo que el nodo los tenga. El 2026-08-06
     #    estaban declarados en el NODO y no aqui: `ros2 launch ...
     #    color_apagado_max_s:=20.0` se aceptaba EN SILENCIO y arrancaba con el

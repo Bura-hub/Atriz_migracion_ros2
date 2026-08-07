@@ -140,7 +140,7 @@ un robot averiado.
 De los cinco bloqueantes, **quedan CERO**:
 
     B1 · el reloj             ⚠️ medido, rebajado a condición de diseño
-    B2 · nunca corrió         ✅ corre, 18-26 s
+    B2 · nunca corrió         ✅ corre, 24,3 s (n=2, dispersión 0,44)
     B3 · botón de N clics     ✅ confirmado, y es de UNO
     B4 · exclusión a medias   ✅ cerrado (guardia en slam.launch.py)
     B5 · Upholds sin medir    ✅ innecesario (PartOf basta, evidencia 78)
