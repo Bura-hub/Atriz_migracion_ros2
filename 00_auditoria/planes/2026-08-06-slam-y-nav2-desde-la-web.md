@@ -127,18 +127,21 @@ Aug 06 23:10:33  timesyncd: Initial clock synchronization        ← salto de +1
 Aug 06 23:10:34  [launch]: All log files can be found below…
 ```
 
-**El salto cayó DENTRO del arranque de `robot.launch.py`**, entre dos líneas separadas por ~1,5 s
-reales. Y no hay nada que lo espere:
+**El salto cayó DENTRO de la ventana en que `atriz-robot` ya había arrancado.** Y no hay nada que
+lo espere:
 
 ```
 $ systemctl is-enabled systemd-time-wait-sync   → disabled
 $ systemctl show atriz-robot -p After           → network-online.target   (sin time-sync.target)
 ```
 
-**Por qué esto tumba el diseño si no se arregla:** ROS 2 sella con el reloj del sistema. Un salto
-adelante de 5 272 s **caduca el búfer TF entero de golpe** — que es el estado exacto del fallo ya
-medido: `slam_toolbox` vivo y mudo, mapa idéntico celda a celda tras mover el robot 80 cm. Esta vez
-el driver se salvó por ~1 s de margen.
+**Por qué importa:** ROS 2 sella con el reloj del sistema. Un salto adelante de 5 272 s **caduca el
+búfer TF entero de golpe** — el estado exacto del fallo ya medido: `slam_toolbox` vivo y mudo, mapa
+idéntico celda a celda tras mover el robot 80 cm.
+
+📌 **Pero el margen real fue de 14,7 s, no de ~1 s** (ver §0.3, con reloj monótono). La lectura en
+marcas de reloj de arriba **engaña**, porque el propio salto está dentro de la serie que se está
+leyendo. Es el instrumento midiéndose a sí mismo, y por eso la medida buena es la monótona.
 
 📝 **Y lo que aquí decía sobre el aula era falso** (ver §0.3): las dos redes dan puerta de enlace
 y DNS **con internet**, establecido con el usuario el 2026-08-04, así que NTP funciona también en
