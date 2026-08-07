@@ -117,8 +117,12 @@ navegación muchas veces; el driver, casi nunca.
 permite que la web diga «ve a la mesa 3». Está decidido desde el manual, cap. 14.1.
 
 ⚠️ Los dos publican `map → odom`: **son excluyentes** y `localizacion.launch.py` lo comprueba al
-arrancar. SLAM se queda como está —**a mano, para hacer mapas**—, que es tarea de administrador,
-no de operación.
+arrancar.
+
+⚠️ **Y esta frase caducó el 2026-08-07.** Decía: *«SLAM se queda como está —a mano, para hacer
+mapas—, que es tarea de administrador, no de operación»*. Ya no: **`atriz-slam.service` existe** y
+se pide desde la web con `/pedir_slam`, igual que Nav2. Lo que **sí** sigue en pie es que ninguna
+de las dos arranca sola al encender — se añadió el mando, no el arranque automático.
 
 ### 🔴 El barrido: dos conflictos reales que hay que cerrar
 
