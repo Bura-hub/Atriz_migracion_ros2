@@ -30,9 +30,29 @@
 #        muerta tras un reinicio del driver. Y si `atriz-slam.service` puede
 #        existir.
 #
+#        🔴 AMPLIADO EL 2026-08-06 (noche), CON DOS AÑADIDOS QUE NO SON MENORES:
+#
+#          · SE REGISTRA EL TIMESTAMP, no solo `is-active`. La tabla anterior
+#            solo guardó `is-active`, y por eso su casilla «BindsTo + restart
+#            -> active» NO DISTINGUE «murió y volvió» de «ni se enteró». Son
+#            conclusiones opuestas y las dos se escriben `active`. Todo el
+#            diseño de recuperación colgaba de esa casilla ambigua.
+#
+#          · CUARTO CASO: `Upholds=`, que es la pieza central del diseño
+#            propuesto. Separa EL DESEO de LA EJECUCIÓN para que la unidad
+#            atada VUELVA a arrancar en vez de quedarse muerta. systemd 255
+#            acepta la sintaxis, pero ACEPTAR NO ES HACER: este proyecto ya
+#            midió que `systemd-analyze verify` calla ante un StartLimitBurst
+#            mal colocado. Se mide, incluido si respeta el StartLimit —de eso
+#            depende que Nav2 sin mapa no entre en bucle indefinido.
+#
 # ⚠️ NO toca el robot, NO toca el RVR, NO mueve nada. Se puede ejecutar con el
-#    driver corriendo y con SLAM corriendo. Lo único que crea son dos unidades de
-#    JUGUETE que se borran al terminar.
+#    driver corriendo y con SLAM corriendo. Lo único que crea son TRES unidades
+#    de JUGUETE (base, atada y deseo) que se borran al terminar, y la limpieza
+#    para el DESEO primero: al revés, `Upholds=` reviviría lo que se acaba de
+#    parar y dejaría basura corriendo.
+#
+# ⏱️ Dura ~3 min: el cuarto caso observa 40 s una unidad que siempre falla.
 #
 # Uso:   bash ~/atriz_migracion/scripts/medir_recuperacion.sh
 #        (pide sudo para las unidades de juguete; el resto no lo necesita)
@@ -162,18 +182,30 @@ UNIDAD
   sudo systemctl daemon-reload
 }
 
+# 🔴 EL TIMESTAMP NO ES ADORNO: SIN ÉL LA MEDIDA NO SE PUEDE LEER.
+#    La tabla del 2026-08-06 registró solo `is-active`, y por eso su casilla
+#    «BindsTo + restart -> active» NO DISTINGUE «murió y volvió» de «ni se
+#    enteró». Son conclusiones opuestas y las dos se escriben `active`.
+#    La guía de lectura del propio proyecto ya lo decía; la tabla no la cumplía.
+estado_atada() {
+  local act ts
+  act="$(systemctl is-active juguete-atada 2>/dev/null || true)"
+  ts="$(systemctl show juguete-atada -p ExecMainStartTimestamp --value 2>/dev/null || true)"
+  printf '%-10s arrancó: %s' "$act" "${ts:-—}"
+}
+
 probar() {
   local dep="$1"
   echo "  ┌── dependencia: $dep"
   crear_unidades "$dep"
   sudo systemctl start juguete-base.service juguete-atada.service
   sleep 2
-  echo "  │  estado inicial:  base=$(systemctl is-active juguete-base) atada=$(systemctl is-active juguete-atada)"
+  echo "  │  inicial                       atada=$(estado_atada)"
 
   # ── caso 1: restart explícito ──────────────────────────────────────────────
   sudo systemctl restart juguete-base.service
   sleep 4
-  echo "  │  tras 'systemctl restart base':   atada=$(systemctl is-active juguete-atada)"
+  echo "  │  tras 'restart base'           atada=$(estado_atada)"
 
   # Volver a dejarlas arriba para el segundo caso.
   sudo systemctl start juguete-atada.service 2>/dev/null || true
@@ -186,27 +218,140 @@ probar() {
   pid="$(systemctl show juguete-base -p MainPID --value)"
   if [[ "$pid" != "0" ]]; then sudo kill -9 "$pid"; fi
   sleep 5
-  echo "  │  tras MATAR el proceso de base:   atada=$(systemctl is-active juguete-atada)"
+  echo "  │  tras MATAR el proceso de base atada=$(estado_atada)"
   echo "  └──"
 
+  sudo systemctl stop juguete-atada.service juguete-base.service 2>/dev/null || true
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CASO 4 · `Upholds=` — la pieza central del diseño del 2026-08-06 (noche)
+#
+# El problema que resuelve: `BindsTo=` propaga el PARO, no el REINICIO. Si el
+# driver se reinicia —y lo hace solo, de forma rutinaria—, la navegación se
+# apaga y NO VUELVE. Lo que hace falta no es cambiar la directiva: es que la
+# unidad atada vuelva a arrancar.
+#
+# La idea: separar EL DESEO de LA EJECUCIÓN.
+#
+#     juguete-deseo   (oneshot, RemainAfterExit)  --Upholds-->  juguete-atada
+#                                                     atada    --BindsTo-->  base
+#
+# `BindsTo=` se queda: aquí QUEREMOS que la atada muera con la base, porque
+# sobrevivir es el fallo (slam_toolbox vivo y mudo). El deseo la vuelve a
+# levantar LIMPIA.
+#
+# ⚠️ systemd 255 ACEPTA la sintaxis `Upholds=` —comprobado con
+#    `systemd-analyze verify`— pero aceptar NO ES HACER: este proyecto ya tiene
+#    medido que `verify` calla ante un `StartLimitBurst` mal colocado. Esto lo
+#    mide.
+probar_upholds() {
+  echo "  ┌── dependencia: bindsto + Upholds= (el diseño propuesto)"
+  crear_unidades "bindsto"
+
+  sudo tee /etc/systemd/system/juguete-deseo.service >/dev/null <<'UNIDAD'
+[Unit]
+Description=juguete DESEO (imita atriz-slam-deseada)
+Upholds=juguete-atada.service
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+ExecStop=/usr/bin/systemctl stop juguete-atada.service
+UNIDAD
+  sudo systemctl daemon-reload
+
+  sudo systemctl start juguete-base.service
+  sleep 1
+  # 🔴 Se arranca SOLO el deseo. Si `Upholds=` funciona, la atada sube sola:
+  #    eso ya es media medición.
+  sudo systemctl start juguete-deseo.service
+  sleep 3
+  echo "  │  arrancando SOLO el deseo      atada=$(estado_atada)"
+
+  sudo systemctl restart juguete-base.service
+  sleep 6
+  echo "  │  tras 'restart base'           atada=$(estado_atada)"
+
+  local pid
+  pid="$(systemctl show juguete-base -p MainPID --value)"
+  if [[ "$pid" != "0" ]]; then sudo kill -9 "$pid"; fi
+  sleep 8
+  echo "  │  tras MATAR el proceso de base atada=$(estado_atada)"
+
+  # ── Y la pregunta que decide si esto es seguro: ¿respeta el StartLimit? ────
+  # Si Nav2 falla siempre (sin mapa), ¿corta systemd el bucle o reintenta para
+  # siempre? Se sustituye la atada por una que SIEMPRE falla y se mira.
+  sudo tee /etc/systemd/system/juguete-atada.service >/dev/null <<'UNIDAD'
+[Unit]
+Description=juguete atada que SIEMPRE falla
+BindsTo=juguete-base.service
+After=juguete-base.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+[Service]
+ExecStart=/bin/false
+Restart=on-failure
+RestartSec=2
+UNIDAD
+  sudo systemctl daemon-reload
+  sudo systemctl reset-failed juguete-atada.service 2>/dev/null || true
+  sudo systemctl restart juguete-deseo.service 2>/dev/null || true
+  echo "  │  (unidad que siempre falla; observando 40 s…)"
+  sleep 40
+  local n
+  n="$(systemctl show juguete-atada -p NRestarts --value 2>/dev/null || echo '?')"
+  echo "  │  con una unidad que SIEMPRE falla:"
+  echo "  │     estado=$(systemctl is-active juguete-atada 2>/dev/null)  NRestarts=$n"
+  echo "  │     🔴 si NRestarts sigue subiendo sin parar, Upholds= IGNORA el"
+  echo "  │        StartLimit y Nav2 sin mapa entraría en bucle indefinido."
+  echo "  └──"
+
+  sudo systemctl stop juguete-deseo.service 2>/dev/null || true
   sudo systemctl stop juguete-atada.service juguete-base.service 2>/dev/null || true
 }
 
 for dep in bindsto partof ambas; do
   probar "$dep"
 done
+probar_upholds
 
 echo
 echo "  limpiando las unidades de juguete…"
+# 🔴 EL DESEO VA PRIMERO. Si se para la atada con el deseo puesto, `Upholds=`
+#    la revive en un segundo y la limpieza deja basura corriendo.
+sudo systemctl stop juguete-deseo.service 2>/dev/null || true
 sudo systemctl stop juguete-atada.service juguete-base.service 2>/dev/null || true
-sudo rm -f /etc/systemd/system/juguete-base.service /etc/systemd/system/juguete-atada.service
+sudo systemctl reset-failed juguete-atada.service juguete-base.service 2>/dev/null || true
+sudo rm -f /etc/systemd/system/juguete-base.service \
+           /etc/systemd/system/juguete-atada.service \
+           /etc/systemd/system/juguete-deseo.service
 sudo systemctl daemon-reload
+echo "  quedan vivas (debe estar vacío): $(systemctl list-units 'juguete-*' --no-legend 2>/dev/null | wc -l) unidades"
 echo "  hecho."
 
 # ─────────────────────────────────────────────────────────────────────────────
 echo
 echo "── cómo se lee esto ───────────────────────────────────────────────"
 cat <<'LEER'
+  M10 (los cuatro casos) — LEE EL TIMESTAMP, no solo el estado:
+
+       active + timestamp CAMBIADO  -> murió y VOLVIÓ
+       active + timestamp IGUAL     -> ni se enteró (siguió viva todo el rato)
+       inactive                     -> se paró y NO volvió
+
+       🔴 `is-active` da `active` en dos de los tres casos. Por sí solo NO VALE,
+          y por eso la tabla anterior no se podía leer.
+
+  M10 · caso 4 (`Upholds=`) — tres cosas que decide de golpe:
+
+       1. ¿arrancó la atada al arrancar SOLO el deseo?  -> `Upholds=` funciona
+       2. ¿volvió tras el restart Y tras el kill?       -> resuelve el problema
+          que `BindsTo=` deja abierto, que es TODO el motivo de este diseño
+       3. con una unidad que SIEMPRE falla, ¿se planta NRestarts o sigue
+          subiendo?  -> si sigue subiendo, Nav2 sin mapa entra en bucle y hace
+          falta la salvaguarda ANTES de poner el deseo, no después
+
   M6 — busca el arranque cuya ventana CONTENGA la hora en que se cargó el RVR,
        y lee SOLO ese bloque. Los demás no dicen nada del suceso.
 
