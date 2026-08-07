@@ -808,6 +808,27 @@ for F in "$CFG/nav2_atriz.yaml" "$CFG/collision_monitor.yaml" \
         || _mal "FALTA $(basename "$F")" "git -C $WS pull"
 done
 
+# ── La exclusión mutua SLAM / AMCL, EN LOS DOS SENTIDOS ──────────────────────
+# 🔴 QUÉ CAZA ESTO. Hasta el 2026-08-07 la exclusión existía en UN SOLO SENTIDO:
+#    `localizacion.launch.py` se negaba si había SLAM vivo, y `slam.launch.py`
+#    no comprobaba NADA. Arrancar SLAM con la navegación levantada dejaba DOS
+#    publicadores de `map -> odom`: el árbol TF se parte, la pose salta entre
+#    las dos estimaciones, y NO APARECE UN SOLO MENSAJE DE ERROR. Es el fallo
+#    que costó la Fase 4.
+#    Con dos botones en la web, el orden lo elige el alumno: ese sentido pasa de
+#    improbable a rutinario. Por eso el guardia tiene que estar en los DOS.
+for PAR in "localizacion.launch.py:_slam_vivo" "slam.launch.py:_guardia_exclusion"; do
+    FICH="$LAU/${PAR%%:*}"; FUNC="${PAR##*:}"
+    if [[ ! -f "$FICH" ]]; then
+        continue                       # ya lo dijo el bucle de arriba
+    elif grep -q "$FUNC" "$FICH"; then
+        _ok "$(basename "$FICH"): tiene su guardia de exclusión"
+    else
+        _mal "$(basename "$FICH") SIN guardia de exclusión ($FUNC)" \
+             "dos publicadores de map->odom parten el TF sin error; evidencia 78"
+    fi
+done
+
 # ── Los VALORES medidos, no solo que el fichero exista ───────────────────────
 # La regla del fichero: comprobar el efecto. Un YAML presente con los valores del
 # ejemplo de Nav2 es peor que no tenerlo, porque parece configurado.

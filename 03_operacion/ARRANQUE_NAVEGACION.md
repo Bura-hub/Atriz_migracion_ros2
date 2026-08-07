@@ -121,6 +121,14 @@ movimiento (medido: **0.0 cm** contra 9.9 del control) y el robot **parece averi
 **Conflicto 2 — un script de alumno dejaría a Nav2 ciego en silencio.** Con navegación en marcha,
 `cerrar()` de `atriz.py` llama a `/stop_scan` y Nav2 se queda sin datos sin que nada avise.
 
+✅ **Y el CONFLICTO 3, cerrado el 2026-08-07: la exclusión SLAM/AMCL era de un solo sentido.**
+`localizacion.launch.py:70-93` se negaba si había SLAM vivo; **`slam.launch.py` no comprobaba
+nada**, así que «Nav2 y luego SLAM» arrancaba tan contento y dejaba dos publicadores de
+`map → odom` **sin un solo error**. Ya tiene su guardia simétrico (`Atriz_rvr@fac74bf`), que
+comprueba `async_slam_tool` **y** `amcl`, verificado en las tres direcciones.
+⚠️ Lo que NO cierra: la **carrera** entre dos clientes simultáneos. `ps` mira un instante. Eso
+pide un cerrojo en el supervisor, no en un launch.
+
 → **Arreglo en `atriz.py`: dejar las cosas como las encontró.** Si al conectar **ya llega
 `/scan`**, es que otro lo tiene encendido → **no lo apaga al cerrar**. Solo apaga lo que él
 encendió.

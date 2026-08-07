@@ -143,9 +143,29 @@ dos servicios `std_srvs/SetBool` (`/pedir_slam`, `/pedir_nav`), un topic `/estad
 cliente** (`nav2_msgs/SaveMap.srv`: *«Can be an absolute path to a file»*). En un rosbridge sin
 autenticación eso es escritura de fichero en ruta arbitraria. Guardar el mapa espera a la Fase B.
 
-⏳ **Nada de esto se escribe todavía: hay cinco bloqueantes**, y el primero lo encontró el
-escéptico y no estaba en ninguna lista — **esta Pi no tiene RTC y el reloj saltó +1 h 27 m dentro
-del arranque de `robot.launch.py`**. ROS sella TF con ese reloj.
+### Estado de los bloqueantes — **de cinco quedan DOS** (2026-08-07)
+
+| | estado |
+|---|---|
+| **B1 · el reloj** | ⚠️ **MEDIDO.** Sin RTC; salto de **+1 h 27 m 52 s** a los 17,5 s del arranque. Rebajado: los nodos ROS arrancaron **14,7 s después** del salto, y el aula **sí tiene internet**. Arreglo barato: `After=time-sync.target` |
+| **B4 · exclusión de un solo sentido** | ✅ **CERRADO.** `slam.launch.py` ya tiene el guardia (`Atriz_rvr@fac74bf`), verificado en las tres direcciones sin arrancar SLAM |
+| **B5 · `Upholds=` sin verificar** | ✅ **CERRADO, y se cayó solo.** `PartOf=` devuelve la unidad con proceso nuevo **9 de 9** (evidencia 78) → el diseño pasa de **4 unidades nuevas a 2** y desaparece el envoltorio `atriz-modo` |
+| **B2 · `atriz-nav` nunca corrió bajo systemd** | ⏳ guion listo: `scripts/medir_arranque_nav.sh` |
+| **B3 · el botón de tres pulsaciones** | ⏳ mismo guion |
+
+**El mecanismo elegido, y está medido:** `PartOf=` + `Requires=` + `After=`, **y NADA de
+`BindsTo=`** (la rama «ambas» dio `inactive` tras matar el proceso: BindsTo gana y no vuelve).
+✅ Y con una unidad que siempre falla, el `StartLimit` **corta** → **Nav2 sin mapa no entra en
+bucle indefinido**.
+
+### 🔴 El número que TE FALTA a ti, y que nadie tiene
+
+**Cuánto tarda Nav2 desde `systemctl start` hasta aceptar objetivos.** `TimeoutStartSec=120` es un
+tope que alguien escribió, no una medida. De ese número sale **el plazo del estado «arrancando»**
+que tu pantalla tiene que pintar. Sale de la sesión B2/B3, pendiente de una ventana con el robot.
+
+📌 **Hasta que exista: segundos transcurridos, NO porcentaje.** Un porcentaje inventado es una
+mentira con aspecto de dato.
 
 ## ✅ Cerrado y comprobado — no lo vuelvas a poner como pendiente
 
