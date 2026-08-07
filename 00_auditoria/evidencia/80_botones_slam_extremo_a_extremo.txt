@@ -102,3 +102,104 @@ c) 🔴 EL BARRIDO SE QUEDABA ENCENDIDO, Y ES LA TERCERA VEZ DEL MISMO PATRÓN
    para eso hacen falta SLAM y Nav2 arriba, y Nav2 necesita mapa.
 ⏳ **`PartOf=` con carga real**: medido con unidades de juguete (evidencia 78),
    no con un `slam_toolbox` de verdad.
+
+
+════════════════════════════════════════════════════════════════════════════
+ AMPLIACIÓN · EL BOTÓN DE NAV2, TAMBIÉN DE EXTREMO A EXTREMO (2026-08-07)
+════════════════════════════════════════════════════════════════════════════
+
+5 · EL `EnvironmentFile` SE LEE DE VERDAD — con prueba que DISCRIMINA
+────────────────────────────────────────────────────────────────────────────
+La primera comprobación no valía: el valor de `/etc/default/atriz` era
+IDÉNTICO al defecto del nodo, así que el `param get` habría salido igual sin
+leer el fichero. **Un instrumento que no distingue las dos hipótesis.**
+
+Se cambió el fichero a un valor distinto y se reinició:
+
+    /etc/default/atriz   ATRIZ_MAPA=/home/sphero/mapas/cuarto.yaml
+    param del nodo       /home/sphero/mapas/cuarto.yaml     ← CAMBIÓ
+    hay_mapa             true
+
+✅ El fichero se lee. Y de paso quedó apuntando al mapa del cuarto, que es lo
+   que permitió la prueba siguiente.
+
+
+6 · NAV2, DE EXTREMO A EXTREMO
+────────────────────────────────────────────────────────────────────────────
+    /pedir_nav data:true  →  success=True, «petición ACEPTADA»
+
+    estado      0,7 s  CIEGO        ← 🔴 defecto, ver §8
+                1,4 s  ARRANCANDO
+                3,4 s  FUNCIONANDO
+
+Y los testigos independientes del supervisor:
+
+    unidad                  active / success
+    barrido                 ENCENDIDO (/scan publica)
+    bt_navigator            active        planner_server   active
+    controller_server       active        map_server       active
+    amcl                    active
+    ¿acepta objetivos?      SÍ   (cliente de acción, no `ros2 action list`)
+
+Y el paro, también por el servicio: `inactive/success`, `amcl` fuera.
+
+⚠️ **No se envió ningún objetivo: el robot no se movió en ningún momento.** Que
+   Nav2 NAVEGUE sigue sin probarse.
+
+
+7 · LA LATENCIA DEL SERVICIO — y el instrumento que volvió a mentir
+────────────────────────────────────────────────────────────────────────────
+🔴 `ros2 service call` dio **6,3 s**, por encima de los 5,0 s de la cadena web.
+   **No es la latencia del servicio: es el arranque del CLI**, que crea un nodo
+   y descubre. Este proyecto ya se equivocó exactamente así con `/start_scan`
+   en julio, y lo tuvo que retractar.
+
+Medido con un cliente PERSISTENTE, o sea con la conexión ya abierta —que es lo
+que hace la web—:
+
+    /pedir_nav data:true    1,021 s
+    /pedir_nav data:true    0,957 s
+    /pedir_nav data:false   0,053 s
+
+✅ **5× de margen** sobre los 5,0 s. El arranque cuesta ~1 s por los rechazos
+   (dos consultas a systemd, el mapa y `ps`); el paro no los hace y cuesta 0,05.
+
+
+8 · UN DEFECTO QUE SOLO APARECE AL EJECUTARLO: `CIEGO` EN UN ARRANQUE SANO
+────────────────────────────────────────────────────────────────────────────
+La máquina de estados comprobaba `CIEGO` **antes** que `ARRANCANDO`, así que un
+arranque perfectamente normal pasaba ~1 s por:
+
+    «encendido pero SIN barrido: no puede funcionar»
+
+Los nodos ya existen y `/scan` todavía no ha llegado. **La web habría pintado
+una alarma naranja en mitad de un arranque sano**, y el alumno habría ido a
+buscar una avería que no existe.
+
+→ `ARRANCANDO` va ahora primero. `CIEGO` significa **«está levantado y NO puede
+  funcionar»**, no «todavía está subiendo» — típicamente alguien llamó a
+  `/stop_scan` con la navegación en marcha.
+
+📌 No se habría visto leyendo el código: hace falta arrancar Nav2 de verdad y
+   mirar la secuencia.
+
+
+9 · EL `off-si-sobra`, AHORA SÍ BAJO systemd
+────────────────────────────────────────────────────────────────────────────
+    13:10:32  ✅ escaneo ENCENDIDO — /scan publica, el robot puede conducir
+    13:12:46  ✅ escaneo APAGADO — ninguna unidad de navegación lo necesitaba
+
+Las dos líneas en el journal de la unidad. Antes del arreglo del `set -e` no
+aparecía **ninguna** y el barrido se quedaba encendido.
+
+
+10 · LO QUE SIGUE SIN VERIFICARSE, Y UNO NO PODRÁ
+────────────────────────────────────────────────────────────────────────────
+⏳ **Que Nav2 NAVEGUE.** Arranca y acepta objetivos; nadie le ha mandado uno.
+⏳ **`PartOf=` con carga real** (medido con unidades de juguete, evidencia 78).
+🔴 **`off-si-sobra` con DOS unidades activas a la vez: NO SE PUEDE PROBAR.**
+   SLAM y Nav2 son **excluyentes por diseño** —el `ExecStartPre` de exclusión lo
+   impide—, así que la rama «se deja encendido» solo puede verificarse por
+   lógica, y así está. **Es honesto decir que existe una comprobación para un
+   caso que el diseño actual no permite alcanzar**: la dejamos porque el diseño
+   podría cambiar, no porque se haya visto disparar.
