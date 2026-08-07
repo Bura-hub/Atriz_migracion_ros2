@@ -67,6 +67,43 @@ constructor (`rvr_driver_node.py:266`). Un robot que un humano detuvo a propósi
 aceptar `cmd_vel_raw`. Descarta la opción «reiniciar con el parámetro puesto» por seguridad, no
 por incomodidad. **Sin resolver.**
 
+### 🔴 Dos cosas que di por abiertas y estaban cerradas
+
+Al recibir el informe del PC —que listaba «si Nav2 y SLAM arrancan solos» como decisión
+pendiente— se cruzó con el repositorio y **no lo estaba**:
+
+- **Decidida con el usuario el 2026-08-03**, en `ARRANQUE_NAVEGACION.md`: Nav2 instalada y **no
+  habilitada** (no sobrevive a un reinicio), SLAM **a mano** por ser tarea de administrador. El
+  dato que la decidió: la Pi se alimenta del USB del RVR, ~2 h de autonomía contra clases de
+  2-3 h, y Nav2 son ~58 % de un núcleo.
+- **Ratificada el 2026-08-06** por el panel de cuatro agentes (D2): `atriz-slam.service` instalada
+  y no habilitada, A10 espera.
+
+Es el mismo fallo que `ESTADO_ACTUAL.md` documenta en su primera sección — el 2026-08-05 se
+listaron cuatro cosas ya hechas citando un fichero que se había quedado atrás. **Un documento de
+decisión de tres días antes no se leyó.**
+
+🔴 **Y peor: la «solución A recomendada»** de `2026-08-06-arrancar-desde-la-web.md` —servicios del
+driver con `systemctl start` y polkit— **la había rechazado el panel esa misma mañana**, por
+seguridad. Verificado en el código en vez de citarlo:
+
+```
+rosbridge_server/websocket_handler.py:233  def check_origin(self, origin) -> bool:
+                                    :234      return True          sin condiciones
+systemctl show atriz-robot -p User         →  User=sphero          el driver no es root
+```
+
+rosbridge no autentica a nadie, así que polkit convierte «cualquiera en la red del aula llama a un
+servicio» en **«cualquiera en la red del aula hace que root arranque un proceso»**.
+
+📌 Los cuatro requisitos de ese apartado **sí se quedan** —no bloquear `/release_emergency_stop`,
+éxito por efecto, Nav2 sin mapa que se niegue—: valen para cualquier mecanismo. Lo que no vale es
+el mecanismo.
+
+⏳ **Lo único realmente abierto**, y es del panel (D2, razón 3): el argumento de Nav2 **no traslada
+a SLAM**. Nav2 no se habilita porque cuesta 58 % de núcleo; **SLAM cuesta 4,8 %**, doce veces
+menos. La conclusión puede seguir siendo la buena, pero por otras razones, y no están escritas.
+
 ### Escalado a todo lo que la imagen dorada necesita
 
 Un servicio nuevo toca más sitios de los que parece. Alineado y **verificado

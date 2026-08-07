@@ -72,6 +72,57 @@ encendía y apagaba en la misma llamada. Detalle completo en el `CHANGELOG` del 
 en la evidencia 76. Si tenías algo diseñado sobre «hay que reiniciar el driver», **tíralo**: además
 de caro, reiniciar **baja la parada de emergencia** (`rvr_driver_node.py:266`).
 
+## 📣 PARA EL PC — la decisión de Nav2/SLAM NO está pendiente
+
+Tu informe la lista como *«una decisión tuya, y bloquea A10 y A13»*. **Ya estaba tomada, y dos
+veces.** Fui yo quien la reabrió por no cruzar con lo que había en el repositorio.
+
+**1 · Con el usuario, el 2026-08-03** — [`ARRANQUE_NAVEGACION.md`](ARRANQUE_NAVEGACION.md):
+
+| | |
+|---|---|
+| **Nav2** | unidad instalada y **NO habilitada**. *«No sobrevive a un reinicio… es la decisión del usuario y encaja con la línea del proyecto: nada de estado silencioso»* |
+| **SLAM** | **a mano**, para hacer mapas: *«tarea de administrador, no de operación»* |
+
+El dato que la decidió: **la Pi se alimenta del USB del RVR**, autonomía medida **~2 h** contra
+clases de **2-3 h**, y Nav2 son **~58 % de un núcleo**. Salvedad que el propio documento escribe:
+**cuánto cuesta en batería ese 58 % no lo sabe nadie** — la dirección está clara, la magnitud no.
+
+**2 · El panel de cuatro agentes, el 2026-08-06** — `planes/2026-08-06-plan-slam-color-arranque.md`,
+D2: `atriz-slam.service` instalada y **no habilitada**, y **A10 espera**. Honesto: la web sigue sin
+poder arrancar SLAM, y se dice.
+
+### 🔴 Y hay algo que te afecta directamente si ibas a construir sobre mi plan
+
+En `planes/2026-08-06-arrancar-desde-la-web.md` escribí una **«solución A recomendada»**: servicios
+del driver que hagan `systemctl start` con una regla de polkit. **Está RECHAZADA** — el panel la
+había tumbado esa misma mañana (D2, opción c), por seguridad. Verificado en el código, no citado:
+
+```
+rosbridge_server/websocket_handler.py:233   def check_origin(self, origin) -> bool:
+                                     :234       return True        ← sin condiciones
+systemctl show atriz-robot -p User          →   User=sphero        ← el driver no es root
+```
+
+rosbridge **no autentica a nadie**, así que polkit convertiría *«cualquiera en la red del aula
+llama a un servicio»* en ***«cualquiera en la red del aula hace que root arranque un proceso»***.
+
+📌 **Lo que del apartado A sí se queda**, porque vale para cualquier mecanismo que se acabe
+eligiendo: el callback no puede bloquear `/release_emergency_stop` (comparten
+`MutuallyExclusiveCallbackGroup`), el éxito se mide por efecto y no por el retorno de `systemctl`,
+y Nav2 sin mapa debe **negarse y decirlo** en vez de intentarlo.
+
+### ⏳ Lo que SÍ queda abierto, y no es lo que pensabas
+
+Del propio panel (D2, razón 3), sin cerrar por nadie:
+
+> El argumento de Nav2 **no traslada a SLAM**. Nav2 no se habilita porque cuesta **58 %** de
+> núcleo; **SLAM cuesta 4,8 %**, doce veces menos. La conclusión puede seguir siendo la buena,
+> **pero por otras razones, y esas no están escritas.**
+
+**Eso** es lo que merece decisión. Y **M10** y **probar la navegación con el mapa del cuarto** no
+dependen de ella: se pueden hacer ya.
+
 ## ✅ Cerrado y comprobado — no lo vuelvas a poner como pendiente
 
 > 🔴 **Esta sección existe porque el 2026-08-05 se listaron como pendientes CUATRO cosas que ya
