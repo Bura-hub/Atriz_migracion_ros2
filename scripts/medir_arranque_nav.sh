@@ -38,6 +38,15 @@ set -uo pipefail          # 🔴 SIN -e a propósito: aquí un fallo ES un resul
 
 MAPA="${1:-/home/sphero/mapas/cuarto.yaml}"
 SALIDA="$HOME/medicion_arranque_nav_$(date +%Y%m%d_%H%M%S).txt"
+# 🔴 DIRECTORIO TEMPORAL PROPIO, no rutas fijas en /tmp. Dos razones, y las dos
+#    ya mordieron:
+#    · seguridad: con `fs.protected_regular=2`, root NO puede escribir sobre un
+#      fichero de /tmp que sea de otro usuario. Lo caza `verificar_robot.sh`.
+#    · y el fallo real del 2026-08-07: una ruta fija hizo que una tanda
+#      ejecutara el observador de la tanda ANTERIOR, y las dos vueltas de B2
+#      midieron nada mientras imprimian algo que parecia un resultado.
+TMP="$(mktemp -d /tmp/medir_nav.XXXXXX)"
+chmod 755 "$TMP"          # `sphero` tiene que poder leer el observador
 DROPIN_DIR=/etc/systemd/system/atriz-nav.service.d
 DROPIN="$DROPIN_DIR/99-medicion.conf"
 
@@ -55,6 +64,7 @@ limpiar() {
   systemctl stop atriz-nav.service 2>/dev/null || true
   systemctl reset-failed atriz-nav.service 2>/dev/null || true
   rm -f "$DROPIN"; rmdir "$DROPIN_DIR" 2>/dev/null || true
+  rm -rf "$TMP"
   systemctl daemon-reload
   # El barrido: la unidad lo apaga en su ExecStopPost, pero no se da por hecho.
   su - sphero -c '/usr/local/bin/atriz-escaneo off' >/dev/null 2>&1 || true
@@ -127,7 +137,7 @@ medir_b2() {
   #    NADA y lo dijeron con un mensaje que parecia un resultado del robot.
   #    Escribirlo cada vez cuesta milisegundos y elimina la dependencia de un
   #    estado invisible en /tmp.
-  cat > /tmp/cronometro_nav.py <<'PYFIN'
+  cat > "$TMP/cronometro_nav.py" <<'PYFIN'
 """Espera a que /navigate_to_pose acepte objetivos e informa en EPOCH.
 
 🔴 POR QUE EPOCH Y NO UN CRONOMETRO PROPIO. La primera version media desde que
@@ -138,6 +148,7 @@ medir_b2() {
    exacto. Es la leccion de la evidencia 78: el instrumento midiendose a si
    mismo.
 """
+import os
 import time, rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
@@ -151,7 +162,7 @@ n = Node('cronometro_nav')
 cli = ActionClient(n, NavigateToPose, 'navigate_to_pose')
 
 # La marca: le dice al shell "ya estoy observando, lanza el systemctl".
-with open('/tmp/cronometro_listo', 'w') as f:
+with open('"$TMP/listo"', 'w') as f:
     f.write(str(time.time()))
 print('    (observador en pie)', flush=True)
 
@@ -176,19 +187,19 @@ if not listo:
           % (', '.join(hitos) or 'ninguno'), flush=True)
 n.destroy_node(); rclpy.shutdown()
 PYFIN
-  chmod 644 /tmp/cronometro_nav.py
+  chmod 644 "$TMP/cronometro_nav.py"
 
-  rm -f /tmp/cronometro_listo /tmp/cronometro_salida.txt
+  rm -f "$TMP/listo" "$TMP/salida.txt"
   # 🔴 EL OBSERVADOR VA PRIMERO. Se espera a su marca antes de tocar systemd: asi
   #    el instante cero es el `systemctl start` de verdad, y no el arranque de
   #    Python. Esto es lo que convierte "entre 18 y 26 s" en un numero exacto.
-  su - sphero -c "source /opt/ros/jazzy/setup.bash; \
+  su - sphero -c "export MARCA=$TMP/listo; source /opt/ros/jazzy/setup.bash; \
                   source /home/sphero/atriz_ws/install/setup.bash; \
-                  timeout 210 python3 -u /tmp/cronometro_nav.py" \
-      > /tmp/cronometro_salida.txt 2>&1 &
+                  timeout 210 python3 -u "$TMP/cronometro_nav.py"" \
+      > "$TMP/salida.txt" 2>&1 &
   PID_CRONO=$!
-  for _ in $(seq 1 60); do [[ -f /tmp/cronometro_listo ]] && break; sleep 1; done
-  if [[ ! -f /tmp/cronometro_listo ]]; then
+  for _ in $(seq 1 60); do [[ -f "$TMP/listo" ]] && break; sleep 1; done
+  if [[ ! -f "$TMP/listo" ]]; then
     # 🔴 SE ABANDONA LA VUELTA. Antes solo avisaba y seguia: arrancaba la
     #    navegacion igual y luego imprimia "NO llegó a aceptar objetivos", que
     #    parece un resultado del robot y es un fallo del instrumento. Gastaba
@@ -197,7 +208,7 @@ PYFIN
     echo "  🔴 el observador no llegó a ponerse en pie: INSTRUMENTO ROTO."
     echo "     Esta vuelta se ABANDONA sin tocar la navegación."
     kill "$PID_CRONO" 2>/dev/null
-    sed -n '1,5p' /tmp/cronometro_salida.txt 2>/dev/null | sed 's/^/     /'
+    sed -n '1,5p' "$TMP/salida.txt" 2>/dev/null | sed 's/^/     /'
     return 1
   fi
 
@@ -209,8 +220,8 @@ PYFIN
   echo "  systemctl start --no-block devolvió en $(echo "$T_NOBLOCK - $T0" | bc) s"
 
   wait "$PID_CRONO" 2>/dev/null
-  grep -E "observador|EPOCH_NODO|NO llego" /tmp/cronometro_salida.txt | sed 's/^/  /'
-  EP=$(grep -oP 'EPOCH_LISTO \K[0-9.]+' /tmp/cronometro_salida.txt | tail -1)
+  grep -E "observador|EPOCH_NODO|NO llego" "$TMP/salida.txt" | sed 's/^/  /'
+  EP=$(grep -oP 'EPOCH_LISTO \K[0-9.]+' "$TMP/salida.txt" | tail -1)
   if [[ -n "$EP" && "$EP" != "0" ]]; then
     echo "  🎯 ACEPTA OBJETIVOS a los $(echo "$EP - $T0" | bc) s del systemctl start"
   else
