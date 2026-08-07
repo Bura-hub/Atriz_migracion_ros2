@@ -100,6 +100,29 @@ c) CON actividad por TOPIC: NO se apaga  (el caso de la web)
      ~120s   color_activo: true   (11070)
      ~150s   color_activo: true   (14574)
 
+  🔴 ESTA PRUEBA SE DIO POR BUENA CON UN TESTIGO INSUFICIENTE, y lo destapó el
+     usuario mirando el robot: «en las tres ocasiones se encendió el LED y luego
+     se apagó, no sé en qué tiempo». Su ojo no distingue CUÁNDO, y aquí el
+     cuándo lo era todo.
+
+     Lo único que se había mirado era `color_activo` —la bandera del PROPIO
+     driver, o sea el sujeto examinándose a sí mismo— y el NÚMERO de líneas
+     recibidas. Pero `/color` publica igual con la luz apagada: 14574 líneas de
+     ceros habrían contado exactamente lo mismo.
+
+     Resuelto releyendo la traza guardada, que sí trae los valores:
+
+       primeros mensajes   rgb [0, 0, 0]        (el echo arrancó 3 s ANTES del
+                                                 enable: es la línea base)
+       a los ~150 s        rgb [255, 221, 211]  el sensor VIENDO luz
+
+     ✅ El LED estaba FÍSICAMENTE encendido al final de la ventana. Ahora el
+        testigo es el dato del sensor, no la bandera del driver.
+
+  📌 Y la lección, que es la misma de la evidencia 76 con otro disfraz: contar
+     mensajes no es medir su contenido, y preguntarle a un componente si está
+     funcionando no es comprobar que funciona.
+
   Sin (b) y (c), (a) solo demostraría que el apagado dispara — no que dispare
   cuando debe. Un apagado que se dispara siempre es peor que ninguno.
 
