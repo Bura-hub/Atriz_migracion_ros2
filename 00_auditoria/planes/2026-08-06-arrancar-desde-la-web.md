@@ -171,8 +171,11 @@ Por dentro, `systemctl start|stop` de dos unidades: `atriz-slam.service` (nueva)
 **Lo que hay que respetar, y no es negociable:**
 
 - 🔴 **Los servicios del driver comparten `MutuallyExclusiveCallbackGroup`**: un callback largo
-  **bloquea `/release_emergency_stop`**. Arrancar Nav2 tarda segundos, así que **no puede
-  esperarse dentro del callback** — tiene que lanzarse y volver, y el estado consultarse aparte.
+  **bloquea los otros 18**. Arrancar Nav2 tarda segundos, así que **no puede esperarse dentro del
+  callback** — tiene que lanzarse y volver, y el estado consultarse aparte.
+  ⚠️ **CORREGIDO el 2026-08-06 (noche): aquí ponía «bloquea `/release_emergency_stop`», y es
+  FALSO.** La parada vive en `g_cmd` (`rvr_driver_node.py:647-649`), no en `g_srv`, que se define
+  después (`:658`). El límite es real; el sujeto no era ese.
 - 🔴 **`systemctl start` desde el driver exige permisos.** El servicio corre como `sphero`. Hace
   falta una regla de `polkit` acotada a esas dos unidades, **no** un sudo sin contraseña general.
 - 🔴 **El éxito es que arranque, no que la llamada vuelva.** El servicio no puede devolver

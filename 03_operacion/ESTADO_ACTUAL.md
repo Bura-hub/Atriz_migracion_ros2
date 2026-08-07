@@ -108,20 +108,44 @@ rosbridge **no autentica a nadie**, así que polkit convertiría *«cualquiera e
 llama a un servicio»* en ***«cualquiera en la red del aula hace que root arranque un proceso»***.
 
 📌 **Lo que del apartado A sí se queda**, porque vale para cualquier mecanismo que se acabe
-eligiendo: el callback no puede bloquear `/release_emergency_stop` (comparten
+eligiendo: el callback no puede bloquear los otros 18 servicios del driver (comparten
 `MutuallyExclusiveCallbackGroup`), el éxito se mide por efecto y no por el retorno de `systemctl`,
 y Nav2 sin mapa debe **negarse y decirlo** en vez de intentarlo.
+⚠️ **Corregido:** aquí ponía «bloquea `/release_emergency_stop`». Es falso — la parada está en
+`g_cmd` (`rvr_driver_node.py:647-649`), no en `g_srv`.
 
-### ⏳ Lo que SÍ queda abierto, y no es lo que pensabas
+### ✅ ACTUALIZACIÓN de esa misma noche — el usuario decidió, y el argumento de «root» era falso
 
-Del propio panel (D2, razón 3), sin cerrar por nadie:
+**Decisión del usuario:** *«Ambas deberían poderse habilitar desde la web según la necesidad del
+usuario. Apruebo que estén disponibles.»* → **se añade el mando, NO el arranque automático**.
+Ninguna arranca sola al encender; eso no cambia.
 
-> El argumento de Nav2 **no traslada a SLAM**. Nav2 no se habilita porque cuesta **58 %** de
-> núcleo; **SLAM cuesta 4,8 %**, doce veces menos. La conclusión puede seguir siendo la buena,
-> **pero por otras razones, y esas no están escritas.**
+🔴 **Y el argumento que las bloqueaba resultó inexacto.** Medido sobre la unidad **resuelta**, no
+sobre el fichero:
 
-**Eso** es lo que merece decisión. Y **M10** y **probar la navegación con el mapa del cuarto** no
-dependen de ella: se pueden hacer ya.
+```
+systemctl show atriz-nav -p User -p AmbientCapabilities  →  User=sphero · (vacío)
+ExecStartPre / ExecStart / ExecStopPost   →  ninguno lleva '+', '!' ni '!!'
+```
+
+Sin esos prefijos, `User=` se aplica a los tres. **No es «root arranca un proceso»**: systemd
+arranca una unidad cuyos procesos corren como `sphero` sin capacidades. Y `sphero` no puede
+escribir la unidad ni los scripts (`root:root`), y **ya está en el grupo `sudo`** — una regla
+polkit no le da nada nuevo, le quita la contraseña.
+
+📌 **Diseño completo en [`planes/2026-08-06-slam-y-nav2-desde-la-web.md`]**, de un panel de cuatro
+agentes con las contradicciones zanjadas midiendo. Lo que te toca a ti está en su §6. Resumen:
+dos servicios `std_srvs/SetBool` (`/pedir_slam`, `/pedir_nav`), un topic `/estado_navegacion` con
+**seis** estados, y **el `success` no confirma nada** — igual que con `enable_color`.
+
+🔴 **Y lo que NO va a entrar en la lista blanca, decidido:** ningún servicio de **guardar mapa**.
+`slam_toolbox/SaveMap`, `SerializePoseGraph` y `nav2_msgs/SaveMap` **aceptan la ruta que les dé el
+cliente** (`nav2_msgs/SaveMap.srv`: *«Can be an absolute path to a file»*). En un rosbridge sin
+autenticación eso es escritura de fichero en ruta arbitraria. Guardar el mapa espera a la Fase B.
+
+⏳ **Nada de esto se escribe todavía: hay cinco bloqueantes**, y el primero lo encontró el
+escéptico y no estaba en ninguna lista — **esta Pi no tiene RTC y el reloj saltó +1 h 27 m dentro
+del arranque de `robot.launch.py`**. ROS sella TF con ese reloj.
 
 ## ✅ Cerrado y comprobado — no lo vuelvas a poner como pendiente
 
