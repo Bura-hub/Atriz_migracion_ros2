@@ -121,14 +121,6 @@ movimiento (medido: **0.0 cm** contra 9.9 del control) y el robot **parece averi
 **Conflicto 2 — un script de alumno dejaría a Nav2 ciego en silencio.** Con navegación en marcha,
 `cerrar()` de `atriz.py` llama a `/stop_scan` y Nav2 se queda sin datos sin que nada avise.
 
-✅ **Y el CONFLICTO 3, cerrado el 2026-08-07: la exclusión SLAM/AMCL era de un solo sentido.**
-`localizacion.launch.py:70-93` se negaba si había SLAM vivo; **`slam.launch.py` no comprobaba
-nada**, así que «Nav2 y luego SLAM» arrancaba tan contento y dejaba dos publicadores de
-`map → odom` **sin un solo error**. Ya tiene su guardia simétrico (`Atriz_rvr@fac74bf`), que
-comprueba `async_slam_tool` **y** `amcl`, verificado en las tres direcciones.
-⚠️ Lo que NO cierra: la **carrera** entre dos clientes simultáneos. `ps` mira un instante. Eso
-pide un cerrojo en el supervisor, no en un launch.
-
 → **Arreglo en `atriz.py`: dejar las cosas como las encontró.** Si al conectar **ya llega
 `/scan`**, es que otro lo tiene encendido → **no lo apaga al cerrar**. Solo apaga lo que él
 encendió.
@@ -137,11 +129,43 @@ Es pequeño, es un principio general, y es lo que evita que dos consumidores del
 pisen sin enterarse. **Los dos conflictos son la firma de fallo de este proyecto: algo que parece
 sano y no está haciendo nada.**
 
-### Si el driver se cae, la navegación cae con él
+✅ **Y el CONFLICTO 3, cerrado el 2026-08-07: la exclusión SLAM/AMCL era de un solo sentido.**
+`localizacion.launch.py:70-93` se negaba si había SLAM vivo; **`slam.launch.py` no comprobaba
+nada**, así que «Nav2 y luego SLAM» arrancaba tan contento y dejaba dos publicadores de
+`map → odom` **sin un solo error**. Ya tiene su guardia simétrico (`Atriz_rvr@fac74bf`), que
+comprueba `async_slam_tool` **y** `amcl`, verificado en las tres direcciones.
+⚠️ Lo que NO cierra: la **carrera** entre dos clientes simultáneos. `ps` mira un instante. Eso
+pide un cerrojo en el supervisor, no en un launch.
 
-`BindsTo=atriz-robot.service`. Sin eso quedaría un Nav2 publicando sobre una odometría muerta —
-otra vez algo que parece vivo y no lo está, que es exactamente lo que
-`on_exit=Shutdown()` vino a resolver en `robot.launch.py`.
+### Si el driver se cae, la navegación cae con él — y ahora TAMBIÉN VUELVE
+
+Hoy la unidad usa `BindsTo=atriz-robot.service`. Sin eso quedaría un Nav2 publicando sobre una
+odometría muerta — otra vez algo que parece vivo y no lo está, que es lo que `on_exit=Shutdown()`
+vino a resolver en `robot.launch.py`.
+
+🔴 **Pero `BindsTo=` propaga la PARADA, no el REINICIO.** Y el driver se reinicia solo, de forma
+rutinaria. Medido el 2026-08-06 con unidades de juguete: **tras matar el proceso base, la unidad
+atada queda `inactive` y NO VUELVE.** A mitad de clase, un nodo muere, el driver se repone, y la
+navegación desaparece sin que nadie la haya parado.
+
+✅ **La sustitución, MEDIDA 9 de 9 el 2026-08-07** (evidencia 78):
+
+```
+PartOf= + Requires= + After=        ← y NADA de BindsTo=
+```
+
+`PartOf=` propaga el paro **y el reinicio**: tras matar el proceso base, la atada volvió **con PID
+nuevo** las seis veces (`partof-requires` y `partof-solo`). Proceso nuevo = búfer TF nuevo, que es
+justo lo que hace falta — porque `slam_toolbox` **sobreviviendo** es el fallo, no el remedio.
+
+⚠️ **Y NO se ponen las dos.** La rama «ambas» (`BindsTo=` + `PartOf=`) dio `inactive` tras matar el
+proceso: **`BindsTo` gana y la unidad no vuelve.**
+
+📝 `Requires=` no cambia la recuperación —`partof-solo` da lo mismo— pero impide arrancar sobre un
+driver muerto, que daría un Nav2 `active` sin `/scan` y sin TF.
+
+⏳ **Pendiente de aplicarlo a `atriz-nav.service`**, que sigue con `BindsTo=`. Va junto con la
+sesión B2/B3, para no cambiar la unidad y estrenarla a ciegas en el mismo movimiento.
 
 ---
 
