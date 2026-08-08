@@ -4,6 +4,77 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-08 (6) — **El sensor de color tiene DOS modos, y el segundo estaba sin nombre**
+
+Encargo del usuario tras la evidencia 86: preparar la web para ofrecer **una segunda opción del
+sensor — medir superficies luminosas, sin encender el LED del robot**.
+
+### ✅ No hace falta ningún servicio nuevo
+
+Las dos piezas ya existen, están en la lista blanca de rosbridge y están verificadas:
+`/enable_color` (`SetBool`) elige el modo y `/get_rgbc_sensor_values` lee los cuatro canales. **La
+única diferencia entre los dos modos es el estado de la luz.** Eso hace la pantalla muy simple: un
+interruptor y el mismo lazo de lectura.
+
+### 🔴 Pero al preparar el contrato salió lo que decide el diseño
+
+```
+  luz ENCENDIDA   topic /color -> 40 mensajes, 40 no-cero
+  luz APAGADA     topic /color -> 39 mensajes,  0 no-cero     ← ceros
+                  servicio     -> lecturas REALES
+```
+
+**En modo emisión el topic `/color` no sirve.** No es un fallo: `/color` sale del **streaming** del
+RVR y el streaming se apaga con la detección; el servicio **consulta**, así que sigue dando datos.
+Y el topic **no trae `claro`** de todas formas.
+
+### 🔴 Y un mensaje del driver que afirmaba de más
+
+Decía *«el sensor de color está APAGADO: estos valores son oscuridad»*. **Falso cuando la
+superficie emite luz propia** — que ahora es un modo legítimo y medido. El driver no puede
+distinguir «negro» de «pantalla apagada» de «no hay nada debajo». Reescrito para decir qué hacer en
+cada caso **sin asegurar cuál es**.
+
+📌 *Un aviso que asegura de más sobre lo que no puede saber es peor que no avisar* — la misma
+familia que «`Failed to get scan`» con el barrido apagado a propósito.
+
+### Documento nuevo: `03_operacion/SENSOR_COLOR.md`
+
+Un solo sitio con lo que hasta hoy estaba repartido o en un chat: **qué es cada canal** (por qué
+`claro` no lleva filtro y qué mide de verdad), **por qué no tiene unidades**, **por qué el color se
+juzga por proporciones**, **los dos modos con su tabla medida**, el **contrato para la web** —
+incluido lo que la pantalla NO debe hacer— y lo que **no se puede prometer**.
+
+🔴 Tres avisos que la web necesita y que no son obvios:
+- **`color_activo = false` no es «sensor apagado»**: en modo emisión es el estado correcto.
+- **`claro = 0` no es un fallo**: el discriminante es `success`, no el valor.
+- **Los mismos R/G/B significan cosas distintas** según el modo. No pintar un color sin decir de
+  cuál viene.
+
+### 📝 Y un susto que fue un error de método mío
+
+Al medir el topic contra el servicio, con la luz apagada salió `R0 G0 B0 claro 0` — cuando diez
+minutos antes daba 133/26/4/150. Pareció que la evidencia 86 se caía.
+
+🔴 **Mi medición no miraba el campo `success`.** Sin él, «no hay nada que ver» y «el sensor no
+contestó» son el mismo `(0,0,0,0)` — que es **exactamente** el fallo que `atriz.py` documenta en su
+`color()`. Al mirarlo: `success=True`. Y al leer el código, el handler **consulta al RVR pase lo
+que pase**. Los ceros eran una lectura real de que ya no había pantalla debajo — **lo dijo el
+usuario antes que yo**: *«tal vez es porque no le estoy poniendo el móvil»*.
+
+📌 **La lección: al replicar una medida propia, replica también sus condiciones.** Cambié la
+superficie sin darme cuenta y estuve a punto de retirar un resultado correcto.
+
+### Y de camino, dos limpiezas
+
+- **`atriz.py` y el aviso que ve el alumno en TODAS las prácticas** decían «sin luz no hay
+  lectura». Ahora distinguen reflejo de emisión.
+- **Workspaces parásitos en `src/`**, del 2026-08-07 y en `.gitignore`, así que llevaban 24 h sin
+  que nadie los viera. Los cazó el guardia de `compilar.sh`. La imagen dorada ya los borraba, así
+  que la flota estaba a salvo.
+
+---
+
 ## 2026-08-08 (5) — **Las nueve prácticas corridas, y un sensor que hace lo contrario de lo que creíamos**
 
 ### La pasada de prácticas, completa salvo el seguidor de línea

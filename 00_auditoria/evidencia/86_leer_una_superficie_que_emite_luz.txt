@@ -82,6 +82,49 @@ y la respuesta no hace falta buscarla en el `success=true` del servicio:
    no el código de salida» resuelto por la propia estructura del experimento.
 
 
+4b · 🔴 EN ESTE MODO EL TOPIC `/color` NO SIRVE. HAY QUE USAR EL SERVICIO.
+────────────────────────────────────────────────────────────────────────────
+Salió al preparar el contrato para la web, y es lo que decide el diseño.
+Medido con la luz encendida y apagada, mismo robot, seguidas:
+
+    luz ENCENDIDA   topic /color -> 40 mensajes, 40 no-cero
+                    servicio     -> R214 G468 B212 claro 809
+    luz APAGADA     topic /color -> 39 mensajes,  **0 no-cero**
+                    servicio     -> lecturas REALES de la pantalla
+
+🔴 **Con la luz apagada el topic publica CEROS.** No es un fallo: `/color` sale
+   del **streaming** del RVR, y el streaming se apaga junto con la detección. El
+   servicio `/get_rgbc_sensor_values` **consulta**, así que sigue dando datos.
+
+⚠️ Y el topic no trae `claro` de todas formas: `Color.rgb_color` son tres
+   enteros. Para el canal que discrimina hay que ir al servicio en los DOS modos.
+
+
+4c · UN SUSTO QUE FUE UN ERROR DE MÉTODO MÍO, Y MERECE ESCRIBIRSE
+────────────────────────────────────────────────────────────────────────────
+Al medir lo de arriba, el servicio con la luz apagada devolvió **R0 G0 B0
+claro 0** — cuando diez minutos antes daba 133/26/4/150. Pareció que la
+evidencia 86 se caía.
+
+🔴 **Mi medición no había mirado el campo `success`.** Sin él, «no hay nada que
+   ver» y «el sensor no contestó» son el mismo (0,0,0,0) — que es EXACTAMENTE el
+   fallo que `atriz.py` documenta en su `color()` y que costó meses de `/color`
+   publicando ceros.
+
+Al mirarlo: `success=True`, con un `message` del driver. Y al leer el código, el
+handler **consulta al RVR pase lo que pase**: la luz sólo cambia el `message`.
+Así que los ceros eran una lectura REAL de que ya no había pantalla debajo — lo
+dijo el usuario antes que yo: *«tal vez es porque no le estoy poniendo el
+móvil»*.
+
+✅ **La evidencia 86 se sostiene.** Pero se sostuvo por leer el código y el
+   `success`, no por confiar en la conclusión anterior.
+
+📝 **La lección: al replicar una medida propia, replica también sus condiciones.**
+   Cambié la superficie sin darme cuenta y estuve a punto de retirar un
+   resultado correcto.
+
+
 5 · LO QUE NO SE PUEDE PROMETER
 ────────────────────────────────────────────────────────────────────────────
 ⚠️ **Esto es una pantalla de móvil, NO una baldosa LED.** Dos diferencias que

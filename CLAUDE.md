@@ -976,6 +976,10 @@ Medido el 2026-08-08 sobre una pantalla de móvil a brillo máximo, sin mover el
   +1080 y +1040** de `claro` en los tres colores — 4 % de dispersión. Tiene que ser así, porque es
   su reflejo sobre el mismo vidrio y **no depende de lo que muestre la pantalla**. Eso prueba que
   el servicio hizo efecto **sin mirar su `success`**.
+→ 🔴 **Y EN ESE MODO EL TOPIC `/color` NO SIRVE: publica CEROS.** Medido: luz encendida 40 de 40
+  mensajes no-cero, luz apagada **0 de 39**. `/color` sale del **streaming** del RVR y el streaming
+  se apaga con la detección; `/get_rgbc_sensor_values` **consulta**, así que sigue dando datos. Y el
+  topic no trae `claro` de todas formas. **Contrato completo: `03_operacion/SENSOR_COLOR.md`.**
 → ⚠️ **Sin medir, y no se transfiere a una baldosa LED real:** dónde satura el canal (aquí el
   máximo fue 387 contra los 2288 del blanco reflectante) y el parpadeo PWM (aquí 2-4 cuentas de
   dispersión; una baldosa más lenta podría batir contra la integración). Evidencia 86.
