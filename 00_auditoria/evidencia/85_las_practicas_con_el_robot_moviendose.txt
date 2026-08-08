@@ -1,0 +1,180 @@
+════════════════════════════════════════════════════════════════════════════
+ 85 · LAS PRÁCTICAS, CON EL ROBOT MOVIÉNDOSE
+      Tres fallos que solo aparecen ejecutándolas. Uno es de la biblioteca
+      del alumno y salía con código 0.
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-08
+Robot:  rvr-01
+Testigo físico: el usuario, mirando el robot
+
+
+0 · POR QUÉ ESTA SESIÓN
+────────────────────────────────────────────────────────────────────────────
+Las diez prácticas estaban escritas, revisadas y con 91 tests, y **nunca se
+habían ejecutado con el robot moviéndose**. Era el pendiente más viejo del
+material docente. Se corrieron las que no necesitan una línea pintada en el
+suelo (el seguidor queda pendiente: el usuario no tiene cinta).
+
+📌 **Y lo primero que hizo falta fue un instrumento.** La práctica 1 imprimió
+   «Avanzando... Listo.» y salió con código 0. Eso no dice nada: este proyecto
+   tiene documentado el caso de un programa recorriendo su camino feliz sobre un
+   robot inmóvil (`raw_motors` al 30 % → **0,00 cm**, evidencia 53). Se escribió
+   `mediciones_banco/correr_practica.py`, que lee `/odom` antes y después y
+   reporta desplazamiento y giro.
+
+
+1 · 🔴 EL FALLO GORDO: `girar()` ABORTA SOBRE UN ROBOT SANO Y SALE CON 0
+────────────────────────────────────────────────────────────────────────────
+    práctica 2, primera vez
+      pide girar(90)  ->  «Giro 5.5 grados de verdad»   ·  salida 0
+      AVISO: /odom no se actualiza hace ~0.25 s. Odometría perdida o
+             desconectada.
+      medido por el arnés: **-0.6°**, 6.8 s en vez de ~11
+
+**Y `/odom` estaba perfecto.** Medido con el instrumento del proyecto, 60 s:
+
+    odom   16.54 Hz   ·  medio 60.5 ms  ·  σ 2.5 ms  ·  **peor hueco 80.9 ms** ✅
+
+LA CAUSA, en el bucle de `girar()`:
+
+    MAX_SIN_CAMBIO = 5   # ~0.25 s a 20 Hz     <- cuenta ITERACIONES, no tiempo
+
+Tres defectos, y uno solo ya basta:
+
+  1. **Mide en la unidad equivocada.** Cuenta vueltas del bucle y **supone** que
+     corre a 20 Hz. Si el proceso se queda sin CPU un cuarto de segundo, o si el
+     bucle gira más rápido de lo previsto, dispara con la odometría perfecta.
+     🔴 El propio fichero lo admitía tres líneas más arriba: *«Nada de esto está
+        medido sobre el robot»*.
+  2. **El margen era de 3×, no de 10.** Peor hueco real 81 ms, umbral 250 ms.
+  3. **Y al disparar, mentía sobre la causa.** «Odometría perdida o
+     desconectada» con `/odom` a 16,54 Hz manda a buscar una avería que no
+     existe. Misma familia que `Failed to get scan` con el barrido apagado a
+     propósito: un mensaje alarmante sobre un estado sano.
+
+🔴 **El efecto para el alumno es el peor posible: no falla, MIENTE BAJITO.**
+   `girar(90)` termina, imprime su resultado, **sale con código 0**, y el robot
+   se quedó a 5°. Un `if` sobre el código de salida no lo ve.
+
+✅ **ARREGLADO.** El guardia mide ahora **tiempo de reloj desde la última muestra
+   nueva**, con umbral **1,0 s** = ~16 mensajes perdidos = **12× el peor hueco
+   medido**. Es el mismo criterio que `_vigilar_silencio` del driver, que lleva
+   desde julio sin un falso positivo. Y el mensaje dice **que se abortó el giro**
+   y cuánto lleva callado el topic, sin diagnosticar la causa — un RVR dormido,
+   un driver caído y una Pi saturada dan los tres el mismo silencio.
+
+   · El criterio se extrajo a una función pura `odom_rancia()`: **el fallo era
+     justo que no se podía comprobar en ningún sitio.**
+   · **6 tests nuevos** (91 → 97), y **discriminan**: puesto el umbral viejo de
+     0,25 s, `test_el_umbral_viejo_habria_disparado_con_el_jitter_de_hoy` **falla**.
+
+⚠️ **VERIFICACIÓN, Y SUS LÍMITES.** Tras el arreglo: **4 de 4** limpios, 90,1 ·
+   90,5 · 90,8 · 90,6°, y el arnés coincide a 0,1°. **Pero el fallo era
+   intermitente (1 de 4), así que cuatro pasadas verdes NO prueban que se haya
+   ido** — es la lección de la parada de emergencia, evidencia 47. Lo que sostiene
+   el arreglo es **estructural**: el guardia ya no depende del ritmo del bucle, y
+   1,0 s es 12× el peor hueco medido.
+
+⏳ **Y el disparador original NO se aisló.** Se descartaron tres hipótesis
+   midiendo: que `/odom` tuviera huecos reales (81 ms, no), que los sellos de
+   tiempo vinieran a cero o repetidos (166 de 166 distintos, ninguno a cero), y
+   que fuera el arranque del LIDAR (en el fallo **ya estaba girando**, y los tres
+   buenos lo arrancaron de cero — justo al revés). Se anota sin cerrar.
+
+
+2 · 🔴 `avanzar(0.20, 3)` NO SIGNIFICA 60 cm, Y NADIE SE LO DICE AL ALUMNO
+────────────────────────────────────────────────────────────────────────────
+    práctica 1, primera vez    26,4 cm
+    práctica 1, con el arnés   59,5 cm     (esperado 60)
+
+La misma práctica, sin tocar nada, la mitad de recorrido. **Lo explicó el usuario
+mirando el robot** —«creo que paró porque encontró un obstáculo con el LIDAR»— y
+el journal lo confirma:
+
+    12:58:21  Robot to slowdown for 40.000000 percents due to Precaucion polygon
+    12:58:23  Robot to continue normal operation
+    12:58:24  (fin de la práctica)
+
+Dos de los tres segundos de avance al 40 %: `1 s × 0,20 + 2 s × 0,08 = 36 cm`, y
+con la rampa de aceleración de ~0,5 s baja a los ~26 medidos. En la segunda
+pasada **no hay ni un evento** del monitor.
+
+🔴 **Y el polígono es más ancho de lo que se suponía:**
+
+    Precaucion: [[0.36, 0.20], [0.36, -0.20], [-0.24, -0.20], [-0.24, 0.20]]
+                60 cm de largo × 40 cm de ANCHO, centrado en el robot
+
+Se extiende **20 cm a cada lado**, y el robot mide 21,7 de ancho: **cualquier
+cosa a menos de ~9 cm de un costado** lo frena al 40 %, aunque se esté alejando.
+Con 4 puntos del LIDAR dentro (`min_points: 4`).
+
+📌 **No es un fallo: es la capa de seguridad haciendo su trabajo.** Pero tiene
+   consecuencia docente y hay que escribirla: **el alumno escribe
+   `avanzar(0.20, 3)`, espera 60 cm y obtiene 26, sin un solo mensaje.** Y
+   cualquier práctica que se apoye en la distancia —la 3 dibuja un cuadrado— sale
+   deformada cerca de una pared o de una pata de silla.
+
+⚠️ Es la evidencia 49 volviendo con otra cara: allí un retroceso de 30 cm hizo 14
+   porque el polígono no sabe hacia dónde vas. Aquí es el ANCHO.
+
+
+3 · 🔴 LA PI NO TIENE RTC, Y ESO INVALIDÓ UNA COMPROBACIÓN DE ESTA MISMA SESIÓN
+────────────────────────────────────────────────────────────────────────────
+    arranque de la Pi          2026-08-08 12:07:53
+    driver, según systemd      2026-08-07 16:40:39   <- 19,5 h ANTES de arrancar
+    NTP sincronizó             2026-08-08 12:08:11   <- 18 s después del arranque
+
+    systemd-timesyncd: «System clock time unset or jumped backwards, restored
+                        from recorded timestamp: Fri 2026-08-07 16:40:38»
+
+La Pi arranca con el reloj **restaurado a la última marca guardada**, levanta los
+servicios, y **después** NTP lo salta ~19,5 h hacia delante. Todo lo que arranque
+en esos 18 s queda **sellado en el pasado**, incluido `atriz-robot`.
+
+🔴 **Consecuencia inmediata, y la sufrí:** se comprobó A11 —el
+   `collision_monitor` descartando el LIDAR— con `journalctl --since "-6h"`, que
+   **excluye justo el arranque**, que es cuando ocurre el fenómeno. La
+   comprobación no valía. Repetida con `-b` (todo el arranque): **0 ocurrencias**,
+   así que hoy no se reprodujo — pero el resultado fue correcto por casualidad.
+
+📌 **La regla: para cualquier cosa relacionada con el arranque, `journalctl -b`,
+   nunca una ventana relativa.** Es la trampa de `date -u +%T` del proyecto en
+   versión nueva: una ventana relativa sobre un reloj que salta.
+
+⚠️ **Y `ExecMainStartTimestamp` no sirve para saber cuánto lleva vivo un
+   servicio** en esta flota. Aquí decía 19,5 h de más. `NRestarts` y el PID sí
+   valen.
+
+📌 **Esto le pasa a los 16 robots en CADA arranque** — ninguna Pi 4 tiene RTC.
+
+
+4 · LO QUE SÍ FUNCIONÓ
+────────────────────────────────────────────────────────────────────────────
+    práctica 1  avanzar(0.20, 3)   ->  59,5 cm  (esperado 60)      ✅
+    práctica 2  girar(90) × 7      ->  89,7 · 90,1 · 90,2 · 90,2
+                                       90,1 · 90,5 · 90,6 · 90,8°   ✅
+
+✅ **Y la biblioteca acierta lo suyo:** la práctica dice «Giro 90.2 grados de
+   verdad» y el arnés, midiendo `/odom` desde otro proceso, dice **+90,2°**. Las
+   dos fuentes son independientes y coinciden a **0,1°**.
+
+⏳ **PENDIENTES de esta pasada:** las prácticas 3, 4, 10, 11 y 90 (falta espacio:
+   quedaban 61 cm libres delante y la 1 recorre 60), y el **seguidor de línea**,
+   que necesita cinta que el usuario no tiene.
+
+
+5 · LA LECCIÓN, Y ES LA DE SIEMPRE CON OTRA ROPA
+────────────────────────────────────────────────────────────────────────────
+📝 **Los tres fallos son invisibles desde el código.** 91 tests en verde, `tsc` y
+   `eslint` no aplican aquí pero la revisión humana pasó por `atriz.py` trece
+   veces. Lo que los sacó fue **ejecutar y medir el efecto**:
+
+   · el de `girar()` — un arnés que lee `/odom` desde fuera del proceso
+   · el del polígono — **el ojo del usuario**, y el journal confirmándolo
+   · el del reloj — mirar por qué un número no cuadraba en vez de redondearlo
+
+🔴 **Y dos hipótesis mías cayeron por el camino**, las dos plausibles y las dos
+   falsas: que el barrido tardara en arrancar, y que los sellos de `/odom`
+   vinieran repetidos. Las tiró medir. **La del usuario, que estaba mirando el
+   robot, fue la buena** — que es una regla que este proyecto ya tiene escrita y
+   que sigue ganando.

@@ -690,6 +690,70 @@ menciona ROS. Envuelve los `source` en `set +u` / `set -u`.
   barrido del LIDAR se quedó **encendido** — el estado que ese `ExecStartPost` existía para
   evitar.
 
+**🔴🔴 LA PI NO TIENE RTC: LOS SERVICIOS QUE ARRANCAN CON ELLA QUEDAN SELLADOS ~20 HORAS EN EL
+PASADO, Y `journalctl --since "-Nh"` NO LOS VE.** Medido el 2026-08-08:
+
+```
+arranque de la Pi          2026-08-08 12:07:53
+driver, según systemd      2026-08-07 16:40:39   <- 19,5 h ANTES de arrancar
+NTP sincronizó             2026-08-08 12:08:11   <- 18 s después del arranque
+
+systemd-timesyncd: «System clock time unset or jumped backwards, restored from
+                    recorded timestamp: Fri 2026-08-07 16:40:38»
+```
+
+La Pi arranca con el reloj **restaurado a la última marca guardada**, levanta los servicios, y
+**después** NTP lo salta hacia delante. Todo lo que arranque en esos 18 s queda con marcas del
+pasado.
+→ 🔴 **Y mordió el mismo día:** se comprobó A11 —el `collision_monitor` descartando el LIDAR— con
+  `--since "-6h"`, que **excluye justo el arranque**, que es cuando ocurre el fenómeno. El
+  resultado (0 ocurrencias) salió correcto **por casualidad**.
+→ **La regla: para cualquier cosa del arranque, `journalctl -b`. Nunca una ventana relativa.** Es
+  la trampa de `date -u +%T` en versión nueva: una ventana relativa sobre un reloj que salta.
+→ ⚠️ **`ExecMainStartTimestamp` no sirve para saber cuánto lleva vivo un servicio.** `NRestarts` y
+  el PID sí. → 📌 **Le pasa a los 16 robots en CADA arranque**: ninguna Pi 4 tiene RTC. Evidencia 85.
+
+**🔴🔴 `avanzar(0.20, 3)` NO SIGNIFICA 60 cm: EL POLÍGONO DE SEGURIDAD LO PUEDE PARTIR POR LA
+MITAD, EN SILENCIO.** Medido el 2026-08-08 sobre la práctica 1 del curso: **26,4 cm** una vez y
+**59,5 cm** la siguiente, sin tocar nada. El journal lo dice y el usuario lo vio:
+
+```
+12:58:21  Robot to slowdown for 40.000000 percents due to Precaucion polygon
+12:58:23  Robot to continue normal operation
+```
+
+→ **Y el polígono es más ANCHO de lo que se suponía:**
+  `[[0.36, 0.20], [0.36, -0.20], [-0.24, -0.20], [-0.24, 0.20]]` — 60 cm de largo × **40 de
+  ancho**. Con el robot midiendo 21,7 de ancho, **cualquier cosa a menos de ~9 cm de un costado**
+  lo frena al 40 %, aunque se esté alejando de ella.
+→ **No es un fallo: es la capa de seguridad funcionando.** Pero **el alumno pide 60 cm, obtiene 26
+  y no recibe ningún mensaje**, y cualquier práctica que dependa de la distancia —la 3 dibuja un
+  cuadrado— sale deformada cerca de una pared o de una pata de silla.
+→ ⚠️ Es la evidencia 49 con otra cara: allí un retroceso de 30 cm hizo 14 porque el polígono no
+  sabe hacia dónde vas. **Aquí es el ancho.** Evidencia 85.
+
+**🔴🔴 UN GUARDIÁN QUE CUENTA ITERACIONES EN VEZ DE SEGUNDOS DISPARA SOBRE UN SISTEMA SANO.**
+`girar()` de `atriz.py` abortaba el giro a los **5,5° de 90 pedidos** —**saliendo con código 0**—
+avisando «Odometría perdida o desconectada» con `/odom` a **16,54 Hz, σ 2,5 ms, peor hueco 81 ms**.
+
+```python
+MAX_SIN_CAMBIO = 5   # ~0.25 s a 20 Hz     <- cuenta VUELTAS, y SUPONE el ritmo
+```
+
+→ Tres defectos y uno solo basta: **mide en la unidad equivocada** (supone que el bucle va a
+  20 Hz, y el propio fichero admitía «nada de esto está medido sobre el robot»), **el margen era
+  3× y no 10**, y **al disparar mentía sobre la causa** — manda a buscar una avería inexistente,
+  misma familia que `Failed to get scan` con el barrido apagado a propósito.
+→ 🔴 **El modo de fallo es el peor: no falla, MIENTE BAJITO.** Termina, imprime su resultado y
+  devuelve 0 con el robot a 5°. Un `if` sobre el código de salida no lo ve. Reproducido **1 de 4**.
+→ ✅ **Arreglado**: tiempo de reloj desde la última muestra nueva, **1,0 s** = 12× el peor hueco
+  medido, criterio extraído a `odom_rancia()` —**el fallo era justo que no se podía comprobar en
+  ningún sitio**— y **6 tests que discriminan** (con el umbral viejo, fallan). 4/4 en el robot,
+  ⚠️ que **no basta** para un fallo intermitente: lo que sostiene el arreglo es estructural.
+→ **La regla general: un umbral en unidades del observador, no del fenómeno, es un falso positivo
+  esperando.** Y ya está escrita en este fichero para otro caso — «un umbral de silencio en
+  milisegundos no es transferible entre topics de ritmos distintos». Evidencia 85.
+
 **🔴 `ros2 topic list` INCLUYE TOPICS DE NODOS MUERTOS.** El daemon los conserva. El verificador
 veía `/odom` en la lista con el robot **apagado**, medía 0 y declaraba «el RVR está dormido».
 → Para saber si algo corre, mira el **proceso**: `ps -eo comm | grep -qx rvr_driver_node`.

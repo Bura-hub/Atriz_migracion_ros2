@@ -4,6 +4,84 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-08 (3) — **Las prácticas, con el robot moviéndose. Tres fallos.**
+
+El pendiente más viejo del material docente: las diez prácticas estaban escritas, revisadas y con
+91 tests, y **nunca se habían ejecutado con el robot en movimiento**. Se corrieron las que no
+necesitan una línea pintada. Salieron tres fallos, y ninguno es visible leyendo el código.
+
+### 🔴 `girar()` abortaba sobre un robot sano — y salía con código 0
+
+```
+pide girar(90)  ->  «Giro 5.5 grados de verdad»  ·  salida 0
+AVISO: /odom no se actualiza hace ~0.25 s. Odometría perdida o desconectada.
+```
+
+Con `/odom` a **16,54 Hz, σ 2,5 ms, peor hueco 80,9 ms** — perfecto. La causa:
+
+```python
+MAX_SIN_CAMBIO = 5   # ~0.25 s a 20 Hz     <- cuenta VUELTAS, y SUPONE el ritmo
+```
+
+Mide en la unidad equivocada, el margen era 3× y no 10, y **al disparar mentía sobre la causa**.
+🔴 **El modo de fallo es el peor posible: no falla, miente bajito** — termina, imprime y devuelve
+0 con el robot a 5°. Reproducido **1 de 4**.
+
+✅ Arreglado: tiempo de reloj desde la última muestra nueva, **1,0 s** = 12× el peor hueco medido.
+El criterio se extrajo a `odom_rancia()` — **el fallo era justo que no se podía comprobar en
+ningún sitio** — con **6 tests que discriminan** (91 → 97; con el umbral viejo, fallan). 4/4 en el
+robot, ⚠️ que **no basta** para un fallo intermitente: lo que sostiene el arreglo es estructural.
+
+⏳ El disparador **no se aisló**, y se descartaron tres hipótesis midiendo: huecos reales de
+`/odom` (81 ms, no), sellos repetidos o a cero (166 de 166 distintos), y el arranque del LIDAR (en
+el fallo **ya estaba girando**; los tres buenos lo arrancaron de cero — al revés).
+
+### 🔴 `avanzar(0.20, 3)` no significa 60 cm
+
+**26,4 cm** una vez, **59,5** la siguiente, sin tocar nada. Lo explicó el usuario mirando el robot
+—«paró porque encontró un obstáculo con el LIDAR»— y el journal lo confirmó: dos de los tres
+segundos al 40 % por el polígono `Precaucion`. Que resultó ser **40 cm de ancho**: cualquier cosa
+a menos de ~9 cm de un costado frena el robot, aunque se aleje de ella.
+
+📌 No es un fallo — es la capa de seguridad funcionando. Pero **el alumno pide 60 cm, obtiene 26 y
+no recibe ningún mensaje**, y la práctica 3 dibuja un cuadrado.
+
+### 🔴 La Pi no tiene RTC, y eso invalidó una comprobación de esta misma sesión
+
+```
+arranque de la Pi       2026-08-08 12:07:53
+driver, según systemd   2026-08-07 16:40:39   <- 19,5 h ANTES de arrancar
+NTP sincronizó          2026-08-08 12:08:11   <- 18 s después
+```
+
+Se había comprobado A11 con `journalctl --since "-6h"`, que **excluye justo el arranque**, que es
+cuando ocurre el fenómeno. El resultado (0 ocurrencias) salió correcto **por casualidad**.
+📌 **Para cualquier cosa del arranque, `journalctl -b`.** Y `ExecMainStartTimestamp` no sirve para
+saber cuánto lleva vivo un servicio. Les pasa a los 16 robots en cada arranque.
+
+### Lo que sí funcionó, y un instrumento nuevo
+
+```
+práctica 1   avanzar(0.20, 3)  ->  59,5 cm  (esperado 60)                    ✅
+práctica 2   girar(90) × 7     ->  89,7 · 90,1 · 90,2 · 90,2 · 90,5 · 90,6 · 90,8°  ✅
+```
+
+Y las dos fuentes independientes coinciden: la práctica dice «90.2 grados de verdad» y el arnés,
+midiendo `/odom` desde **otro proceso**, dice +90,2°.
+
+📌 El arnés (`mediciones_banco/correr_practica.py`) hizo falta desde la primera práctica: imprimió
+«Avanzando... Listo.» y salió con 0, que no dice nada. **Comprueba el efecto, no el código de
+salida** — otra vez.
+
+📝 **La lección: los tres fallos son invisibles desde el código.** Lo que los sacó fue ejecutar y
+medir — un arnés externo, **el ojo del usuario**, y mirar por qué un número no cuadraba en vez de
+redondearlo. Y **dos hipótesis mías cayeron**, las dos plausibles y las dos falsas.
+
+⏳ Quedan las prácticas 3, 4, 10, 11 y 90 (falta espacio despejado) y el seguidor de línea (hace
+falta cinta).
+
+---
+
 ## 2026-08-08 (2) — **La prueba de aceptación no podía ver el fallo de 41 cm**
 
 Al alinear el repositorio con la evidencia 84 apareció algo que no se buscaba, y es lo más

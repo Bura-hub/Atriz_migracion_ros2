@@ -16,8 +16,8 @@ sys.path.insert(0, str(Path.home() / 'atriz_ws/src/Atriz_rvr/scripts/estudiantes
 from atriz import (                                          # noqa: E402
     ErrorAtriz, GRADOS_MAX, RITMO_HZ, SENALES_DE_CIERRE, TIEMPO_MAX,
     TOPIC_MANDO, VEL_GIRO_MAX, VEL_MAX, Robot, acumular, debe_apagar_barrido, alcanzado, limitar,
-    normalizar, secuencia_de_cierre, validar_canal_led, velocidad_giro,
-    yaw_de_cuaternion,
+    normalizar, odom_rancia, secuencia_de_cierre, SILENCIO_ODOM_S,
+    validar_canal_led, velocidad_giro, yaw_de_cuaternion,
 )
 
 
@@ -900,3 +900,69 @@ def test_no_apaga_el_barrido_si_ya_estaba_encendido():
 def test_apaga_el_barrido_si_lo_encendio_el():
     """El caso normal: nadie mas lo usaba, asi que se deja como estaba."""
     assert debe_apagar_barrido(lo_encendi=True) is True
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EL VIGILANTE DE /odom SE MIDE EN SEGUNDOS, NO EN VUELTAS DEL BUCLE
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔴 El 2026-08-08, `girar(90)` acabo en 5.5 grados sobre un robot sano y salio
+#    con CODIGO 0, imprimiendo «Odometría perdida o desconectada» con /odom a
+#    16.54 Hz. El guardia contaba 5 vueltas del bucle asumiendo 20 Hz -- una
+#    suposicion sobre su propio ritmo, que el fichero admitia no haber medido.
+#    Reproducido 1 de 4 veces. Evidencia 85.
+#
+#    Estos tests fijan el criterio contra la MEDIDA del topic, no contra una
+#    suposicion: si alguien vuelve a bajar el umbral hasta rozar el jitter, o a
+#    contarlo en iteraciones, fallan.
+
+PEOR_HUECO_MEDIDO_S = 0.081   # /odom, 60 s, 2026-08-08 (16.54 Hz, sigma 2.5 ms)
+
+
+def test_el_jitter_normal_de_odom_NO_aborta_el_giro():
+    """El peor hueco real medido no puede disparar el guardia."""
+    assert not odom_rancia(PEOR_HUECO_MEDIDO_S, 0.0)
+
+
+def test_el_umbral_viejo_habria_disparado_con_el_jitter_de_hoy():
+    """Regresion: 0.25 s dejaba solo 3x de margen sobre el jitter.
+
+    No prueba la implementacion nueva: prueba que el umbral VIEJO era
+    insuficiente, que es la razon por la que se cambio.
+    """
+    UMBRAL_VIEJO = 5 * 0.05
+    assert UMBRAL_VIEJO / PEOR_HUECO_MEDIDO_S < 4, (
+        'el umbral viejo estaba a menos de 4x del jitter medido')
+    assert SILENCIO_ODOM_S / PEOR_HUECO_MEDIDO_S >= 10, (
+        'el umbral nuevo tiene que dejar al menos 10x sobre el peor hueco medido')
+
+
+def test_un_silencio_de_verdad_SI_aborta_el_giro():
+    """El RVR se duerme solo a los 300.6 s: el guardia sigue haciendo falta."""
+    assert odom_rancia(1.5, 0.0)
+    assert odom_rancia(300.0, 0.0)
+
+
+def test_justo_en_el_umbral_no_dispara():
+    """Estrictamente mayor: en el umbral exacto todavia no es rancia."""
+    assert not odom_rancia(SILENCIO_ODOM_S, 0.0)
+    assert odom_rancia(SILENCIO_ODOM_S + 0.001, 0.0)
+
+
+def test_una_rafaga_de_huecos_normales_no_acumula():
+    """🔴 EL FALLO EXACTO: huecos normales SEGUIDOS no deben sumar.
+
+    El guardia viejo contaba vueltas consecutivas, asi que cinco huecos
+    normales seguidos disparaban aunque cada uno fuera de 60 ms. Aqui se
+    comprueba que lo que cuenta es el tiempo desde la ULTIMA muestra nueva:
+    cada muestra que llega reinicia el reloj.
+    """
+    t = 0.0
+    for _ in range(50):                       # 50 muestras seguidas a 16.5 Hz
+        t += 0.0606
+        assert not odom_rancia(t, t - 0.0606), 'un hueco normal disparo el guardia'
+
+
+def test_el_umbral_es_configurable_sin_tocar_el_bucle():
+    """Se puede endurecer o relajar sin volver a mezclar tiempo con iteraciones."""
+    assert odom_rancia(0.5, 0.0, umbral_s=0.4)
+    assert not odom_rancia(0.5, 0.0, umbral_s=0.6)
