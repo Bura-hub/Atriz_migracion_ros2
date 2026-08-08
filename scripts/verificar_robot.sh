@@ -1380,6 +1380,35 @@ if [[ -f "$LAUNCH_ROBOT" ]]; then
     fi
 fi
 
+# --- El reloj: la Pi 4 NO TIENE RTC ------------------------------------------
+# 🔴 QUE CAZA ESTO. Medido el 2026-08-08 (evidencia 85): la Pi arranca con el
+#    reloj RESTAURADO a la ultima marca guardada, levanta los servicios, y solo
+#    despues NTP lo salta hacia delante. Aqui fueron **19,5 horas**:
+#
+#      arranque de la Pi        2026-08-08 12:07:53
+#      driver, segun systemd    2026-08-07 16:40:39   <- 19,5 h ANTES de arrancar
+#      NTP sincronizo           2026-08-08 12:08:11   <- 18 s despues
+#
+#    Con NTP, la ventana mala dura ~18 s y se corrige sola. SIN NTP -- un aula
+#    sin salida a internet, un cortafuegos que bloquee el 123/udp -- el reloj se
+#    queda ~20 h en el pasado PARA SIEMPRE, y entonces:
+#      · `journalctl --since` miente en todos los diagnosticos
+#      · las marcas de /scan quedan viejas respecto al reloj y el
+#        `collision_monitor` puede descartar el LIDAR ("Ignoring the source"),
+#        que es el pendiente A11 -- y con la capa de seguridad inerte el robot
+#        conduce SIN filtro
+#      · los ficheros que cree el robot se fechan mal
+#
+# ⚠️ Es un AVISO y no un fallo: un robot con el reloj corrido funciona. Lo que
+#    no funciona es diagnosticarlo, y eso se descubre tarde.
+SYNC="$(timedatectl show -p NTPSynchronized --value 2>/dev/null || echo desconocido)"
+if [[ "$SYNC" == "yes" ]]; then
+    _ok "el reloj esta sincronizado por NTP (la Pi no tiene RTC)"
+else
+    _avi "el reloj NO esta sincronizado (NTPSynchronized=$SYNC)" \
+         "sin RTC el reloj se queda ~20 h atras: journalctl --since miente y el collision_monitor puede descartar el LIDAR (A11). Comprueba la salida a internet y el 123/udp"
+fi
+
 # --- Los ajustes compartidos: UNA ruta del mapa, no dos -----------------------
 # 🔴 QUE CAZA ESTO. Hasta el 2026-08-07 la ruta del mapa vivia en DOS SITIOS
 #    INDEPENDIENTES -- el parametro del supervisor y el ATRIZ_MAPA de la unidad --

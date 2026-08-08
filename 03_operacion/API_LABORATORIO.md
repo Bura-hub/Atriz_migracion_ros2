@@ -287,6 +287,34 @@ barrido apagado o de un `collision_monitor` frenando. Así que:
   operador. Ese fue el cuarto fallo — al **soltarla**, no al pulsarla, el robot arrancaba solo
 - Y **no promete** «respeta la parada», porque no puede comprobarlo
 
+## 🔴🔴 `avanzar(v, s)` promete SEGUNDOS, no metros — y el alumno entiende metros
+
+Medido el 2026-08-08 ejecutando la práctica 1 dos veces seguidas, sin tocar nada (evidencia 85):
+
+```
+  26,4 cm   ← con algo cerca
+  59,5 cm   ← despejado          (los dos con avanzar(0.20, 3))
+```
+
+La causa está en la capa de seguridad, y **no es un fallo**: el polígono `Precaucion` frena al
+40 % y mide **60 cm de largo × 40 de ANCHO**, centrado en el robot. Con un robot de 21,7 cm de
+ancho, **cualquier cosa a menos de ~9 cm de un costado** lo frena, aunque se esté alejando de
+ella. El journal lo registra; el alumno no ve nada.
+
+📌 **Consecuencia de diseño, y por eso vive aquí y no solo en un enunciado:** ninguna práctica
+puede apoyarse en que `avanzar(v, s)` recorra `v × s` metros. La 1 pide medir con cinta y la 3
+dibuja un cuadrado — **un cuadrado pegado a una pared sale con un lado más corto**, y la primera
+sospecha del alumno serán los giros, que están bien.
+
+⚠️ **Lo que NO se hace, y conviene que conste la decisión:** la API *podría* leer
+`/collision_monitor_state` y avisar. Se descarta por ahora — añadiría una suscripción y una
+condición de carrera a la biblioteca para un caso que se resuelve **despejando la mesa**, y este
+proyecto ya tiene documentado que una salvaguarda mal puesta cuesta más que el problema. Lo que sí
+se hace es **decirlo en la cabecera de las prácticas 1 y 3**, que es donde el alumno lo va a leer.
+
+📝 Es la evidencia 49 con otra cara: allí un retroceso comandado de 30 cm hizo 14 porque el
+polígono **no sabe hacia dónde vas**. Aquí es el **ancho**.
+
 ---
 
 ## El alcance de la reescritura

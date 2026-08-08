@@ -1531,6 +1531,12 @@ prueba_navegacion_completa.py # ⚠️ MUEVE EL ROBOT ~80 cm: la prueba de Nav2 
 comparar_con_cinta.py        # sin robot: convierte AB/AP/BP en una POSICIÓN por trilateración
 #                              🔴 con UNA sola distancia no se puede: la diagonal dejó pasar un
 #                                 error de 45 cm porque separaba las hipótesis solo 2 cm
+correr_practica.py           # ⚠️ MUEVE EL ROBOT: corre una práctica de alumno y mide SI SE MOVIÓ
+#                              Lee /odom antes y después, informa desplazamiento y giro netos.
+#                              🔴 Hizo falta desde la primera práctica: imprimió «Avanzando...
+#                                 Listo.» y salió con 0, que no dice nada. Con él salieron los
+#                                 26,4 cm de un avance de 60 y el girar() que abortaba a los 5,5°
+#                                 devolviendo 0. Evidencia 85.
 ```
 
 ⚠️ **`medir_slam_ros2.py` necesita espacio, y el robot NO esquiva obstáculos** (solo tiene
