@@ -4,6 +4,77 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-08 (web) — **La web se pone al día: dos afirmaciones mías retiradas**
+
+Veinte commits nuevos del robot. Tres tocan `atriz-lab`, y **dos desmienten cosas que la interfaz
+decía en pantalla**.
+
+### 🔴 Retirado 1 · «los servicios no existen en el robot»
+
+`ControlNavegacion` nació con un aviso que decía *«NO VERIFICADO […] hasta que el supervisor corra,
+`/pedir_slam` y `/pedir_nav` **no existirán en el robot**»*. **Era falso al escribirse:** el
+supervisor lleva corriendo desde el 2026-08-07 y esa misma tarde los dos se usaron de verdad — uno
+mapeó un cuarto, el otro levantó Nav2, que navegó.
+
+📝 **La lección, en su versión de dos máquinas:** este cliente dedujo el estado del robot de
+**cuándo se había subido el código**, no de haberlo consultado. **El repositorio dice qué existe;
+solo el robot dice qué está corriendo.** Es la misma forma que «`ros2 topic list` incluye topics de
+nodos muertos».
+
+### 🔴 Retirado 2 · los 6 cm, que eran n=1 otra vez
+
+El 07 corregí en `PanelNavegar` un *«el error al llegar es de 8-10 cm»*, y **al corregirlo escribí
+«con el cuarto remapeado acabó a 6 cm»** — n=1 presentado como propiedad, exactamente el error que
+acababa de señalar. La réplica del robot:
+
+```
+  tanda 1    6,1 cm   ✅ dentro de 10
+  tanda 2   11,8 cm   🔴 fuera        <- y Nav2 dijo SUCCEEDED igual
+  mapa viejo 41,3 cm  🔴 fuera        <- y Nav2 dijo SUCCEEDED igual
+```
+
+La pantalla ya no da una cifra de un día bueno: da **las tres**, y dice que **el desenlace no
+informa de la precisión**. Esa es la forma, y es lo único sobre lo que se puede construir una
+promesa para un alumno.
+
+### ✅ Nuevo · el sensor de color y sus DOS modos
+
+Siguiendo el «contrato para la web» que escribió `SENSOR_COLOR.md`, sin inventar un número:
+
+| | reflejo | emisión |
+|---|---|---|
+| para qué | suelo, cinta, papel | pantalla, baldosa LED |
+| la luz | encendida | **apagada** |
+
+🔴 **No es una diferencia de precisión: es de signo.** Sobre una superficie que emite, medir con el
+LED encendido da el resultado **invertido** — una pantalla roja a tope sale con `R/G = 0,66`, o sea
+menos roja que verde. La interfaz **se niega a nombrar un color** dentro de la banda plana y dice
+qué hacer, en vez de dar un nombre que acierta o se invierte según lo que haya debajo.
+
+Tres decisiones que salieron de medidas, no de gusto:
+- **El modo no tiene valor por defecto.** Lo tuvo, y abrir la pantalla contra un robot en reposo
+  producía una queja antes de que nadie tocara nada. Elegirlo por lo que diga la luz sería peor: la
+  luz apagada es el reposo de los 16, así que quien midiera el **suelo** entraría en emisión sin
+  enterarse. **El modo afirma qué hay debajo del robot, y eso no se deduce.**
+- **Verde a cero devuelve `null`, no un cociente.** La casilla «refleja + luz apagada» dio cero
+  absoluto doce veces, todas con `success=true`. Y `NaN > 1` es `false`, así que un clasificador
+  descuidado lo habría llamado **verde**.
+- **El discriminante es `success`, no `claro`.** 42 cuentas son una lectura excelente en emisión y
+  oscuridad en reflejo: el umbral depende del modo y no se copia.
+
+### 📝 Y un defecto que me vi en la captura
+
+Al añadir el selector quedaron **dos controles mandando sobre la misma luz** — el nuevo y el botón
+viejo—: pulsar uno dejaba al otro describiendo algo que ya no era cierto. Se quitó el viejo. El
+testigo de `color_activo` **no se pierde**: pasa de esperarse una vez tras pulsar a pintarse
+continuamente, lo que además cubre el apagado automático a los 15 min — que ocurre sin que nadie
+pulse nada y que un testigo de una sola vez no habría visto nunca.
+
+**567 pruebas** (eran 546), contrato 14 · 3 · 12 coincidiendo con el robot, y las 42 guardias sobre
+pantallas reales en verde.
+
+---
+
 ## 2026-08-08 (8) — **El modo emisión, verificado por rosbridge (que es el camino de la web)**
 
 Todo lo de la evidencia 86 estaba medido **por ROS**, con un cliente rclpy en el propio robot. La
