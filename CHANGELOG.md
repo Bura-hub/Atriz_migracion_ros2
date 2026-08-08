@@ -4,6 +4,66 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-08 (4) — **El noveno falso positivo del verificador, y la regla que sí estaba**
+
+Al alinear la sesión con la flota, el verificador declaró un **FALLO**:
+
+```
+✗ /etc/polkit-1/rules.d/49-atriz-unidades.rules NO está instalado,
+  y sí está en el repositorio
+```
+
+Y era mentira. **La regla estaba puesta y funcionando.**
+
+### 🔴 «No puedo verlo» no es «no está»
+
+```
+drwxr-x--- 2 root polkitd  /etc/polkit-1/rules.d
+```
+
+`sphero` **no puede atravesar ese directorio**, así que `[[ -e fichero ]]` da falso **exista o no
+el fichero**. Y el efecto demostraba que sí existía — el permiso por defecto de polkit para
+`manage-units` es `auth_admin` en los tres niveles, y sin embargo:
+
+```
+systemctl start atriz-slam         ->  0                                   ✅
+systemctl stop  atriz-slam         ->  0                                   ✅
+systemctl reset-failed atriz-slam  ->  «Interactive authentication required» 🔴
+```
+
+**Esa asimetría solo la puede producir una lista blanca por verbo**, que es exactamente el diseño
+de `49-atriz-unidades.rules` (`action.lookup("verb")`).
+
+📌 Confundir las dos cosas manda a reinstalar lo que ya funciona — o peor, a **ignorar al
+verificador**, que es lo que este proyecto lleva escrito ocho veces que no puede permitirse.
+
+### Lo que se arregla, y no es solo polkit
+
+- **Genérico:** si el directorio de destino no es atravesable, el manifiesto dice **«NO SE PUEDE
+  COMPROBAR sin privilegio»** en vez de «no está». Y si el fichero existe pero no se puede leer,
+  no se hace `cmp` — que habría dicho «DIVERGE», la misma mentira con otro signo.
+- **Por efecto:** se comprueba que `sphero` pueda mandar `stop` a una unidad atriz **que ya está
+  parada** — operación nula, no toca el robot, pero pasa por el mismo control de acceso. Y si la
+  unidad estuviera activa **no se toca**: un verificador jamás puede parar la navegación de una
+  clase en curso.
+- 🔴 **Con CONTROL NEGATIVO**, sin el cual lo anterior no probaría nada: `reset-failed` **tiene que
+  seguir denegado**. Si pasara, no sería que la regla funciona mejor — sería que `sphero` tiene
+  permiso **general** sobre systemd, y **cualquiera que llegue por rosbridge lo hereda**.
+
+### Por qué importa para la flota
+
+De esa autorización depende que **la web pueda arrancar la navegación**. Si falta, `/pedir_nav`
+acepta la petición y la unidad no arranca nunca — el peor modo de fallo, porque **el botón
+responde bien**. Antes esto no se comprobaba de ninguna manera fiable en los 16 robots.
+
+📝 **Y una mía, para que conste:** commiteé el cambio anterior **antes de mirar el resultado del
+verificador** — filtré su salida con un `grep` que solo enseñaba el encabezado de FALLOS. El fallo
+se descubrió al leer la línea siguiente. *Comprueba el efecto* incluye leer lo que imprime.
+
+150 comprobaciones, 0 fallos, 8 avisos conocidos.
+
+---
+
 ## 2026-08-08 (3) — **Las prácticas, con el robot moviéndose. Tres fallos.**
 
 El pendiente más viejo del material docente: las diez prácticas estaban escritas, revisadas y con

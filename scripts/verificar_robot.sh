@@ -1652,14 +1652,33 @@ else
             _mal "el manifiesto cita $ORIG y no existe en el repositorio" \
                  "corrige scripts/sistema/MANIFIESTO.tsv"
         elif [[ ! -e "$DEST" ]]; then
-            # 🔴 ESTE es el caso que se escapó con atriz-nav: en git, en el
-            #    instalador, y NO en el sistema.
-            if [[ "${FLAGS:-}" == "opcional" ]]; then
+            # 🔴 NOVENO FALSO POSITIVO DE ESTE VERIFICADOR, 2026-08-08. `-e` da
+            #    FALSO sobre un fichero que existe si su directorio no es
+            #    ATRAVESABLE por este usuario. Paso con la regla de polkit:
+            #
+            #      drwxr-x--- 2 root polkitd  /etc/polkit-1/rules.d
+            #
+            #    El verificador dijo «NO está instalado» sobre una regla que SÍ
+            #    lo estaba -- y el efecto lo demostraba: `systemctl start` y
+            #    `stop` devolvian 0 sobre las unidades atriz cuando el permiso
+            #    por defecto de polkit para `manage-units` es `auth_admin`.
+            #    «No puedo verlo» y «no está» son cosas distintas, y confundirlas
+            #    manda a reinstalar lo que ya funciona.
+            DIRDEST="$(dirname "$DEST")"
+            if [[ ! -x "$DIRDEST" ]]; then
+                _nota "$BASE: NO SE PUEDE COMPROBAR sin privilegio ($DIRDEST no es atravesable). No es un fallo: mira la comprobación por efecto de más abajo"
+            elif [[ "${FLAGS:-}" == "opcional" ]]; then
                 _nota "$BASE no instalado (solo lo pone $INST, al preparar la imagen)"
             else
+                # 🔴 ESTE es el caso que se escapó con atriz-nav: en git, en el
+                #    instalador, y NO en el sistema.
                 _mal "$DEST NO está instalado, y sí está en el repositorio" \
                      "sudo bash $REPO/scripts/$INST"
             fi
+        elif [[ ! -r "$DEST" ]]; then
+            # Existe pero no se puede leer: `cmp` fallaría y diría DIVERGE, que
+            # es la misma mentira con otro signo.
+            _nota "$BASE existe pero no se puede leer sin privilegio: no comparo"
         elif cmp -s "$SRC" "$DEST"; then
             _ok "$BASE coincide con el repositorio"
         else
@@ -1667,6 +1686,49 @@ else
                  "diff $ORIG $DEST  ·  luego reinstálalo:  sudo bash scripts/$INST"
         fi
     done < "$MANIF"
+
+    # ── La regla de polkit, POR EFECTO ────────────────────────────────────────
+    # 🔴 No se puede leer `/etc/polkit-1/rules.d` sin privilegio, así que la
+    #    comprobación por fichero es CIEGA (ver arriba). Y esto no es un detalle
+    #    cosmético: **de esta autorización depende que la web pueda arrancar la
+    #    navegación**. Si falta, `/pedir_nav` acepta la petición y la unidad no
+    #    arranca nunca — el peor modo de fallo, porque el botón responde bien.
+    #
+    #    Se prueba lo que de verdad importa: que `sphero` pueda mandar `stop` a
+    #    una unidad atriz. El permiso por defecto de polkit para `manage-units`
+    #    es `auth_admin` en los tres niveles, así que un 0 aquí solo puede venir
+    #    de la regla.
+    #
+    # ⚠️ Se elige `stop` sobre una unidad que YA está parada: es una operación
+    #    nula --no toca el robot, no mueve nada, no arranca nada-- pero pasa por
+    #    el mismo control de acceso. Si la unidad estuviera activa NO se toca:
+    #    un verificador jamás puede parar la navegación de una clase en curso.
+    U_POLKIT=atriz-slam.service
+    EST_POLKIT="$(systemctl is-active "$U_POLKIT" 2>/dev/null || true)"
+    if [[ "$EST_POLKIT" == "inactive" ]]; then
+        if systemctl stop "$U_POLKIT" >/dev/null 2>&1; then
+            _ok "sphero puede manejar las unidades atriz (la regla de polkit hace efecto)"
+        else
+            _mal "sphero NO puede manejar $U_POLKIT: falta la regla de polkit" \
+                 "la web podrá PEDIR la navegación y no arrancará nunca · sudo bash $REPO/scripts/fase_7_systemd.sh"
+        fi
+        # 🔴 CONTROL NEGATIVO, y sin él lo de arriba no probaría nada. Una
+        #    comprobación que no puede fallar es de las que este proyecto ya ha
+        #    pagado tres veces. `reset-failed` NO está en la lista blanca de la
+        #    regla, así que TIENE que quedar denegado. Si pasara, no sería que la
+        #    regla funciona mejor: sería que `sphero` tiene permiso GENERAL sobre
+        #    systemd -- una regresión de seguridad, porque cualquiera que llegue
+        #    por rosbridge hereda ese permiso.
+        #    ⚠️ Es no-op sobre una unidad que no está en `failed`.
+        if systemctl reset-failed "$U_POLKIT" >/dev/null 2>&1; then
+            _mal "sphero puede hacer reset-failed: el permiso de systemd es GENERAL, no la lista blanca" \
+                 "revisa /etc/polkit-1/rules.d y el grupo sudo · cualquiera que entre por rosbridge lo hereda"
+        else
+            _ok "reset-failed sigue denegado (la regla es estrecha, no un permiso general)"
+        fi
+    else
+        _nota "regla de polkit sin comprobar: $U_POLKIT está '$EST_POLKIT' y no se toca una unidad viva"
+    fi
 
     # ── El puente del ~/.bashrc: categoría B, así que se comprueba el EFECTO ──
     # No hay copia versionada del .bashrc contra la que hacer `cmp` — pertenece

@@ -1771,6 +1771,20 @@ el `.bashrc`—, o sea que **fallaba justo después de arreglar el problema**.
 un `grep` de una cadena suelta encuentra tanto el ajuste como lo que *habla* del ajuste. **Ancla
 al principio de línea y a la sintaxis exacta**: `^[[:space:]]*export[[:space:]]+VAR=`.
 
+🔴 **Y VAN NUEVE, el 2026-08-08:** declaró **FALLO** sobre la regla de polkit
+`49-atriz-unidades.rules` **que estaba instalada y funcionando**. La causa es general y vale
+para cualquier comprobación de fichero: `/etc/polkit-1/rules.d` es `drwxr-x--- root:polkitd`,
+así que **`[[ -e fichero ]]` da falso exista o no el fichero** cuando el usuario no puede
+atravesar el directorio. **«No puedo verlo» no es «no está»**, y confundirlos manda a
+reinstalar lo que ya funciona.
+→ Lo desmintió el **efecto**: `start` y `stop` devolvían 0 sobre las unidades atriz cuando el
+  permiso por defecto de polkit para `manage-units` es `auth_admin`, mientras `reset-failed`
+  seguía denegado. **Esa asimetría solo la puede producir una lista blanca por verbo.**
+→ ✅ Arreglado en el manifiesto (dice «NO SE PUEDE COMPROBAR sin privilegio») y con una
+  comprobación **por efecto** —`stop` sobre una unidad ya parada, que es no-op pero pasa por
+  el mismo control— **más un control negativo**: `reset-failed` tiene que seguir denegado, o
+  el permiso sería general y **cualquiera que entre por rosbridge lo hereda**.
+
 **Un verificador con falsos positivos se acaba ignorando, y eso es peor que no tenerlo.**
 Evidencia 32.
 
