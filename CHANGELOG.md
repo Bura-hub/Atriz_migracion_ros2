@@ -4,6 +4,64 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-08 (5) — **Las nueve prácticas corridas, y un sensor que hace lo contrario de lo que creíamos**
+
+### La pasada de prácticas, completa salvo el seguidor de línea
+
+| práctica | medido por el arnés | qué demuestra |
+|---|---|---|
+| **01** avanzar | 59,5 cm de 60 | la distancia sale **si nadie está cerca** (ver la entrada (3)) |
+| **02** girar | 7 giros: 89,7 – 90,8° | el lazo cerrado, tras arreglar el guardián |
+| **03** cuadrado | **cierra a 11 cm** en 2,4 m · esquinas 90,6 · 90,3 · 89,9 · 90,0 | el error no se acumula |
+| **04** giro preciso | abierto **1,5°** · cerrado **0,1°** | y **disparó su propia lección**: el giro cruzó el salto de ±180° y la práctica lo enseñó en vivo (`-268,5` contra `91,5`) |
+| **05** sensor color | estable, **sin moverse** | lectura continua sobre una superficie |
+| **10** patrulla | 155 cm · detectó algo a 0,36 m y **giró sola** | el lazo sentir-actuar con el LIDAR |
+| **11** parar sobre negro | detectó a **claro=396** tras 46,5 cm | el lazo sentir-actuar con el color |
+| **90** plantilla | 34,1 cm y 89,4° | el esqueleto que copia el alumno arranca |
+
+⏳ **Falta el seguidor de línea**: hace falta cinta que el usuario no tiene.
+
+⚠️ **Y un margen más estrecho de lo que promete el guion:** la 11 detectó con `claro=396` contra un
+umbral de **400** — cuatro cuentas. El comentario dice *«400 se queda muy por debajo del suelo
+(1275)»*, pero **aquí el suelo dio ~950**. El margen real fue 2,4× y no 3,2×. Depende de la luz de
+la habitación y del suelo concreto; conviene saberlo antes del aula.
+
+🔴 **Y mi propio arnés cantó un falso positivo:** dijo «EL ROBOT NO SE MOVIÓ» sobre la práctica 5,
+**que no debe moverse**. Arreglado con `--no-mueve` y `--en-bucle` — y el caso contrario (una
+práctica de sensores que SÍ mueva el robot) ahora también se detecta. *Un instrumento que grita
+sobre lo normal se acaba ignorando*, que es lo que este proyecto lleva escrito nueve veces del
+verificador y ahora una del arnés.
+
+### 🔴 El RGBC sobre una superficie que EMITE luz: hay que APAGAR su LED
+
+Lo preguntó el usuario —¿serviría para medir un piso de baldosas LED?— con la sospecha correcta ya
+puesta: el vidrio reflejaría el blanco del propio sensor. **Es exactamente el obstáculo, y la
+solución es quitar la iluminación, no mejorarla.**
+
+```
+                 LED del sensor OFF          LED del sensor ON
+                R/G     B/G    claro       R/G     B/G    claro
+  ROJO         5.12    0.15      150      0.66    0.49     1238
+  VERDE        0.17    0.20      387      0.37    0.40     1467
+  AZUL         0.11    4.57      190      0.46    0.73     1230
+```
+
+✅ Apagado, los tres se separan por un factor **25-30**. 🔴 Encendido, los seis cocientes viven
+entre 0,37 y 0,73, y **el rojo da `R/G = 0,66` — menos rojo que verde sobre una pantalla roja a
+tope**. No pierde precisión: engaña.
+
+📌 **Un control interno que salió gratis, y vale más que el resultado.** El usuario preguntó si el
+LED se había encendido de verdad, y la respuesta no está en el `success` del servicio: el LED
+aportó **+1088, +1080 y +1040** de `claro` en los tres colores — 4 % de dispersión. Tiene que ser
+así, porque es su reflejo sobre el mismo vidrio y **no depende de lo que muestre la pantalla**.
+
+⚠️ **No se transfiere a una baldosa real:** saturación (aquí el máximo fue 387 contra 2288 del
+blanco reflectante) y parpadeo PWM (aquí 2-4 cuentas; una baldosa más lenta podría batir contra la
+integración). Todo lo demás del proyecto asume que el sensor necesita su luz — cierto **para
+reflejar**, falso **para emitir**. Evidencia 86.
+
+---
+
 ## 2026-08-08 (4) — **El noveno falso positivo del verificador, y la regla que sí estaba**
 
 Al alinear la sesión con la flota, el verificador declaró un **FALLO**:

@@ -1,0 +1,115 @@
+════════════════════════════════════════════════════════════════════════════
+ 86 · EL RGBC SÍ LEE UNA SUPERFICIE QUE EMITE LUZ — APAGANDO SU PROPIO LED
+      Y con el LED encendido da lo CONTRARIO de lo que hay.
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-08
+Robot:  rvr-01 · sin mover, sensor sobre una pantalla de móvil a brillo máximo
+Herramienta: `mediciones_banco/medir_superficie_emisora.py`
+
+
+1 · DE DÓNDE SALE LA PREGUNTA
+────────────────────────────────────────────────────────────────────────────
+La planteó el usuario: **¿serviría este sensor para medir el color de un piso de
+baldosas LED?** Y traía ya la sospecha correcta: *«al ser baldosa con vidrio
+refleja más el blanco del propio LED del sensor que otra cosa»*.
+
+Es exactamente el obstáculo. Lo que no era obvio es que **la solución sea quitar
+la iluminación en vez de mejorarla**.
+
+📌 Todo el material del proyecto hasta hoy da por hecho que el sensor necesita su
+   LED —«el sensor de color NO da nada sin su luz», 185× medido—. Eso es cierto
+   para una superficie que REFLEJA. Para una que EMITE, se invierte.
+
+
+2 · EL MONTAJE
+────────────────────────────────────────────────────────────────────────────
+Pantalla de móvil en el suelo, a pantalla completa y brillo máximo, con el robot
+encima y **sin moverlo entre colores**. Para cada color se toman DOS tandas
+seguidas de 12 lecturas de `/get_rgbc_sensor_values`: una con `/enable_color`
+en `true` y otra en `false`.
+
+📌 **Las dos tandas hacen falta, y una sola no valdría.** Con solo la del LED
+   encendido, «no se distinguen los colores» sería indistinguible de «el sensor
+   no sirve». La comparación es la medida.
+
+
+3 · EL RESULTADO
+────────────────────────────────────────────────────────────────────────────
+    con el LED del sensor APAGADO
+                    R      G      B    claro     R/G     B/G
+      ROJO         133     26      4     150    5.12    0.15
+      VERDE         56    323     63     387    0.17    0.20
+      AZUL           4     35    160     190    0.11    4.57
+
+    con el LED del sensor ENCENDIDO
+      ROJO         424    642    316    1238    0.66    0.49
+      VERDE        348    930    372    1467    0.37    0.40
+      AZUL         286    623    457    1230    0.46    0.73
+
+✅ **APAGADO, los tres se separan sin ambigüedad**, y la regla sale sola:
+   `R/G > 1` -> rojo · `B/G > 1` -> azul · las dos bajas -> verde. Los márgenes
+   son de un factor **25-30**, no de un 10 %.
+
+🔴 **ENCENDIDO, los seis cocientes viven entre 0,37 y 0,73** — el reflejo lo
+   aplana todo. Y peor: **el rojo da `R/G = 0,66`, o sea MENOS rojo que verde
+   sobre una pantalla roja a tope.** No es que pierda precisión: engaña.
+
+📌 Para comparar con lo ya medido en este proyecto: una superficie roja **mate**
+   da `R/G = 2,74` con el LED encendido (evidencia 37). Sobre vidrio emisor da
+   **0,66**. **El vidrio no solo no ayuda: invierte el resultado.**
+
+📌 Y la discriminación mejora **~17×** al apagar el LED: `R/G` entre rojo y verde
+   pasa de un factor 1,8 a un factor 30.
+
+
+4 · UN CONTROL QUE SALIÓ GRATIS, Y VALE MÁS QUE EL RESULTADO
+────────────────────────────────────────────────────────────────────────────
+Lo preguntó el usuario —*«¿en las anteriores sí activaste el LED del sensor?»*—
+y la respuesta no hace falta buscarla en el `success=true` del servicio:
+
+    ROJO    1238 - 150 = +1088 de claro
+    VERDE   1467 - 387 = +1080
+    AZUL    1230 - 190 = +1040
+
+✅ **El LED aporta lo MISMO las tres veces**, un 4 % de dispersión entre tres
+   colores completamente distintos. Y tiene que ser así: es su reflejo sobre el
+   mismo vidrio, en la misma posición, y **no depende de qué muestre la pantalla
+   debajo**.
+
+📌 **Eso es un control interno que ninguna de las tres medidas traía por
+   separado.** Si el servicio no hubiera hecho efecto no habría salto; si lo
+   hubiera hecho una sola vez, los tres no coincidirían. Es «comprueba el efecto,
+   no el código de salida» resuelto por la propia estructura del experimento.
+
+
+5 · LO QUE NO SE PUEDE PROMETER
+────────────────────────────────────────────────────────────────────────────
+⚠️ **Esto es una pantalla de móvil, NO una baldosa LED.** Dos diferencias que
+   pueden cambiar el resultado y que NO están medidas:
+
+   · **Saturación.** El máximo alcanzado aquí fue `claro = 387`, muy lejos de los
+     2288 que da el blanco reflectante. Una baldosa real puede ser mucho más
+     brillante. **No se sabe dónde satura el canal** ni si el firmware ajusta la
+     ganancia — si satura, los tres canales se van al tope y **el color se pierde
+     otra vez**, esta vez por arriba.
+   · **Parpadeo PWM.** Aquí la dispersión de `claro` fue de **2-4 cuentas en 12
+     lecturas**: el tiempo de integración del sensor promedia el PWM del móvil.
+     Una baldosa con PWM más lento podría batir contra esa integración. **No se
+     transfiere.**
+
+⚠️ **No es colorimetría.** Los filtros RGBC no están calibrados. Esto distingue
+   primarios por proporciones; no da un color en coordenadas de verdad.
+
+⏳ **Sin probar:** colores intermedios, blanco emitido, y la baldosa real.
+
+
+6 · QUÉ ABRE ESTO PARA EL LABORATORIO
+────────────────────────────────────────────────────────────────────────────
+📌 **Una práctica nueva es posible y no cuesta hardware:** el alumno pone el robot
+   sobre una pantalla y descubre, midiendo, que **su propia linterna le estropea
+   la medida**. Es la lección de método del proyecto entero —el instrumento
+   perturbando lo medido— en un experimento de dos minutos que hace él.
+
+✅ **Y no hace falta tocar nada del robot.** `/enable_color` en caliente ya existe
+   y está verificado (evidencia 76), y `atriz.py` lo expone como
+   `robot.sensor_color(False)`. Esto se apoya entero en lo que ya hay.

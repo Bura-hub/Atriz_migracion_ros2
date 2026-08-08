@@ -62,6 +62,15 @@ p.add_argument('--esperado-cm', type=float, default=None,
 p.add_argument('--entrada', default=None,
                help='texto que se manda a stdin (para las que piden input())')
 p.add_argument('--plazo', type=float, default=180.0)
+# 🔴 MI PROPIO FALSO POSITIVO, 2026-08-08. La práctica 5 lee el sensor de color
+#    en bucle y NO MUEVE EL ROBOT — es lo correcto para lo que enseña. El arnés
+#    imprimió «🔴 EL ROBOT NO SE MOVIÓ» sobre un guion que funcionaba
+#    perfectamente. Un instrumento que grita sobre lo normal se acaba ignorando,
+#    que es lo que este proyecto lleva escrito nueve veces del verificador.
+p.add_argument('--no-mueve', action='store_true',
+               help='esta práctica NO debe mover el robot; se invierte la comprobación')
+p.add_argument('--en-bucle', action='store_true',
+               help='no termina sola (lee sensores hasta Ctrl-C): agotar el plazo es lo ESPERADO')
 a = p.parse_args()
 
 ruta = a.practica if os.path.isabs(a.practica) else os.path.join(
@@ -121,9 +130,11 @@ salida = []
 while proc.poll() is None and time.monotonic() - t0 < a.plazo:
     ex.spin_once(timeout_sec=0.0)
     time.sleep(0.01)
-if proc.poll() is None:
+AGOTO = proc.poll() is None
+if AGOTO:
     proc.kill()
-    print(f'  🔴 la práctica pasó de {a.plazo:.0f} s: matada')
+    print(f'  {"·" if a.en_bucle else "🔴"} la práctica llegó a {a.plazo:.0f} s y se paró'
+          f'{" (esperado: no termina sola)" if a.en_bucle else ": matada"}')
 salida.append(proc.stdout.read() or '')
 codigo = proc.wait()
 dur = time.monotonic() - t0
@@ -142,11 +153,20 @@ print(f'  DESPLAZAMIENTO {dist:6.1f} cm   ·   GIRO NETO {dyaw:+7.1f}°'
       f'   ·   {dur:.1f} s   ·   salida {codigo}')
 if a.esperado_cm is not None:
     print(f'  esperado ~{a.esperado_cm:.0f} cm  ->  diferencia {dist - a.esperado_cm:+.1f} cm')
-# 🔴 El caso que este arnés existe para cazar.
-if dist < 1.0 and abs(dyaw) < 2.0:
+# 🔴 El caso que este arnés existe para cazar — y su contrario, que también
+#    importa: una práctica de sensores que mueva el robot es un fallo distinto y
+#    igual de invisible.
+QUIETO = dist < 1.0 and abs(dyaw) < 2.0
+if a.no_mueve:
+    if QUIETO:
+        print('  ✅ el robot NO se movió, que es lo que esta práctica promete.')
+    else:
+        print('  🔴 ESTA PRÁCTICA NO DEBERÍA MOVER EL ROBOT, y lo movió.')
+elif QUIETO:
     print('  🔴 EL ROBOT NO SE MOVIÓ. Código de salida 0 no es lo mismo que efecto.')
 print('=' * 74)
 
 n.destroy_node()
 rclpy.shutdown()
-raise SystemExit(codigo)
+# Una práctica en bucle la mata el plazo: su código de salida no significa nada.
+raise SystemExit(0 if (a.en_bucle and AGOTO) else codigo)

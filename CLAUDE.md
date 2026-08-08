@@ -954,6 +954,32 @@ lo asumas en ninguna de las dos direcciones. `fase_1_higiene_so.sh` lo corrige s
 - deslizar papel sin comprobar que tapa la ventana: dio números **idénticos** a la referencia.
   **Idéntico no es parecido — es la señal de que no cambiaste nada.**
 
+**🔴🔴 PARA UNA SUPERFICIE QUE EMITE LUZ, EL LED DEL SENSOR HAY QUE APAGARLO — Y ENCENDIDO DA
+LO CONTRARIO DE LO QUE HAY.** Todo lo demás de este fichero da por hecho que el RGBC necesita su
+luz (185× medido), y **eso vale para una superficie que REFLEJA. Para una que EMITE se invierte.**
+Medido el 2026-08-08 sobre una pantalla de móvil a brillo máximo, sin mover el robot:
+
+```
+                   LED del sensor OFF          LED del sensor ON
+                  R/G     B/G    claro       R/G     B/G    claro
+   ROJO          5.12    0.15      150      0.66    0.49     1238
+   VERDE         0.17    0.20      387      0.37    0.40     1467
+   AZUL          0.11    4.57      190      0.46    0.73     1230
+```
+
+→ ✅ **Apagado los tres se separan por un factor 25-30**, y la regla sale sola: `R/G > 1` rojo,
+  `B/G > 1` azul, las dos bajas verde.
+→ 🔴 **Encendido, los seis cocientes viven entre 0.37 y 0.73**, y el rojo da **`R/G = 0.66`, o sea
+  MENOS rojo que verde sobre una pantalla roja a tope.** No pierde precisión: **engaña**. Sobre
+  vidrio el reflejo es especular y blanco, y aporta el 88 % de lo que se mide.
+→ 📌 **Control interno que salió gratis y vale más que el resultado:** el LED aportó **+1088,
+  +1080 y +1040** de `claro` en los tres colores — 4 % de dispersión. Tiene que ser así, porque es
+  su reflejo sobre el mismo vidrio y **no depende de lo que muestre la pantalla**. Eso prueba que
+  el servicio hizo efecto **sin mirar su `success`**.
+→ ⚠️ **Sin medir, y no se transfiere a una baldosa LED real:** dónde satura el canal (aquí el
+  máximo fue 387 contra los 2288 del blanco reflectante) y el parpadeo PWM (aquí 2-4 cuentas de
+  dispersión; una baldosa más lenta podría batir contra la integración). Evidencia 86.
+
 **🔴 `undercarriage_white` NO ENCIENDE EL LED DE LOS BAJOS, y devuelve `success=True`.** Lo
 enciende **`enable_color_detection`**. Medido con el sensor de luz como testigo.
 
@@ -1531,6 +1557,10 @@ prueba_navegacion_completa.py # ⚠️ MUEVE EL ROBOT ~80 cm: la prueba de Nav2 
 comparar_con_cinta.py        # sin robot: convierte AB/AP/BP en una POSICIÓN por trilateración
 #                              🔴 con UNA sola distancia no se puede: la diagonal dejó pasar un
 #                                 error de 45 cm porque separaba las hipótesis solo 2 cm
+medir_superficie_emisora.py  # NO mueve: ¿lee el RGBC una pantalla o una baldosa LED?
+#                              Mide con el LED del sensor ON y OFF, seguidas y sin mover.
+#                              🔴 Las DOS tandas hacen falta: con solo la de ON, «no se
+#                                 distinguen los colores» es indistinguible de «no sirve»
 correr_practica.py           # ⚠️ MUEVE EL ROBOT: corre una práctica de alumno y mide SI SE MOVIÓ
 #                              Lee /odom antes y después, informa desplazamiento y giro netos.
 #                              🔴 Hizo falta desde la primera práctica: imprimió «Avanzando...
