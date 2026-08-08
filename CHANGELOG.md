@@ -4,6 +4,46 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-08 (7) — **El peor hueco de `/odom` no es el de régimen permanente**
+
+Salió de una comprobación de salud **rutinaria** tras reiniciar el driver para desplegar otro
+cambio. No se buscaba.
+
+```
+  régimen permanente   σ 2,0-2,5 ms  ·  peor hueco   78-81 ms    (n=3, 60 s cada una)
+  recién reiniciado    σ  16-19 ms   ·  peor hueco  325,7 ms     (20 s tras arrancar)
+```
+
+🔴 **Dos consecuencias, y van en sentidos opuestos:**
+
+- **Refuerza el arreglo de `girar()` más de lo que se sabía.** El umbral viejo eran 250 ms y acaba
+  de medirse un hueco de **326**: no es que tuviera poco margen, **estaba por debajo de un hueco
+  que ocurre de verdad**. Un `girar()` en los primeros segundos tras arrancar el driver **abortaba
+  por construcción**.
+- **Y desmiente mi propio «12× de margen»**, escrito unas horas antes. Era cierto **solo en
+  régimen permanente**; contra el transitorio, 1,0 s dejaba **3×** — el margen que yo mismo había
+  declarado insuficiente tres líneas más abajo.
+
+✅ **`SILENCIO_ODOM_S` sube de 1,0 a 2,0 s.** 6× sobre el peor transitorio y 25× sobre el
+permanente. Y la asimetría juega a favor: un falso aborto deja al alumno con el robot a 5° y sin
+explicación; un aborto un segundo más tarde sobre una odometría muerta de verdad no cuesta nada.
+
+✅ **Un test nuevo lo fija contra el caso PEOR MEDIDO**, no contra el cómodo (97 → 98). Y al subir
+el umbral **falló otro test** —comprobaba un `1.5` absoluto—, que hizo exactamente su trabajo:
+avisar de que el cambio movía el comportamiento. Se ató a la constante, porque **un número mágico
+al lado de la constante que prueba se queda rancio solo**. Con el umbral viejo ahora **fallan dos**.
+
+📝 **La lección: una medida tomada en un solo régimen no caracteriza el fenómeno.** El proyecto ya
+lo tenía escrito para otro caso —«un umbral en milisegundos no es transferible entre topics de
+ritmos distintos»—. Aquí no cambió el topic: **cambió el momento**.
+
+⏳ **Y estrecha, sin cerrar, el disparador del fallo original.** El `girar()` que abortó no fue
+tras un reinicio (el driver llevaba ~1 h en pie), así que este transitorio **no lo explica**. Pero
+demuestra que existen huecos de 326 ms, y `atriz.py` arranca el LIDAR al conectar. **Hipótesis, no
+medida.**
+
+---
+
 ## 2026-08-08 (6) — **El sensor de color tiene DOS modos, y el segundo estaba sin nombre**
 
 Encargo del usuario tras la evidencia 86: preparar la web para ofrecer **una segunda opción del

@@ -58,28 +58,76 @@ Tres defectos, y uno solo ya basta:
 
 ✅ **ARREGLADO.** El guardia mide ahora **tiempo de reloj desde la última muestra
    nueva**, con umbral **1,0 s** = ~16 mensajes perdidos = **12× el peor hueco
-   medido**. Es el mismo criterio que `_vigilar_silencio` del driver, que lleva
+   medido**.
+   🔴 **CORREGIDO EL MISMO DÍA — VER EL APARTADO 1b: ese «12×» era de RÉGIMEN
+      PERMANENTE.** El peor hueco real, recién reiniciado el driver, son **326 ms**,
+      así que 1,0 s dejaba 3×. **El umbral es 2,0 s.** Se conserva el texto para
+      que se vea que la cifra venía de medir un solo régimen. Es el mismo criterio que `_vigilar_silencio` del driver, que lleva
    desde julio sin un falso positivo. Y el mensaje dice **que se abortó el giro**
    y cuánto lleva callado el topic, sin diagnosticar la causa — un RVR dormido,
    un driver caído y una Pi saturada dan los tres el mismo silencio.
 
    · El criterio se extrajo a una función pura `odom_rancia()`: **el fallo era
      justo que no se podía comprobar en ningún sitio.**
-   · **6 tests nuevos** (91 → 97), y **discriminan**: puesto el umbral viejo de
-     0,25 s, `test_el_umbral_viejo_habria_disparado_con_el_jitter_de_hoy` **falla**.
+   · **7 tests nuevos** (91 → 98), y **discriminan**: puesto el umbral viejo de
+     0,25 s **fallan DOS**, uno de ellos el que fija el transitorio de arranque.
 
 ⚠️ **VERIFICACIÓN, Y SUS LÍMITES.** Tras el arreglo: **4 de 4** limpios, 90,1 ·
    90,5 · 90,8 · 90,6°, y el arnés coincide a 0,1°. **Pero el fallo era
    intermitente (1 de 4), así que cuatro pasadas verdes NO prueban que se haya
    ido** — es la lección de la parada de emergencia, evidencia 47. Lo que sostiene
    el arreglo es **estructural**: el guardia ya no depende del ritmo del bucle, y
-   1,0 s es 12× el peor hueco medido.
+   2,0 s son 6× el peor hueco REAL medido (apartado 1b).
 
 ⏳ **Y el disparador original NO se aisló.** Se descartaron tres hipótesis
    midiendo: que `/odom` tuviera huecos reales (81 ms, no), que los sellos de
    tiempo vinieran a cero o repetidos (166 de 166 distintos, ninguno a cero), y
    que fuera el arranque del LIDAR (en el fallo **ya estaba girando**, y los tres
    buenos lo arrancaron de cero — justo al revés). Se anota sin cerrar.
+
+
+1b · EL PEOR HUECO DE `/odom` NO ES EL DE RÉGIMEN PERMANENTE — Y CASI SE COLA
+────────────────────────────────────────────────────────────────────────────
+El arreglo de arriba se calibró con «peor hueco 81 ms, así que 1,0 s son 12× de
+margen». **Horas después, al reiniciar el driver para desplegar otro cambio, la
+misma herramienta dio otra cosa:**
+
+    régimen permanente   σ 2,0-2,5 ms  ·  peor hueco  **78-81 ms**   (n=3, 60 s)
+    recién reiniciado    σ  16-19 ms   ·  peor hueco  **325,7 ms**   (20 s tras arrancar)
+
+🔴 **DOS CONSECUENCIAS, Y VAN EN SENTIDOS OPUESTOS:**
+
+  · **Refuerza el arreglo más de lo que se sabía.** El umbral VIEJO eran 250 ms,
+    y acaba de medirse un hueco de **326**. No es que tuviera poco margen: estaba
+    **por debajo de un hueco que ocurre de verdad**. Un `girar()` en los primeros
+    segundos tras arrancar el driver abortaba por construcción.
+  · **Y desmiente mi propio «12× de margen».** Eso era cierto SOLO en régimen
+    permanente. Contra el transitorio, 1,0 s dejaba **3×** — exactamente el
+    margen que este mismo documento declaraba insuficiente unas líneas antes.
+
+✅ **CORREGIDO: `SILENCIO_ODOM_S` sube de 1,0 a 2,0 s.** 6× sobre el peor
+   transitorio medido y 25× sobre el permanente. Y la asimetría juega a favor:
+   un falso aborto deja al alumno con el robot a 5° y sin explicación; un aborto
+   un segundo más tarde sobre una odometría de verdad muerta no cuesta nada.
+
+✅ **Y un test nuevo lo fija contra el caso PEOR MEDIDO**, no contra el cómodo
+   (98 tests). Al subir el umbral **falló otro test** —comprobaba un `1.5`
+   absoluto— e hizo justo su trabajo: avisar de que el cambio movía el
+   comportamiento. Se ató a la constante, porque **un número mágico al lado de la
+   constante que prueba se queda rancio solo**.
+
+📝 **Y la lección de método: no se buscaba.** Salió de una comprobación de salud
+   rutinaria tras un reinicio, mirando un número que «ya estaba medido». **Una
+   medida tomada en un solo régimen no caracteriza el fenómeno**, y este proyecto
+   ya lo tenía escrito para otro caso — «un umbral en milisegundos no es
+   transferible entre topics de ritmos distintos». Aquí no cambió el topic:
+   cambió el momento.
+
+⏳ **Y estrecha, sin cerrar, el disparador del fallo original.** El `girar()` que
+   abortó no fue tras un reinicio del driver (llevaba ~1 h en pie), así que este
+   transitorio **no lo explica**. Pero demuestra que existen huecos de 326 ms, y
+   `atriz.py` arranca el LIDAR al conectar — un transitorio de carga en el mismo
+   árbol de procesos. **Es una hipótesis, no una medida.**
 
 
 2 · 🔴 `avanzar(0.20, 3)` NO SIGNIFICA 60 cm, Y NADIE SE LO DICE AL ALUMNO

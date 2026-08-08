@@ -915,7 +915,12 @@ def test_apaga_el_barrido_si_lo_encendio_el():
 #    suposicion: si alguien vuelve a bajar el umbral hasta rozar el jitter, o a
 #    contarlo en iteraciones, fallan.
 
-PEOR_HUECO_MEDIDO_S = 0.081   # /odom, 60 s, 2026-08-08 (16.54 Hz, sigma 2.5 ms)
+PEOR_HUECO_MEDIDO_S = 0.081       # regimen permanente, n=3 de 60 s (sigma 2.0-2.5 ms)
+# 🔴 Y el que de verdad manda: recien reiniciado el driver, /odom da huecos de
+#    hasta 326 ms (sigma 16-19 ms). El umbral VIEJO de 250 ms estaba POR DEBAJO
+#    de esto, o sea que disparaba sobre un arranque normal. Medido el 2026-08-08
+#    sin buscarlo, al reiniciar el driver para desplegar otro cambio.
+PEOR_HUECO_TRANSITORIO_S = 0.326
 
 
 def test_el_jitter_normal_de_odom_NO_aborta_el_giro():
@@ -930,16 +935,38 @@ def test_el_umbral_viejo_habria_disparado_con_el_jitter_de_hoy():
     insuficiente, que es la razon por la que se cambio.
     """
     UMBRAL_VIEJO = 5 * 0.05
-    assert UMBRAL_VIEJO / PEOR_HUECO_MEDIDO_S < 4, (
-        'el umbral viejo estaba a menos de 4x del jitter medido')
+    assert UMBRAL_VIEJO < PEOR_HUECO_TRANSITORIO_S, (
+        'el umbral viejo estaba POR DEBAJO de un hueco que ocurre de verdad')
     assert SILENCIO_ODOM_S / PEOR_HUECO_MEDIDO_S >= 10, (
-        'el umbral nuevo tiene que dejar al menos 10x sobre el peor hueco medido')
+        'el umbral nuevo tiene que dejar al menos 10x sobre el peor hueco permanente')
+
+
+def test_el_umbral_aguanta_el_transitorio_de_arranque():
+    '''🔴 El caso que casi se cuela: el peor hueco NO es el de regimen permanente.
+
+    Recien reiniciado el driver, /odom da huecos de hasta 326 ms. Un umbral
+    calibrado solo contra los 81 ms del regimen permanente parece tener 12x de
+    margen y tiene 3x. Este test fija el umbral contra el caso PEOR MEDIDO.
+    '''
+    assert not odom_rancia(PEOR_HUECO_TRANSITORIO_S, 0.0), (
+        'el transitorio de arranque dispara el guardia')
+    assert SILENCIO_ODOM_S / PEOR_HUECO_TRANSITORIO_S >= 5, (
+        'hacen falta al menos 5x sobre el peor hueco REALMENTE medido')
 
 
 def test_un_silencio_de_verdad_SI_aborta_el_giro():
-    """El RVR se duerme solo a los 300.6 s: el guardia sigue haciendo falta."""
-    assert odom_rancia(1.5, 0.0)
-    assert odom_rancia(300.0, 0.0)
+    """El RVR se duerme solo a los 300.6 s: el guardia sigue haciendo falta.
+
+    🔴 Este test FALLO al subir el umbral de 1.0 a 2.0 s, porque comprobaba un
+       1.5 s absoluto. Hizo su trabajo -- avisar de que el cambio movia el
+       comportamiento -- y por eso ahora se ata a la constante: un test con un
+       numero magico al lado de la constante que prueba se queda rancio solo.
+    """
+    assert odom_rancia(SILENCIO_ODOM_S * 1.5, 0.0)
+    # Y el fallo real que este guardia existe para cubrir: el RVR se duerme a
+    # los 300.6 s y deja de mandar muestras. Ese es un absoluto legitimo, porque
+    # sale del firmware y no de nuestra configuracion.
+    assert odom_rancia(300.6, 0.0)
 
 
 def test_justo_en_el_umbral_no_dispara():

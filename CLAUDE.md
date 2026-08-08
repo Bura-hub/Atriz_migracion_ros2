@@ -746,9 +746,14 @@ MAX_SIN_CAMBIO = 5   # ~0.25 s a 20 Hz     <- cuenta VUELTAS, y SUPONE el ritmo
   misma familia que `Failed to get scan` con el barrido apagado a propósito.
 → 🔴 **El modo de fallo es el peor: no falla, MIENTE BAJITO.** Termina, imprime su resultado y
   devuelve 0 con el robot a 5°. Un `if` sobre el código de salida no lo ve. Reproducido **1 de 4**.
-→ ✅ **Arreglado**: tiempo de reloj desde la última muestra nueva, **1,0 s** = 12× el peor hueco
-  medido, criterio extraído a `odom_rancia()` —**el fallo era justo que no se podía comprobar en
-  ningún sitio**— y **6 tests que discriminan** (con el umbral viejo, fallan). 4/4 en el robot,
+→ 🔴 **Y EL PEOR HUECO NO ES EL DE RÉGIMEN PERMANENTE.** Medido el mismo día, sin buscarlo, al
+  reiniciar el driver: **régimen permanente 78-81 ms (σ 2,0-2,5), recién reiniciado 325,7 ms
+  (σ 16-19)**. O sea que el umbral viejo de 250 ms estaba **por debajo de un hueco que ocurre de
+  verdad**: un `girar()` en los primeros segundos tras arrancar el driver abortaba por
+  construcción. **Una medida tomada en un solo régimen no caracteriza el fenómeno.**
+→ ✅ **Arreglado**: tiempo de reloj desde la última muestra nueva, **2,0 s** = 6× el peor hueco
+  REAL (y 25× el permanente), criterio extraído a `odom_rancia()` —**el fallo era justo que no se podía comprobar en
+  ningún sitio**— y **7 tests que discriminan** (con el umbral viejo fallan DOS). 4/4 en el robot,
   ⚠️ que **no basta** para un fallo intermitente: lo que sostiene el arreglo es estructural.
 → **La regla general: un umbral en unidades del observador, no del fenómeno, es un falso positivo
   esperando.** Y ya está escrita en este fichero para otro caso — «un umbral de silencio en
