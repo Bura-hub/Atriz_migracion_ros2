@@ -125,6 +125,62 @@ móvil»*.
    resultado correcto.
 
 
+4d · EL 2x2 COMPLETO — LO DISEÑÓ EL USUARIO, Y CIERRA EL AGUJERO QUE YO DEJÉ
+────────────────────────────────────────────────────────────────────────────
+Mi experimento tenía una debilidad que no vi: **probé un solo tipo de superficie
+con las dos luces.** El usuario propuso completar la matriz:
+
+                          REFLEJA (azul claro)        EMITE (móvil rojo)
+                        R/G    B/G   claro          R/G    B/G   claro
+    LED ENCENDIDO       0.42   0.47    785          0.53   0.51   1107
+    LED APAGADO          —      —        0          6.17   0.00     42
+
+    (medido 2026-08-08, una casilla cada vez, SIN mover el robot entre ellas:
+     lo que cambia entre casillas es lo que hay debajo)
+
+🎯 **EL CASO 3 ES EL QUE VALIDA TODO LO DEMÁS, y no estaba en mi diseño.** Una
+   superficie que sólo refleja, con el LED apagado, da **CERO ABSOLUTO**: los
+   cuatro canales, las doce lecturas, dispersión 0 — y sin un solo
+   `success=False`, o sea doce lecturas VÁLIDAS que valen cero.
+
+   Antes de esa casilla se podía objetar con razón: *«¿y si lo que lees con el
+   LED apagado es luz de la habitación colándose bajo el chasis?»*. **Ya no.**
+   Todo lo que se lee en el caso 4 es emisión de la pantalla.
+
+✅ **Y prueba lo contrario también: una superficie que sólo refleja es INVISIBLE
+   sin el LED.** Los dos modos no son intercambiables: cada uno ve lo que el
+   otro no.
+
+🔴 **La fila de arriba mide lo que se pierde.** Con el LED encendido, una pantalla
+   roja a tope (`R/G = 0.53`) y un papel azul claro (`0.42`) son **casi el mismo
+   número**. Si te dieran esas dos lecturas sin decirte qué hay debajo, no
+   dirías que una es roja.
+
+📌 **Y el hallazgo que sólo aparece con las cuatro casillas:** el caso 4 lee
+   `claro = 42`, una señal **26 veces más débil** que los 1107 del caso 2. Y aun
+   así el color es inconfundible — porque el suelo de ruido no es «bajo», **es
+   CERO**. Con un cero exacto debajo, 42 cuentas bastan.
+
+   **Con el LED encendido hay mucha luz y ninguna información. Con él apagado,
+   poca luz y toda la información.**
+
+📝 **Una comprobación que salió sola:** el mismo móvil en rojo dio `claro = 150`
+   en la primera tanda y **42** en esta —brillo automático—, mientras `R/G` fue
+   **5.12** y **6.17**. Misma conclusión con la señal 3,5 veces más débil. Es
+   *«los absolutos dicen cuánta luz; las proporciones, de qué color»* demostrado
+   por accidente.
+
+⚠️ **Y una predicción mía que falló en magnitud:** escribí `R/G ≈ 0.7` para el
+   caso 2 y salió **0.53**. La dirección acertó; el número no. Se anota porque
+   acertar el signo no es acertar.
+
+⚠️ **El azul claro casi no se distingue del suelo**, ni siquiera con el LED: dio
+   `B/G = 0.47` contra el 0.47 medido sin nada especial debajo. No es un fallo —
+   la referencia de `B/G = 0.86` del proyecto es para azul **saturado**, y un
+   azul pálido está cerca del blanco. Para el 2x2 da igual: la casilla 3 sólo
+   necesita que la superficie REFLEJE.
+
+
 5 · LO QUE NO SE PUEDE PROMETER
 ────────────────────────────────────────────────────────────────────────────
 ⚠️ **Esto es una pantalla de móvil, NO una baldosa LED.** Dos diferencias que

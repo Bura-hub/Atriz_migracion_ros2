@@ -82,6 +82,40 @@ da **`R/G = 0,66`: menos rojo que verde sobre una pantalla roja a tope.** No pie
 📌 Para comparar: una superficie roja **mate** da `R/G = 2,74` con la luz encendida. Sobre vidrio
 emisor da 0,66. **El vidrio no solo no ayuda: invierte el resultado.**
 
+### 🎯 El 2×2 que lo valida — y la casilla que lo prueba todo
+
+Medido el 2026-08-08, **una casilla cada vez y sin mover el robot** entre ellas: lo que cambia es
+lo que hay debajo.
+
+```
+                          REFLEJA (azul claro)        EMITE (móvil rojo)
+                        R/G    B/G   claro          R/G    B/G   claro
+   LUZ ENCENDIDA        0.42   0.47    785          0.53   0.51   1107
+   LUZ APAGADA           —      —        0          6.17   0.00     42
+```
+
+🎯 **La casilla que decide es la de abajo a la izquierda: CERO ABSOLUTO.** Los cuatro canales, las
+doce lecturas, dispersión 0 — y todas con `success=True`, o sea **doce lecturas válidas que valen
+cero**, no doce ausencias de respuesta.
+
+Eso cierra la única objeción seria que se le podía hacer al modo emisión: *«¿y si lo que lees con
+la luz apagada es luz de la habitación colándose bajo el chasis?»*. **No entra ni una cuenta.**
+
+✅ Y prueba lo contrario también: **una superficie que sólo refleja es invisible sin la luz.** Los
+dos modos no son intercambiables — cada uno ve lo que el otro no.
+
+🔴 **La fila de arriba mide lo que se pierde:** con la luz encendida, una pantalla roja a tope
+(`R/G = 0,53`) y un papel azul claro (`0,42`) son **casi el mismo número**.
+
+📌 **Y lo que sólo se ve con las cuatro casillas:** el modo emisión lee `claro = 42`, una señal
+**26 veces más débil** que los 1107 del reflejo. Y aun así el color es inconfundible, porque el
+suelo de ruido no es bajo: **es cero**. **Con la luz encendida hay mucha luz y ninguna información;
+con ella apagada, poca luz y toda la información.**
+
+⚠️ **Para la web, eso significa que no hay que asustarse de un `claro` bajo en modo emisión.** 42
+cuentas son una lectura excelente ahí, y serían oscuridad en modo reflejo. **El umbral de «hay
+señal» depende del modo**, y no se puede copiar de uno a otro.
+
 ### El control que valida el experimento
 
 La luz aportó **+1088, +1080 y +1040** de `claro` en los tres colores — **4 % de dispersión**.

@@ -22,7 +22,15 @@ from rclpy.node import Node
 from std_srvs.srv import SetBool
 from atriz_rvr_msgs.srv import GetRGBCSensorValues
 
+# Uso:  medir_superficie_emisora.py <etiqueta> [on|off]
+#   sin el segundo argumento mide las DOS luces seguidas (comparación interna).
+#   con `on` u `off` mide UNA sola casilla — para un 2x2 en el que la superficie
+#   la cambia una persona entre casilla y casilla.
 ETIQUETA = sys.argv[1] if len(sys.argv) > 1 else 'sin etiqueta'
+SOLO = sys.argv[2].lower() if len(sys.argv) > 2 else None
+if SOLO not in (None, 'on', 'off'):
+    print('  🔴 el segundo argumento es `on`, `off`, o nada')
+    raise SystemExit(2)
 N = 12
 
 rclpy.init()
@@ -49,12 +57,21 @@ def led(encendido):
 
 def tanda():
     m = []
+    fallos = 0
     for _ in range(N):
         r = llamar(cli_rgbc, GetRGBCSensorValues.Request())
-        if r is not None and r.success:
+        # 🔴 SIN MIRAR `success`, «no hay nada que ver» y «el sensor no contestó»
+        #    son el mismo (0,0,0,0). El 2026-08-08 eso estuvo a punto de hacerme
+        #    retirar un resultado correcto. Evidencia 86, apartado 4c.
+        if r is None or not r.success:
+            fallos += 1
+        else:
             m.append((r.red_channel_value, r.green_channel_value,
                       r.blue_channel_value, r.clear_channel_value))
         time.sleep(0.12)
+    if fallos:
+        print(f'  🔴 {fallos} de {N} lecturas con success=False — NO son oscuridad, '
+              f'son ausencia de respuesta')
     return m
 
 
@@ -76,13 +93,15 @@ print('=' * 76)
 print(f' RGBC sobre una superficie que EMITE luz  ·  {ETIQUETA}')
 print('=' * 76)
 
-print('  ⚠️ enciendo el LED blanco del sensor…')
-led(True)
-con = resumen('LED del sensor ON', tanda())
-
-print('  ⚠️ apago el LED del sensor…')
-led(False)
-sin = resumen('LED del sensor OFF', tanda())
+con = sin = None
+if SOLO in (None, 'on'):
+    print('  ⚠️ enciendo el LED blanco del sensor…')
+    led(True)
+    con = resumen('LED del sensor ON', tanda())
+if SOLO in (None, 'off'):
+    print('  ⚠️ apago el LED del sensor…')
+    led(False)
+    sin = resumen('LED del sensor OFF', tanda())
 
 print('-' * 76)
 if con and sin:
