@@ -60,7 +60,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          └── yaw +0.00° · dirección vs yaw +0.03° · twist con 2 % de error
 
      F7  Nav2 NAVEGA                          manual, cap. 11                 ✅
-         └── dos objetivos autónomos, 9-10 cm de error · ~89 % de un núcleo
+         └── dos objetivos autónomos, ~89 % de un núcleo (⚠️ el «9-10 cm» era la tolerancia repetida)
 
      F8  collision_monitor: la capa de seguridad  manual, cap. 12            ✅
          └── para a 8-9 cm de una pared · sin LIDAR no conduce · no queda atrapado
@@ -635,7 +635,7 @@ Resultado esperado: **el mapa crece**. En `rvr-01`, 2367 → 3299 celdas (5.92 �
    manual **cap. 10**). Los sensores del RVR siempre estuvieron bien; fallaba cómo el driver
    los combinaba. Ahora el yaw arranca en +0.00°, la dirección de avance coincide con él
    (+0.03°) y `odom.twist.linear` da la velocidad en el marco del robot con un 2 % de error.
-4. ✅ **Nav2 NAVEGA** (manual **cap. 11**): dos objetivos autónomos con 9–10 cm de error.
+4. ✅ **Nav2 NAVEGA** (manual **cap. 11**): dos objetivos autónomos `SUCCEEDED`. ⚠️ El «9–10 cm de error» es la **tolerancia repetida**, no una medida; con cinta son ~10-12 cm. Ver el aviso del 11.7.
    Instala `ros-jazzy-navigation2`, **no** `nav2-bringup`: son 312 paquetes de simulador de
    más, y acabarían en la imagen dorada de los 16 robots.
 4. **Nav2** (plan, Fase 4b) y los **16 servicios y 4 topics** del driver sin portar.

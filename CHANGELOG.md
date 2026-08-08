@@ -4,6 +4,57 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-08 (2) — **La prueba de aceptación no podía ver el fallo de 41 cm**
+
+Al alinear el repositorio con la evidencia 84 apareció algo que no se buscaba, y es lo más
+importante del día para la flota.
+
+### 🔴 «Nav2, error final 9-10 cm» nunca fue una medida
+
+El manual lo decía él solo sin darse cuenta:
+
+> *«El error coincide con la `xy_goal_tolerance: 0.10` configurada — **no es casualidad**: el
+> controlador para al entrar en tolerancia.»*
+
+Eso es **circular**. El número sale de la pose que el propio sistema se atribuye, y el controlador
+para cuando **cree** estar dentro de 10 cm: por construcción da ~10 cm, esté el robot donde esté.
+La frase describía su propia circularidad **y se leyó durante ocho días como una confirmación**.
+
+### 🔴🔴 Y la prueba de aceptación heredaba el defecto
+
+`prueba_aceptacion.py` calcula el error con `a.pos_mapa()`, que es **la pose de AMCL**. Con los
+datos reales de la evidencia 83:
+
+```
+  lo que habría reportado la aceptación    6,8 cm   → PASA ✅
+  banda configurada                     [0, 15] cm
+  donde estaba el robot de verdad         41,3 cm   🔴
+```
+
+🔴 **Es la prueba que decide si un robot de la flota está listo, y no podía detectar el peor fallo
+de navegación medido en este proyecto.** Los 16 robots la habrían pasado.
+
+📌 **No se cambia la banda ni se convierte en FALLO**, y es deliberado: sería fingir que el número
+mide algo que no mide. Lo que se hace es **decirlo donde se lee** — la prueba ahora reporta
+`error final SEGUN AMCL`, avisa por pantalla con el caso de los 41,3 cm, y remite a
+`comparar_con_cinta.py`, que necesita **dos** distancias.
+
+### Alineado en siete documentos más
+
+`MANUAL 11.7` (con la tabla original conservada y el aviso al lado), el índice del manual,
+`CLAUDE.md`, `TRASPASO.md`, `README.md`, `INSTALACION.md` ×2 y `PRUEBA_ACEPTACION.md`.
+
+📝 **La lección, que es de segundo orden y la que vale:** la evidencia 84 no solo corrigió un
+número — **invalidó el método con el que se habían tomado todos los números anteriores de esa
+familia**. Corregir el dato y dejar el instrumento en pie habría dejado el fallo entero en su
+sitio, listo para volver con la siguiente medición.
+
+⚠️ **Consecuencia para la flota:** la prueba de aceptación **no puede aceptar ni rechazar la
+precisión** de un robot. Verifica el mecanismo. La precisión de cada aula se comprueba **una vez,
+con cinta**, al montarla.
+
+---
+
 ## 2026-08-08 — **La réplica desmiente la mitad. Y era la mitad optimista.**
 
 Se repitió la prueba de navegación sobre el mapa nuevo: misma marca `A` —el robot **encajado en

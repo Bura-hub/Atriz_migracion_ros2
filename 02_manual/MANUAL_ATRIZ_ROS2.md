@@ -33,7 +33,7 @@
 > | 8bis | LEDs y sensores del RVR | ✅ verificado 2026-07-30 |
 > | 9 | SLAM con `slam_toolbox` (Fase 4) | ✅ **verificado** · deriva caracterizada, 9.12b: replicar antes de atribuir |
 > | 10 | Los marcos de referencia de `/odom` | ✅ **verificado** · los tres bugs de marcos, arreglados |
-> | 11 | Nav2 (Fase 4b) | ✅ **verificado** · error final 9–10 cm |
+> | 11 | Nav2 (Fase 4b) | ✅ **el mecanismo, verificado** · ⚠️ el «error final 9–10 cm» es la tolerancia repetida, ver 11.7 |
 > | 12 | El `collision_monitor` | ✅ **verificado** · parada en 9.9 cm |
 > | 13 | La inclinación del RVR: es el acelerómetro | ✅ **verificado** · y dos conclusiones retiradas |
 > | 14 | `map_server` + AMCL (Fase 4c) | ✅ **verificado** · 0.1 cm siguiendo la pose |
@@ -2861,7 +2861,7 @@ ls -d ~/atriz_ws/src/*/build 2>/dev/null && echo "🔴 workspace parásito: bór
 ## Capítulo 11 — Nav2 (Fase 4b)
 
 ✅ **VERIFICADO el 2026-07-31 — el robot navega solo.** Dos objetivos autónomos completados,
-9–10 cm de error final. Lo que queda abierto está marcado ⏳ en el 11.7.
+9–10 cm de «error final» ⚠️ que es la tolerancia repetida, no una medida — ver el aviso del 11.7. Lo que queda abierto está marcado ⏳ en el 11.7.
 
 Evidencia: `00_auditoria/evidencia_24_04/16_nav2_preparacion.txt`.
 
@@ -3008,8 +3008,33 @@ mirando.
 | ida | (0.00, 0.00) | (1.00, −0.03) | **SUCCEEDED** | **10 cm** |
 | vuelta | (0.90, 0.00) | (0.00, 0.00) | **SUCCEEDED** | **9 cm** |
 
-El error coincide con la `xy_goal_tolerance: 0.10` configurada — no es casualidad: el
-controlador para al entrar en tolerancia.
+🔴🔴 **CORREGIDO EL 2026-08-08: ESA COLUMNA NO ES UN ERROR MEDIDO. ES LA TOLERANCIA, REPETIDA.**
+
+Aquí ponía: *«El error coincide con la `xy_goal_tolerance: 0.10` configurada — **no es
+casualidad**: el controlador para al entrar en tolerancia»*. La frase **describe su propia
+circularidad y se leyó como una confirmación**. El «error final» de la tabla sale de la pose que
+el propio sistema se atribuye, y el controlador para cuando **cree** estar dentro de 10 cm: por
+construcción va a dar ~10 cm, esté el robot donde esté.
+
+**Lo que eso puede esconder, medido con cinta el 2026-08-07** (evidencias 83 y 84): con un mapa
+rancio, un objetivo `SUCCEEDED` «dentro de tolerancia» tenía al robot a **41,3 cm** de verdad. Y
+con el mapa bueno, dos tandas dieron **6,1 y 11,8 cm** reales — una dentro y otra fuera.
+
+```
+                          dice el robot   dice la cinta
+  2026-07-31 (esta tabla)     9-10 cm      NO SE MIDIÓ
+  2026-08-07 mapa rancio      «dentro»       41,3 cm
+  2026-08-07 mapa fresco      «dentro»        6,1 cm
+  2026-08-08 mapa fresco      «dentro»       11,8 cm
+```
+
+🔴 **Y con UNA sola distancia tampoco basta**, aunque sea de cinta: deja al robot en cualquier
+punto de una circunferencia. El 2026-08-07 la odometría y AMCL coincidían en distancia (2 cm) y
+estaban **a 45 cm la una de la otra**. Hace falta **trilateración desde dos marcas**
+(`00_auditoria/evidencia/mediciones_banco/comparar_con_cinta.py`).
+
+✅ **Lo que la tabla SÍ prueba, y no es poco:** que Nav2 acepta un objetivo, planifica, replanifica
+y termina `SUCCEEDED` — el mecanismo entero. **Que llegue, no.**
 
 📝 En la ida, la distancia restante subió una vez (0.39 → 0.52). Es una **replanificación**,
 no un fallo.

@@ -233,7 +233,7 @@ sensores del RVR siempre estuvieron bien —`Velocity` es exacto, el locator aci
 dirección de avance coincide con él (**+0.03°**), y `odom.twist.linear` da la velocidad en el
 marco del robot con un **2 % de error** mire donde mire (`15_velocidad_odom.txt`).
 
-✅ **Y Nav2 NAVEGA.** Dos objetivos autónomos completados con **9–10 cm de error final**, que
+✅ **Y Nav2 NAVEGA.** Dos objetivos autónomos completados con **9–10 cm de «error final»** ⚠️ (🔴 corregido el 2026-08-08: esa cifra es la **tolerancia repetida**, no una medida — con cinta salió 6,1 · 11,8 · y 41,3 cm con mapa rancio, `SUCCEEDED` las tres), que
 es la tolerancia configurada. Coste: ~89 % de **un** núcleo con todo el stack, `loadavg` 2.53
 sobre 4, sin throttling. Manual, **cap. 11**.
 

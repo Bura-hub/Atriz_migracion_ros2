@@ -139,7 +139,31 @@ batería y su propio botón. El RVR arrastra su origen desde el último encendid
 | `move_to_pos_and_yaw` 0.20 m | **19.5 cm** (97 %) | evidencia 26 | 16–24 cm |
 | `collision_monitor` | **9.9 cm** @ 0.25 · 10.6 @ 0.40 | CHANGELOG:1824 | ≤ 15 cm |
 | watchdog de `cmd_vel` | **527 ms · ~7.9 cm** | CHANGELOG:3303 | ≤ 12 cm |
-| Nav2, error final | **8 cm**; 9–10 en otra tanda | TRASPASO:289 | ≤ 15 cm |
+| 🔴 Nav2, «error final» | **8 cm**; 9–10 en otra tanda | coherencia interna | ≤ 15 cm |
+
+🔴🔴 **Y ESA FILA NO MIDE PRECISIÓN. Hay que leerla sabiéndolo.** El número sale de
+`pos_mapa()`, que es la pose de **AMCL**: el robot juzgándose a sí mismo. Y el controlador
+para cuando **cree** estar en tolerancia, así que tiende a la tolerancia por construcción —
+de ahí que «8-10 cm» coincidiera con `xy_goal_tolerance: 0.10`. Eso no era una confirmación:
+era circularidad.
+
+Medido con cinta y trilateración el 2026-08-07 (evidencias 83 y 84), sobre un mapa rancio:
+
+```
+  lo que habría reportado esta fila    6,8 cm   → PASA ✅
+  donde estaba el robot de verdad     41,3 cm   🔴
+```
+
+Y con el mapa bueno, dos tandas dieron **6,1 y 11,8 cm** reales — **con Nav2 diciendo
+`SUCCEEDED` las tres veces**.
+
+📌 **No se cambia la banda ni se convierte en FALLO**, y es deliberado: sería fingir que el
+número mide algo que no mide. La prueba **avisa por pantalla** y remite al instrumento que sí
+lo mide — `mediciones_banco/comparar_con_cinta.py`, con **dos** distancias de cinta.
+
+⚠️ **Consecuencia para la flota:** esta prueba **no puede aceptar ni rechazar la precisión**
+de un robot. Lo que sí verifica es el mecanismo: que Nav2 acepte, planifique y termine. La
+precisión de cada aula se comprueba **una vez, con cinta**, al montarla.
 | Nav2, meseta de velocidad | **0.407 m/s** · p90 0.412 | TRASPASO:293 | ≥ 0.35 m/s |
 | Obstáculo, desvío lateral | **30 cm**, y vuelve al eje | manual 11.13 | 15–50 cm |
 | Yaw en reposo (**deriva**, no valor) | **0.01° / 60 s** | medido 2026-08-01 | ≤ 0.5° |

@@ -1191,9 +1191,30 @@ def f7(a: Aceptacion) -> None:
             # 🔴 Hallazgo de revisión (B5): «TRASPASO:289» no tiene los 8 cm —
             #    estan en las lineas 346-347. Se cita la seccion, no el numero
             #    de linea: un documento vivo mueve las lineas con cada entrada.
-            a.add(juzgar_banda(f'{etiqueta}: error final', round(err, 1), 0.0, 15.0,
-                               'TRASPASO § "Hecho: navegando a 0.40 m/s": 8 cm; '
-                               'otra tanda 9-10', 'F7', 'cm'))
+            # 🔴🔴 LO QUE ESTE NUMERO NO PUEDE VER, y hay que decirlo donde se
+            #    lee. `pos_mapa()` es la pose de AMCL: el robot juzgandose a si
+            #    mismo. Y el controlador para cuando CREE estar en tolerancia,
+            #    asi que este error tiende a la tolerancia por construccion.
+            #
+            #    Medido con cinta y trilateracion el 2026-08-07 (evidencias 83 y
+            #    84), sobre un mapa rancio:
+            #        lo que habria reportado esta linea   6.8 cm  -> PASA
+            #        donde estaba el robot de verdad     41.3 cm
+            #    Y con el mapa bueno, dos tandas: 6.1 y 11.8 cm reales, con Nav2
+            #    diciendo SUCCEEDED las tres veces.
+            #
+            #    📌 No se cambia la banda ni se convierte en FALLO: seria fingir
+            #    que el numero mide algo que no mide. Se AVISA, y se dice cual es
+            #    el instrumento que si lo mide.
+            a.add(juzgar_banda(f'{etiqueta}: error final SEGUN AMCL', round(err, 1),
+                               0.0, 15.0,
+                               'coherencia interna, NO precision: 8-10 cm es la '
+                               'xy_goal_tolerance repetida', 'F7', 'cm'))
+            print('    ⚠️ Ese error lo calcula AMCL sobre si mismo y NO detecta si el')
+            print('       robot esta donde cree. El 2026-08-07 dio 6.8 cm con el robot')
+            print('       a 41.3 (mapa rancio). Para precision de verdad hacen falta')
+            print('       DOS distancias de cinta y trilateracion:')
+            print('         00_auditoria/evidencia/mediciones_banco/comparar_con_cinta.py')
             # 🔴🔴 Y EL ERROR DE RUMBO. `err_yaw` se calculaba arriba y NO SE
             #    REPORTABA: quedo como variable muerta porque el parche que
             #    añadia esta linea fallo en silencio contra un texto que ya habia
