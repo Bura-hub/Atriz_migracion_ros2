@@ -1566,6 +1566,10 @@ prueba_navegacion_completa.py # ⚠️ MUEVE EL ROBOT ~80 cm: la prueba de Nav2 
 comparar_con_cinta.py        # sin robot: convierte AB/AP/BP en una POSICIÓN por trilateración
 #                              🔴 con UNA sola distancia no se puede: la diagonal dejó pasar un
 #                                 error de 45 cm porque separaba las hipótesis solo 2 cm
+probar_color_por_websocket.py # NO mueve: los DOS modos del sensor POR ROSBRIDGE, que es el
+#                              camino de la WEB. Mide latencia y separa `result` (rosbridge)
+#                              de `success` (driver). 🔴 «Funciona por ROS» NO implica «funciona
+#                              por la web»: es lo que costó la falsa medida de /start_scan
 medir_superficie_emisora.py  # NO mueve: ¿lee el RGBC una pantalla o una baldosa LED?
 #                              Mide con el LED del sensor ON y OFF, seguidas y sin mover.
 #                              🔴 Las DOS tandas hacen falta: con solo la de ON, «no se

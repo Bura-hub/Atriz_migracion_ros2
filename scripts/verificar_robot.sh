@@ -1364,10 +1364,21 @@ if [[ -f "$LAUNCH_ROBOT" ]]; then
         _mal "rosbridge SIN lista blanca: raw_motors alcanzable desde la red" \
              "ver 03_operacion/SEGURIDAD_ROSBRIDGE.md, Fase A"
     fi
-    # 🔴 La sesion de medicion de color necesita LOS DOS: sin `enable_color` no
-    #    hay luz, y sin luz `get_rgbc_sensor_values` devuelve oscuridad con
-    #    success=True. Que este uno solo es peor que que no este ninguno, porque
-    #    parece que funciona. Anadidos el 2026-08-06 (evidencia 76).
+    # 🔴 La sesion de medicion de color necesita LOS DOS, y ahora por DOS razones.
+    #    Que este uno solo es peor que que no este ninguno, porque parece que
+    #    funciona. Anadidos el 2026-08-06 (evidencia 76).
+    #
+    #    MODO REFLEJO (suelo, cinta): sin `enable_color` no hay luz, y sin luz
+    #    `get_rgbc_sensor_values` devuelve oscuridad con success=True.
+    #
+    #    🔴 MODO EMISION (pantalla, baldosa LED), medido el 2026-08-08 y anadido
+    #    aqui para que este comentario no siga contando media verdad: con la luz
+    #    APAGADA el sensor SI lee, y es el modo CORRECTO -- encendida, el reflejo
+    #    especular sobre el vidrio invierte el resultado (una pantalla roja a
+    #    tope da R/G = 0.53, MENOS rojo que verde). Y en ese modo el topic
+    #    /color NO SIRVE: publica ceros, porque sale del streaming del RVR.
+    #    Asi que `get_rgbc_sensor_values` no es «el complemento» de enable_color:
+    #    es la UNICA via para uno de los dos modos. Ver 03_operacion/SENSOR_COLOR.md.
     FALTAN_COLOR=""
     for s in enable_color get_rgbc_sensor_values; do
         grep -q "'/$s'" "$LAUNCH_ROBOT" || FALTAN_COLOR="$FALTAN_COLOR $s"
