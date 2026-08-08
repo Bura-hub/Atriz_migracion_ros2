@@ -115,6 +115,12 @@ TRASPASO.md                   ← EMPIEZA AQUÍ si retomas el proyecto
 ├── RECUPERACION.md           Cómo volver al sistema Noetic
 ├── RUNBOOK.md                Operación y diagnóstico de fallos
 ├── ARQUITECTURA.md           Las 4 decisiones de diseño
+├── ESTADO_ACTUAL.md          🔴 El canal de contexto entre el Claude del PC y el de la Pi
+├── SENSOR_COLOR.md           🆕 El sensor RGBC y sus DOS modos (reflejo / emisión) + contrato web
+├── ARRANQUE_NAVEGACION.md    SLAM y Nav2 desde la web: unidades, supervisor y el mapa
+├── API_LABORATORIO.md        Diseño de `atriz.py`, la biblioteca que usan los alumnos
+├── PRUEBA_ACEPTACION.md      Criterio y umbrales de la prueba de aceptación
+├── MEDIDAS_ROBOT.md          Qué está medido con cinta y qué viene de una ficha
 └── FLOTA.md                  Restricciones medidas y gestión de los 16 robots
 04_respaldo/
 ├── configs/                  cmdline.txt, config.txt, udev, fstab, bashrc (del sistema viejo)

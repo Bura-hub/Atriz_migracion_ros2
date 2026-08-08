@@ -1807,6 +1807,17 @@ también en el camino de error.
 
 > Y al revés: **el sensor de color no transmite sin su LED.** Sin
 > `enable_color_detection(True)` devuelve ceros y *parece* roto.
+>
+> 🔴 **MATIZADO EL 2026-08-08, y el matiz es una función:** eso vale para una superficie que
+> **REFLEJA**. Para una que **EMITE luz propia** —una pantalla, una baldosa LED— la luz apagada es
+> el modo **correcto**, y encendida da lo contrario de lo que hay: una pantalla roja a tope da
+> `R/G = 0,53`, o sea **menos rojo que verde**, porque el reflejo especular del LED sobre el vidrio
+> tapa el color. Apagada da `R/G = 6,17`.
+>
+> ⚠️ **Y en ese modo el topic `/color` no sirve: publica ceros** (medido: 0 de 39 mensajes). Sale
+> del *streaming* del RVR, que se apaga con la detección; hay que usar el **servicio**
+> `/get_rgbc_sensor_values`, que consulta. Los dos modos y el contrato para la web están en
+> [`03_operacion/SENSOR_COLOR.md`](../03_operacion/SENSOR_COLOR.md). Evidencia 86.
 
 ### 8bis.3 Los sensores, con datos reales
 

@@ -11,7 +11,7 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-07
+**Última actualización:** 2026-08-08
 
 ---
 
@@ -34,6 +34,37 @@ campos**; el nuevo va el último:
 ```
 bool color_activo        # ¿hay luz en el sensor?
 ```
+
+### 🆕 Y desde el 2026-08-08 hay un SEGUNDO modo — superficies luminosas
+
+Encargo del usuario. El mismo par de servicios, con la luz **apagada**, lee lo que una superficie
+**emite**: una pantalla, una **baldosa LED**. Medido con un 2×2 completo (evidencia 86):
+
+```
+                          REFLEJA (papel azul)        EMITE (móvil rojo)
+                        R/G    B/G   claro          R/G    B/G   claro
+   LUZ ENCENDIDA        0.42   0.47    785          0.53   0.51   1107
+   LUZ APAGADA           —      —        0          6.17   0.00     42
+```
+
+🔴 **Con la luz encendida, una pantalla roja a tope da `R/G = 0,53`: menos rojo que verde.** El
+reflejo especular del propio LED sobre el vidrio tapa el color. Apagada, los primarios se separan
+por un factor 25-30.
+
+✅ **No hace falta nada nuevo del robot.** `/enable_color` elige el modo y
+`/get_rgbc_sensor_values` lee en los dos. Un interruptor y el mismo lazo.
+
+🔴 **Tres cosas que la pantalla NO debe hacer, y no son obvias:**
+- **`color_activo = false` NO es «sensor apagado»** — en modo emisión es el estado correcto.
+- **`claro = 0` NO es un fallo** — el discriminante es `success`, no el valor. `claro = 42` es una
+  lectura excelente en emisión y sería oscuridad en reflejo: **el umbral de «hay señal» depende del
+  modo y no se copia de uno a otro.**
+- **Los mismos R/G/B significan cosas distintas** según el modo. No pintes un color sin decir de
+  cuál viene.
+
+📖 **Todo el detalle, con lo que NO se puede prometer, en
+[`03_operacion/SENSOR_COLOR.md`](SENSOR_COLOR.md)** — es el documento que hay que leer antes de
+construir esta pantalla.
 
 🔴 **Lo que te toca, y sin esto el cliente lanza antes de mandar nada:** añadir los dos servicios a
 `contrato.ts` con sus tipos **y el campo nuevo a `EstadoRobot`**. `comprobar_contrato.mjs` seguirá

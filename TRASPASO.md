@@ -102,7 +102,40 @@
 > intérprete por llamada. **El instrumento competía por el recurso que medía**, y por eso la
 > prueba vive ahora en **un solo proceso** (`mediciones_banco/prueba_navegacion_completa.py`).
 >
-> Última actualización: **2026-08-07**.
+> ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-08 · LAS PRÁCTICAS SE EJECUTARON POR FIN, Y SALIERON CUATRO FALLOS**
+> ═══════════════════════════════════════════════════════════════════════════════
+> El pendiente más viejo del material docente: las diez prácticas estaban escritas, revisadas y con
+> 91 tests, y **nunca se habían corrido con el robot moviéndose**. Se corrieron ocho (falta el
+> seguidor de línea: hace falta cinta). **Ninguno de los fallos es visible leyendo el código.**
+>
+> | | qué pasó |
+> |---|---|
+> | 🔴 `girar()` | abortaba a los **5,5° de 90 pedidos SALIENDO CON CÓDIGO 0**, culpando a una odometría sana. Contaba **vueltas del bucle** en vez de segundos |
+> | 🔴 `avanzar(0.20,3)` | **26,4 cm en vez de 60**, sin un mensaje: el polígono de seguridad es de **40 cm de ANCHO** y frena al 40 % por algo a 9 cm de un costado |
+> | 🔴 La Pi no tiene RTC | los servicios que arrancan con ella quedan **19,5 h en el pasado**, y `journalctl --since` no los ve. **Invalidó una comprobación mía de A11 de esa misma sesión** |
+> | 🔴 El verificador | declaró FALLO sobre una regla de polkit **que estaba puesta**: `-e` da falso si el directorio no es atravesable. **«No puedo verlo» no es «no está»** |
+>
+> Todo en la **evidencia 85**, y el arreglo de `girar()` en `Atriz_rvr`.
+>
+> ✅ **Y lo que sí funcionó:** cuadrado que **cierra a 11 cm** en 2,4 m · siete giros entre 89,7 y
+> 90,8° · la patrulla **detectó un obstáculo y giró sola** · la 11 paró sobre negro · y la práctica
+> 4 **disparó su propia lección** en vivo (el giro cruzó el salto de ±180°).
+>
+> 🆕 **Y el sensor de color resultó tener DOS modos.** Preguntó el usuario si serviría para un piso
+> de baldosas LED. Sí — **apagando la luz del propio sensor**, porque encendida el reflejo especular
+> sobre el vidrio **invierte el resultado**: una pantalla roja a tope da `R/G = 0,53`, menos rojo
+> que verde. Validado con un **2×2** que diseñó él, cuya casilla de control da **cero absoluto**.
+> Contrato para la web en **[`03_operacion/SENSOR_COLOR.md`](03_operacion/SENSOR_COLOR.md)**, y no
+> hizo falta tocar el robot: `/enable_color` + `/get_rgbc_sensor_values` bastan. Evidencia 86.
+>
+> 📝 **Y una lección que salió TRES veces el mismo día:** un número correcto en su contexto se
+> vuelve falso al mudarlo de sitio. El suelo daba **1275** en una habitación y **950** en otra; el
+> móvil **150** y **42** según el brillo; y `/odom` tiene un peor hueco de **81 ms** en régimen
+> permanente y **326 ms** recién reiniciado el driver — esto último **desmintió mi propio margen** y
+> obligó a subir el umbral de `girar()` de 1,0 a 2,0 s.
+>
+> Última actualización: **2026-08-08**.
 >
 > Antes de esta sesión, el **2026-08-04** se cerró **el direccionamiento de la flota**
 > —una dirección por red, aplicada en rvr-01 y verificada desde el navegador (evidencias 74 y
