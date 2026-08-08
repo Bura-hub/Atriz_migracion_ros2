@@ -62,6 +62,24 @@ por un factor 25-30.
 - **Los mismos R/G/B significan cosas distintas** según el modo. No pintes un color sin decir de
   cuál viene.
 
+✅ **VERIFICADO POR ROSBRIDGE, que es tu camino** — no solo por ROS. Medido con un cliente
+WebSocket contra `ws://localhost:9090`:
+
+```
+  /enable_color(true)    result=True · success=True     129 ms
+  MODO REFLEJO           8/8 respuestas · mediana  43 ms · máx 113 ms
+  /enable_color(false)   result=True · success=True     133 ms
+  MODO EMISIÓN           8/8 respuestas · mediana  33 ms · máx  63 ms
+```
+
+📌 **Con 33-43 ms de mediana te cabe un lazo de lectura a 10 Hz de sobra**, y estás dos órdenes de
+magnitud por debajo del plazo de 5 s de rosbridge.
+
+🔴 **Mira DOS campos, no uno:** `result` es de **rosbridge** («¿pude llamar?») y `success` es del
+**driver** («¿contestó el sensor?»). Un `result=true` con `success=false` es un diagnóstico
+completamente distinto de un timeout. Y **la lista blanca deniega en silencio**: un servicio fuera
+de ella se ve exactamente igual que uno que no existe.
+
 📖 **Todo el detalle, con lo que NO se puede prometer, en
 [`03_operacion/SENSOR_COLOR.md`](SENSOR_COLOR.md)** — es el documento que hay que leer antes de
 construir esta pantalla.

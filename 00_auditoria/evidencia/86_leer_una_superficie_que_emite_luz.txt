@@ -205,6 +205,43 @@ con las dos luces.** El usuario propuso completar la matriz:
    necesita que la superficie REFLEJE.
 
 
+4e · VERIFICADO POR ROSBRIDGE — Y MI INSTRUMENTO VOLVIÓ A ROMPERSE PRIMERO
+────────────────────────────────────────────────────────────────────────────
+Todo lo anterior se midió **por ROS**, con un cliente rclpy en el propio robot.
+La web habla **rosbridge por WebSocket**, y en este proyecto ese camino tiene
+trampas propias. Medido el 2026-08-08 con un cliente WebSocket sin librerías
+(`mediciones_banco/probar_color_por_websocket.py`):
+
+    /enable_color(true)    result=True · success=True     129 ms
+    MODO REFLEJO           8/8 respuestas · mediana  43 ms · máx 113 ms
+    /enable_color(false)   result=True · success=True     133 ms
+    MODO EMISIÓN           8/8 respuestas · mediana  33 ms · máx  63 ms
+
+✅ **Los dos modos funcionan enteros por rosbridge**, y el `message` nuevo del
+   driver llega intacto al cliente.
+✅ **33-43 ms de mediana**: cabe un lazo a 10 Hz de sobra, y está dos órdenes de
+   magnitud por debajo del plazo de 5 s de rosbridge. El sobrecoste del WebSocket
+   sobre la llamada nativa (20,6-20,8 ms) es de ~15-20 ms.
+
+🔴 **PERO LA PRIMERA EJECUCIÓN DIJO: «/enable_color no contestó en 8145 ms —
+   ¿está en la lista blanca?»** Y estuve a punto de escribir que rosbridge
+   bloqueaba el servicio.
+
+   **El fallo era mío.** `recibir()` de `probar_rosbridge.py` devuelve una
+   **tupla `(datos, opcode)`**, no una cadena. Mi código hacía `json.loads(r)`
+   directamente: reventaba con CADA mensaje, y mi propio `except ... continue`
+   los tiraba **en silencio**. Estaba descartando todas las respuestas.
+
+   📌 **Lo destapó comparar contra `probar_rosbridge.py`, que ya estaba
+      verificado** — no leer mi código otra vez. **Valida el instrumento contra
+      uno bueno antes de acusar a lo medido.**
+
+   📝 Van **tres veces en esta sesión** que mi propio instrumento miente: el
+      arnés de prácticas gritando «no se movió» sobre la práctica 5, la medición
+      de huecos de `/odom` que dio 253 ms donde había 81, y esto. La cuenta del
+      proyecto va por ocho.
+
+
 5 · LO QUE NO SE PUEDE PROMETER
 ────────────────────────────────────────────────────────────────────────────
 ⚠️ **Esto es una pantalla de móvil, NO una baldosa LED.** Dos diferencias que

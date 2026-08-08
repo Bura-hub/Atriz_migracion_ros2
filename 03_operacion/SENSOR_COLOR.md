@@ -140,7 +140,37 @@ RVR, y el streaming se apaga junto con la detección. El servicio
 ⚠️ **Y el topic no trae `claro` de todas formas** — `Color.rgb_color` son tres enteros. Para el
 canal que discrimina hay que ir al servicio en los dos modos.
 
-📌 **Coste medido: 20,6–20,8 ms por llamada (n=200).** Cabe de sobra en un lazo a 10 Hz.
+📌 **Coste medido POR ROS: 20,6–20,8 ms por llamada (n=200).**
+
+### ✅ Y verificado POR ROSBRIDGE, que es tu camino (2026-08-08)
+
+No es una formalidad: en este proyecto «funciona por ROS» **no implica** «funciona por la web».
+`/start_scan` parecía tardar 4,6-6,5 s medido con `ros2 service call` y por WebSocket son 1,4-2,1.
+Medido con un cliente WebSocket propio contra `ws://localhost:9090`
+(`mediciones_banco/probar_color_por_websocket.py`):
+
+```
+  /enable_color(true)    result=True · success=True     129 ms
+  MODO REFLEJO           8/8 respuestas · mediana  43 ms · máx 113 ms
+  /enable_color(false)   result=True · success=True     133 ms
+  MODO EMISIÓN           8/8 respuestas · mediana  33 ms · máx  63 ms
+```
+
+✅ **Los dos modos completos funcionan por rosbridge**, 8 de 8 lecturas en cada uno, y el `message`
+del driver llega intacto al cliente.
+
+📌 **Con 33-43 ms de mediana cabe un lazo de lectura a 10 Hz de sobra**, y estás dos órdenes de
+magnitud por debajo del plazo de 5 s de rosbridge. El sobrecoste del WebSocket sobre la llamada
+nativa es de ~15-20 ms.
+
+🔴 **Y hay que mirar DOS campos, no uno:** `result` es de **rosbridge** («¿pude llamar?») y
+`success` es del **driver** («¿contestó el sensor?»). Son dos capas distintas. Un `result=true` con
+`success=false` significa que la llamada llegó y el sensor no respondió — que es un diagnóstico
+completamente distinto de un timeout.
+
+⚠️ **La lista blanca deniega EN SILENCIO.** Un servicio fuera de ella se comporta **exactamente
+igual** que uno que no existe: cero respuestas, sin error. Si un día no contesta, esa es la primera
+sospecha — no un fallo del robot.
 
 ---
 

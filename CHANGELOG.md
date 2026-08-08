@@ -4,6 +4,46 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-08 (8) — **El modo emisión, verificado por rosbridge (que es el camino de la web)**
+
+Todo lo de la evidencia 86 estaba medido **por ROS**, con un cliente rclpy en el propio robot. La
+web habla **rosbridge por WebSocket**, y en este proyecto «funciona por ROS» **no implica**
+«funciona por la web»: `/start_scan` parecía tardar 4,6-6,5 s medido con `ros2 service call` y por
+WebSocket son 1,4-2,1.
+
+```
+  /enable_color(true)    result=True · success=True     129 ms
+  MODO REFLEJO           8/8 respuestas · mediana  43 ms · máx 113 ms
+  /enable_color(false)   result=True · success=True     133 ms
+  MODO EMISIÓN           8/8 respuestas · mediana  33 ms · máx  63 ms
+```
+
+✅ **Los dos modos funcionan enteros por rosbridge**, y el mensaje nuevo del driver llega intacto al
+cliente. Con 33-43 ms de mediana cabe un lazo a 10 Hz de sobra; el sobrecoste del WebSocket sobre
+la llamada nativa (20,6-20,8 ms) es de **~15-20 ms**.
+
+🔴 **Y una distinción que la pantalla necesita:** `result` es de **rosbridge** («¿pude llamar?») y
+`success` es del **driver** («¿contestó el sensor?»). Un `result=true` con `success=false` es un
+diagnóstico completamente distinto de un timeout. Y **la lista blanca deniega en silencio**.
+
+### 🔴 Pero la primera ejecución dijo que el servicio no contestaba
+
+*«/enable_color no contestó en 8145 ms — ¿está en la lista blanca?»*. Estuve a punto de escribir
+que rosbridge lo bloqueaba.
+
+**El fallo era mío.** `recibir()` de `probar_rosbridge.py` devuelve una **tupla `(datos, opcode)`**,
+no una cadena. Mi código hacía `json.loads(r)` directamente: reventaba con cada mensaje y **mi
+propio `except ... continue` los tiraba en silencio**. Descartaba todas las respuestas.
+
+📌 **Lo destapó comparar contra `probar_rosbridge.py`, que ya estaba verificado** — no releer mi
+código. **Valida el instrumento contra uno bueno antes de acusar a lo medido.**
+
+📝 Van **tres veces en esta sesión** que mi propio instrumento miente: el arnés gritando «no se
+movió» sobre una práctica que no debe moverse, la medición que dio huecos de 253 ms donde había 81,
+y esto. La cuenta del proyecto va por **ocho**.
+
+---
+
 ## 2026-08-08 (7) — **El peor hueco de `/odom` no es el de régimen permanente**
 
 Salió de una comprobación de salud **rutinaria** tras reiniciar el driver para desplegar otro
