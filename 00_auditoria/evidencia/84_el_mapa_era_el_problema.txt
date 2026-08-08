@@ -137,6 +137,44 @@ también se reproduce), mismo `B`, mismo mapa `cuarto3`, mismo objetivo.
    simétrica, que son las dos cosas que aquí penalizan al barrido.
 
 
+4c · ¿PUDO LA CAPA DE SEGURIDAD FALSEAR ESTAS MEDIDAS? NO, Y ESTÁ COMPROBADO
+────────────────────────────────────────────────────────────────────────────
+Lo preguntó el usuario el 2026-08-08, después de descubrir que el polígono
+`Precaucion` había partido por la mitad un avance de la práctica 1 (26,4 cm de
+60, evidencia 85). Es la pregunta correcta: **Nav2 también pasa por el
+`collision_monitor`** —`/cmd_vel` es su salida—, así que sus órdenes se frenan
+igual que las de un alumno.
+
+    TODAS las frenadas que quedan en el journal:
+      2026-08-05  22:59 · 23:28-23:29 (×9)
+      2026-08-07  13:32 · 14:05 · 14:08 · 14:49 · 15:15
+      2026-08-08  12:58            <- la práctica 1, evidencia 85
+    Paradas de tipo «stop the robot» en TODO el journal:  **0**
+
+    tanda del mapa viejo   07, 15:26:48 -> «Reached the goal!» 15:26:57   sin eventos
+    tanda 1 (6,1 cm)       07, 16:14:30 -> «Reached the goal!» 16:14:36   sin eventos
+    tanda 2 (11,8 cm)      08, 12:30-12:34                                sin eventos
+
+✅ **Ninguna de las tres tuvo una sola frenada.** Y se comprobó lo único que
+   quedaba suelto —que el monitor no entrara en la tanda **ya** frenado desde
+   antes—: cada `slowdown` del journal tiene su `continue normal operation`, y el
+   último evento anterior a la tanda 1 fue precisamente un «normal operation».
+
+📌 **Así que la comparación 41,3 → 6,1 → 11,8 cm no está contaminada por la capa
+   de seguridad en ningún punto.**
+
+Descartadas también las otras dos causas que la sesión del 08 destapó:
+  · **el fallo de `girar()`** (evidencia 85) vive en `atriz.py`, la biblioteca del
+    alumno. **Nav2 no la usa**: son dos caminos de código sin contacto.
+  · **el salto de reloj del arranque** (evidencia 85): la tanda 2 corrió 22 min
+    después de que NTP sincronizara, y la tanda 1 en un arranque con ~16 h de vida.
+
+📝 Es «comprobar el efecto no basta si no se descarta la otra causa del efecto»
+   aplicado por el usuario a un resultado ya publicado. **Un negativo comprobado
+   vale tanto como el positivo**, y sin esta comprobación la evidencia 84 tenía un
+   agujero que nadie había mirado.
+
+
 5 · LO QUE NO SE ARREGLÓ, Y NO SE PRESENTA COMO ARREGLADO
 ────────────────────────────────────────────────────────────────────────────
 🔴 **AMCL sigue siendo PEOR que la odometría**: 8,9 y 15,2 contra 4,2 y 2,2.
