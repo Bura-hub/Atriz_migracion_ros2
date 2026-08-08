@@ -316,22 +316,30 @@ escrita su propia prueba —remapear el mismo cuarto y volver a navegar— y eso
 **sin tocar ni un parámetro de AMCL**:
 
 ```
-                          mapa viejo      MAPA NUEVO
-  error de AMCL             45,0 cm    →     8,9 cm      5×
-  corrección map → odom      0,424 m   →     0,028 m    15×
-  distancia al objetivo     41,3 cm    →     6,1 cm
-  tolerancia de Nav2           10 cm            10 cm
-  desenlace              ABORTADO ×2    →  ✅ SUCCEEDED
+                          mapa viejo    tanda 1    tanda 2   (n=2, 2026-08-08)
+  distancia al OBJETIVO     41,3 cm      6,1 cm    11,8 cm
+  ¿dentro de los 10 cm?      🔴 NO       ✅ SÍ      🔴 NO
+  error de la odometría       1,5 cm      4,2 cm     2,2 cm
+  error de AMCL              45,0 cm      8,9 cm    15,2 cm
+  corrección map → odom       0,424 m     0,028 m    0,021 m
 ```
 
-✅ **Lo que de verdad cambia: el «llegué» de Nav2 ya es cierto.** Antes declaraba éxito a 41,3 cm
-de un objetivo con 10 cm de tolerancia — o sea que mentía. Ahora paró a **6,1 cm**, dentro de
-verdad. **Se puede prometer «ve a ese punto» con ~10 cm.**
+✅ **Lo que aguanta: el mapa era la causa dominante.** AMCL de 45 cm a 8,9 y 15,2; la distancia al
+objetivo de 41,3 a 6,1 y 11,8. Es un salto enorme respecto a la evidencia 83, que decía que **no
+se podía prometer navegación útil**.
 
-⚠️ **Pero AMCL sigue siendo PEOR que la odometría**: 8,9 cm contra 4,2. Sigue añadiendo error en
-vez de quitarlo; lo que cambió es la magnitud, de absurda a pequeña. Y **4,2 contra 8,9 está cerca
-del límite de la cinta**: propagando ±1 cm por la trilateración, la incertidumbre es ±1,7 cm, así
-que la diferencia son ~2,7σ. Se distingue, sin mucho margen. ⏳ Y es **n=1** sobre el mapa nuevo.
+🔴 **Lo que se RETIRÓ el 2026-08-08: «el "llegué" de Nav2 ya es cierto».** Se escribió con n=1 y
+la réplica lo desmintió: Nav2 declaró `SUCCEEDED` a **11,8 cm** de un objetivo con **10 cm** de
+tolerancia. Sigue mintiendo, por 1,8 cm en vez de por 31. **La cifra honesta es «unos 10-12 cm»,
+no «dentro de tolerancia».**
+
+🔴 **Y para tu pantalla importa la FORMA del fallo, no la cifra: Nav2 dice `SUCCEEDED` igual.** El
+desenlace del objetivo fue el mismo a 6,1, a 11,8 y a 41,3 cm. **No apoyes ninguna promesa de
+precisión en que la acción termine con éxito.**
+
+🔴 **AMCL es peor que la odometría de forma consistente**: 8,9 y 15,2 contra 4,2 y 2,2 — **un
+factor de 4**. (Con n=1 esto se escribió como «cerca del límite de la cinta»; la segunda tanda lo
+zanjó.)
 
 🔴 **LA CONDICIÓN OPERATIVA, que hay que meter en el procedimiento del aula: el mapa tiene que ser
 del sitio y estar FRESCO.** Un mapa de otro día con los muebles movidos reproduce el fallo de

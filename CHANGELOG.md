@@ -4,6 +4,57 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-08 — **La réplica desmiente la mitad. Y era la mitad optimista.**
+
+Se repitió la prueba de navegación sobre el mapa nuevo: misma marca `A` —el robot **encajado en
+las cuatro esquinas**, así que también se reproduce el rumbo—, mismo `B`, mismo objetivo.
+
+```
+                         al objetivo   ¿dentro de 10 cm?   odom    AMCL   map→odom
+  mapa viejo (ev. 83)       41,3 cm          🔴 NO          1,5    45,0     0,424
+  mapa nuevo · tanda 1       6,1 cm          ✅ SÍ          4,2     8,9     0,028
+  mapa nuevo · tanda 2      11,8 cm          🔴 NO          2,2    15,2     0,021
+```
+
+### 🔴 Lo que se retira
+
+Ayer se escribió **«el "llegué" de Nav2 ya es cierto»**. **Con n=2 no se sostiene:** Nav2 declaró
+`SUCCEEDED` a **11,8 cm** de un objetivo con **10 cm** de tolerancia. Sigue mintiendo — por 1,8 cm
+en vez de por 31, pero mintiendo. Era **una tanda buena presentada como una propiedad**.
+
+📝 Y es exactamente el error que ese mismo día se le señaló al PC por su *«el error al llegar es
+de 8-10 cm, que es la tolerancia configurada»*. **Ver el error en el trabajo de otro no vacuna
+contra cometerlo.** La advertencia «⏳ n=1, esto pide repetirse» estaba escrita **en el mismo
+documento**, tres párrafos más abajo de la frase optimista. Escribirla no bastó.
+
+### ✅ Lo que aguanta, y sale reforzado
+
+- **El mapa era la causa dominante.** Sin discusión: AMCL de 45 cm a 8,9 y 15,2; la distancia al
+  objetivo de 41,3 a 6,1 y 11,8. La hipótesis (a) de la evidencia 83 queda confirmada.
+- **La odometría es excelente**, n=3 contra cinta entre los dos mapas: **1,5 · 4,2 · 2,2 cm**,
+  dentro del ruido del propio instrumento (±1,7).
+- 🔴 **AMCL es peor que la odometría por un factor de 4**: 8,9 y 15,2 contra 4,2 y 2,2. Con n=1
+  esto se había escrito como «cerca del límite de la cinta»; la segunda tanda lo zanjó.
+
+### 🔴 Lo que la web tiene que saber, y es la forma y no la cifra
+
+**Nav2 dijo `SUCCEEDED` en las tres tandas: a 6,1, a 11,8 y a 41,3 cm.** El desenlace del objetivo
+**no informa de la precisión**. Ninguna promesa que se le haga a un alumno puede apoyarse en él.
+La cifra honesta sobre un mapa fresco es **~10-12 cm**, no la tolerancia de 10 que Nav2 anuncia.
+
+### 📌 Una predicción escrita antes de medir, que acertó
+
+La tanda 2 mostró el marco `map → odom` girando **8,5°** durante el recorrido, contra 1,1° en la
+tanda 1. Se escribió **antes** de que el usuario midiera: *«si `BP` sale cerca de 1,20 la
+odometría gana y ese giro es AMCL desviándose; si sale cerca de 1,31, era el robot el que se fue y
+AMCL lo vio»*. Salió **1,18**. **Era AMCL.** El método discrimina.
+
+⏳ **Lo que abre, y no se persigue hoy:** con la odometría a 2-4 cm y AMCL metiendo 9-15, la pose
+sería mejor **sin** AMCL. Pero quitarlo cuesta el marco compartido entre los 16 robots, que es el
+argumento entero para tenerlo. Se mide en el aula antes de tocar nada.
+
+---
+
 ## 2026-08-07 (noche, 2) — **Revisión de la app entera: tres defectos que solo se ven mirando**
 
 Se abrieron **las once rutas en un navegador de verdad**, con datos, y se midió lo que ninguna

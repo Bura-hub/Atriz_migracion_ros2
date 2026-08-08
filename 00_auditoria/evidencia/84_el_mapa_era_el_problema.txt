@@ -80,29 +80,84 @@ Eso es lo que se hizo. Sin tocar ni un parámetro de AMCL.
    hipótesis (c) y (d) de la evidencia 83 quedan **sin necesidad de probarse**,
    no descartadas.
 
-✅ **Y LO QUE DE VERDAD CAMBIA: el «llegué» de Nav2 ya es cierto.** Antes
-   declaraba éxito a **41,3 cm** de un objetivo con 10 cm de tolerancia — o sea
-   que mentía. Ahora paró a **6,1 cm**, dentro de verdad.
+🔴 **AQUÍ SE ESCRIBIÓ «el "llegué" de Nav2 ya es cierto», Y LA RÉPLICA LO
+   DESMINTIÓ AL DÍA SIGUIENTE.** Ver el apartado 4b. Se conserva la frase para
+   que se vea de dónde salía: **una tanda buena presentada como una propiedad**,
+   que es exactamente el error que este mismo documento le señalaba a otro.
+
+
+4b · LA RÉPLICA (2026-08-08) — LO QUE AGUANTA Y LO QUE NO
+────────────────────────────────────────────────────────────────────────────
+Misma marca `A` (el robot encajado en las cuatro esquinas, así que el rumbo
+también se reproduce), mismo `B`, mismo mapa `cuarto3`, mismo objetivo.
+
+    medido:  AB = 1,02 m    AP = 0,75 m    BP = 1,18 m
+
+                     x         y      distancia   rumbo    ERROR DE POSICIÓN
+    cinta         +0,743    +0,103      75,0 cm    +7,9°         —
+    odometría     +0,744    +0,081      74,8 cm    +6,2°       2,2 cm   ✅
+    AMCL          +0,757    -0,048      75,9 cm    -3,6°      15,2 cm   🔴
+
+    ┌────────────────────────┬───────────┬──────────┬──────────┐
+    │                        │ mapa viejo│  tanda 1 │  tanda 2 │
+    ├────────────────────────┼───────────┼──────────┼──────────┤
+    │ distancia al OBJETIVO  │   41,3 cm │   6,1 cm │  11,8 cm │
+    │ ¿dentro de los 10 cm?  │   🔴 NO   │  ✅ SÍ   │  🔴 NO   │
+    │ error de la odometría  │    1,5 cm │   4,2 cm │   2,2 cm │
+    │ error de AMCL          │   45,0 cm │   8,9 cm │  15,2 cm │
+    │ corrección map -> odom │   0,424 m │  0,028 m │  0,021 m │
+    └────────────────────────┴───────────┴──────────┴──────────┘
+
+🔴 **RETIRADO: «el "llegué" de Nav2 ya es cierto».** Con n=2 no se sostiene.
+   Nav2 declaró `SUCCEEDED` a **11,8 cm** de un objetivo con **10 cm** de
+   tolerancia. Sigue mintiendo — por 1,8 cm en vez de por 31, pero mintiendo.
+
+✅ **LO QUE AGUANTA Y SALE REFORZADO:**
+
+   · **El mapa era la causa dominante.** No hay discusión: AMCL de 45 cm a 8,9 y
+     15,2; la distancia al objetivo de 41,3 a 6,1 y 11,8. La hipótesis (a) de la
+     evidencia 83 queda confirmada.
+   · **La odometría es excelente**, n=3 contra cinta entre los dos mapas:
+     **1,5 · 4,2 · 2,2 cm**. Está dentro del ruido de la propia cinta (±1,7).
+   · 🔴 **AMCL es PEOR que la odometría de forma consistente**: 8,9 y 15,2 contra
+     4,2 y 2,2. **Un factor de 4.** Y esto corrige al alza lo que la tanda 1
+     dejaba escrito («cerca del límite de lo que la cinta distingue»): con la
+     segunda medida ya no está cerca de nada, es decisivo.
+
+📌 **Y una predicción escrita ANTES de medir que acertó**, lo que da confianza en
+   el método: la tanda 2 mostró el marco `map -> odom` girando **8,5°** durante
+   el recorrido (contra 1,1° en la tanda 1). Se escribió: *«si `BP` sale cerca de
+   1,20 la odometría gana y ese giro es AMCL desviándose; si sale cerca de 1,31,
+   era el robot el que se fue y AMCL lo vio»*. Salió **1,18**. **Era AMCL.**
+
+⏳ **Lo que esto abre, y no se persigue hoy:** con la odometría acertando a 2-4 cm
+   y AMCL metiendo 9-15, **la pose sería mejor sin AMCL**. Pero quitarlo cuesta el
+   marco compartido entre los 16 robots, que es el argumento entero para tenerlo.
+   Lo razonable es medirlo en el aula antes de tocar nada: es más grande y menos
+   simétrica, que son las dos cosas que aquí penalizan al barrido.
 
 
 5 · LO QUE NO SE ARREGLÓ, Y NO SE PRESENTA COMO ARREGLADO
 ────────────────────────────────────────────────────────────────────────────
-⚠️ **AMCL sigue siendo PEOR que la odometría**: 8,9 cm contra 4,2. Sigue
-   añadiendo error en vez de quitarlo. Lo que cambió es la magnitud —de absurda
-   a pequeña—, no el signo de la conclusión de la evidencia 83.
+🔴 **AMCL sigue siendo PEOR que la odometría**: 8,9 y 15,2 contra 4,2 y 2,2.
+   Sigue añadiendo error en vez de quitarlo. Lo que cambió respecto a la
+   evidencia 83 es la magnitud —de absurda a molesta—, no el signo de la
+   conclusión.
 
-⚠️ **Y 4,2 contra 8,9 está cerca del límite de esta cinta.** Con las medidas al
-   centímetro, propagando por la trilateración
-   (`dy/dAP = AP/AB`, `dy/dBP = -BP/AB`), la incertidumbre de la posición sale
-   **~±1,7 cm**. La diferencia son 4,7 cm, unas 2,7 veces esa incertidumbre: se
-   distingue, **pero sin mucho margen**. No es un resultado tan firme como el de
-   la evidencia 83, donde la separación era 45 cm.
+⚠️ **Esto se escribió con n=1 y decía «está cerca del límite de esta cinta»:**
+   con las medidas al centímetro, propagando por la trilateración
+   (`dy/dAP = AP/AB`, `dy/dBP = -BP/AB`), la incertidumbre es **~±1,7 cm**, y la
+   diferencia de la tanda 1 eran 4,7 cm — unas 2,7 veces. **La tanda 2 lo zanjó:**
+   13 cm de diferencia, y el patrón se repite en el mismo sentido. Ya no está
+   cerca de ningún límite.
 
-⚠️ **La odometría dio 4,2 cm aquí y 1,5 en la tanda anterior.** También dentro
-   del ruido de la cinta. No se lee nada de esa diferencia.
+✅ **La odometría: 1,5 · 4,2 · 2,2 cm** en tres tandas contra cinta. La
+   dispersión está dentro del ruido del instrumento; no se lee nada de ella.
 
-⏳ **n=1 sobre el mapa nuevo.** La evidencia 82 ya enseñó que una tanda limpia
-   puede sostener una conclusión que la réplica desmonta. Esto pide repetirse.
+🔴 **n=2, y la réplica DESMINTIÓ una de las dos conclusiones** (ver 4b). Justo lo
+   que la evidencia 82 había enseñado y que aquí se escribió como advertencia
+   antes de que ocurriera. **Que la advertencia estuviera escrita no evitó
+   escribir la frase optimista al lado.**
 
 
 6 · UN DATO QUE SALIÓ DE REGALO: LA DERIVA ACUMULADA
@@ -144,8 +199,15 @@ Se probó con 8 s de asentamiento y no bastó. Al medir la Pi:
 
 8 · QUÉ SIGNIFICA PARA EL LABORATORIO
 ────────────────────────────────────────────────────────────────────────────
-✅ **Se puede prometer «ve a ese punto» con ~10 cm**, sobre un mapa recién hecho
-   del espacio real. Eso es lo que la evidencia 83 decía que NO se podía.
+⚠️ **Se puede prometer «ve a ese punto» con ~12 cm, y NO con la tolerancia de 10
+   que Nav2 anuncia.** Medido: 6,1 y 11,8 cm en dos tandas, una dentro y otra
+   fuera. Sigue siendo un salto enorme respecto a los 41,3 de la evidencia 83
+   —que decía que no se podía prometer nada—, pero **la cifra honesta es «unos
+   10-12 cm», no «dentro de tolerancia»**.
+
+🔴 **Y para la web importa la forma del fallo, no la cifra: Nav2 dice `SUCCEEDED`
+   igual.** El botón no puede prometer precisión apoyándose en el desenlace del
+   objetivo, porque el desenlace fue el mismo a 6,1, a 11,8 y a 41,3 cm.
 
 🔴 **Con una condición operativa que hay que escribir en el procedimiento: el
    mapa tiene que ser del sitio y estar fresco.** Un mapa de otro día con los

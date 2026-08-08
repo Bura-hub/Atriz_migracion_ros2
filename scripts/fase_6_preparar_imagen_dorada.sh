@@ -221,10 +221,10 @@ find "$REAL_HOME/atriz_ws/src" -type d \( -name build -o -name install -o -name 
 #    Medido el 2026-08-07 (evidencias 83 y 84), mismo cuarto, mismo recorrido,
 #    lo único distinto el mapa:
 #
-#              mapa rancio    mapa fresco
-#      AMCL       45,0 cm   ->    8,9 cm
-#      al objetivo 41,3 cm  ->    6,1 cm     (tolerancia de Nav2: 10 cm)
-#      Nav2 dijo   ÉXITO         ÉXITO       <- 🔴 LAS DOS VECES
+#              mapa rancio   tanda 1   tanda 2
+#      AMCL       45,0 cm     8,9 cm   15,2 cm
+#      al objetivo 41,3 cm    6,1 cm   11,8 cm    (tolerancia de Nav2: 10 cm)
+#      Nav2 dijo   ÉXITO      ÉXITO    ÉXITO      <- 🔴 LAS TRES VECES
 #
 #    🔴 El síntoma es que **no hay síntoma**: Nav2 declara el objetivo cumplido,
 #       `/estado_navegacion` dice FUNCIONANDO y el robot está medio metro de

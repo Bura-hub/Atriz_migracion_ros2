@@ -96,13 +96,18 @@ Medido el 2026-08-07 (evidencias 83 y 84) con el mismo robot, el mismo recorrido
 parámetros de AMCL — **lo único distinto era el mapa**:
 
 ```
-                          mapa rancio     mapa fresco
-  error de AMCL              45,0 cm    →     8,9 cm
-  corrección map → odom       0,424 m   →     0,028 m
-  distancia real al objetivo  41,3 cm   →     6,1 cm
-  tolerancia de Nav2             10 cm           10 cm
-  lo que dijo Nav2            ✅ ÉXITO      ✅ ÉXITO    ← 🔴 LAS DOS VECES
+                          mapa rancio    tanda 1    tanda 2
+  error de AMCL              45,0 cm      8,9 cm    15,2 cm
+  corrección map → odom       0,424 m     0,028 m    0,021 m
+  distancia real al objetivo  41,3 cm      6,1 cm    11,8 cm
+  ¿dentro de los 10 cm?        🔴 NO       ✅ SÍ      🔴 NO
+  lo que dijo Nav2            ✅ ÉXITO    ✅ ÉXITO   ✅ ÉXITO   ← 🔴 LAS TRES
 ```
+
+🔴 **Y la última fila es la que importa para la web:** el desenlace del objetivo fue el mismo a
+6,1, a 11,8 y a 41,3 cm. **Ninguna promesa de precisión puede apoyarse en que la acción termine
+con éxito.** La cifra honesta sobre un mapa fresco es **~10-12 cm**, no la tolerancia de 10 que
+Nav2 anuncia.
 
 🔴 **No hay ningún síntoma.** El objetivo termina `SUCCEEDED`, `/estado_navegacion` dice
 `FUNCIONANDO`, no hay una línea de error en ningún log, y el robot está a medio metro de donde

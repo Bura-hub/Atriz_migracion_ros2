@@ -709,12 +709,12 @@ NINGÚN OTRO SÍNTOMA.** Medido el 2026-08-07 con el mismo robot, el mismo recor
 mismos parámetros de AMCL — **lo único distinto era el mapa**:
 
 ```
-                          mapa rancio     mapa fresco
-  error de AMCL              45,0 cm    →     8,9 cm
-  corrección map -> odom      0,424 m   →     0,028 m
-  distancia real al objetivo  41,3 cm   →     6,1 cm
-  tolerancia de Nav2             10 cm           10 cm
-  lo que dijo Nav2            ✅ ÉXITO      ✅ ÉXITO    <- 🔴 LAS DOS VECES
+                          mapa rancio    tanda 1    tanda 2
+  error de AMCL              45,0 cm      8,9 cm    15,2 cm
+  corrección map -> odom      0,424 m     0,028 m    0,021 m
+  distancia real al objetivo  41,3 cm      6,1 cm    11,8 cm
+  ¿dentro de los 10 cm?        🔴 NO       ✅ SÍ      🔴 NO
+  lo que dijo Nav2            ✅ ÉXITO    ✅ ÉXITO   ✅ ÉXITO   <- 🔴 LAS TRES
 ```
 
 → **El objetivo termina `SUCCEEDED`, `/estado_navegacion` dice `FUNCIONANDO`, y no hay una línea
@@ -729,9 +729,12 @@ mismos parámetros de AMCL — **lo único distinto era el mapa**:
   (`recovery_alpha_slow/fast`, evidencia 82); el error de **45 cm en posición** con el marco ya
   quieto era el mapa (evidencia 84). **Arreglar el primero dejó el segundo en pie**, y durante un
   rato pareció que no había mejorado nada.
-→ ⚠️ **AMCL sigue siendo peor que la odometría** incluso con el mapa bueno: 8,9 cm contra 4,2. Lo
-  que cambió es la magnitud, de absurda a pequeña. Y esa diferencia está a ~2,7σ del error de la
-  cinta: se distingue, sin mucho margen. **n=1** sobre el mapa nuevo. Evidencias 81-84.
+→ 🔴 **AMCL sigue siendo peor que la odometría** incluso con el mapa bueno: **8,9 y 15,2 cm contra
+  4,2 y 2,2** — un factor de 4. Lo que cambió es la magnitud, de absurda a molesta.
+→ 🔴🔴 **Y OJO CON LA CIFRA BUENA: «paró a 6,1 cm, dentro de la tolerancia» ERA n=1 Y LA RÉPLICA
+  LO DESMINTIÓ** (11,8 cm, fuera). **La cifra honesta es ~10-12 cm**, y sobre todo: **Nav2 dijo
+  `SUCCEEDED` en las tres, a 6,1, a 11,8 y a 41,3 cm.** Nada que prometa precisión puede apoyarse
+  en el desenlace del objetivo. n=2. Evidencias 81-84.
 
 **📝 `/amcl_pose` no llega con el robot quieto, y no es un fallo.** AMCL solo actualiza tras
 moverse `update_min_d` (0.15 m). Mueve el robot antes de dar por roto nada.
@@ -1541,7 +1544,7 @@ de verdad. Dos consecuencias que cambian el día a día:
 | ✅ **GIRO POR ANGULO** | **n=3**: 90°→**86.6 / 86.2 / 87.7°** · 180°→**179.6 / 179.6 / 179.6°** · 360°→**358.4 / 357.9 / 358.8°**. Rango 1.5° / **0.0°** / 0.9°. Deslizamiento **0.0–0.3 cm** · signo REP-103. 📝 Con baterías del 55 al 100 %: **el déficit NO depende de la carga**, y el de 180° sale idéntico las tres veces | 2026-08-02, evidencias 48 y 55 |
 | ✅ **Nav2: error de RUMBO al llegar** | **13.6 · 10.1 · 14.1°** — dato NUEVO. Nav2 los da por `SUCCEEDED` (su `yaw_goal_tolerance` lo permite), pero **un robot que llega mirando 14° a un lado importa para la web** | 2026-08-02, evidencia 55 |
 | **Nav2 navegando** | error final **9–10 cm** (= la tolerancia configurada) | 2026-07-31 |
-| ✅ **Nav2, error REAL contra cinta** (trilateración, no la diagonal) | **6,1 cm** de un objetivo de 80, sobre un mapa **fresco** del sitio · AMCL **8,9 cm** de error de posición, odometría **4,2** · corrección `map→odom` **0,028 m**. 🔴 Con el mapa **rancio**, lo mismo daba **41,3 · 45,0 · 0,424** y **Nav2 declaraba ÉXITO igual**. n=1 | 2026-08-07, evidencia 84 |
+| ⚠️ **Nav2, error REAL contra cinta** (trilateración, no la diagonal) | **6,1 y 11,8 cm** de un objetivo de 80, sobre un mapa **fresco** — una tanda dentro de la tolerancia de 10 y otra fuera · AMCL **8,9 y 15,2**, odometría **4,2 y 2,2** · corrección `map→odom` **0,028 y 0,021 m**. 🔴 Con el mapa **rancio**: **41,3 · 45,0 · 0,424**. 🔴 **Nav2 declaró ÉXITO en las TRES.** n=2 | 2026-08-07/08, evidencia 84 |
 | ✅ **Deriva acumulada de la odometría** | **3,3 cm** tras un ciclo completo (ida 45 cm, giro de 125°, vuelta, ×2), medido con cinta a la marca de partida | 2026-08-07 |
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |
 | Nav2 solo | ~58 % de un núcleo — la pieza más pesada | 2026-07-31 |

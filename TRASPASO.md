@@ -71,15 +71,23 @@
 > odometría y AMCL parecían igual de buenas (2 cm) estando a 45 cm la una de la otra.
 >
 > ```
->                           mapa rancio     mapa fresco
->   error de AMCL              45,0 cm    →     8,9 cm
->   distancia real al objetivo 41,3 cm    →     6,1 cm   (tolerancia 10 cm)
->   lo que dijo Nav2           ✅ ÉXITO       ✅ ÉXITO    <- 🔴 LAS DOS VECES
+>                           mapa rancio    tanda 1    tanda 2
+>   error de AMCL              45,0 cm      8,9 cm    15,2 cm
+>   distancia real al objetivo 41,3 cm      6,1 cm    11,8 cm   (tolerancia 10)
+>   ¿dentro de los 10 cm?        🔴 NO       ✅ SÍ      🔴 NO
+>   lo que dijo Nav2           ✅ ÉXITO    ✅ ÉXITO   ✅ ÉXITO   <- 🔴 LAS TRES
 > ```
 >
-> ✅ **Se puede prometer «ve a ese punto» con ~10 cm**, que es lo que la evidencia 83 decía que
-> **no** se podía. ⚠️ Con **n=1** sobre el mapa nuevo, y con AMCL todavía peor que la odometría
-> (8,9 contra 4,2 cm).
+> ✅ **Aguanta: el mapa era la causa dominante**, y es un salto enorme respecto a la evidencia 83,
+> que decía que **no se podía prometer navegación útil**.
+>
+> 🔴 **RETIRADO el 2026-08-08: «el "llegué" de Nav2 ya es cierto».** Se escribió con n=1 y la
+> réplica lo desmintió — `SUCCEEDED` a **11,8 cm** con 10 de tolerancia. **La cifra honesta es
+> ~10-12 cm.** Y lo que de verdad importa para la web: **Nav2 dijo ÉXITO en las tres**, a 6,1, a
+> 11,8 y a 41,3 cm — ninguna promesa de precisión puede apoyarse en el desenlace del objetivo.
+>
+> 🔴 **AMCL es peor que la odometría por un factor de 4**: 8,9 y 15,2 contra 4,2 y 2,2. La
+> odometría lleva **n=3 contra cinta**: 1,5 · 4,2 · 2,2 cm.
 >
 > 🔴 **Y una condición operativa nueva, escalada a todo el repositorio: el mapa tiene que ser del
 > sitio y estar FRESCO.** No hay ningún síntoma cuando no lo está. Por eso ahora:
