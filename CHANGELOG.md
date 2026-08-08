@@ -116,10 +116,49 @@ alumno cuyo robot no obedece— y en diagnóstico, incluido un `**negrita**` sin
   backtick es sintaxis legítima de plantilla y no se distingue. **Comprueba el efecto, no la
   intención** — otra vez.
 
-⏳ **Pendiente y bloqueado por el hardware:** el supervisor no ha corrido nunca. Hasta que esté
-instalado, `/pedir_slam` y `/pedir_nav` **no existen en el robot** y la llamada agota el plazo;
-la pantalla nombra el servicio para que eso no se busque como una avería. Nada de esta entrada
-está verificado contra rvr-01.
+🔴 **CORREGIDO DESDE EL ROBOT EL 2026-08-08 — esto ya era falso al escribirse.** Decía:
+
+> ⏳ *«Pendiente y bloqueado por el hardware: el supervisor no ha corrido nunca. Hasta que esté
+> instalado, `/pedir_slam` y `/pedir_nav` **no existen en el robot** y la llamada agota el plazo.
+> Nada de esta entrada está verificado contra rvr-01.»*
+
+**El supervisor lleva corriendo desde el 2026-08-07 y los dos servicios contestan.** Medido en
+rvr-01:
+
+```
+ps -eo pid,comm        873 supervisor_nave     <- vivo
+/pedir_slam            ✅ disponible
+/pedir_nav             ✅ disponible
+```
+
+Y no solo existen: **la tarde del 07 se usaron los dos de verdad** — `/pedir_slam` levantó SLAM,
+se mapeó el cuarto, y `/pedir_nav` levantó Nav2, que navegó y **paró a 6,1 cm del objetivo**
+(evidencia 84). La pantalla del PC estaba, sin saberlo, describiendo como bloqueado algo que ya
+funcionaba.
+
+📝 **Y la lección es la de siempre, en su versión de dos máquinas:** el PC dedujo el estado del
+robot de cuándo se había subido el código, no de haberlo consultado. **El repositorio dice qué
+existe; solo el robot dice qué está corriendo.** Es la misma forma que «`ros2 topic list` incluye
+topics de nodos muertos» — la lista y el proceso son cosas distintas.
+
+✅ **Lo que sí sigue en pie de esa frase, y es lo útil:** que la pantalla **nombre el servicio** en
+el mensaje de plazo agotado. Eso vale igual, porque el caso existe de verdad — un robot con el
+driver caído o una unidad `latcheada` da exactamente esa firma.
+
+✅ **Y lo que el robot CONFIRMA de esta entrada:** el contrato es correcto.
+
+```
+lista blanca de robot.launch.py, leída con AST:
+  LEER       14   /amcl_pose /battery_state /collision_monitor_state /color /encoders
+                  /estado_navegacion /estado_robot /imu /map /motor_status /odom /scan
+                  /tf /tf_static
+  ESCRIBIR    3   /cmd_vel_raw /emergency_stop /initialpose
+  SERVICIOS  12   /enable_color /get_rgbc_sensor_values /pedir_nav /pedir_slam
+                  /release_emergency_stop /set_led_rgb /set_leds /set_multiple_leds
+                  /set_pos_and_yaw /start_scan /stop_scan /trigger_led_event
+```
+
+**14 · 3 · 12, exactamente lo que dice el PC.** El contrato y el robot coinciden.
 
 ---
 
