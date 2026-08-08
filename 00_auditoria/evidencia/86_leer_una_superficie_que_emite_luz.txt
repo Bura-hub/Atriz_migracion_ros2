@@ -164,11 +164,35 @@ con las dos luces.** El usuario propuso completar la matriz:
    **Con el LED encendido hay mucha luz y ninguna información. Con él apagado,
    poca luz y toda la información.**
 
-📝 **Una comprobación que salió sola:** el mismo móvil en rojo dio `claro = 150`
-   en la primera tanda y **42** en esta —brillo automático—, mientras `R/G` fue
-   **5.12** y **6.17**. Misma conclusión con la señal 3,5 veces más débil. Es
-   *«los absolutos dicen cuánta luz; las proporciones, de qué color»* demostrado
-   por accidente.
+🎯 **Y UNA TERCERA VARIABLE, PROBADA A PROPÓSITO: EL BRILLO.**
+
+    misma pantalla, mismo rojo, LUZ DEL SENSOR APAGADA
+      brillo alto    claro = 150     R/G = 5.12
+      brillo BAJO    claro =  42     R/G = 6.17
+                     3,5x menos luz  ← y la MISMA conclusión
+
+   🔴 **Aquí este documento decía «brillo automático», y era una atribución
+      FALSA.** Lo bajó el usuario **deliberadamente**, «para probar si podía
+      medirlo». Se conserva la corrección porque cambia lo que el dato vale: no
+      es un confusor accidental que hubo que explicar, es **un experimento de
+      rango dinámico** que no estaba planeado.
+
+   ✅ **Lo que prueba: el modo emisión aguanta que la fuente se atenúe 3,5×.**
+      Y es justo la pregunta abierta para una baldosa LED real, que puede estar
+      regulada. Con `claro = 42` sobre un suelo de ruido de **0**, el margen
+      sigue siendo enorme.
+
+   ⚠️ **Lo que NO prueba:** dónde está el límite por abajo. Sólo hay dos puntos,
+      y los dos funcionaron. El límite inferior sigue **sin medir**.
+
+   📝 Y de paso confirma *«los absolutos dicen cuánta luz; las proporciones, de
+      qué color»* — enunciado en `SENSOR_COLOR.md` y demostrado aquí con la misma
+      pantalla a dos brillos.
+
+   📌 **Y hay una lección de método:** yo atribuí el cambio al brillo automático
+      del móvil. Era plausible, encajaba, y era mentira. **Lo corrigió quien
+      había hecho la acción.** Van varias veces en este proyecto que una
+      explicación cómoda sustituye a preguntar a quien estaba delante.
 
 ⚠️ **Y una predicción mía que falló en magnitud:** escribí `R/G ≈ 0.7` para el
    caso 2 y salió **0.53**. La dirección acertó; el número no. Se anota porque

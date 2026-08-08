@@ -196,6 +196,19 @@ mientras el alumno mide.
 
 ## 5 · Lo que NO está medido, y no se puede prometer
 
+✅ **Lo que sí se probó, y es la pregunta más pertinente para una baldosa: EL BRILLO.** El usuario
+bajó la pantalla a propósito «para probar si podía medirlo»:
+
+```
+  misma pantalla, mismo rojo, luz del sensor apagada
+    brillo alto    claro = 150     R/G = 5.12
+    brillo BAJO    claro =  42     R/G = 6.17     ← 3,5× menos luz, misma conclusión
+```
+
+**El modo emisión aguanta que la fuente se atenúe 3,5×**, que es justo lo que pasa con una baldosa
+regulada. ⚠️ Pero son **dos puntos y los dos funcionaron**: dónde está el límite por abajo sigue
+**sin medir**.
+
 ⚠️ **Todo lo del modo emisión se midió con una PANTALLA DE MÓVIL, no con una baldosa LED.** Dos
 diferencias que pueden cambiar el resultado:
 
