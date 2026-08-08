@@ -4,6 +4,57 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-08 (web, 2) — **La capa de seguridad deja de ser invisible para el alumno**
+
+Barrido de los veinte commits del robot buscando lo que la web todavía no reflejaba. Quedaba el
+más importante para quien está delante del robot.
+
+### 🔴 «Pide 60 cm, obtiene 26, y no recibe ningún mensaje»
+
+Es la frase de la evidencia 85, y describía exactamente lo que hacía la interfaz. La misma orden,
+dos veces seguidas y sin tocar nada: **26,4 cm** y **59,5 cm**. No es un fallo —es el
+`collision_monitor` frenando al 40 %— pero **el journal lo registra y la pantalla callaba**, así
+que la conclusión natural del alumno es que el robot no le hace caso.
+
+El dato que lo explica es **el ancho**, y la web solo decía el largo: `Precaucion` mide 60 cm de
+largo por **40 de ancho** sobre un robot de 21,7. **Cualquier cosa a menos de ~9 cm de un
+costado** lo frena — una pata de silla, un zócalo, tu propio pie— y lo frena **aunque el robot se
+esté alejando de ella**.
+
+- `PanelConducir` se suscribe a `/collision_monitor_state` y lo pinta **en vivo, pegado a
+  «medido»**, que es donde aparece la discrepancia. En un pie de página sería no ponerlo.
+  ⚠️ Cuesta ~0: el monitor publica **al cambiar**, no cada tanto.
+- `no_obedece.ts` gana una causa, y su caso delicado es el silencio: **sin mensaje del monitor NO
+  se descarta** — se dice «no se sabe»—, porque con el robot quieto no llega ni uno y tratar el
+  silencio como «no está frenando» descartaría **la causa más probable** de que un avance salga
+  corto. Es la misma forma que «`ros2 topic list` conserva topics de nodos muertos».
+- Y separa `invalid source` —que es **falta de LIDAR**— de un obstáculo real: mandar a apartar
+  algo que no existe es justo el falso diagnóstico que esa pantalla existe para evitar.
+
+### ✅ El hueco de `/odom`: verificado, y una constante que NO se toca
+
+El robot midió **325,7 ms** de peor hueco recién reiniciado el driver, contra 78-81 en régimen
+permanente. `UMBRAL_SILENCIO_MS` (3000) **se queda** —sigue holgado—, pero:
+
+- **el margen real es 9×, no 37×**, y quien lo baje tiene que compararlo contra 326. Una prueba lo
+  fija contra el peor régimen medido, no contra el cómodo;
+- y se **comprobó** que la constante sigue copiando la del driver (`silence_timeout=3.0` en
+  `robot.launch.py`). Lo que subió a 2,0 s fue `SILENCIO_ODOM_S` de `atriz.py`, **otro consumidor**.
+  📝 Merece decirse porque es la trampa de siempre: dos constantes con nombres parecidos, y la
+  tentación de arrastrar una porque cambió la otra.
+
+### 📋 `VALIDAR_CON_EL_ROBOT.md`
+
+Con el robot apagado, todo lo nuevo está construido contra un doble. El fichero lista qué
+comprobar **y qué lo refutaría** en cada punto —incluidos los tres estados que hay que provocar a
+mano: `CIEGO` apagando el barrido, `MUDO` reiniciando el driver bajo SLAM, y `BLOQUEADO` pidiendo
+Nav2 sin mapa tres veces—. Sin la línea de refutación, una pasada verde no distingue «funciona» de
+«no llegué a probarlo».
+
+**574 pruebas**, contrato 14 · 3 · 12, y las 42 guardias sobre pantallas reales en verde.
+
+---
+
 ## 2026-08-08 (web) — **La web se pone al día: dos afirmaciones mías retiradas**
 
 Veinte commits nuevos del robot. Tres tocan `atriz-lab`, y **dos desmienten cosas que la interfaz
