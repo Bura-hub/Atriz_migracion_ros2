@@ -872,6 +872,31 @@ método bueno, así que el orden de magnitud aguanta. → Para comparar procesos
 4.8 %. → **El argumento para AMCL no es la CPU, es el marco compartido**: 16 robots sobre un
 mismo `map` es lo que permite que la web diga «ve a la mesa 3». Manual, cap. 14.1.
 
+**🔴🔴 Y `ABORTED` DE NAV2 TAMPOCO ES DE FIAR: EL ROBOT PUEDE HABER LLEGADO.** Medido el
+2026-08-08 (evidencia 88). `bt_navigator` tenía `default_server_timeout: 20` —**veinte
+milisegundos** para que el controlador acusara recibo— y se rendía mientras `controller_server`
+conducía:
+
+```
+  22:18:57  Received a goal, begin computing control effort   <- el controlador SI lo recibio
+  22:18:57  Timed out ... Aborting handle · Goal failed
+  22:19:07  Reached the goal!                                 <- DIEZ SEGUNDOS DESPUES
+```
+
+El robot recorrió **67 cm y llegó**, con la acción marcada como fallida. ✅ Subido a **1000 ms**.
+→ 🔴 **Reinterpreta tres tandas dadas por fallidas: el robot había navegado bien las tres.** Se
+  habían atribuido a saturación de la Pi —real y medida— pero **la causa próxima era el plazo**.
+→ 🔴 **Las DOS direcciones del desenlace fallan**, así que `navigate_to_pose` **no informa de lo
+  que pasó**: `SUCCEEDED` puede estar equivocado en 41 cm y `ABORTED` puede ser un robot que
+  llegó. Una pantalla que diga «no se pudo llegar» sobre un robot en el destino es tan mala como
+  la contraria.
+→ ✅ **Lo que sí se puede mostrar es el desplazamiento por `/odom`**, que acierta a 0,3-4,2 cm.
+  `atriz-lab` lo pinta en el desenlace desde el 2026-08-09.
+→ 📝 **Y la forma general: 20 ms era un plazo puesto sin medir contra qué.** El ruido de
+  planificación de esta máquina llega a **326 ms** al reiniciar el driver — dieciséis veces el
+  plazo. Misma familia que el `MAX_SIN_CAMBIO = 5` de `girar()`, que contaba vueltas suponiendo el
+  ritmo.
+
 **🔴🔴 UN MAPA QUE NO ES DEL SITIO HACE QUE NAV2 DIGA «LLEGUÉ» ESTANDO A MEDIO METRO, Y NO HAY
 NINGÚN OTRO SÍNTOMA.** Medido el 2026-08-07 con el mismo robot, el mismo recorrido de 80 cm y los
 mismos parámetros de AMCL — **lo único distinto era el mapa**:

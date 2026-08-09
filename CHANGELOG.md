@@ -4,6 +4,60 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (web, 4) — **El desenlace de Nav2 miente en las DOS direcciones**
+
+Revisadas las cinco actualizaciones del robot. Una recae de lleno en la web y ya está adaptada; el
+resto —PSK, `fmask`, la prueba de aceptación entera— es de robot y de flota.
+
+### 🔴 `ABORTED` también miente
+
+La evidencia 88 midió `default_server_timeout: 20` —**veinte milisegundos** para que el controlador
+acusara recibo— y `bt_navigator` rindiéndose mientras `controller_server` conducía:
+
+```
+  22:18:57  Received a goal, begin computing control effort
+  22:18:57  Timed out … Aborting handle · Goal failed
+  22:19:07  Reached the goal!            ← DIEZ SEGUNDOS DESPUÉS
+```
+
+El robot recorrió 67 cm y llegó, con la acción marcada como fallida. **Tres tandas dadas por
+fallidas eran buenas.**
+
+Ya se sabía que `SUCCEEDED` puede estar equivocado en 41 cm. **Ahora las dos direcciones fallan**,
+así que el desenlace no informa de nada:
+
+- el título del aviso deja de decir «el objetivo falló» y dice **«la acción falló · el robot puede
+  haber llegado igual»**;
+- y los dos textos hablan de la **acción**, no del robot.
+
+✅ **Y se hace lo que el robot pidió con esas palabras:** *«lo que sí se puede mostrar es el
+desplazamiento por `/odom`, que es la fuente que acierta a 0,3-4,2 cm»*. La pantalla anota la
+posición al mandar el objetivo y enseña el recorrido en el desenlace, gane o pierda. En vez de
+«mira el robot» a secas, **un número**.
+⚠️ Y no es la distancia al objetivo, es **cuánto se movió**: lo primero exigiría cruzar `map` con
+`odom`, que es justo el cruce que se equivoca. Se muestra lo que se sabe.
+
+📊 Los números pasan a **n=3** sobre mapa fresco: **6,1 · 11,8 · 11,3 cm**, con **dos de tres
+fuera** de la tolerancia de 10.
+
+### 📌 Una restricción dura nueva, por si acaso
+
+`/initialpose` está en la lista blanca y **la web no lo usa**. Si algún día lo usa, **el sello va a
+cero**: el banco del robot lo publicaba 69 ms por delante de TF y AMCL lo descartó **en las diez
+tandas de la historia del proyecto**, sin que nadie se enterara —no hay respuesta ni error—. Un
+`Date.now()` del navegador sería peor todavía: ni siquiera comparte reloj con el robot.
+
+### ⚠️ Y el doble se había quedado atrás otra vez
+
+`rosbridge_de_mentira.mjs` no publicaba `mapa_nombre` ni `mapa_edad_s`, así que la pantalla pintaba
+su texto de reserva sobre un doble que simplemente no los mandaba. **Mismo descuido que costó los
+nombres de campo de `/encoders`.** Queda escrito en el fichero: al cambiar un `.msg`, el doble va
+detrás en el mismo tirón.
+
+**590 pruebas** · contrato 14 · 3 · 12 · `tsc` y `eslint` limpios.
+
+---
+
 ## 2026-08-09 (web, 3) — **Corrección: el umbral de 7 días SÍ existía. El error fue mío**
 
 El robot cerró la sesión devolviéndome una de mis dos devoluciones, y tiene razón.
