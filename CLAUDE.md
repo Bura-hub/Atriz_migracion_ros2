@@ -169,6 +169,52 @@ Con el tope de tiempo, `avanzar(nan, nan)` habría conducido **4 metros**.
   bien: la disciplina estaba en el repo y no se aplicó al escribir la biblioteca nueva.
   Medido el **2026-08-03**; el arreglo está en `limitar()` de `atriz.py`.
 
+**🔴 UNA RAMA «POR DESCARTE» RECOGE EL RUIDO, Y LO AFIRMA CON TODA CONFIANZA.** Misma familia que
+la de arriba, encontrada el **2026-08-09** validando la web contra rvr-01. El clasificador de color
+en modo emisión decidía así: `R/G > 1` → rojo · `B/G > 1` → azul · **si no, verde**. Con el robot
+sobre suelo mate el sensor devolvió `R=0 G=1 B=0` —una cuenta de ruido— y los dos cocientes
+valieron 0, o sea «ninguno pasa de 1», o sea **verde**. La pantalla afirmó *«la luz que sale de la
+superficie es verde»* sobre un suelo a oscuras.
+→ **Una rama por descarte necesita su propia condición de señal.** «Ninguno de los otros» no es
+  una observación: es la ausencia de observación, y sin un mínimo que la sostenga cualquier ruido
+  cae ahí.
+→ 🔴 **Y había un test escrito contra este mismo fallo**, que comprobaba `verde === 0`. Aquí verde
+  vale **1**: se coló por el borde de la guarda. Es la regla de este fichero —*«un test que barre
+  tres puntos representativos puede dejar sin cubrir justo el tramo donde vive el bug»*— cometida
+  **en el fichero que la citaba**. El arreglo barre el tramo entero (1..40), no tres puntos.
+→ El umbral se **deriva**, no se inventa: las cuentas son enteras, el error de `R/G` es ±1/G, y con
+  G=1 eso es ±100 % —no distingue 0,9 de 1,1, que es la frontera del color—. Resolverlo mejor del
+  10 % da G ≥ 10. `atriz-lab`, `lib/robot/color.ts`.
+
+**🔴 LA LUZ DEL SENSOR DE COLOR NO SE APAGÓ SOLA: 14 min 38 s ENCENDIDA SIN NADIE LEYENDO.** Medido
+el **2026-08-09** cerrando la pestaña tras la última lectura (19:47:23) y mirando **el LED en el
+robot**, no solo `color_activo`. El apagado por inactividad son **120 s** y pasaron **878**. Se
+apagó porque se apagó a mano.
+→ ⚠️ **El tope duro de 900 s quedó SIN MEDIR**, y por un error de método: se apagó a menos de dos
+  segundos de cuando habría vencido, así que no se distingue «saltó» de «lo apagué yo». Repetirlo
+  exige no tocar nada 20 min.
+→ 📌 **Hipótesis, no medida:** el driver cuenta como actividad que alguien esté suscrito a
+  `/color` (`pub_color.get_subscription_count() > 0`), y **rosbridge puede conservar la suscripción
+  cuando la pestaña se cierra de golpe**. Se cierra con `ros2 topic info /color` en el robot, con
+  la web cerrada.
+→ 🔴 **Por qué importa con 16 robots:** es un LED blanco bajo el chasis que sale de la batería del
+  RVR, que es de donde también se alimenta la Pi. Si no se apaga solo, se queda encendido toda la
+  clase. `atriz-lab` **dejó de prometer** que se apaga sola y ahora dice «apágala tú».
+
+**📌 `rosapi/get_param` REVIENTA, y `ATRIZ_MAPA` no está documentado para el PC.** Los dos del
+2026-08-09, de rebote:
+- `rosapi/get_param` sobre `/supervisor_navegacion/mapa` devuelve `result=true` con
+  `successful=false` y `cannot access local variable 'node_name'` — un error **interno**, no una
+  respuesta. ⚠️ Fíjate en la forma: es la distinción `result`/`success` del 2026-08-08 apareciendo
+  sola en el primer sitio donde se usó `rosapi`. **Si `rosapi` no sirve para leer parámetros, la
+  web no puede preguntar por la configuración del robot** y todo tiene que venir por topic o por
+  servicio propio, como ya hace `/estado_navegacion`.
+- El supervisor usa `os.environ.get('ATRIZ_MAPA') or ~/atriz_ws/.../maps/aula.yaml`, y en rvr-01
+  **ese directorio está vacío** mientras `hay_mapa` dice `true`: la variable está puesta y el mapa
+  vive en otro sitio. **Quien lea el código deduce la ruta equivocada** — pasó, y se mandó al
+  usuario un comando que no podía funcionar. Se cierra con
+  `systemctl show atriz-robot -p Environment | grep MAPA`.
+
 
 **🔴 CON EL RVR APAGADO, EL DRIVER DICE «streaming reanudado» PARA SIEMPRE.** Medido el
 2026-08-02 apagando el robot para cargarlo con la Pi encendida —un estado **cotidiano** en el
@@ -1652,6 +1698,9 @@ de verdad. Dos consecuencias que cambian el día a día:
 | **Batería** | ✅ **`/battery_state` publica `voltage`** desde el 2026-08-01: **8.28 V** al «100 %» · umbrales del firmware **7.0 / 6.5 V**, histéresis 0.2 | 2026-08-01, evidencia 43 |
 | **Nombre Bluetooth del RVR** | `RV-1E6D` — identifica **la bola**, no la Pi. Para el inventario | 2026-08-01 |
 | `/color` (con `color_detection:=true`) | `clear` **181** (negro) → **2288** (blanco), 12.6× · rojo R/G **2.74** · azul B/G **0.86** | 2026-08-01 |
+| 🎯 **El sensor de color, la MISMA superficie con y sin luz** | **pantalla roja**: `R/G` **5,0** con la luz APAGADA → «rojo» · **0,57** con ella ENCENDIDA → el sensor lee *más verde que rojo* y no se puede decir. **papel rojo mate**: `R/G` **2,95** con luz → «rojo» · **0·0·0·0** sin luz. Factor **9** sobre el mismo objeto, a lados opuestos de 1 — **el modo no es un ajuste, decide el signo** | 2026-08-09, por la web |
+| **SLAM arrancado desde la web** | `apagado → arrancando → funcionando` en **~18 s**, con los segundos subiendo (4 · 9 · 14). Y `CIEGO` en 1-2 s al apagar el barrido | 2026-08-09 |
+| **WebSocket por nombre, desde el NAVEGADOR** | **2736 ms** con la caché mDNS fría · **16-25 ms** caliente (plazo del cliente: 10 s). ⚠️ Desde **Node** el mismo nombre tarda **7,3 s**: no se transfiere entre clientes | 2026-08-09, n=3 |
 | Enlace con keepalive | **12 min, 0 huecos** en `/odom`, 16.54 Hz | 2026-07-31 |
 | ✅ **GIRO POR ANGULO, medido con el robot en el suelo** | **`girar()` (lazo cerrado, tras compensar la inercia)**: n=5 a 90° → rango **0.94°**, peor error **0.74°**, media **+0.20°**. n=9 a 90/180/360 → sesgo **+0.19°**. · **`girar_por_tiempo()` (lazo abierto, 0.8 rad/s por `/cmd_vel_raw`)**: n=4 a 90° → rango **4.20°**, peor **2.30°**, media **+0.23°**. 🔴 **Misma media, 4.5× menos dispersion en el cerrado**: la realimentacion no mejora el acierto, reduce la varianza. ⚠️ Antes de compensar, el cerrado sobregiraba **+4.01° CONSTANTES** (0.35 s de inercia tras mandar parar) | 2026-08-03, evidencias 58 y 61 |
 | ✅ **GIRO POR ANGULO** | **n=3**: 90°→**86.6 / 86.2 / 87.7°** · 180°→**179.6 / 179.6 / 179.6°** · 360°→**358.4 / 357.9 / 358.8°**. Rango 1.5° / **0.0°** / 0.9°. Deslizamiento **0.0–0.3 cm** · signo REP-103. 📝 Con baterías del 55 al 100 %: **el déficit NO depende de la carga**, y el de 180° sale idéntico las tres veces | 2026-08-02, evidencias 48 y 55 |
