@@ -1,5 +1,6 @@
 ════════════════════════════════════════════════════════════════════════════
- 91 · EL MAPA ENGORDA LOS OBJETOS ~5 cm POR LADO, Y ESO CIERRA LA PUERTA
+ 91 · EL MAPA DE SLAM ENGORDA LOS OBJETOS ~5 cm POR LADO, Y ESO CIERRA LA
+      PUERTA — CON AMCL SOBRE UN MAPA SIN LOS OBJETOS, NO (ver apartado 5bis)
       La variante con SLAM · el FALLO de la aceptación, explicado entero
       Y LA RETIRADA DE LA EXPLICACIÓN DE LA EVIDENCIA 90
 ════════════════════════════════════════════════════════════════════════════
@@ -95,7 +96,8 @@ En la línea de la puerta, con hueco físico de 45 cm:
        hueco real 45  -> inflado 14,5+14,5 = 29  -> sobrarían 16 cm
        hueco mapa 35  -> inflado 14,5+14,5 = 29  -> sobran 6 cm = 1 celda a 96
 
-✅ **REGLA PARA EL AULA, y es un número, no una intuición:**
+✅ **REGLA, y es un número, no una intuición — PERO LEE EL ALCANCE EN 5bis:
+   esto vale CON SLAM, que es lo que lanza la fase F7 de la aceptación.**
 
        hueco mínimo = 2 x (radio inscrito 14,5 + engorde del mapa ~5 + celda 5)
                     ~ 49 cm  para que sea TRANSITABLE
@@ -106,6 +108,55 @@ En la línea de la puerta, con hueco físico de 45 cm:
 
 📌 El «cómodo ~50 cm» que se había DEDUCIDO en la evidencia 90 resulta acertado,
    pero por un motivo distinto del que se escribió. No estaba medido; ahora sí.
+
+
+5bis · 🔴 LA CORRECCIÓN QUE PIDIÓ EL USUARIO: «PERO CON AMCL SÍ PASÓ POR 45 cm»
+────────────────────────────────────────────────────────────────────────────
+Es cierto, y la regla de arriba estaba **generalizada de más**. La evidencia 90,
+con AMCL y hueco de 45 cm: **0 abortos, 15 cm de desvío lateral** — o sea, recto.
+
+Se repitió el mismo día, con el robot en la marca, la puerta en 45 cm y AMCL sobre
+el mismo `cuarto3`. **Sale igual: plan RECTO, 109 % de largo, 13 cm de lateral**,
+en cuatro consultas. No fue casualidad ni un artefacto de una tanda.
+
+🔎 **Y el perfil del costmap dice por qué**, en la misma escena y la misma fila:
+
+    línea de la puerta (x=85 cm), lateral -40 .. +40 cm
+
+      con AMCL    99  99  99 100  99  99  99 | 84  84 | 99  99  99 100 ...
+      con SLAM   100  99  99 100 100 100  99   99  99   99  99  99 100 ...
+                                              ^^^^^^^
+                                    canal ABIERTO con AMCL, CERRADO con SLAM
+
+    coste en el eje, a 70/80/90 cm:   AMCL 79 · 84 · 79      SLAM 96 · 99 · 96
+
+🔴 **El engorde NO es «del mapa» a secas: es del mapa de slam_toolbox.**
+   - Con **AMCL** sobre `cuarto3` —hecho dos días antes SIN la puerta, y encima
+     con `map -> odom` en **4,3 m**, o sea la capa estática tan desplazada que no
+     aporta nada— la puerta la marca **sólo la capa de obstáculos del LIDAR en
+     vivo**, que es **fina y exacta**. Canal abierto, coste 84, plan recto.
+   - Con **SLAM** la puerta entra en la **capa estática**, engordada ~5 cm por
+     lado, y el canal se cierra.
+
+✅ **ALCANCE CORREGIDO DE LA REGLA DE LOS ~49 cm: vale CON SLAM.**
+   Y eso NO la hace menor, porque **la fase F7 de la prueba de aceptación lanza
+   SLAM**: es exactamente la configuración donde apareció el FALLO, y el arreglo
+   del guion sigue siendo el correcto.
+
+⚠️ **Con AMCL sobre un mapa que NO contiene los objetos, 45 cm pasan.** Medido dos
+   veces. Es el caso del aula cuando un alumno deja una silla que no estaba.
+
+⏳ **LA CASILLA QUE FALTA, Y ES LA IMPORTANTE PARA EL AULA: AMCL sobre un mapa que
+   SÍ contiene los objetos.** Los mapas del aula se hacen **con slam_toolbox y se
+   guardan**, así que todo lo que estuviera puesto al mapear entra ya engordado en
+   el fichero. **Predicción, NO VERIFICADA: se comportará como SLAM, no como el
+   AMCL de aquí.** Se comprueba sin mover el robot: mapear con la puerta puesta,
+   guardar, arrancar AMCL sobre ese mapa y `consultar_plan.py`.
+
+📌 La lección de método: **la primera versión de esta evidencia dio por general un
+   resultado medido en una sola configuración.** Lo cazó el usuario preguntando
+   por un dato que estaba en la tabla de la evidencia anterior — el mismo tipo de
+   contradicción que este proyecto lleva persiguiendo todo el mes.
 
 
 6 · DOS HIPÓTESIS PROPIAS, PROBADAS Y DESCARTADAS

@@ -1268,6 +1268,12 @@ def f7(a: Aceptacion) -> None:
         #        con 60 cm el plan sale RECTO (unica tanda que lo hizo: 14 cm de
         #        desvio). Con 45 y con 34 rodea SIEMPRE.
         #
+        #    ⚠️ ALCANCE: esto vale CON SLAM, y F7 lanza SLAM, asi que aqui aplica.
+        #       Con AMCL sobre un mapa que NO contiene los objetos, 45 cm SI pasan
+        #       (medido dos veces): alli la puerta la marca solo la capa de
+        #       obstaculos del LIDAR, que es fina, y el canal queda abierto a 84.
+        #       Lo destapo el usuario preguntando por ese dato.
+        #
         #    ✅ Y se puede comprobar SIN MOVER EL ROBOT antes de gastar la tanda:
         #       `mediciones_banco/consultar_plan.py` pregunta la ruta a Nav2 con
         #       `compute_path_to_pose`. Si dice «RODEA», el montaje esta mal y la

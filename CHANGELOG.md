@@ -30,7 +30,7 @@ colisión, y `failure_tolerance: 0.3` lo mata en tres décimas.
 
 ✅ **Eso explica el único `FALLO` de la prueba de aceptación del 2026-08-08.** Y da una regla con
 número: **hueco mínimo ≈ 49 cm para ser transitable, y entre 45 y 60 para que Nav2 no prefiera
-rodear.**
+rodear** — con SLAM; ver la corrección de alcance más abajo.
 
 **La herramienta que lo cerró, y la lección que vale más que el resultado:** `compute_path_to_pose`
 **planifica sin mover el robot**. Cuatro tandas con el robot en marcha —dos con AMCL, dos con
@@ -46,6 +46,16 @@ confirma: **31,1 cm de odometría contra 32,1 de LIDAR.**
 **Cuatro fallos más del banco, van diez** — el séptimo es el peor: `/set_pos_and_yaw` con SLAM viva
 **corrompe el mapa**, porque mueve el origen de `odom` bajo los pies de slam_toolbox. Mover el robot
 a mano hace lo mismo: después hay que **reiniciar SLAM**.
+
+🔴 **Y una corrección que pidió el usuario en el mismo turno, sobre la conclusión recién escrita:**
+*«pero en la prueba inicial con AMCL sí pasó por 45 cm»*. Cierto, y estaba en la tabla de la
+evidencia 90. Se repitió con el robot en la marca y la puerta en 45: **con AMCL el plan sale RECTO**
+(109 %, 13 cm) en cuatro consultas. El perfil del costmap dice por qué — con AMCL la puerta la marca
+**sólo la capa de obstáculos del LIDAR**, fina, y el canal queda abierto a coste 84; con SLAM entra
+en la **capa estática engordada** y se cierra. **La regla de los 49 cm vale CON SLAM**, que es lo que
+lanza F7 y donde apareció el FALLO. ⏳ Falta la casilla del aula: AMCL sobre un mapa que **sí**
+contiene los objetos — los mapas del aula se hacen con slam_toolbox y se guardan, así que la
+predicción es que se comporte como SLAM. **NO VERIFICADO.**
 
 Evidencia 91. Escalado a `CLAUDE.md`: el engorde del mapa con su regla, `compute_path_to_pose` como
 primer instrumento, que **99 en el costmap es intransitable, no «casi»**, el teletransporte de SLAM,

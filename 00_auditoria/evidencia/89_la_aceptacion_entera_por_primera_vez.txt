@@ -66,6 +66,9 @@ fases en PENDIENTE**. Ésta hizo las diez, de F0 a F9.
    un hueco de 45 cm entra como 35, la inflación del radio inscrito lo cierra, y
    **NavFn traza un rodeo** de 168-233 % de largo que en este cuarto no cabe.
    ✅ Regla: **hueco mínimo ≈ 49 cm**, y entre 45 y 60 para que no rodee.
+      🔴 **CON SLAM**, que es lo que lanza esta misma F7. Con AMCL sobre un mapa
+         que NO contiene los objetos, 45 cm sí pasan: allí la puerta la marca
+         sólo la capa de obstáculos del LIDAR, fina, y el canal queda abierto.
    📌 **Nav2 hizo lo correcto**, como se sospechaba aquí: no se inventó un plan.
    🔴 Pero la primera explicación que se escribió (evidencia 90, «la culpa es de
       AMCL») **quedó retirada** al repetirlo con SLAM.

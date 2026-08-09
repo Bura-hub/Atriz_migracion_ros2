@@ -970,8 +970,9 @@ mire la fecha** — y quien tiene delante a la persona es la web, que solo recib
 → Verificado en el topic: `mapa_nombre='cuarto3.yaml'`, `mapa_edad_s=104976` (1,22 días) contra un
   fichero de hace ~29 h.
 
-**🔴🔴 EL MAPA ENGORDA LOS OBJETOS ~5 cm POR LADO, Y ESO CIERRA HUECOS QUE SÍ CABEN.** Medido el
-2026-08-09 (evidencia 91) con los tres instrumentos sobre la misma fila, hueco físico de 45 cm:
+**🔴🔴 EL MAPA DE slam_toolbox ENGORDA LOS OBJETOS ~5 cm POR LADO, Y ESO CIERRA HUECOS QUE SÍ
+CABEN.** Medido el 2026-08-09 (evidencia 91) con los tres instrumentos sobre la misma fila, hueco
+físico de 45 cm:
 
 ```
 LIDAR crudo (retornos)   ... (82,-21)   [HUECO 44,8 cm]   (82,+24) ...
@@ -986,6 +987,22 @@ MAPA DE SLAM en x=85     ocupado en -20, -15  y en +20  ->  hueco 35 cm
 → ✅ **Regla con número, no intuición:** `hueco mínimo ≈ 2 × (14,5 inscrito + 5 engorde + 5 celda) ≈ 49 cm`
   para que sea TRANSITABLE, y **entre 45 y 60 cm** para que además sea barato y Nav2 no prefiera rodear.
   La única tanda con plan recto fue la de 60 cm (14 cm de desvío).
+→ 🔴🔴 **ALCANCE, Y NO ES UN MATIZ: eso vale CON SLAM.** Lo destapó el usuario preguntando «pero en
+  la prueba inicial con AMCL sí pasó por 45 cm». Es cierto, y se repitió: con AMCL sobre `cuarto3`
+  —hecho sin la puerta— el plan sale **RECTO** (109 %, 13 cm) en cuatro consultas. En la misma fila:
+
+```
+línea de la puerta (x=85 cm), lateral -40..+40, misma escena, mismos 45 cm
+  con AMCL    99  99  99 100  99  99  99 | 84  84 | 99  99  99 100 ...  canal ABIERTO
+  con SLAM   100  99  99 100 100 100  99   99  99   99  99  99 100 ...  canal CERRADO
+```
+
+  Con AMCL la puerta la marca **sólo la capa de obstáculos del LIDAR**, que es fina y exacta; con
+  SLAM entra en la **capa estática** ya engordada. **La regla de los 49 cm sigue siendo la buena
+  para la F7 de la aceptación, que lanza SLAM** — que es donde apareció el FALLO.
+→ ⏳ **La casilla que falta, y es la del aula: AMCL sobre un mapa que SÍ contiene los objetos.** Los
+  mapas del aula se hacen con slam_toolbox y se guardan, así que lo que estuviera puesto al mapear
+  entra ya engordado en el fichero. **Predicción NO VERIFICADA: se comportará como SLAM.**
 → ✅ **Y explica el único `FALLO` de la prueba de aceptación del 2026-08-08:** montaje demasiado justo.
   Cadena completa: hueco 45 → mapa 35 → inflación lo cierra → rodeo → `collision ahead` →
   `failure_tolerance: 0.3` → `Controller patience exceeded` → `ABORTED`.

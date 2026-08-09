@@ -335,4 +335,23 @@ python3 00_auditoria/evidencia/mediciones_banco/consultar_plan.py --meta 1.4 --r
 Le pregunta la ruta a Nav2 con `compute_path_to_pose`. Si dice **RODEA**, el montaje está mal y la
 tanda va a fallar: ensancha el hueco antes de mover nada.
 
+### Alcance: esto vale con SLAM — que es justo lo que lanza F7
+
+Con **AMCL sobre un mapa que NO contiene los objetos**, un hueco de 45 cm **sí pasa**: medido dos
+veces (evidencia 90 y su repetición en la 91), plan recto al 109 % con 13 cm de desvío. La razón,
+en la misma fila y la misma escena:
+
+```
+línea de la puerta (x=85 cm), lateral -40..+40, mismos 45 cm
+  con AMCL    99  99  99 100  99  99  99 | 84  84 | 99  99  99 100 ...   canal ABIERTO
+  con SLAM   100  99  99 100 100 100  99   99  99   99  99  99 100 ...   canal CERRADO
+```
+
+Con AMCL la puerta la marca **sólo la capa de obstáculos del LIDAR**, fina y exacta. Con SLAM entra
+en la **capa estática** ya engordada. **F7 lanza SLAM, así que el umbral de F7 son los 60 cm.**
+
+⏳ **Sin verificar, y es la casilla del aula:** AMCL sobre un mapa que **sí** contiene los objetos.
+Los mapas del aula se hacen con slam_toolbox y se guardan, así que lo que estuviera puesto al
+mapear entra ya engordado en el fichero. **Predicción: se comportará como SLAM.**
+
 📌 Para la imagen dorada: **esto no depende del robot**, así que los 16 aplicarán el mismo umbral.

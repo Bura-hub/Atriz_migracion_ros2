@@ -218,6 +218,12 @@
 > mata el objetivo en tres décimas. Cadena entera medida, con AMCL y con SLAM.
 > → ✅ **Regla con número: hueco mínimo ≈ 49 cm para ser transitable, y entre 45 y 60 para que Nav2
 >   no prefiera rodear.** La única tanda con plan recto fue la de 60 cm.
+> → 🔴 **ALCANCE: eso vale CON SLAM, que es lo que lanza F7.** Con AMCL sobre un mapa que NO contiene
+>   los objetos, 45 cm **sí pasan** (medido dos veces, plan recto al 109 %): allí la puerta la marca
+>   sólo la capa de obstáculos del LIDAR, que es fina, y el canal queda abierto a coste 84.
+>   ⏳ **Falta la casilla del aula:** AMCL sobre un mapa que **sí** contiene los objetos. Los mapas
+>   del aula se hacen con slam_toolbox y se guardan, así que la predicción es que se comporte como
+>   SLAM. **NO VERIFICADO.**
 > → 📌 **No es defecto del robot.** El montaje del guion de aceptación tiene que respetar ese hueco.
 >
 > ✅ **Los otros 7 REVISAR son ruido explicado:** dos son nuestros reinicios del día (el propio
