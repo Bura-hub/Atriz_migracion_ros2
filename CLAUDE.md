@@ -801,6 +801,13 @@ MAX_SIN_CAMBIO = 5   # ~0.25 s a 20 Hz     <- cuenta VUELTAS, y SUPONE el ritmo
   REAL (y 25× el permanente), criterio extraído a `odom_rancia()` —**el fallo era justo que no se podía comprobar en
   ningún sitio**— y **7 tests que discriminan** (con el umbral viejo fallan DOS). 4/4 en el robot,
   ⚠️ que **no basta** para un fallo intermitente: lo que sostiene el arreglo es estructural.
+→ ⏳ **Y el disparador NO se conoce.** Sesión entera de aislamiento el 2026-08-08: **siete**
+  hipótesis descartadas midiendo —huecos reales, sellos repetidos, arranque del LIDAR, `/scan`
+  compitiendo en el ejecutor, la ventana de arranque, el robot moviéndose, y un proceso
+  competidor a 500 Hz— y **no reproducido en ~32 tandas ni en 5 minutos seguidos**: la racha
+  nunca pasó de **1** (~100 ms) contra un umbral de 250. **Un fallo que sale 1 de 4 y luego no
+  sale en 32 no está entendido**, y no se presenta como cerrado. Lo que sostiene el arreglo es
+  estructural y el margen (2,0 s son 20× el peor caso reproducible). Evidencia 85, apartado 1c.
 → **La regla general: un umbral en unidades del observador, no del fenómeno, es un falso positivo
   esperando.** Y ya está escrita en este fichero para otro caso — «un umbral de silencio en
   milisegundos no es transferible entre topics de ritmos distintos». Evidencia 85.

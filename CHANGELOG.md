@@ -278,6 +278,57 @@ pantallas reales en verde.
 
 ---
 
+## 2026-08-08 (10) — **El disparador de `girar()`: siete hipótesis fuera, y NO reproducido**
+
+Sesión dedicada a aislar el fallo intermitente del apartado 1 de la evidencia 85. **Resultado: un
+negativo**, y se escribe como tal.
+
+### El instrumento que faltaba
+
+Todo lo anterior medía `/odom` **desde otro proceso**. Un topic puede estar sano en el cable y
+llegar tarde a un proceso concreto — y el guardia que abortó mira lo que llega a **su** proceso.
+`mediciones_banco/medir_hambre_del_ejecutor.py` mide el hueco **como lo ve el proceso del alumno**,
+sondeando a 20 Hz, que es el ritmo del bucle de `girar()`.
+
+### Siete caminos cerrados con medida
+
+```
+  1 huecos reales de /odom (otro proceso)      n=3    78-81 ms        ✅ no
+  2 sellos a cero o repetidos               166/166   distintos       ✅ no
+  3 el arranque del LIDAR                            ya giraba        ✅ no
+  4 /scan compitiendo en el ejecutor        45+45 s   108,2 vs 107,8  ✅ no
+  5 la ventana de ARRANQUE (procesos nuevos)   10     racha 1         ✅ no
+  6 el robot MOVIÉNDOSE (puerto serie)          8     racha 1         ✅ no
+  7 un competidor a 500 Hz (el propio arnés)    6     racha 1         ✅ no
+  + soak de 5 min   4976 muestras · peor 104,8 ms · racha 1
+```
+
+🔴 **NO REPRODUCIDO NI UNA VEZ.** La racha nunca pasó de **1** (~100 ms) contra un umbral de
+**250**. No llegué ni a 2,5× del disparador.
+
+### Por qué un negativo se documenta
+
+- **Dice dónde no buscar.** Siete caminos cerrados con medida, no con razonamiento.
+- **Acota el fenómeno.** En régimen normal el guardia no ve más de UNA vuelta sin sello nuevo:
+  llegar a cinco exige un parón de ~300 ms, que es **una anomalía, no la cola de una
+  distribución**.
+- **Mide el margen del arreglo con datos propios:** 2,0 s son **20 veces** el peor caso que soy
+  capaz de producir a propósito.
+
+⚠️ **Lo que NO puedo decir:** que el arreglo esté verificado contra el disparador real. No lo está
+— no sé cuál es. **Un fallo que aparece 1 de 4 veces y luego no aparece en 32 no está entendido.**
+
+⏳ Queda sin descartar: el estado de descubrimiento DDS de aquel día (venía de tres tandas de
+navegación, con participantes muertos que el daemon conserva) y una pausa del recolector de basura.
+Las dos son difíciles de provocar a voluntad.
+
+📝 Y una hipótesis mía que caía por su propio peso y aun así había que medir: **`/scan` compitiendo
+en el mismo `SingleThreadedExecutor`**. `atriz.py` se suscribe a `/scan` (12 Hz, ~250 rangos) **en
+todas las prácticas, incluidas las que no lo usan**, y las devoluciones se atienden en serie.
+Parecía la explicación. **108,2 ms contra 107,8: no estorba nada.**
+
+---
+
 ## 2026-08-08 (9) — **Auditoría de `atriz-lab` desde el robot, y el hueco era mío**
 
 Encargo del usuario: auditar la web *«desde tu punto de vista, que conoces todo el

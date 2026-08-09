@@ -130,6 +130,54 @@ misma herramienta dio otra cosa:**
    árbol de procesos. **Es una hipótesis, no una medida.**
 
 
+1c · EL DISPARADOR: SIETE HIPÓTESIS DESCARTADAS Y **NO REPRODUCIDO**
+────────────────────────────────────────────────────────────────────────────
+Sesión del 2026-08-08 dedicada a aislarlo. Herramienta:
+`mediciones_banco/medir_hambre_del_ejecutor.py`, que mide el hueco entre sellos
+de `/odom` **como lo ve el proceso del alumno** —sondeando a 20 Hz, el ritmo del
+bucle de `girar()`— y no desde fuera, que es lo que se había medido antes.
+
+📌 **Por qué hacía falta otro instrumento:** un topic puede estar sano en el
+   cable y llegar tarde a un proceso concreto. `medir_ritmo_ros2.py` mide el
+   cable; el guardia que abortó mira lo que llega a SU proceso.
+
+    HIPÓTESIS                                          TANDAS   RESULTADO
+    1 huecos reales de /odom (desde otro proceso)         n=3   78-81 ms ✅ no
+    2 sellos a cero o repetidos                        166/166  distintos ✅ no
+    3 el arranque del LIDAR                                     ya giraba ✅ no
+    4 /scan compitiendo en el mismo ejecutor            45+45 s 108,2 vs 107,8 ✅ no
+    5 la ventana de ARRANQUE, procesos nuevos              10    racha 1  ✅ no
+    6 el robot MOVIÉNDOSE (colisión en el puerto serie)     8    racha 1  ✅ no
+    7 un proceso competidor a 500 Hz (el propio arnés)       6    racha 1  ✅ no
+    + pasada larga de 5 min (cubre keepalive y /motor_status, 30 s)
+                                            4976 muestras · peor 104,8 ms · racha 1
+
+🔴 **NO REPRODUCIDO NI UNA VEZ.** En ~32 tandas y 5 minutos seguidos, la racha
+   **nunca pasó de 1** —~100 ms— cuando el umbral viejo eran **250**. No me
+   acerqué a 2,5× del disparador.
+
+⏳ **Así que la causa sigue SIN CONOCERSE**, y esto no se presenta como cerrado.
+   Lo que queda por descartar y no se pudo hoy: el estado de descubrimiento DDS
+   aquel día (venía de tres tandas de navegación, con participantes muertos que
+   el daemon conserva) y una pausa del recolector de basura de Python. Las dos
+   son difíciles de provocar a voluntad.
+
+✅ **LO QUE SÍ APORTA ESTE NEGATIVO, y es la razón de escribirlo:**
+
+   · **Dice dónde NO buscar.** Siete caminos cerrados con medida, no con
+     razonamiento. El siguiente que lo intente no los repite.
+   · **Acota el fenómeno.** No es jitter: en régimen normal el guardia nunca ve
+     más de UNA vuelta sin sello nuevo. Llegar a cinco exige un parón de ~300 ms,
+     que es una **anomalía**, no la cola de una distribución.
+   · **Y mide el margen del arreglo con datos propios:** 2,0 s son **20 veces** el
+     peor caso que soy capaz de producir a propósito.
+
+⚠️ **Lo que NO puedo decir:** que el arreglo esté verificado contra el
+   disparador real. No lo está — no sé cuál es. Lo que sostiene el arreglo es
+   estructural (el guardia ya no depende del ritmo del bucle) y el margen. Un
+   fallo que aparece 1 de 4 veces y luego no aparece en 32 no está entendido.
+
+
 2 · 🔴 `avanzar(0.20, 3)` NO SIGNIFICA 60 cm, Y NADIE SE LO DICE AL ALUMNO
 ────────────────────────────────────────────────────────────────────────────
     práctica 1, primera vez    26,4 cm
