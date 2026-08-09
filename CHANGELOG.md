@@ -80,6 +80,30 @@ nombres de campo de `/encoders`.** Queda escrito en el fichero: al cambiar un `.
 detrás en el mismo tirón.
 
 **590 pruebas** · contrato 14 · 3 · 12 · `tsc` y `eslint` limpios.
+## 2026-08-09 (robot) — **El seguidor de línea se aparca hasta el aula, y no por la cinta**
+
+Decisión del usuario. Lo que importa es **el motivo**, porque cambia dónde vive el pendiente.
+
+La razón obvia sería «no hay cinta». **No es ésa.** Una línea pegada en el suelo de una habitación
+**no reproduce lo que esa práctica tiene que validar**: el recorrido real, su iluminación y el
+contraste sobre el suelo del laboratorio.
+
+📌 **Y no es una precaución teórica.** El seguidor decide **por umbral del canal `claro`**, y esta
+misma semana se midió que el suelo da **1275 en una habitación y ~950 en otra, con el mismo robot y
+el mismo día**. Validarlo aquí mediría **el suelo, no el algoritmo** — y daría un ✅ que no se
+transfiere.
+
+✅ **Reclasificado: sale de «lo que falta hacer» y entra en «lo que espera al aula»**, junto al
+SSID que nunca ha casado, la F0 del AP y el mapa del laboratorio.
+
+⚠️ **Lo que no cambia:** el seguidor **nunca se ha probado sobre una línea real**. Sus funciones
+puras tienen tests y su diseño se corrigió durante la implementación —el original, un PID de umbral
+único, **no podía funcionar** con un solo sensor mirando abajo— pero el robot no ha seguido una
+línea física ni una vez. Sigue **NO VERIFICADO**, ahora con la fecha de cuándo podrá verificarse.
+
+📝 **La lección de método:** aparcar algo por la razón equivocada lo deja mal colocado. «Falta
+cinta» lo pone en la lista de mañana; «hace falta el laboratorio» lo pone en la del despliegue.
+**Son dos planificaciones distintas.**
 
 ---
 
