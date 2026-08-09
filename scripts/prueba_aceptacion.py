@@ -1253,6 +1253,33 @@ def f7(a: Aceptacion) -> None:
         print('    volviendo al origen con Nav2 (sin tocarlo)…')
         objetivo(-1.50, 'regreso al origen', absoluta=partida)
         time.sleep(3)
+
+        # 🔴🔴 EL RUMBO DEL REGRESO NO ES EL DE PARTIDA, Y HAY QUE DECIRLO ANTES DE
+        #    PEDIR EL MONTAJE. Lo pregunto el usuario el 2026-08-09: «el robot
+        #    quedo torcido, ¿el obstaculo va delante de este nuevo POV o del
+        #    inicial con el que empezo F7?».
+        #
+        #    Va delante del NUEVO. El objetivo CON obstaculo se manda con
+        #    `absoluta=None`, o sea calculado sobre `a.pos_mapa()` LEIDA EN ESE
+        #    MOMENTO. Y quedar torcido es esperable, no un fallo:
+        #    `yaw_goal_tolerance: 0.25` rad = 14,3 grados de margen. Este mismo
+        #    guion ya tenia anotado un regreso «a -10 grados con la partida en +1».
+        #
+        #    🔎 A 0,75 m, 11 grados desplazan «delante» **14 cm de lado**. Con el
+        #       hueco de 60 cm se aguanta; con 45 se sale del hueco y la tanda
+        #       mide otra cosa sin avisar. Por eso se IMPRIME el desvio: quien
+        #       monta el escenario necesita el numero, no una advertencia.
+        _ahora = a.pos_mapa()
+        if _ahora is not None:
+            _d = math.degrees(math.atan2(math.sin(_ahora[2] - partida[2]),
+                                         math.cos(_ahora[2] - partida[2])))
+            print(f'    rumbo tras el regreso: {math.degrees(_ahora[2]):+.0f}°  '
+                  f'(partida {math.degrees(partida[2]):+.0f}°  ->  desvio {_d:+.0f}°)')
+            print(f'    🔴 EL OBSTACULO VA SOBRE ESTE RUMBO, NO SOBRE EL DE PARTIDA.')
+            if abs(_d) >= 5.0:
+                print(f'       A 0.75 m, {_d:+.0f}° desplazan «delante» '
+                      f'{abs(math.tan(math.radians(_d)) * 0.75) * 100:.0f} cm de lado.')
+                print('       Alinea el hueco con el EJE DEL ROBOT, mirandolo de frente.')
         # 🔴🔴 LOS 60 cm NO SON UN NUMERO REDONDO: SON EL UMBRAL MEDIDO.
         #    El unico FALLO de la corrida del 2026-08-08 fue justo este objetivo,
         #    y el 2026-08-09 (evidencias 90 y 91) se midio por que. El MAPA
@@ -1278,8 +1305,11 @@ def f7(a: Aceptacion) -> None:
         #       `mediciones_banco/consultar_plan.py` pregunta la ruta a Nav2 con
         #       `compute_path_to_pose`. Si dice «RODEA», el montaje esta mal y la
         #       tanda va a fallar; ensancha antes de mover nada.
-        a.puerta('COLOCA EL OBSTACULO a ~0.75 m por delante del robot, escorado\n'
-                 '     ~6 cm a la IZQUIERDA del eje. Algo de ~16 cm de ancho.\n'
+        a.puerta('COLOCA EL OBSTACULO a ~0.75 m DELANTE DEL ROBOT TAL COMO ESTA\n'
+                 '     AHORA (su eje de vision de este momento, NO el de partida:\n'
+                 '     el regreso tiene 14 grados de tolerancia y suele quedar\n'
+                 '     torcido — el desvio exacto esta impreso arriba).\n'
+                 '     Escorado ~6 cm a la IZQUIERDA de ESE eje. Ancho ~16 cm.\n'
                  '     🔴 MAS ALTO DE 15.5 cm: por debajo el LIDAR NO LO VE.\n'
                  '     🔴 DEJA 60 cm LIBRES POR LA DERECHA, Y MIDELOS CON CINTA.\n'
                  '        No es orientativo: por debajo de ~49 cm Nav2 no aprieta,\n'

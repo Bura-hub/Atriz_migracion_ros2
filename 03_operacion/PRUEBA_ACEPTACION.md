@@ -335,6 +335,22 @@ python3 00_auditoria/evidencia/mediciones_banco/consultar_plan.py --meta 1.4 --r
 Le pregunta la ruta a Nav2 con `compute_path_to_pose`. Si dice **RODEA**, el montaje está mal y la
 tanda va a fallar: ensancha el hueco antes de mover nada.
 
+### El obstáculo va sobre el rumbo del robot **de ese momento**, no el de partida
+
+Lo preguntó el usuario el 2026-08-09: *«el robot quedó torcido, ¿el obstáculo va delante de este
+nuevo POV o del inicial con el que empezó F7?»*. **Del nuevo.** El objetivo con obstáculo se manda
+con `absoluta=None`, o sea calculado sobre la pose leída **en ese instante**.
+
+Y quedar torcido **es esperable, no un fallo**: `yaw_goal_tolerance: 0.25` rad = **14,3°** de
+margen en el regreso. El guion ya tenía anotado un caso de «regreso a −10° con la partida en +1°».
+
+🔎 **A 0,75 m, 11° desplazan «delante» 14 cm de lado.** Con el hueco de 60 cm se aguanta; con 45 el
+robot ya no apunta al hueco y la tanda **mide otra cosa sin avisar**.
+
+✅ Desde el 2026-08-09 el guion **imprime el rumbo tras el regreso y el desvío respecto a la
+partida** justo antes de pedirte el montaje, y si pasa de 5° te dice cuántos centímetros de lado
+son. Alinea el hueco con el **eje del robot**, mirándolo de frente.
+
 ### Alcance: esto vale con SLAM — que es justo lo que lanza F7
 
 Con **AMCL sobre un mapa que NO contiene los objetos**, un hueco de 45 cm **sí pasa**: medido dos
