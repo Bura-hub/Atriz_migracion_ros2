@@ -49,6 +49,25 @@ los objetos) y **obliga a matizar la evidencia 91**: su «engorde de 5 cm» se d
 sobre ese mapa. El efecto en el costmap sigue medido; el mecanismo no. ⏳ Causa NO VERIFICADA, y es
 prioritaria: es la ruta con la que se hacen los mapas del aula.
 
+**Y la geometría del robot, medida por el usuario y validada contra el LIDAR:** del eje del LIDAR
+al borde hay **9,0 cm delante y detrás, 10,8 a cada costado** — o sea el LIDAR está **centrado** y el
+robot mide **18 × 21,6 cm**, con radio circunscrito **0,1406 m**. Se validó separándolo 3 cm de la
+pared: el LIDAR leyó **12,20 cm** donde la cinta predecía **12,00**, con n=8268 rayos y perfil plano
+en ±20°. **2 mm de error.**
+
+🔴 **Eso corrige una afirmación de `collision_monitor.yaml`**, que decía «el punto ciego de 10 cm cae
+DENTRO del chasis, no hay zona muerta» — calculado con la media longitud **cruzada** del URDF
+(0,109). Con la real de 0,090, el X2 **no ve el primer centímetro por delante ni por detrás** del
+chasis. Ningún polígono puede cubrirlo: no es cuestión de ajustar `radius`, es que el sensor no da el
+dato. Medido: con el robot **tocando** la pared se descartaron **10 277 rayos traseros** por debajo
+de `range_min`, y sólo sobrevivió uno oblicuo recortado en 10,02 cm — que basta para que el monitor
+siga congelando al robot.
+
+⏳ **La tabla de decisión del radio ya tiene la geometría, pero le falta la medida que importa:**
+la columna «para a» sale de un modelo (`≈ radius − 0,09`) y la única cifra real es «para a 20,8 cm
+sin chocar» con 0,18. **Falta medir la distancia de frenado a cada radio candidato** — y hasta
+entonces el radio no se toca.
+
 Evidencia 93.
 
 ## 2026-08-09 (robot, 15:07) — **El `FALLO` del obstáculo, cerrado por su efecto**

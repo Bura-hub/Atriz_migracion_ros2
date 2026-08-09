@@ -1024,7 +1024,8 @@ RETROCEDER hacia la pared       ->  0.0 cm    monitor: APROXIMACION
   movimiento acerca o aleja**. Sólo sale a mano.
 → ✅ **Y girando NO rozaría nada**: con el monitor puenteado dio **359,6° y 358,8° de 360**, 12,6 s
   (igual que en campo abierto), y el usuario mirando: «no ha tocado la pared en ningún momento».
-  El radio circunscrito del robot es ~14,2 cm contra un círculo de 18: **el monitor es más gordo que
+  El radio circunscrito del robot es **14,06 cm** —18 × 21,6 cm medidos con cinta el 2026-08-09, LIDAR
+  centrado y validado contra el propio LIDAR con 2 mm de error— contra un círculo de 18: **el monitor es más gordo que
   el robot.**
 → ✅ Causa aislada con una variable: bajando `Aproximacion.radius` a 0.12 en caliente, las tres
   órdenes funcionan y el monitor **frena al 40 %** en vez de congelar. Restaurado a 0.18.

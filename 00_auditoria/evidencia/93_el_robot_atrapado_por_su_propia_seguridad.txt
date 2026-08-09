@@ -44,9 +44,17 @@ Con la pared **detrás a 16,8 cm** y 188 cm libres por delante, mandando por
    👤 **«no ha tocado la pared en ningún momento»** — el usuario, mirándolo.
 
 🔎 **El número que importa girando NO es el borde trasero, son las esquinas:** el
-   robot mide 21,8 × 18,5 cm (medido, fichero 19), o sea radio circunscrito
-   ~14,2 cm. Con la pared a 16,8 cm del LIDAR el margen real es **~2,6 cm**, no
-   los 9 del borde. Positivo, y por eso no toca.
+   robot mide **18 × 21,6 cm** —medido por el usuario con las orugas, eje del
+   LIDAR a 9,0 cm de frente y atrás y a 10,8 de cada costado, o sea CENTRADO—, y
+   su radio circunscrito es **√(9,0² + 10,8²) = 14,06 cm**. Con la pared a
+   16,8 cm del LIDAR el margen real al girar es **2,7 cm**. Positivo, y por eso
+   no toca.
+   ⚠️ **Los 21,8 × 18,5 que rondan por el proyecto son del URDF y están CRUZADOS**
+      —el RVR es más ancho que largo—; el fichero 19 ya lo avisaba y aun así se
+      volvieron a usar hoy. Media longitud frontal **0,09, no 0,109**.
+   ✅ Validado el 2026-08-09 con dos instrumentos: cinta **9 cm** del eje del
+      LIDAR al borde trasero, y el LIDAR leyendo **12,20 cm** con el robot
+      separado 3 cm (12,00 esperados, n=8268 rayos, perfil plano en ±20°).
 
 
 3 · LA CAUSA, AISLADA CON UNA SOLA VARIABLE
@@ -92,12 +100,13 @@ con `radius: 0.18` el robot no cruza un paso de 40 cm, y anotó:
 Porque `radius` fija **dos cosas a la vez y en sentidos opuestos**, y la evidencia
 19 ya lo tiene tabulado:
 
-        hueco al parar ≈ radius − media longitud
+        hueco al parar ≈ radius − media longitud   (media longitud = 0,09)
         pasillo mínimo ≈ 2 × radius
 
         radius   para a    pasillo mínimo
          0.18     9 cm        36 cm      <- el actual
-         0.12     ~1 cm       24 cm
+         0.141    5,1 cm      28 cm      <- justo el radio circunscrito
+         0.12     3 cm        24 cm
 
 🔴 **Bajarlo desatasca al robot y acorta la distancia de frenado.** El valor
    actual está respaldado por una medida de la aceptación: *«el collision_monitor
@@ -112,6 +121,46 @@ Porque `radius` fija **dos cosas a la vez y en sentidos opuestos**, y la evidenc
    `/collision_monitor_state` y **avise al alumno** («no me muevo: hay algo a
    17 cm»), en vez de dejarlo mirando un robot mudo 40 segundos.
    👤 **Decisión del usuario. No se implementa sin acordarlo.**
+
+
+5bis · LA GEOMETRÍA, MEDIDA POR EL USUARIO Y VALIDADA CONTRA EL LIDAR
+────────────────────────────────────────────────────────────────────────────
+Del **eje del LIDAR** al borde, con cinta y con las orugas:
+
+    delante 9,0 cm  ·  detrás 9,0  ·  izquierda 10,8  ·  derecha 10,8
+    -> el LIDAR está CENTRADO · el robot mide 18 x 21,6 cm
+    -> radio circunscrito = √(0,090² + 0,108²) = **0,1406 m**
+
+✅ **Validado con un segundo instrumento.** Con el robot tocando la pared el
+   LIDAR no ve nada —todo por debajo de `range_min`—, así que el usuario lo
+   separó 3 cm: el LIDAR leyó **12,20 cm** donde la cinta predecía **12,00**.
+   n=8268 rayos, perfil plano en ±20° (12,06-12,32). **2 mm de error.**
+
+🔴 **Y de ahí sale una zona muerta que la configuración negaba.** Ese fichero
+   decía «el punto ciego de 10 cm cae DENTRO del chasis (media longitud 0.109),
+   no hay zona muerta» — pero 0,109 es la media longitud **cruzada del URDF**. Con
+   la real de 0,090:
+
+       delante/detrás   0,100 − 0,090 = **1,0 cm CIEGO fuera del robot**
+       costados         0,100 − 0,108 = dentro del chasis, sin zona muerta
+
+   ⚠️ **Ningún polígono puede cubrir ese centímetro**: no es cuestión de ajustar
+      `radius`, es que el sensor no da el dato. Medido: con el robot TOCANDO la
+      pared se descartaron **10 277 rayos traseros** por debajo de `range_min` y
+      sólo sobrevivió uno oblicuo, recortado en 10,02 cm — y ese basta para que
+      el monitor siga congelando al robot.
+
+📌 **La tabla de decisión del radio, ya con la geometría medida:**
+
+      radius   para a (≈r−0,09)   banda de trampa      pasillo mínimo
+       0,18         9,0 cm        14,1 − 18 = 3,9 cm       36 cm   <- el actual
+       0,145        5,5 cm        14,1 − 14,5 = 0,4        29 cm
+       0,141        5,1 cm        ninguna                  28 cm
+
+   🔴 **La columna «para a» es un MODELO, no una medida.** La única cifra real es
+      «para a 20,8 cm sin chocar» con 0,18, de la aceptación. Elegir el radio con
+      esa columna sería repetir el error que esta misma evidencia documenta.
+   ⏳ **Falta medir la distancia de frenado real a cada radio candidato.**
 
 
 6 · CÓMO SE LLEGÓ, PORQUE EL CAMINO ES EL HALLAZGO

@@ -3397,13 +3397,14 @@ frenar antes cuanto mayor es la velocidad.
 >
 > **Inmovilización total: ni siquiera puede alejarse.** Y girando **no rozaría nada**: con el
 > monitor puenteado dio **359,6° y 358,8° de 360** en 12,6 s —los mismos que en campo abierto— sin
-> tocar la pared. El radio circunscrito del robot es ~14,2 cm contra un círculo de 18.
+> tocar la pared. El radio circunscrito del robot es **14,06 cm** —18 × 21,6 cm medidos con cinta, LIDAR centrado— contra un círculo de 18.
 >
 > ⏳ **LO QUE NO SE SABE, y no se presenta como sabido:** por qué los tres casos de la tabla de
 > abajo sí salieron. Variables sin controlar entre unas medidas y otras:
 > **(a)** la dirección del obstáculo respecto al movimiento mandado —abajo la pared estaba delante
 > o al lado, hoy detrás—, y **(b)** si aquellas distancias se midieron desde el **borde** del robot
-> o desde el **LIDAR**, que son 10,9 cm de diferencia y cambian el veredicto.
+> o desde el **LIDAR**, que para un obstáculo delante o detrás son **9 cm** de diferencia
+> (media longitud real 0,09; los 0,109 del URDF están cruzados) y cambian el veredicto.
 >
 > 🔎 **El experimento que lo discrimina:** repetir las tres órdenes con la pared **delante** y con
 > la pared **al lado**, a la misma distancia medida desde el LIDAR. Hasta entonces, lo que hay que

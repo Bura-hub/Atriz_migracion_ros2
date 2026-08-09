@@ -169,7 +169,7 @@
 > `approach` escala el mando entero por el tiempo hasta colisión y con un punto **ya dentro** del
 > círculo ese factor es 0, **sin mirar si el movimiento acerca o aleja**. Sólo sale a mano.
 > → ✅ **Y girando no rozaría nada**: con el monitor puenteado, 359,6° y 358,8° de 360 en 12,6 s,
->   sin tocar la pared (el usuario mirando). Radio circunscrito 14,2 cm contra un círculo de 18:
+>   sin tocar la pared (el usuario mirando). Radio circunscrito **14,06 cm** (18 × 21,6 cm medidos con cinta, LIDAR centrado) contra un círculo de 18:
 >   **el monitor es más gordo que el robot.**
 > → ✅ Causa aislada con una variable: `Aproximacion.radius` 0.18 → 0.12 en caliente y las tres
 >   órdenes funcionan, con el monitor **frenando al 40 %** en vez de congelar. Restaurado a 0.18.
