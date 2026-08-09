@@ -91,7 +91,7 @@ parte de montar el aula, no una tarea de una sola vez*.
 🔴 **Así que la única defensa posible contra ese fallo es que alguien mire la fecha del mapa — y
 la web, que es quien tiene delante a la persona, no puede.**
 
-### Lo que propongo, y no lo hago sin que lo decidas
+### Los dos campos — propuestos, aprobados y HECHOS el mismo día
 
 Dos campos en `EstadoNavegacion`:
 
@@ -103,10 +103,16 @@ Dos campos en `EstadoNavegacion`:
 Con eso la pantalla de navegación puede decir *«mapa `cuarto3`, hecho hace 3 días»* y avisar a los
 7, que es el mismo umbral que ya usa `verificar_robot.sh`.
 
-⚠️ **Coste y por qué no lo hago de oficio:** tocar un `.msg` obliga a borrar `build/` e `install/`
-y recompilar (~4,5 min), a reiniciar el driver, y **deja el `comprobar_contrato.mjs` del PC en rojo
-hasta que alinee** — que es el flujo normal del proyecto («gana el robot»), pero es una decisión de
-coordinación, no una corrección.
+✅ **HECHO el mismo día**, con el visto bueno del usuario. `EstadoNavegacion` pasa a **13 campos**
+y el topic ya publica `mapa_nombre='cuarto3.yaml'` y `mapa_edad_s=104976` (1,22 días), contrastado
+contra el `mtime` real del fichero. La compilación en limpio del paquete de mensajes tardó **8 min**.
+
+🔴 **Le toca al PC** añadir los dos campos a `contrato.ts`; `comprobar_contrato.mjs` estará en rojo
+hasta entonces, que es lo correcto.
+
+⚠️ **Y la limitación se documenta en vez de esconderse:** es el `mtime` del fichero, **no «cuándo se
+mapeó ese espacio»**. Copiar un mapa viejo lo rejuvenece. Por eso va el **nombre** al lado: el robot
+da los dos datos y **la persona decide**.
 
 ---
 

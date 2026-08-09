@@ -36,16 +36,32 @@ de error en ningún log. **No hay otro síntoma.**
 Así que la única defensa posible es que alguien mire la fecha del mapa — **y tú, que eres quien
 tiene delante a la persona, no puedes**.
 
-Propongo añadir a `EstadoNavegacion`:
+✅ **HECHO el 2026-08-08. `EstadoNavegacion` pasa a 13 campos**, los dos nuevos al final:
 
 ```
-  string  mapa_nombre       # "cuarto3.yaml" — para que se vea CUÁL, no solo que hay
-  float32 mapa_edad_s       # segundos desde su mtime; -1.0 si no hay mapa
+  string  mapa_nombre       # "cuarto3.yaml". "" si no hay mapa
+  float32 mapa_edad_s       # segundos desde su mtime. -1.0 si no hay mapa
 ```
 
-Con eso puedes decir *«mapa `cuarto3`, hecho hace 3 días»* y avisar a los 7, que es el mismo umbral
-que ya usa `verificar_robot.sh`. ⏳ **No lo he hecho**: tocar un `.msg` te deja el
-`comprobar_contrato.mjs` en rojo hasta que alinees, y eso se coordina.
+Verificado en el topic sobre rvr-01:
+
+```
+  hay_mapa     True
+  mapa_nombre  'cuarto3.yaml'
+  mapa_edad_s  104976 s  =  1,22 días        ← y el fichero es de hace ~29 h ✅
+```
+
+Con eso puedes decir *«mapa `cuarto3`, hecho hace 1 día»* y **avisar a los 7 días**, que es el
+mismo umbral que ya usa `verificar_robot.sh`.
+
+🔴 **Lo que te toca:** añadir los dos campos a `EstadoNavegacion` en `contrato.ts`.
+`comprobar_contrato.mjs` estará en rojo hasta entonces — es correcto, la política es «gana el
+robot».
+
+⚠️ **Y una limitación que hay que pasarle al alumno, no esconderla:** `mapa_edad_s` es el `mtime`
+del fichero, **no «cuándo se mapeó ese espacio»**. Copiar un mapa viejo lo rejuvenece. Es lo mejor
+que el robot puede saber solo — por eso va **el nombre al lado**: entre los dos, una persona
+decide.
 
 📖 Detalle en
 [`00_auditoria/planes/2026-08-08-auditoria-atriz-lab-desde-el-robot.md`](../00_auditoria/planes/2026-08-08-auditoria-atriz-lab-desde-el-robot.md).

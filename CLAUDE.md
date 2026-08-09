@@ -851,6 +851,15 @@ mismos parámetros de AMCL — **lo único distinto era el mapa**:
   `SUCCEEDED` en las tres, a 6,1, a 11,8 y a 41,3 cm.** Nada que prometa precisión puede apoyarse
   en el desenlace del objetivo. n=2. Evidencias 81-84.
 
+**📌 `/estado_navegacion` DICE QUÉ MAPA ES Y DE CUÁNDO — `hay_mapa` a solas no basta.** Añadidos
+`mapa_nombre` y `mapa_edad_s` el 2026-08-08 (13 campos), porque un mapa que no es del sitio hace que
+Nav2 declare éxito **a 41,3 cm sin ningún otro síntoma** y **la única defensa es que una persona
+mire la fecha** — y quien tiene delante a la persona es la web, que solo recibía un booleano.
+→ ⚠️ **Es el `mtime` del fichero, NO «cuándo se mapeó ese espacio».** Copiar un mapa viejo lo
+  rejuvenece. Por eso va el **nombre** al lado: el robot da los dos datos y la persona decide.
+→ Verificado en el topic: `mapa_nombre='cuarto3.yaml'`, `mapa_edad_s=104976` (1,22 días) contra un
+  fichero de hace ~29 h.
+
 **📝 `/amcl_pose` no llega con el robot quieto, y no es un fallo.** AMCL solo actualiza tras
 moverse `update_min_d` (0.15 m). Mueve el robot antes de dar por roto nada.
 

@@ -1554,8 +1554,13 @@ if [[ -z "$CAMPOS_NAV" ]]; then
     _avi "no se pudo interrogar a EstadoNavegacion" "¿esta compilado atriz_rvr_msgs?"
 else
     FALTAN_NAVC=""
+    # 🔴 `mapa_nombre` y `mapa_edad_s` anadidos el 2026-08-08: `hay_mapa` a solas
+    #    no basta. Un mapa que NO es del sitio hace que Nav2 declare exito a
+    #    41,3 cm sin ningun otro sintoma (evidencias 83, 84), y la unica defensa
+    #    es que una persona mire la fecha -- la web no podia porque no le
+    #    dabamos el dato.
     for c in latido slam nav slam_detalle nav_detalle hay_mapa \
-             slam_latcheado nav_latcheado; do
+             slam_latcheado nav_latcheado mapa_nombre mapa_edad_s; do
         [[ "$CAMPOS_NAV" == *"$c"* ]] || FALTAN_NAVC="$FALTAN_NAVC $c"
     done
     if [[ -z "$FALTAN_NAVC" ]]; then

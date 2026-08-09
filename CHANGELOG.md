@@ -223,6 +223,56 @@ pantallas reales en verde.
 
 ---
 
+## 2026-08-08 (9) — **Auditoría de `atriz-lab` desde el robot, y el hueco era mío**
+
+Encargo del usuario: auditar la web *«desde tu punto de vista, que conoces todo el
+funcionamiento»*. El ángulo elegido: **no auditar TypeScript** —eso lo hacen sus 578 pruebas— sino
+**cruzar la aplicación contra las trampas que este proyecto pagó midiendo en el robot**, que no se
+ven leyendo su código porque viven al otro lado del cable.
+
+### ✅ Las once, cubiertas
+
+`/cmd_vel` rechazado con excepción y dos pruebas · `qos` que **ni se acepta como parámetro** ·
+`throttle_rate` descartado con el razonamiento bueno · **cero dependencia de `/rosapi`** ·
+`ranges.length` sin asumir · umbrales de silencio separados con prueba que impide unificarlos ·
+plazo de conexión con sus dos paredes · `result`/`success` distinguidos · `/ambient_light`
+prohibido · voltios en vez de porcentaje · `hayLectura = success` en el modo emisión.
+
+**Y el contrato coincide exactamente**, leído con AST del `robot.launch.py` contra `contrato.ts`:
+`14 · 3 · 12 · 1`, y los 17 tipos.
+
+📌 **La postura de seguridad es honesta**, que era mi mayor sospecha: `testigo.ts` dice con todas
+las letras que protege **la interfaz y no el robot**, y que cualquiera del aula puede abrir el
+WebSocket desde la consola. Un inicio de sesión que se presentara como control de acceso sin serlo
+sería el estado engañoso que este proyecto lleva meses quitando.
+
+### 🔴 Y el único hueco serio era del ROBOT
+
+`EstadoNavegacion` daba del mapa **un solo booleano**. Y un mapa que no es del sitio hace que Nav2
+declare éxito **a 41,3 cm sin ningún otro síntoma**. **La única defensa es que una persona mire la
+fecha — y la web, que es quien tiene delante a la persona, no podía.**
+
+✅ **Arreglado el mismo día** (13 campos), y verificado en el topic:
+
+```
+  mapa_nombre  'cuarto3.yaml'
+  mapa_edad_s  104976 s = 1,22 días     ← contra un fichero de hace ~29 h
+```
+
+⚠️ **Con su limitación escrita, no escondida:** es el `mtime` del **fichero**, no «cuándo se mapeó
+ese espacio». Copiar un mapa viejo lo rejuvenece. Por eso va **el nombre al lado**: el robot da los
+dos datos y **la persona decide**.
+
+📝 **La lección de la auditoría:** buscaba fallos en la web y encontré uno mío. **Auditar el
+trabajo de otro es también auditar la interfaz que le das** — y llevaba semanas escribiendo que un
+mapa rancio es el fallo más peligroso del sistema sin darme cuenta de que **no le estaba dando a
+nadie con qué detectarlo**.
+
+⚠️ **Lo que NO se auditó, dicho:** no se ejecutó nada de la web, ni el diseño visual, ni el
+rendimiento con 16 clientes reales — eso último es del aula.
+
+---
+
 ## 2026-08-08 (8) — **El modo emisión, verificado por rosbridge (que es el camino de la web)**
 
 Todo lo de la evidencia 86 estaba medido **por ROS**, con un cliente rclpy en el propio robot. La
