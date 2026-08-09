@@ -1,0 +1,138 @@
+════════════════════════════════════════════════════════════════════════════
+ 89 · LA PRUEBA DE ACEPTACIÓN, ENTERA POR PRIMERA VEZ
+      61 PASA · 8 REVISAR · 1 FALLO · 4 PENDIENTE. Y el único FALLO no es
+      el que parecía: falla el PLANIFICADOR, no el controlador.
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-08 23:03
+Robot:  rvr-01 · batería 7,22 V · 26 %
+Ejecutada por: el usuario, en terminal de verdad (la prueba lo exige)
+Informe: `evidencia_24_04/47_aceptacion_20260808_230302.txt`
+
+
+1 · POR QUÉ ESTA CORRIDA IMPORTA
+────────────────────────────────────────────────────────────────────────────
+**Nunca se había corrido entera.** La última tanda (2026-08-02) dejó **cinco
+fases en PENDIENTE**. Ésta hizo las diez, de F0 a F9.
+
+📌 **Y llegaba justo después de tocar tres cosas que ella comprueba**, ninguna
+   validada antes en el guion que decide si un robot sale a producción:
+   el plazo del acuse de Nav2 (20 → 1000 ms), el guardia de `girar()` (250 ms de
+   iteraciones → 2,0 s de reloj) y el mensaje del sensor de color.
+
+⚠️ **No la puede lanzar un agente, y es a propósito.** `sys.stdin.isatty()` la
+   aborta sin terminal interactivo: sin eso, `readline()` devuelve `''` al
+   instante y **la puerta que impide arrancar un motor con alguien delante se
+   salta sola, en silencio**. Está puesta desde el 2026-08-02 contra este mismo
+   caso. Se respetó.
+
+
+2 · EL ÚNICO FALLO, Y NO ES LO QUE PARECÍA
+────────────────────────────────────────────────────────────────────────────
+    [FALLO] objetivo CON obstaculo: Nav2 lo dio por COMPLETADO
+            estado = ABORTED
+    [REV  ] error final SEGUN AMCL      46,5 cm
+    [REV  ] error de RUMBO al llegar   162,6 °
+
+🔴 **Lo primero fue ir al journal, porque el mismo día se había descubierto que
+   `ABORTED` puede ser MENTIRA** (evidencia 88: `bt_navigator` rindiéndose
+   esperando el acuse mientras el robot llegaba). **No es el caso.** El log dice
+   otra cosa:
+
+    planner_server: [compute_path_to_pose] Aborting handle       × 8
+    behavior_server: spin → backup (failed) → spin
+    global_costmap: «Received request to clear entirely»         × 5
+    bt_navigator: Goal failed
+
+✅ **Falla el PLANIFICADOR, no el controlador.** Nav2 no encontró camino, corrió
+   sus recuperaciones —limpiar el costmap, girar, retroceder, girar— y al
+   agotarlas se rindió. **No había plan que ejecutar.**
+
+📌 **Y eso explica los otros dos números, que NO son hallazgos aparte:** los
+   **162,6°** son los **dos `spin` de 1,57 rad** encadenados por la recuperación,
+   y los 46,5 cm son dónde quedó tras ellos. Son aguas abajo del fallo.
+
+⚠️ **LO QUE NO SE SABE, y no se presenta como sabido: si es un defecto del robot
+   o un montaje demasiado justo.** El cuarto son 3,80 × 4,20 m; con un obstáculo
+   de ~16 cm a 0,75 m, más la inflación del costmap y `robot_radius: 0.145`, es
+   posible que **no hubiera corredor válido** — y entonces Nav2 hizo lo correcto:
+   no inventarse un plan.
+
+⏳ **El experimento que lo discrimina:** repetir el caso del obstáculo con más
+   hueco lateral y ver si planifica. No se hizo: batería a 7,2 V.
+
+
+3 · LOS 8 «REVISAR», TRIADOS — SIETE SON RUIDO EXPLICADO
+────────────────────────────────────────────────────────────────────────────
+    · «el servicio subió EN EL ARRANQUE: 10741,8 s»  y  «NRestarts = 4»
+      ✅ SOMOS NOSOTROS. `uptime` 273,3 min y el driver arrancó ~94 min después
+         del arranque: son los reinicios de ese mismo día —rosapi con `respawn`,
+         el `.msg` del mapa, el plazo de Nav2— más el que la propia F0 provoca.
+      📌 El guion ya advierte de esta ambigüedad en su propio texto y dice cómo
+         desempatarla («lo desempata el uptime»). Funcionó.
+
+    · los CUATRO avisos de `verificar_robot.sh`
+      ✅ Los cuatro conocidos y ya escritos: mDNS por enlace en `wlan0`,
+         `red.txt` en 755, `authorized_keys` vacío, y las credenciales de Claude
+         Code. Tres son del usuario (necesitan `sudo`).
+
+    · los DOS números del objetivo con obstáculo
+      ✅ Aguas abajo del FALLO, ver apartado 2.
+
+**O sea: un solo hallazgo real en 74 comprobaciones.**
+
+
+4 · LO QUE LA CORRIDA VALIDA DE LOS CAMBIOS DEL DÍA
+────────────────────────────────────────────────────────────────────────────
+✅ **El aviso nuevo de la aceptación funciona.** Las tres veces que reporta el
+   error de Nav2 lo llama «error final SEGUN AMCL» y añade que **no detecta si el
+   robot está donde cree**, con el caso de los 41,3 cm. Era el arreglo del
+   2026-08-08 contra un número que se leía como precisión y era coherencia
+   interna.
+
+✅ **`girar()` sin un solo falso aborto**, que es lo que se buscaba: **87,9° ·
+   174,2° · 357,8°**, deslizamiento 0,0-0,3 cm, y el signo REP-103 confirmado
+   (angular negativo → −87,2°).
+
+✅ **Los dos objetivos LIMPIOS de Nav2, `SUCCEEDED`** con el plazo de 1000 ms:
+   7,2 y 7,4 cm según AMCL, rumbo 12,5° y 12,2°.
+
+✅ **Y lo demás del robot, en su sitio:** `/odom` 16,56 Hz, `/imu` 16,60 · deriva
+   de yaw **0,005°** en 30 s · el parche del YDLIDAR aguanta (**1 línea** en 20 s
+   con el barrido parado, cuando antes eran miles) · la parada de emergencia
+   frena en **2,1 cm** y rechaza `move_timed` mientras está activa · el
+   `collision_monitor` para a **20,8 cm** sin chocar · el watchdog corta en
+   **2,8 cm**.
+
+
+5 · EL VEREDICTO, Y POR QUÉ ES EL CORRECTO
+────────────────────────────────────────────────────────────────────────────
+    61 PASA · 8 REVISAR · 1 FALLO · 4 PENDIENTE
+    🔴 NO HAY VÍA LIBRE PARA LA FASE 5
+
+Lo que lo impide, y **ninguno es una sorpresa**:
+
+    [FALLO]     el objetivo con obstáculo
+    [PENDIENTE] rosbridge sin identidad por usuario (Fase B)
+    [PENDIENTE] el hueco de los precipicios
+    [PENDIENTE] la PSK del WiFi legible por cualquier usuario
+    [PENDIENTE] la credencial `sphero` sin rotar del histórico
+
+📌 **Los cuatro PENDIENTE bloquean por decisión del 2026-08-01**, no por sorpresa:
+   se acordó que los pendientes conocidos cuentan. Es lo que impide que «61 de 74
+   en verde» se lea como vía libre.
+
+⚠️ **Y uno de ellos está mal descrito y hay que corregirlo:** «la credencial
+   `sphero` sin rotar» — **se rotó el 2026-08-04**, junto con la PSK, y se archivó
+   `Atriz_web_server`. Lo que sigue abierto es **el histórico de git**, que es
+   higiene y no exposición. El texto del guion se quedó atrás.
+
+
+6 · LA NOTA AL PIE QUE HAY QUE LEER
+────────────────────────────────────────────────────────────────────────────
+⚠️ **Batería 7,22 V · 26 %** durante toda la corrida, con el umbral de «baja» del
+   firmware en 7,0. Los números de las fases de movimiento la llevan.
+
+📌 **No parece haber afectado** —los giros salieron 87,9 / 174,2 / 357,8, en línea
+   con las bases históricas, y la parada de emergencia y el watchdog dieron cifras
+   normales— pero **se anota**, porque el día que uno de estos números se desvíe
+   habrá que poder descartarla.

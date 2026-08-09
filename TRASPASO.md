@@ -194,6 +194,40 @@
 > permanente y **326 ms** recién reiniciado el driver — esto último **desmintió mi propio margen** y
 > obligó a subir el umbral de `girar()` de 1,0 a 2,0 s.
 >
+> ═══════════════════════════════════════════════════════════════════════════════
+> ✅ **2026-08-08 23:03 · LA PRUEBA DE ACEPTACIÓN, ENTERA POR PRIMERA VEZ**
+> ═══════════════════════════════════════════════════════════════════════════════
+> Diez fases, de F0 a F9. La última tanda (2026-08-02) había dejado **cinco en PENDIENTE**.
+>
+> ```
+>   61 PASA · 8 REVISAR · 1 FALLO · 4 PENDIENTE
+>   🔴 NO HAY VÍA LIBRE PARA LA FASE 5
+> ```
+>
+> 🔴 **Un solo hallazgo real en 74 comprobaciones**, y no es el que parecía: el objetivo con
+> obstáculo dio `ABORTED`, y lo primero fue ir al journal **porque ese mismo día se descubrió que
+> `ABORTED` puede ser mentira** (evidencia 88). No lo era: `planner_server` abortó
+> `compute_path_to_pose` **ocho veces** y Nav2 agotó sus recuperaciones. **Falla el PLANIFICADOR,
+> no el controlador — no había plan que ejecutar.** Los otros dos números (46,5 cm y 162,6°) son
+> aguas abajo: los 162° son los **dos `spin` de la recuperación**.
+> ⏳ **Sin saber si es defecto del robot o montaje demasiado justo**: el cuarto son 3,8 × 4,2 m y
+> con la inflación del costmap puede que no hubiera corredor. **Se repite con más hueco lateral.**
+>
+> ✅ **Los otros 7 REVISAR son ruido explicado:** dos son nuestros reinicios del día (el propio
+> guion dice cómo desempatarlo, con el `uptime`, y funcionó), cuatro son avisos conocidos del
+> verificador, y dos son aguas abajo del FALLO.
+>
+> ✅ **Y valida los tres cambios del día**: el aviso «error final SEGUN AMCL» sale en las tres
+> lecturas · `girar()` sin un falso aborto (87,9 · 174,2 · 357,8°, signo REP-103 correcto) · y los
+> dos objetivos limpios de Nav2 en `SUCCEEDED` con el plazo de 1000 ms.
+>
+> ⚠️ **Batería 7,22 V durante toda la corrida.** No parece haber afectado —los giros salieron en
+> línea con las bases— pero se anota. Evidencia 89.
+>
+> 🔴 **Y un texto del propio guion que hay que corregir:** el PENDIENTE «la credencial `sphero` sin
+> rotar» **se rotó el 2026-08-04**. Lo que sigue abierto es el histórico de git, que es higiene y
+> no exposición.
+>
 > Última actualización: **2026-08-08**.
 >
 > Antes de esta sesión, el **2026-08-04** se cerró **el direccionamiento de la flota**
