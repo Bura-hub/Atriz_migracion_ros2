@@ -1,0 +1,145 @@
+════════════════════════════════════════════════════════════════════════════
+ 88 · LOS «ABORTADO» ERAN MENTIRA: EL ROBOT HABÍA LLEGADO LAS TRES VECES
+      Y `/initialpose` se rechazó en las DIEZ tandas de la historia del
+      proyecto sin que nadie lo mirara.
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-08 (noche)
+Robot:  rvr-01 · mapa `cuarto3` (1,26 días) · batería 7,25 V · 28 %
+Testigo físico: el usuario, con cinta métrica, dos distancias
+
+
+1 · 🔴🔴 EL HALLAZGO: `default_server_timeout` SON 20 MILISEGUNDOS
+────────────────────────────────────────────────────────────────────────────
+Una tanda de réplica volvió a dar `ABORTADO`. Al mirar el journal —que es lo que
+no se había hecho las veces anteriores— apareció esto:
+
+    22:18:57  Received a goal, begin computing control effort   <- el controlador SÍ lo recibió
+    22:18:57  Timed out while waiting for action server to acknowledge
+              goal request for follow_path
+    22:18:57  [navigate_to_pose] [ActionServer] Aborting handle
+    22:18:57  Goal failed
+    22:19:07  Reached the goal!                                 <- DIEZ SEGUNDOS DESPUÉS
+
+🔴 **`bt_navigator` se rindió esperando el ACUSE mientras `controller_server`
+   estaba conduciendo.** El robot recorrió **67 cm** y llegó, con la acción
+   marcada como fallida.
+
+📌 **Eso reinterpreta las tres tandas del 2026-08-07 y 08 que se dieron por
+   fallidas.** No fue que el robot no navegara: fue que las dos capas de Nav2 no
+   se pusieron de acuerdo. Se había atribuido a saturación de la Pi —y la
+   saturación era real y medida— pero **la causa próxima era el plazo**.
+
+LA CAUSA, en `nav2_atriz.yaml`:
+
+    default_server_timeout: 20      # milisegundos, el valor de fábrica de Nav2
+
+⚠️ **20 ms está MUY por debajo del ruido de planificación de esta máquina.**
+   Medido el mismo día: un proceso se queda sin CPU hasta **326 ms** al reiniciar
+   el driver, y ~105 ms en régimen permanente. El plazo estaba por debajo de un
+   parón que ocurre de verdad — exactamente la misma forma que el guardia de
+   `girar()`, que se rendía a los 250 ms (evidencia 85).
+
+✅ **ARREGLADO: 1000 ms.** Tres veces el peor parón medido. Y verificado por
+   efecto: la tanda siguiente, en las mismas condiciones y con MÁS carga, terminó
+   **`SUCCEEDED`**.
+
+⚠️ **Lo que cuesta subirlo, dicho:** si un servidor de acción está de verdad
+   muerto, el árbol tarda 1 s en enterarse en vez de 20 ms. Para la navegación de
+   un alumno no se nota; abortar un objetivo que se estaba cumpliendo, sí.
+
+
+2 · 🔴 Y `/initialpose` SE RECHAZÓ EN LAS DIEZ TANDAS
+────────────────────────────────────────────────────────────────────────────
+En el mismo journal, cinco segundos antes del objetivo:
+
+    Failed to transform initial pose in time (Lookup would require extrapolation
+    into the future. Requested time 1786245532.617881 but the latest data is at
+    time 1786245532.548389, …)
+
+El banco sellaba `/initialpose` con `now()`, y ese instante iba **69 ms por
+delante** de lo último que tenía TF. AMCL la descartaba.
+
+    ocurrencias en el journal:  **10 de 10 tandas de navegación**
+    2026-08-07  13:32 · 14:05 · 14:08 · 14:49 · 15:26 · 15:46 · 15:52 · 16:14
+    2026-08-08  12:33 · 22:18
+
+🔴 **O sea que el banco creía estar fijando la pose inicial y no la fijaba
+   NUNCA**, en ninguna de las medidas de las evidencias 83 y 84.
+
+📌 **El daño fue menor, y hay que decir por qué para no exagerarlo:** AMCL arranca
+   en (0,0) por su propio `set_initial_pose: true`, y el journal confirma que
+   empezaba bien —`Begin navigating from current location (-0,02 · 0,00)`—. La
+   pose de partida era la correcta **por otra vía**. Las evidencias 83 y 84 se
+   sostienen.
+
+⚠️ **Pero la línea mentía**, y es la clase de cosa que habría explicado un
+   resultado raro con la causa equivocada. Es «comprobar el efecto no basta si no
+   se descarta la otra causa del efecto» esperando a ocurrir.
+
+✅ **ARREGLADO:** sello **0**, que en tf2 significa «usa la transformada más
+   reciente» — lo correcto para una pose que no es crítica en el tiempo.
+
+
+3 · LA RÉPLICA, YA CON n=3
+────────────────────────────────────────────────────────────────────────────
+    medido:  AB = 1,00 m    AP = 0,70 m    BP = 1,18 m
+
+                     x         y      distancia   rumbo    ERROR DE POSICIÓN
+    cinta         +0,698    +0,049      70,0 cm    +4,0°         —
+    odometría     +0,700    +0,051      70,2 cm    +4,2°       0,3 cm   ✅
+    AMCL          +0,736    -0,024      73,6 cm    -1,9°       8,2 cm   🔴
+
+    ┌──────────────────────┬────────────┬────────┬────────┬──────────┬───────┐
+    │                      │ al objetivo│ ¿<10cm?│  odom  │   AMCL   │ carga │
+    ├──────────────────────┼────────────┼────────┼────────┼──────────┼───────┤
+    │ mapa viejo (ev. 83)  │   41,3 cm  │  🔴 NO │  1,5   │   45,0   │   —   │
+    │ tanda 1  (07)        │    6,1 cm  │  ✅ SÍ │  4,2   │    8,9   │  5,3  │
+    │ tanda 2  (08)        │   11,8 cm  │  🔴 NO │  2,2   │   15,2   │  6,5  │
+    │ tanda 3  (08 noche)  │   11,3 cm  │  🔴 NO │  0,3   │    8,2   │  9,0  │
+    └──────────────────────┴────────────┴────────┴────────┴──────────┴───────┘
+
+✅ **LA ODOMETRÍA ES LA FUENTE FIABLE, y ya no admite discusión:**
+   **1,5 · 4,2 · 2,2 · 0,3 cm** contra cinta, cuatro tandas, DOS mapas y cargas
+   de 5 a 9 sobre 4 núcleos.
+
+🔴 **AMCL es de 3 a 27 veces peor: 45,0 · 8,9 · 15,2 · 8,2 cm.**
+
+🔴 **Y se CONFIRMA la retirada del 2026-08-08:** «el *llegué* de Nav2 ya es
+   cierto» **no se sostiene**. Con n=3, **dos de tres cayeron FUERA** de la
+   tolerancia de 10 cm. La cifra honesta sigue siendo **~10-12 cm**.
+
+
+4 · DOS CONFUSORES QUE SE AVISARON ANTES Y NO SE MATERIALIZARON
+────────────────────────────────────────────────────────────────────────────
+Se avisó al usuario **antes** de tomar la medida de que había dos, y él decidió
+tirar igual. Los dos quedan anotados porque esa es la regla:
+
+    batería   7,25 V · 28 %     (umbral de «baja» del firmware: 7,0 V)
+    carga     9,02 al mandar el objetivo, 10,23 al terminar, sobre 4 núcleos
+              (las tandas anteriores: 5,3 · 6,5 · 3,97 — ésta es la peor)
+
+✅ **Y no se materializaron.** La tanda con la batería más baja y la carga más
+   alta dio **el MEJOR resultado de odometría de las cuatro (0,3 cm)** y la mejor
+   cifra de AMCL del mapa nuevo. La medida es utilizable.
+
+📌 **Y aporta un dato que no se buscaba: con la CPU al doble de carga la
+   odometría no se degrada.** Si hubiera salido rara no se habría podido concluir
+   nada; al salir en línea, refuerza.
+
+📝 **La forma correcta de manejar un confusor conocido:** decirlo ANTES, decidir
+   con quien tiene la responsabilidad, y escribirlo pase lo que pase. Lo que no
+   vale es medir primero y buscar la explicación después.
+
+
+5 · LO QUE ESTO CAMBIA PARA LA WEB
+────────────────────────────────────────────────────────────────────────────
+🔴 **`ABORTED` de `navigate_to_pose` TAMPOCO es de fiar.** Ya se sabía que
+   `SUCCEEDED` podía estar equivocado en 41 cm; ahora se sabe que **`ABORTED`
+   puede significar que el robot llegó perfectamente**.
+
+📌 **Las dos direcciones fallan, así que el desenlace de la acción no informa de
+   lo que pasó.** Una pantalla que diga «no se pudo llegar» sobre un robot que
+   está en el destino es tan mala como la contraria.
+
+✅ **Lo que sí se puede mostrar:** el desplazamiento por `/odom`, que es la fuente
+   que acierta a 0,3-4,2 cm.

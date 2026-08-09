@@ -38,6 +38,7 @@ import rclpy
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy
+from builtin_interfaces.msg import Time
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from nav2_msgs.action import NavigateToPose
@@ -148,7 +149,17 @@ print(f'  carga al mandar el objetivo: {carga():.2f}  (tras {time.monotonic()-t0
 # ── 4 · pose inicial y objetivo ──────────────────────────────────────────────
 ip = PoseWithCovarianceStamped()
 ip.header.frame_id = 'map'
-ip.header.stamp = n.get_clock().now().to_msg()
+# 🔴 SELLO A CERO, y NO es dejarlo sin poner. Con `now()` AMCL rechazaba la
+#    pose: «Failed to transform initial pose in time (Lookup would require
+#    extrapolation into the future)» — el sello iba unas decenas de ms por
+#    delante de lo ultimo que tenia TF. Medido el 2026-08-08: habia pasado en
+#    las **10** tandas de navegacion del proyecto, o sea que este banco creia
+#    estar fijando la pose y no la fijaba NUNCA.
+#    Un sello de 0 significa «usa la transformada mas reciente», que es
+#    exactamente lo que se quiere para una pose que no es critica en el tiempo.
+#    📌 El dano fue menor —AMCL arranca en (0,0) por `set_initial_pose`, y el
+#       journal muestra que empezaba en (-0.02, 0.00)— pero la linea mentia.
+ip.header.stamp = Time()          # ya ES un mensaje: no lleva .to_msg()
 ip.pose.pose.orientation.w = 1.0
 ip.pose.covariance[0] = ip.pose.covariance[7] = 0.25
 ip.pose.covariance[35] = 0.07

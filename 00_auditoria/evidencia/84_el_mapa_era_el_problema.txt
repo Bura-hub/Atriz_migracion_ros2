@@ -175,6 +175,35 @@ Descartadas también las otras dos causas que la sesión del 08 destapó:
    agujero que nadie había mirado.
 
 
+4d · TERCERA TANDA (2026-08-08 noche) — n=3, Y LA RETIRADA SE CONFIRMA
+────────────────────────────────────────────────────────────────────────────
+    medido:  AB = 1,00 m    AP = 0,70 m    BP = 1,18 m
+    cinta (+0,698 · +0,049)   ·   odometría 0,3 cm   ·   AMCL 8,2 cm
+
+    ┌──────────────────────┬────────────┬────────┬───────┬────────┬───────┐
+    │                      │ al objetivo│ ¿<10cm?│  odom │  AMCL  │ carga │
+    ├──────────────────────┼────────────┼────────┼───────┼────────┼───────┤
+    │ mapa viejo (ev. 83)  │   41,3 cm  │  🔴 NO │  1,5  │  45,0  │   —   │
+    │ tanda 1              │    6,1 cm  │  ✅ SÍ │  4,2  │   8,9  │  5,3  │
+    │ tanda 2              │   11,8 cm  │  🔴 NO │  2,2  │  15,2  │  6,5  │
+    │ tanda 3              │   11,3 cm  │  🔴 NO │  0,3  │   8,2  │  9,0  │
+    └──────────────────────┴────────────┴────────┴───────┴────────┴───────┘
+
+🔴 **Con n=3, DOS DE TRES caen fuera de la tolerancia.** La retirada de «el
+   *llegué* de Nav2 ya es cierto» queda confirmada, y la cifra honesta sigue
+   siendo **~10-12 cm**.
+
+✅ **La odometría ya no admite discusión: 1,5 · 4,2 · 2,2 · 0,3 cm**, cuatro
+   tandas, DOS mapas y cargas de 5 a 9 sobre 4 núcleos.
+
+📌 **Y esta tanda se tomó con los dos peores confusores —batería 7,25 V y carga
+   9,0— avisados ANTES de medir**, y decidiendo el usuario. Dio el MEJOR
+   resultado de odometría de las cuatro. No se materializaron, y de regalo: **con
+   la CPU al doble de carga la odometría no se degrada.**
+
+⚠️ Detalle completo, con los DOS fallos de Nav2 que destapó, en la evidencia 88.
+
+
 5 · LO QUE NO SE ARREGLÓ, Y NO SE PRESENTA COMO ARREGLADO
 ────────────────────────────────────────────────────────────────────────────
 🔴 **AMCL sigue siendo PEOR que la odometría**: 8,9 y 15,2 contra 4,2 y 2,2.
@@ -209,6 +238,19 @@ vuelta, más el ciclo previo— el usuario midió el robot a **3,3 cm de la marc
 
 
 7 · Y UNA CAUSA DE ABORTO QUE NO ERA LA QUE PARECÍA
+    🔴 CORREGIDO EL 2026-08-08: TAMPOCO ERA ÉSTA. Ver la evidencia 88.
+       Lo de abajo atribuye los abortos a la saturación de la Pi. La saturación
+       era REAL y estaba medida (load 8,39 sobre 4 núcleos), pero **la causa
+       próxima era otra**: `default_server_timeout: 20` — veinte milisegundos
+       para el acuse entre `bt_navigator` y `controller_server`. El journal lo
+       decía y no se había leído:
+           «Received a goal, begin computing control effort» … «Timed out while
+            waiting for action server to acknowledge» … «Reached the goal!» 10 s
+            después.
+       **El robot había navegado bien las tres veces.** La saturación era el
+       fondo que hacía que 20 ms no bastaran; el plazo era el disparador.
+       📝 Y es la segunda vez en esta evidencia que una explicación correcta en
+          los datos resulta incompleta en la causa.
 ────────────────────────────────────────────────────────────────────────────
 Dos objetivos seguidos habían ABORTADO con:
 

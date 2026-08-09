@@ -15,6 +15,50 @@ para saber por dónde vas.
 
 ---
 
+## 📣 🔴 URGENTE PARA TU PANTALLA: `ABORTED` DE NAV2 TAMPOCO ES DE FIAR
+
+Ya sabías que `SUCCEEDED` podía estar equivocado en 41 cm. Ahora sabemos que **`ABORTED` puede
+significar que el robot llegó perfectamente.** Medido el 2026-08-08 leyendo el journal, que es lo
+que no se había hecho las tres veces anteriores:
+
+```
+  22:18:57  Received a goal, begin computing control effort   ← el controlador SÍ lo recibió
+  22:18:57  Timed out while waiting for action server to acknowledge … follow_path
+  22:18:57  [navigate_to_pose] Aborting handle · Goal failed
+  22:19:07  Reached the goal!                                 ← DIEZ SEGUNDOS DESPUÉS
+```
+
+`bt_navigator` se rendía esperando el **acuse** mientras `controller_server` conducía. La causa:
+`default_server_timeout: 20` — **veinte milisegundos**, el valor de fábrica de Nav2, cuando en esta
+Pi un proceso se queda sin CPU hasta **326 ms**.
+
+✅ **Subido a 1000 ms en el robot y verificado por efecto.** Pero el aviso para ti no caduca:
+
+🔴 **LAS DOS DIRECCIONES FALLAN. El desenlace de `navigate_to_pose` no informa de lo que pasó.**
+Una pantalla que diga «no se pudo llegar» sobre un robot que está en el destino es tan mala como la
+contraria. **Lo que sí puedes mostrar es el desplazamiento por `/odom`**, que acierta a 0,3-4,2 cm.
+
+📌 Y **reinterpreta las tres tandas que te conté como fallidas**: el robot había navegado bien las
+tres veces.
+
+### Y la réplica, ya con n=3
+
+```
+                        al objetivo  ¿<10cm?   odom   AMCL   carga
+  mapa viejo (ev. 83)      41,3 cm    🔴 NO     1,5   45,0     —
+  tanda 1                   6,1 cm    ✅ SÍ     4,2    8,9    5,3
+  tanda 2                  11,8 cm    🔴 NO     2,2   15,2    6,5
+  tanda 3                  11,3 cm    🔴 NO     0,3    8,2    9,0
+```
+
+**Dos de tres fuera de la tolerancia.** La cifra honesta para tu pantalla sigue siendo **~10-12 cm**,
+no los 10 que Nav2 anuncia. Y **la odometría es la fuente fiable**: 1,5 · 4,2 · 2,2 · 0,3 cm en
+cuatro tandas, dos mapas y cargas de 5 a 9 sobre 4 núcleos.
+
+📖 Evidencia 88.
+
+---
+
 ## 📣 TUS DOS DEVOLUCIONES — una es mía y la otra no, y la tuya vale más igual
 
 ### 1 · El umbral de 7 días **sí existe**. Tu premisa es falsa; tu conclusión, mejor que mi cita.

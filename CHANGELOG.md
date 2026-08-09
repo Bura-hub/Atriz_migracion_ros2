@@ -321,6 +321,64 @@ pantallas reales en verde.
 
 ---
 
+## 2026-08-08 (11) — **Los `ABORTADO` eran mentira: el robot había llegado las tres veces**
+
+Réplica de la navegación (n=3) que destapó **dos fallos de Nav2**, y el segundo llevaba desde el
+principio del proyecto.
+
+### 🔴 `default_server_timeout: 20` — veinte milisegundos para el acuse
+
+```
+  22:18:57  Received a goal, begin computing control effort   ← el controlador SÍ lo recibió
+  22:18:57  Timed out while waiting for action server to acknowledge … follow_path
+  22:18:57  Aborting handle · Goal failed
+  22:19:07  Reached the goal!                                 ← DIEZ SEGUNDOS DESPUÉS
+```
+
+**`bt_navigator` se rinde esperando el acuse mientras `controller_server` conduce.** El robot
+recorrió 67 cm y llegó, con la acción marcada como fallida.
+
+📌 **Reinterpreta las tres tandas del 07 y 08 dadas por fallidas: el robot había navegado bien las
+tres.** Se atribuyeron a saturación de la Pi —real y medida— pero **la causa próxima era el plazo**.
+20 ms está muy por debajo del ruido de planificación de esta máquina (326 ms al reiniciar el
+driver). ✅ Subido a **1000 ms** y verificado por efecto.
+
+### 🔴 Y `/initialpose` se rechazó en las DIEZ tandas de la historia del proyecto
+
+`Failed to transform initial pose in time (extrapolation into the future)` — el sello iba **69 ms**
+por delante de lo último que tenía TF. **El banco creía fijar la pose y no la fijaba nunca.**
+
+📌 **El daño fue menor y hay que decir por qué:** AMCL arranca en (0,0) por su `set_initial_pose`, y
+el journal confirma `Begin navigating from current location (-0,02 · 0,00)`. Las evidencias 83 y 84
+se sostienen. ✅ Arreglado con sello `0`.
+
+### La réplica, con n=3
+
+```
+                        al objetivo  ¿<10cm?   odom   AMCL   carga
+  mapa viejo (ev. 83)      41,3 cm    🔴 NO     1,5   45,0     —
+  tanda 1                   6,1 cm    ✅ SÍ     4,2    8,9    5,3
+  tanda 2                  11,8 cm    🔴 NO     2,2   15,2    6,5
+  tanda 3                  11,3 cm    🔴 NO     0,3    8,2    9,0
+```
+
+🔴 **Dos de tres fuera de tolerancia**: la retirada de «el *llegué* de Nav2 ya es cierto» queda
+confirmada, y la cifra honesta es **~10-12 cm**.
+✅ **La odometría ya no admite discusión: 1,5 · 4,2 · 2,2 · 0,3 cm**, cuatro tandas, dos mapas y
+cargas de 5 a 9.
+
+### 📝 Y dos confusores avisados ANTES que no se materializaron
+
+La tanda se tomó con **batería 7,25 V (28 %)** y **carga 9,0** — las peores condiciones de las
+cuatro. Se avisó al usuario antes de medir, él decidió tirar, y quedan escritos. **Dieron el mejor
+resultado de odometría de las cuatro (0,3 cm).**
+
+📌 De regalo: **con la CPU al doble de carga la odometría no se degrada.** Y la forma correcta de
+manejar un confusor conocido: **decirlo antes, decidir con quien tiene la responsabilidad, y
+escribirlo pase lo que pase.** Lo que no vale es medir primero y buscar la explicación después.
+
+---
+
 ## 2026-08-08 (10) — **El disparador de `girar()`: siete hipótesis fuera, y NO reproducido**
 
 Sesión dedicada a aislar el fallo intermitente del apartado 1 de la evidencia 85. **Resultado: un

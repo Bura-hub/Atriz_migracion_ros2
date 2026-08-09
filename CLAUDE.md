@@ -877,6 +877,38 @@ mismos parámetros de AMCL — **lo único distinto era el mapa**:
   `SUCCEEDED` en las tres, a 6,1, a 11,8 y a 41,3 cm.** Nada que prometa precisión puede apoyarse
   en el desenlace del objetivo. n=2. Evidencias 81-84.
 
+**🔴🔴 EL `ABORTED` DE NAV2 TAMPOCO ES DE FIAR: `default_server_timeout` SON 20 ms Y ABORTA
+OBJETIVOS QUE SE COMPLETAN.** Medido el 2026-08-08 (evidencia 88), leyendo el journal, que es lo
+que no se había hecho las tres veces anteriores:
+
+```
+22:18:57  Received a goal, begin computing control effort   <- el controlador SÍ lo recibió
+22:18:57  Timed out while waiting for action server to acknowledge … follow_path
+22:18:57  [navigate_to_pose] Aborting handle · Goal failed
+22:19:07  Reached the goal!                                 <- DIEZ SEGUNDOS DESPUÉS
+```
+
+→ **`bt_navigator` se rinde esperando el ACUSE mientras `controller_server` conduce.** El robot
+  recorrió 67 cm y llegó, con la acción marcada como fallida.
+→ 🔴 **Reinterpreta las tres tandas del 07 y 08 dadas por fallidas: el robot había navegado bien
+  las tres.** Se atribuyeron a saturación de la Pi —que era real y medida— pero la causa próxima
+  era el plazo.
+→ **20 ms está MUY por debajo del ruido de planificación de esta máquina**: un proceso se queda sin
+  CPU hasta **326 ms** al reiniciar el driver y ~105 ms en régimen permanente. Misma forma que el
+  guardia de `girar()` rindiéndose a los 250 ms. ✅ **Subido a 1000 ms** y verificado por efecto.
+→ 🔴 **Y para la web: las DOS direcciones fallan.** `SUCCEEDED` puede estar equivocado en 41 cm y
+  `ABORTED` puede significar que llegó. **El desenlace de la acción no informa de lo que pasó.**
+
+**🔴 `/initialpose` CON SELLO `now()` SE RECHAZA: «extrapolation into the future».** El sello iba
+**69 ms** por delante de lo último que tenía TF, y AMCL la descartaba. Pasó en **las 10 tandas de
+navegación de la historia del proyecto** sin que nadie mirara: el banco creía fijar la pose y no la
+fijaba nunca.
+→ 📌 **El daño fue menor y conviene decir por qué**, para no exagerarlo: AMCL arranca en (0,0) por
+  su `set_initial_pose: true`, y el journal confirma `Begin navigating from current location
+  (-0,02 · 0,00)`. La pose de partida era correcta **por otra vía**. Las evidencias 83 y 84 se
+  sostienen.
+→ ✅ **Arreglo: sello `0`**, que en tf2 significa «usa la transformada más reciente». Evidencia 88.
+
 **📌 `/estado_navegacion` DICE QUÉ MAPA ES Y DE CUÁNDO — `hay_mapa` a solas no basta.** Añadidos
 `mapa_nombre` y `mapa_edad_s` el 2026-08-08 (13 campos), porque un mapa que no es del sitio hace que
 Nav2 declare éxito **a 41,3 cm sin ningún otro síntoma** y **la única defensa es que una persona
@@ -1842,7 +1874,8 @@ de verdad. Dos consecuencias que cambian el día a día:
 | ✅ **GIRO POR ANGULO** | **n=3**: 90°→**86.6 / 86.2 / 87.7°** · 180°→**179.6 / 179.6 / 179.6°** · 360°→**358.4 / 357.9 / 358.8°**. Rango 1.5° / **0.0°** / 0.9°. Deslizamiento **0.0–0.3 cm** · signo REP-103. 📝 Con baterías del 55 al 100 %: **el déficit NO depende de la carga**, y el de 180° sale idéntico las tres veces | 2026-08-02, evidencias 48 y 55 |
 | ✅ **Nav2: error de RUMBO al llegar** | **13.6 · 10.1 · 14.1°** — dato NUEVO. Nav2 los da por `SUCCEEDED` (su `yaw_goal_tolerance` lo permite), pero **un robot que llega mirando 14° a un lado importa para la web** | 2026-08-02, evidencia 55 |
 | 🔴 **Nav2 navegando** | «error final **9–10 cm**» — 🔴 **NO ES UNA MEDIDA: es la `xy_goal_tolerance` repetida.** Sale de la pose que el robot se atribuye, y el controlador para cuando **cree** estar dentro, así que da ~10 cm esté donde esté. Con cinta y trilateración: **6,1 · 11,8 · y 41,3 cm** con un mapa rancio, y `SUCCEEDED` las tres veces | 2026-07-31, corregido 2026-08-08 |
-| ⚠️ **Nav2, error REAL contra cinta** (trilateración, no la diagonal) | **6,1 y 11,8 cm** de un objetivo de 80, sobre un mapa **fresco** — una tanda dentro de la tolerancia de 10 y otra fuera · AMCL **8,9 y 15,2**, odometría **4,2 y 2,2** · corrección `map→odom` **0,028 y 0,021 m**. 🔴 Con el mapa **rancio**: **41,3 · 45,0 · 0,424**. 🔴 **Nav2 declaró ÉXITO en las TRES.** n=2 | 2026-08-07/08, evidencia 84 |
+| ⚠️ **Nav2, error REAL contra cinta** (trilateración, no la diagonal) | **n=3: 6,1 · 11,8 · 11,3 cm** — **DOS de tres FUERA** de la tolerancia de 10 · odometría **1,5 · 4,2 · 2,2 · 0,3 cm** (n=4, dos mapas, cargas de 5 a 9) · AMCL **45,0 · 8,9 · 15,2 · 8,2**. 🔴 La cifra honesta es **~10-12 cm**, no la tolerancia | 2026-08-07/08, evidencias 84 y 88 |
+| ~~Nav2, error real (n=2)~~ | **6,1 y 11,8 cm** de un objetivo de 80, sobre un mapa **fresco** — una tanda dentro de la tolerancia de 10 y otra fuera · AMCL **8,9 y 15,2**, odometría **4,2 y 2,2** · corrección `map→odom` **0,028 y 0,021 m**. 🔴 Con el mapa **rancio**: **41,3 · 45,0 · 0,424**. 🔴 **Nav2 declaró ÉXITO en las TRES.** n=2 | 2026-08-07/08, evidencia 84 |
 | ✅ **Deriva acumulada de la odometría** | **3,3 cm** tras un ciclo completo (ida 45 cm, giro de 125°, vuelta, ×2), medido con cinta a la marca de partida | 2026-08-07 |
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |
 | Nav2 solo | ~58 % de un núcleo — la pieza más pesada | 2026-07-31 |
