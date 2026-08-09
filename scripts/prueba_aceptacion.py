@@ -1253,10 +1253,32 @@ def f7(a: Aceptacion) -> None:
         print('    volviendo al origen con Nav2 (sin tocarlo)…')
         objetivo(-1.50, 'regreso al origen', absoluta=partida)
         time.sleep(3)
+        # 🔴🔴 LOS 60 cm NO SON UN NUMERO REDONDO: SON EL UMBRAL MEDIDO.
+        #    El unico FALLO de la corrida del 2026-08-08 fue justo este objetivo,
+        #    y el 2026-08-09 (evidencias 90 y 91) se midio por que. El MAPA
+        #    engorda los objetos ~5 cm por lado, asi que un hueco FISICO de 45 cm
+        #    entra en el mapa como 35; inflando el radio inscrito (14,5 cm) desde
+        #    cada borde queda UNA celda a coste 96, y en la fila exacta del
+        #    obstaculo NINGUNA. NavFn entonces no aprieta: TRAZA UN RODEO de
+        #    168-233 % de largo que en un cuarto de 3,8 x 4,2 m no cabe, roza la
+        #    inflacion, el controlador ve colision y `failure_tolerance: 0.3` mata
+        #    el objetivo en tres decimas.
+        #
+        #        hueco minimo ~ 2 x (14,5 inscrito + 5 engorde + 5 celda) ~ 49 cm
+        #        con 60 cm el plan sale RECTO (unica tanda que lo hizo: 14 cm de
+        #        desvio). Con 45 y con 34 rodea SIEMPRE.
+        #
+        #    ✅ Y se puede comprobar SIN MOVER EL ROBOT antes de gastar la tanda:
+        #       `mediciones_banco/consultar_plan.py` pregunta la ruta a Nav2 con
+        #       `compute_path_to_pose`. Si dice «RODEA», el montaje esta mal y la
+        #       tanda va a fallar; ensancha antes de mover nada.
         a.puerta('COLOCA EL OBSTACULO a ~0.75 m por delante del robot, escorado\n'
                  '     ~6 cm a la IZQUIERDA del eje. Algo de ~16 cm de ancho.\n'
                  '     🔴 MAS ALTO DE 15.5 cm: por debajo el LIDAR NO LO VE.\n'
-                 '     Deja ~60 cm libres por la derecha para que pueda rodearlo.\n'
+                 '     🔴 DEJA 60 cm LIBRES POR LA DERECHA, Y MIDELOS CON CINTA.\n'
+                 '        No es orientativo: por debajo de ~49 cm Nav2 no aprieta,\n'
+                 '        RODEA — y en este cuarto el rodeo no cabe y ABORTA.\n'
+                 '        Es lo que causo el unico FALLO del 2026-08-08 (ev. 91).\n'
                  '     ⚠️ NO muevas el robot: romperia la pose de SLAM.')
 
         desvio = objetivo(1.50, 'objetivo CON obstaculo')

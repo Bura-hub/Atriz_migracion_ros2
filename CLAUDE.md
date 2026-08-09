@@ -970,6 +970,53 @@ mire la fecha** — y quien tiene delante a la persona es la web, que solo recib
 → Verificado en el topic: `mapa_nombre='cuarto3.yaml'`, `mapa_edad_s=104976` (1,22 días) contra un
   fichero de hace ~29 h.
 
+**🔴🔴 EL MAPA ENGORDA LOS OBJETOS ~5 cm POR LADO, Y ESO CIERRA HUECOS QUE SÍ CABEN.** Medido el
+2026-08-09 (evidencia 91) con los tres instrumentos sobre la misma fila, hueco físico de 45 cm:
+
+```
+LIDAR crudo (retornos)   ... (82,-21)   [HUECO 44,8 cm]   (82,+24) ...
+cinta del usuario                          45 cm
+MAPA DE SLAM en x=85     ocupado en -20, -15  y en +20  ->  hueco 35 cm
+```
+
+→ 🔴 El mapa marca ocupado a **-15 cm cuando el objeto real empieza en -21,3**. Inflando 14,5 cm (el
+  radio inscrito) desde cada borde del mapa, la ventana transitable queda en **una celda a coste 96**,
+  y en la fila exacta de los objetos **en ninguna**. NavFn no puede cruzar y **traza un RODEO**: 168-233 %
+  de largo, 68-115 cm de desvío lateral, en un cuarto con 55 y 67 cm a los lados.
+→ ✅ **Regla con número, no intuición:** `hueco mínimo ≈ 2 × (14,5 inscrito + 5 engorde + 5 celda) ≈ 49 cm`
+  para que sea TRANSITABLE, y **entre 45 y 60 cm** para que además sea barato y Nav2 no prefiera rodear.
+  La única tanda con plan recto fue la de 60 cm (14 cm de desvío).
+→ ✅ **Y explica el único `FALLO` de la prueba de aceptación del 2026-08-08:** montaje demasiado justo.
+  Cadena completa: hueco 45 → mapa 35 → inflación lo cierra → rodeo → `collision ahead` →
+  `failure_tolerance: 0.3` → `Controller patience exceeded` → `ABORTED`.
+→ ⏳ **De dónde salen esos 5 cm: NO VERIFICADO.** Candidatos sin medir: celdas de 5 cm, el modelo de
+  ocupación de slam_toolbox, error residual de pose.
+
+**✅ `compute_path_to_pose` PLANIFICA SIN MOVER EL ROBOT — ÚSALO ANTES DE GASTAR BATERÍA.** Es la
+acción que `bt_navigator` usa por dentro; llamada suelta devuelve la ruta sin encadenarla al
+controlador. **Cuatro tandas de robot en marcha no distinguieron «Nav2 traza recto y el robot no
+sigue» de «Nav2 traza un rodeo»; una consulta de dos minutos sí.** Herramienta:
+`00_auditoria/evidencia/mediciones_banco/consultar_plan.py`.
+
+**🔴 `99` EN EL COSTMAP PUBLICADO NO ES «CASI LETAL»: ES EL RADIO INSCRITO**, y para NavFn es tan
+infranqueable como `100`. El umbral que hay que mirar es **99**, no 100. Costó una lectura entera
+mal interpretada el 2026-08-09.
+
+**🔴 MOVER EL ROBOT A MANO ES UN TELETRANSPORTE PARA SLAM**, igual que poner la odometría a cero con
+`/set_pos_and_yaw`. slam_toolbox sigue registrando barridos desde un origen que se movió bajo sus
+pies y **el mapa queda embadurnado** (medido: 40 % letal, el robot y el objetivo en bolsas separadas
+por un muro inexistente, planificador fallando 8 veces).
+→ ✅ Después de recolocar el robot a mano, **reinicia SLAM**. AMCL sí lo encaja; SLAM no.
+
+**🔴 EL SUPERVISOR RECHAZA SLAM CON AMCL VIVA, Y AL REVÉS** —«SLAM y AMCL son excluyentes»—: los dos
+publican `map -> odom`. Para la variante con SLAM hay que lanzar `nav2.launch.py` **a mano**, como
+hace `prueba_aceptacion.py`. `atriz-nav.sh` lanza `localizacion.launch.py` y `nav2.launch.py` por
+separado, así que la variante es sustituir el primero por `slam.launch.py`.
+
+**⏳ `failure_tolerance: 0.3` en `controller_server`: el controlador aborta tras 0,3 s sin poder
+generar mando.** Mismo patrón que el `default_server_timeout: 20` de la evidencia 88. **NO SE HA
+TOCADO**: no está medido que subirlo arregle nada y con el mapa estrecho el rodeo seguiría ahí.
+
 **🔴🔴 METER OBJETOS EN UNA HABITACIÓN YA MAPEADA DESPLAZA A AMCL MÁS DE UN METRO.** Medido el
 2026-08-09 (evidencia 90) con una puerta de dos cajas en un pasillo, sobre el mapa `cuarto3` hecho
 dos días antes con el pasillo despejado:
@@ -985,14 +1032,17 @@ dos días antes con el pasillo despejado:
 → 🔴 **Para el aula es directo: si un alumno deja una silla donde no estaba, la navegación se va al
   traste** — y con `SUCCEEDED` de por medio. Precisa la regla del mapa fresco con un mecanismo:
   **no hace falta que el mapa sea viejo, basta con AÑADIR objetos.**
-→ ✅ **Y de paso: EL PLANIFICADOR NO RECHAZÓ NADA**, ni con 30 cm de hueco y 4,1 cm de holgura por
-  lado. La hipótesis de que el `FALLO` de la aceptación era «geometría demasiado justa» **no se
-  reproduce**.
+→ 🔴🔴 **PERO LA ATRIBUCIÓN DE CAUSA DE ESA TANDA ESTÁ RETIRADA (evidencia 91, mismo día).** Se
+  escribió que el robot se desviaba porque AMCL casaba contra un mapa sin los objetos. Se repitió
+  **con SLAM** —que mapea la puerta en vivo, así que ese mecanismo no puede darse— y el robot
+  **falló igual, con `map -> odom` en 0,035 m**. Las medidas de arriba son buenas; la explicación no.
+  Los desvíos laterales **eran el plan**, no AMCL perdiendo al robot: Nav2 rodeaba.
+→ ✅ Lo que SÍ sigue en pie de esa tanda: la deriva de AMCL hasta 1,68 m es real, y para el aula
+  vale igual — **si un alumno deja una silla donde no estaba, la localización se degrada más de un
+  metro** y con `SUCCEEDED` de por medio.
 → 🔴 **Y una predicción mía que falló:** con 45 cm de hueco el margen es 11,9 cm por lado contra un
-  `robot_radius` de 14,5, así que «debería fallar». **Pasó sin despeinarse.** Las celdas dentro del
-  radio del robot tienen coste ALTO pero **no son intransitables**: NavFn las cruza si no hay
-  alternativa. Los «29 cm mínimo / 50 cómodo» derivados de la inflación **no son el criterio**.
-→ ⚠️ **Sin separar:** si AMCL se pierde y por eso el robot se desvía, o al revés. Se realimentan.
+  `robot_radius` de 14,5, así que «debería fallar». **Pasó sin despeinarse** — pero con la
+  localización rota, o sea que la tanda no probaba el hueco. Con la localización sana **falla**.
 
 **🔴 `load average` NO MIDE SATURACIÓN DE CPU EN ESTA MÁQUINA, Y SE USÓ COMO SI LA MIDIERA.** Con
 `load average` marcando **8,85**, medido con `vmstat` y `top`:
@@ -1887,6 +1937,19 @@ correr_practica.py           # ⚠️ MUEVE EL ROBOT: corre una práctica de alu
 #                                 Listo.» y salió con 0, que no dice nada. Con él salieron los
 #                                 26,4 cm de un avance de 60 y el girar() que abortaba a los 5,5°
 #                                 devolviendo 0. Evidencia 85.
+consultar_plan.py            # ✅ NO MUEVE EL ROBOT: le pregunta a Nav2 qué RUTA trazaría, con
+#                              `compute_path_to_pose`. Dice si el plan va recto o RODEA, y saca el
+#                              coste del costmap en el eje cada 10 cm.
+#                              🔴 ÚSALO ANTES DE GASTAR BATERÍA: cuatro tandas de robot en marcha
+#                                 no distinguieron «traza recto y el robot no sigue» de «traza un
+#                                 rodeo»; una consulta de dos minutos sí. Evidencia 91.
+probar_rodeo_obstaculo.py    # ⚠️ MUEVE EL ROBOT hasta --meta metros: ¿cuánto hueco necesita Nav2?
+#                              --slam  usa SLAM en vez de AMCL: NO llama a /pedir_nav (el
+#                                      supervisor lo rechazaría) y NO pone la odometría a cero
+#                                      (con SLAM viva eso corrompe el mapa). Exige nav2.launch.py
+#                                      lanzado a mano.
+#                              🔴 Diez fallos propios cazados midiendo, ninguno dio error. Los seis
+#                                 primeros en la evidencia 90, los cuatro últimos en la 91.
 ```
 
 ⚠️ **`medir_slam_ros2.py` necesita espacio, y el robot NO esquiva obstáculos** (solo tiene

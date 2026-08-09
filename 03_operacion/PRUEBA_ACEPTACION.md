@@ -52,7 +52,7 @@ Se lanza por SSH después del reinicio. `--desde F4` retoma sin repetir lo ya pa
 | **F4** | Movimiento básico | **sí** | 🔴 **Puerta: pasillo despejado.** `move_timed` adelante y atrás. Y **parada de emergencia a mitad de un avance**, midiendo cuánto recorre después de recibirla |
 | **F5** | **Ángulos** | **sí** | El hueco. Giros en el sitio de 90°, 180° y 360°, por `move_to_pos_and_yaw` y por `move_timed`, midiendo el **Δyaw** logrado contra `/odom` (nunca el yaw absoluto — ver abajo). También el convenio de signo |
 | **F6** | Seguridad | **sí** | 🔴 **Puerta: pared enfrente.** `collision_monitor` frenando y el watchdog cortando al dejar de publicar `cmd_vel` |
-| **F7** | Autónomo | **sí** | Lanza SLAM + Nav2, espera al lifecycle activo, manda el objetivo de 1.50 m. Luego 🔴 **puerta: obstáculo a 0.75 m** y repite. Vigila que no reaparezca el `Failed to make progress` |
+| **F7** | Autónomo | **sí** | Lanza SLAM + Nav2, espera al lifecycle activo, manda el objetivo de 1.50 m. Luego 🔴 **puerta: obstáculo a 0.75 m dejando 60 cm libres MEDIDOS CON CINTA** y repite. Vigila que no reaparezca el `Failed to make progress` |
 | **F8** | Web | no | rosbridge de verdad: conectar, suscribirse y llamar a un servicio |
 | **F9** | Veredicto | no | Los cuatro niveles y la lista de pendientes que bloquean |
 
@@ -305,3 +305,34 @@ mirarlos, no para bloquear por ellos.
 siempre**, en cualquier corrida, aunque el robot esté impecable — son decisiones abiertas que
 ninguna ejecución cierra, no algo que esta prueba pueda medir. Que bloqueen la vía libre es el
 comportamiento acordado el 2026-08-01, no un fallo de la prueba ni del robot.
+
+
+---
+
+## 🔴 El hueco del obstáculo de F7 son 60 cm medidos, no «unos 60»
+
+El **único FALLO** de la corrida del 2026-08-08 fue el objetivo con obstáculo. Se midió el
+2026-08-09 (evidencias 90 y 91) y la causa es geométrica, no un defecto:
+
+**El mapa engorda los objetos ~5 cm por lado.** Un hueco físico de 45 cm entra en el mapa como 35;
+inflando el radio inscrito (14,5 cm) desde cada borde queda **una celda a coste 96**, y en la fila
+exacta del obstáculo **ninguna**. NavFn entonces no aprieta: **traza un rodeo** de 168-233 % de
+largo, que en un cuarto de 3,8 × 4,2 m no cabe. El rodeo roza la inflación, el controlador ve
+colisión y `failure_tolerance: 0.3` mata el objetivo en tres décimas.
+
+```
+hueco mínimo ≈ 2 × (14,5 inscrito + 5 engorde del mapa + 5 celda) ≈ 49 cm
+con 60 cm el plan sale RECTO — única tanda que lo hizo, 14 cm de desvío
+con 45 y con 34 cm RODEA siempre
+```
+
+✅ **Y se comprueba antes de gastar la tanda, sin mover el robot:**
+
+```bash
+python3 00_auditoria/evidencia/mediciones_banco/consultar_plan.py --meta 1.4 --repetir 3
+```
+
+Le pregunta la ruta a Nav2 con `compute_path_to_pose`. Si dice **RODEA**, el montaje está mal y la
+tanda va a fallar: ensancha el hueco antes de mover nada.
+
+📌 Para la imagen dorada: **esto no depende del robot**, así que los 16 aplicarán el mismo umbral.

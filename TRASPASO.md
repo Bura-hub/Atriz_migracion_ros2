@@ -211,8 +211,14 @@
 > `compute_path_to_pose` **ocho veces** y Nav2 agotó sus recuperaciones. **Falla el PLANIFICADOR,
 > no el controlador — no había plan que ejecutar.** Los otros dos números (46,5 cm y 162,6°) son
 > aguas abajo: los 162° son los **dos `spin` de la recuperación**.
-> ⏳ **Sin saber si es defecto del robot o montaje demasiado justo**: el cuarto son 3,8 × 4,2 m y
-> con la inflación del costmap puede que no hubiera corredor. **Se repite con más hueco lateral.**
+> ✅ **CERRADO el 2026-08-09 (evidencia 91): era MONTAJE DEMASIADO JUSTO, y no por poco.** El mapa
+> engorda los objetos **~5 cm por lado**, así que un hueco de 45 cm entra en él como 35; la
+> inflación del radio inscrito (14,5 cm) lo cierra, NavFn **traza un rodeo** de 168-233 % de largo
+> en un cuarto con 55 y 67 cm a los lados, el rodeo roza la inflación, y `failure_tolerance: 0.3`
+> mata el objetivo en tres décimas. Cadena entera medida, con AMCL y con SLAM.
+> → ✅ **Regla con número: hueco mínimo ≈ 49 cm para ser transitable, y entre 45 y 60 para que Nav2
+>   no prefiera rodear.** La única tanda con plan recto fue la de 60 cm.
+> → 📌 **No es defecto del robot.** El montaje del guion de aceptación tiene que respetar ese hueco.
 >
 > ✅ **Los otros 7 REVISAR son ruido explicado:** dos son nuestros reinicios del día (el propio
 > guion dice cómo desempatarlo, con el `uptime`, y funcionó), cuatro son avisos conocidos del

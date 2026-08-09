@@ -1,0 +1,224 @@
+════════════════════════════════════════════════════════════════════════════
+ 91 · EL MAPA ENGORDA LOS OBJETOS ~5 cm POR LADO, Y ESO CIERRA LA PUERTA
+      La variante con SLAM · el FALLO de la aceptación, explicado entero
+      Y LA RETIRADA DE LA EXPLICACIÓN DE LA EVIDENCIA 90
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-09 (tarde)
+Robot:  rvr-01 · batería 100 % -> 34 % · SLAM en vez de AMCL
+Testigo físico: el usuario, con cinta métrica, recolocando el robot entre tandas
+Herramientas: `mediciones_banco/probar_rodeo_obstaculo.py --slam`  (nueva opción)
+              `mediciones_banco/consultar_plan.py`                 (nueva)
+
+
+1 · DE DÓNDE VIENE
+────────────────────────────────────────────────────────────────────────────
+La evidencia 90 cerró cuatro tandas con AMCL sin poder reproducir el FALLO de la
+prueba de aceptación, y dejó escrito que la culpa era de **AMCL peleándose con un
+mapa que no tenía la puerta**, con una corrección `map -> odom` de hasta 1,68 m.
+Y dejó una tarea: **quitar a AMCL del medio usando SLAM**, que construye el mapa
+con la puerta ya puesta.
+
+Se hizo. Y el resultado obligó a **retirar esa explicación**.
+
+
+2 · 🔴 LO QUE SE RETIRA DE LA EVIDENCIA 90
+────────────────────────────────────────────────────────────────────────────
+    «AMCL casa cada barrido contra un mapa que no tiene los objetos, el ajuste
+     es malo, y la pose resbala.»                        ← NO SE SOSTIENE
+
+Con SLAM —que mapea la puerta en vivo, así que ese mecanismo no puede darse— el
+robot **falla igual**. En la tanda limpia la localización fue impecable
+(`map -> odom` 0,000 -> 0,035 m, contra 1,68 m con AMCL) y aun así:
+`ABORTED` a los 5,7 s.
+
+📌 La deriva de AMCL era **real y está bien medida**. Lo que era falso es que
+   fuera **la causa** del aborto. Era otro síntoma del mismo montaje imposible.
+
+
+3 · LA CADENA COMPLETA, MEDIDA DE PUNTA A PUNTA
+────────────────────────────────────────────────────────────────────────────
+    hueco real 45 cm         (cinta del usuario 45 · LIDAR crudo 44,8)
+      -> el MAPA lo ve de 35 cm            ← engorde ~5 cm por lado
+      -> inflando 14,5 cm (radio inscrito) queda 1 celda a coste 96
+      -> en la fila de los objetos (x=85 cm) NO queda ninguna
+      -> NavFn no puede cruzar: traza un RODEO
+      -> el rodeo mide 168-233 % de la recta y se va 68-115 cm de lado
+      -> en un cuarto con 55 y 67 cm a los lados, el rodeo roza la inflación
+      -> `RegulatedPurePursuitController detected collision ahead`
+      -> `failure_tolerance: 0.3` -> `Controller patience exceeded` a los 0,3 s
+      -> `bt_navigator: Goal failed`  ->  **ABORTED**
+
+✅ **Eso explica el único FALLO de la prueba de aceptación del 2026-08-08.** El
+   montaje era demasiado justo, y no por poco.
+
+
+4 · LA PRUEBA QUE LO CIERRA, Y NO MUEVE EL ROBOT
+────────────────────────────────────────────────────────────────────────────
+🔎 `compute_path_to_pose` es la acción que `bt_navigator` usa por dentro para
+   planificar. Se puede llamar SUELTA: **devuelve la ruta sin encadenarla al
+   controlador, o sea sin mover el robot ni gastar batería ni poder chocar.**
+
+   Cuatro tandas de robot en movimiento no habían podido distinguir dos cosas:
+
+     a) Nav2 traza recto y el robot no lo sigue     -> problema de CONTROL
+     b) Nav2 traza un RODEO                         -> problema de COSTE
+
+   Una consulta de dos minutos lo contestó. **Con el robot en la marca, hueco de
+   33,9 cm, cuatro consultas seguidas:**
+
+       consulta   largo del plan        lateral máx    veredicto
+          1       235 cm para 140 (168%)   68,4 cm     RODEA
+          2       324 cm          (231%)   73,4 cm     RODEA
+          3       235 cm          (168%)   68,4 cm     RODEA
+          4       309 cm          (221%)  105,4 cm     RODEA
+
+   Y con el hueco ensanchado a 46,9 cm: **sigue rodeando** (170-233 %, lateral
+   73,7-111,1 cm).
+
+📌 **El robot nunca estuvo fallando en pasar por el hueco: estaba obedeciendo un
+   plan que lo rodea.** Los 56-77 cm de desvío lateral de todas las tandas —que
+   la evidencia 90 atribuyó a que AMCL perdía al robot— eran el plan.
+
+
+5 · LA MEDIDA QUE SEÑALA AL CULPABLE: LOS TRES INSTRUMENTOS A LA VEZ
+────────────────────────────────────────────────────────────────────────────
+En la línea de la puerta, con hueco físico de 45 cm:
+
+    LIDAR crudo (retornos)  ... (82,-21)   [HUECO 44,8 cm]   (82,+24) ...
+    cinta del usuario                          45 cm
+    MAPA DE SLAM en x=85    ocupado en -20, -15  y  en +20  -> hueco 35 cm
+
+🔴 **El mapa marca ocupado a -15 cm cuando el objeto real empieza en -21,3.**
+   Seis centímetros metidos dentro del hueco, por un lado; tres y medio por el
+   otro. Y esos 5 cm de media por lado son exactamente los que cierran la puerta:
+
+       hueco real 45  -> inflado 14,5+14,5 = 29  -> sobrarían 16 cm
+       hueco mapa 35  -> inflado 14,5+14,5 = 29  -> sobran 6 cm = 1 celda a 96
+
+✅ **REGLA PARA EL AULA, y es un número, no una intuición:**
+
+       hueco mínimo = 2 x (radio inscrito 14,5 + engorde del mapa ~5 + celda 5)
+                    ~ 49 cm  para que sea TRANSITABLE
+
+   y bastante más para que sea BARATO y Nav2 no prefiera rodear: la tanda de
+   60 cm de la evidencia 90 fue la única con el plan recto (14 cm de desvío).
+   **El umbral práctico está entre 45 y 60 cm.**
+
+📌 El «cómodo ~50 cm» que se había DEDUCIDO en la evidencia 90 resulta acertado,
+   pero por un motivo distinto del que se escribió. No estaba medido; ahora sí.
+
+
+6 · DOS HIPÓTESIS PROPIAS, PROBADAS Y DESCARTADAS
+────────────────────────────────────────────────────────────────────────────
+Se anotan porque descartar cuesta lo mismo que confirmar y vale igual:
+
+  🔴 **«La capa de obstáculos ha acumulado marcas de todas las poses por las que
+     pasó el robot, incluidas las que le dio el usuario a mano.»**
+     Se vaciaron las dos capas con `/global_costmap/clear_entirely_global_costmap`
+     y `/local_costmap/clear_entirely_local_costmap`. **El perfil de la puerta
+     salió idéntico.** No era eso.
+
+  🔴 **«`inflation_radius: 0.25` es demasiado y por eso rodea.»**
+     Se bajó EN CALIENTE a 0.18 con `ros2 param set` y se volvió a consultar.
+     La banda cara se estrecha, pero **el centro sigue a 96 y sigue rodeando**.
+     No es el radio: es que el MAPA ya viene estrecho. Se restauró a 0.25 y se
+     comprobó con `ros2 param get`.
+
+  ⚠️ **«slam_toolbox está descartando barridos y por eso el mapa es malo.»**
+     Se contó: **28 descartes en 20 minutos sobre unos 12 000 barridos = 0,2 %.**
+     Irrelevante. Se retira como sospechoso.
+
+
+7 · UNA ACUSACIÓN MÍA, FALSA, QUE DESMONTÓ EL USUARIO
+────────────────────────────────────────────────────────────────────────────
+Tras una tanda, la odometría decía que el robot se había desplazado 196 cm con el
+rumbo intacto, y el LIDAR seguía viendo la puerta a 81 cm por delante. Se escribió
+que **«la odometría se ha inventado casi dos metros»**.
+
+🔴 **Falso.** El usuario: *«se chocó, entonces en algún punto lo devolví al stand
+   inicial»*. El robot SÍ recorrió esos dos metros; lo que faltaba en el modelo
+   era que hubo una mano en medio.
+
+✅ Y el control lo confirma por su lado. Un avance mandado a pelo, midiendo con
+   los dos instrumentos a la vez:
+
+       avance según ODOMETRÍA :  31,1 cm
+       avance según LIDAR     :  32,1 cm
+
+   **La odometría de este robot es buena a 1 cm en 31.** Es la quinta vez que se
+   mide contra un instrumento independiente y la quinta que sale bien.
+
+📌 La lección no es «pregunta antes de acusar al instrumento»: es que **el estado
+   físico del banco incluye lo que hace el humano**, y el banco no lo registra.
+
+
+8 · CUATRO FALLOS MÁS DEL BANCO — VAN DIEZ
+────────────────────────────────────────────────────────────────────────────
+  7. 🔴 **`/set_pos_and_yaw` con SLAM viva CORROMPE EL MAPA.** Poner la
+        odometría a cero mueve el ORIGEN del marco `odom`. AMCL lo encaja
+        —recasa contra un mapa fijo—, pero slam_toolbox no: para él el robot se
+        TELETRANSPORTA (aquí 29 cm y 15°) y sigue registrando barridos desde un
+        origen que se movió bajo sus pies.
+        Efecto medido: el costmap quedó **embadurnado**, 40 % letal, con el robot
+        y el objetivo en dos bolsas libres separadas por un muro inexistente, y
+        el planificador falló 8 veces. El journal lo fecha: «11:03:35 odometría
+        puesta a cero», con SLAM mapeando desde las 10:58.
+        ✅ Con `--slam` el objetivo se calcula RELATIVO a la odometría actual.
+
+  8. 🔴 **Pedía `atriz-escaneo on` a ciegas** con el barrido YA encendido; la
+        llamada se colgó 30 s y tumbó una tanda con una excepción. Ahora mira
+        primero si llega `/scan`, y sólo pide el encendido si no llega.
+
+  9. 🔴 **`avance = odom.x` a secas.** Sin poner la odometría a cero eso es la
+        posición ABSOLUTA, no lo avanzado: imprimió «avance 233,5 cm» en una
+        tanda de 5,7 s, imposible a 0,26 m/s de tope. Ahora es la proyección del
+        desplazamiento sobre el rumbo inicial.
+
+ 10. 🔴 **Medía el costmap ANTES de mandar el objetivo**, y eso no explica un
+        aborto. Se midió «robot coste 0, objetivo coste 0, corredor máximo 96,
+        transitable» y dos minutos después `planner_server` dijo «failed to plan
+        DESDE ESA MISMA POSE». El costmap se mueve. Ahora se mira **en el
+        instante del fallo**, y también el `/plan`.
+
+📌 Y un detalle que engañó dos veces: el contador de abortos del banco lee
+   `journalctl`, pero en modo SLAM Nav2 se lanza A MANO y su salida no va al
+   journal. **Decía «planner_server abortó 0 veces» mientras el log tenía 32.**
+
+
+9 · TRAMPAS NUEVAS, PARA `CLAUDE.md`
+────────────────────────────────────────────────────────────────────────────
+  🔴 **El supervisor rechaza SLAM con AMCL viva, y al revés.** «SLAM y AMCL son
+     excluyentes»: los dos publican `map -> odom`. Para la variante con SLAM hay
+     que lanzar `nav2.launch.py` A MANO, como hace la prueba de aceptación.
+
+  🔴 **Mover el robot a mano es un teletransporte para SLAM.** Igual que poner la
+     odometría a cero. Después de recolocarlo hay que **reiniciar SLAM**, o el
+     mapa queda embadurnado.
+
+  🔴 **99 en el costmap publicado NO es «casi letal»: es el radio inscrito, y
+     para NavFn es tan infranqueable como 100.** El umbral que importa es 99.
+
+  ✅ **`compute_path_to_pose` planifica sin mover el robot.** Antes de gastar
+     batería y arriesgar un choque para averiguar por qué Nav2 hace algo raro,
+     PREGÚNTALE LA RUTA. Cuatro tandas de robot en marcha no contestaron lo que
+     contestó una consulta de dos minutos.
+
+  🔴 **`failure_tolerance: 0.3`** — el controlador aborta tras 0,3 s sin poder
+     generar mando. Mismo patrón que el `default_server_timeout: 20` de la
+     evidencia 88: un plazo diminuto que convierte un tropiezo en fallo duro.
+     ⏳ **NO se ha tocado**: no está medido que subirlo arregle nada, y con el
+     mapa estrecho el rodeo seguiría existiendo. Queda anotado, no aplicado.
+
+
+10 · LO QUE QUEDA ⏳
+────────────────────────────────────────────────────────────────────────────
+  ⏳ **El umbral exacto, entre 45 y 60 cm.** Se puede acotar con
+     `consultar_plan.py` SIN MOVER EL ROBOT: basta que el usuario cambie el ancho
+     y se consulte. Coste: cero batería.
+  ⏳ **De dónde sale el engorde de ~5 cm por lado del mapa.** Candidatos sin
+     medir: cuantización a celdas de 5 cm, el modelo de ocupación de
+     slam_toolbox, o error residual de pose. **NO VERIFICADO.**
+  ⏳ Si `failure_tolerance` mayor cambia algo. **NO VERIFICADO.**
+
+📌 Estado físico al cerrar: robot quieto, `atriz-nav` inactivo, `atriz-slam`
+   parado, Nav2 bajado, batería 34 %, la puerta de 45 cm todavía montada.

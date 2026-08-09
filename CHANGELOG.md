@@ -4,6 +4,53 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (robot, tarde) — **La variante con SLAM: el mapa engorda los objetos**
+
+Se hizo lo que la evidencia 90 dejó pendiente —**quitar a AMCL del medio usando SLAM**— y el
+resultado obligó a **retirar la explicación de esa misma evidencia**, escrita horas antes.
+
+**Lo que se retira:** «AMCL casa contra un mapa sin los objetos, el ajuste es malo y la pose
+resbala». Con SLAM, que mapea la puerta en vivo, el robot **falla igual**: `ABORTED` a los 5,7 s con
+`map -> odom` en **0,035 m** (contra 1,68 m con AMCL). La deriva era real, pero era otro síntoma,
+no la causa.
+
+**Lo que sí es la causa, medido con los tres instrumentos sobre la misma fila:**
+
+```
+LIDAR crudo (retornos)   ... (82,-21)   [HUECO 44,8 cm]   (82,+24) ...
+cinta del usuario                          45 cm
+MAPA DE SLAM en x=85     ocupado en -20, -15  y en +20  ->  hueco 35 cm
+```
+
+**El mapa engorda los objetos ~5 cm por lado.** Un hueco de 45 cm entra como 35, la inflación del
+radio inscrito (14,5 cm) lo deja en **una celda a coste 96**, y en la fila exacta de los objetos en
+ninguna. NavFn no puede cruzar y **traza un rodeo**: 168-233 % de largo, 68-115 cm de desvío
+lateral, en un cuarto con 55 y 67 cm a los lados. El rodeo roza la inflación, el controlador ve
+colisión, y `failure_tolerance: 0.3` lo mata en tres décimas.
+
+✅ **Eso explica el único `FALLO` de la prueba de aceptación del 2026-08-08.** Y da una regla con
+número: **hueco mínimo ≈ 49 cm para ser transitable, y entre 45 y 60 para que Nav2 no prefiera
+rodear.**
+
+**La herramienta que lo cerró, y la lección que vale más que el resultado:** `compute_path_to_pose`
+**planifica sin mover el robot**. Cuatro tandas con el robot en marcha —dos con AMCL, dos con
+SLAM, un choque y 66 puntos de batería— no distinguieron «Nav2 traza recto y el robot no sigue» de
+«Nav2 traza un rodeo». Una consulta de dos minutos sí. Nueva: `mediciones_banco/consultar_plan.py`.
+
+**Dos hipótesis propias probadas y descartadas**, que cuesta lo mismo y vale igual: vaciar las capas
+de obstáculos acumuladas no cambió nada, y bajar `inflation_radius` a 0.18 en caliente tampoco
+—se restauró a 0.25 y se verificó—. Y una acusación falsa que desmontó el usuario: «la odometría se
+inventó dos metros» era, en realidad, que él había recogido el robot tras un choque. El control lo
+confirma: **31,1 cm de odometría contra 32,1 de LIDAR.**
+
+**Cuatro fallos más del banco, van diez** — el séptimo es el peor: `/set_pos_and_yaw` con SLAM viva
+**corrompe el mapa**, porque mueve el origen de `odom` bajo los pies de slam_toolbox. Mover el robot
+a mano hace lo mismo: después hay que **reiniciar SLAM**.
+
+Evidencia 91. Escalado a `CLAUDE.md`: el engorde del mapa con su regla, `compute_path_to_pose` como
+primer instrumento, que **99 en el costmap es intransitable, no «casi»**, el teletransporte de SLAM,
+la exclusión SLAM/AMCL del supervisor, y `failure_tolerance` anotado pero **sin tocar**.
+
 ## 2026-08-09 (web, 5) — **Barrido de lo retirado a medias**
 
 Alineación final de la sesión. Al repasar los documentos apareció el descuido que este proyecto

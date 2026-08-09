@@ -3,6 +3,24 @@
       DESPLAZA A AMCL MÁS DE UN METRO
       Cuatro tandas · el planificador NO rechazó ni una vez
 ════════════════════════════════════════════════════════════════════════════
+
+🔴🔴 AVISO — LA EXPLICACIÓN CENTRAL DE ESTE DOCUMENTO ESTÁ RETIRADA.
+     Ver `91_el_mapa_engorda_los_objetos.txt`, del mismo día por la tarde.
+
+     Lo que sigue siendo válido: LAS MEDIDAS. La deriva de AMCL hasta 1,68 m es
+     real y está bien medida. Los seis fallos del banco, también.
+
+     Lo que se retira: **la atribución de causa.** Aquí se escribió que el robot
+     se desviaba porque AMCL se perdía al casar contra un mapa sin los objetos.
+     Se repitió con SLAM —que mapea la puerta en vivo, así que ese mecanismo no
+     puede darse— y el robot **falló igual, con `map -> odom` en 0,035 m**.
+
+     La causa real: el MAPA engorda los objetos ~5 cm por lado, un hueco de 45 cm
+     entra como 35, la inflación lo cierra, y **Nav2 traza un RODEO**. Los
+     desvíos laterales de este documento no eran a AMCL perdiendo al robot: eran
+     el plan. Se probó preguntándole la ruta al planificador con
+     `compute_path_to_pose`, SIN mover el robot.
+
 Fecha:  2026-08-09
 Robot:  rvr-01 · batería 100 % · mapa `cuarto3` (del 2026-08-07)
 Testigo físico: el usuario, con cinta métrica
