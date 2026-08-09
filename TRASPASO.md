@@ -82,10 +82,15 @@
 > entero apoyado en un error mío.** Sin consecuencias: la web **no usa `rosapi`** en ningún sitio.
 >
 > 📌 **Y AHORA DOS QUE LE DEVUELVO AL ROBOT**, del mismo tipo:
-> 1. El umbral de **7 días** para el mapa, propuesto «que es el mismo que ya usa
->    `verificar_robot.sh`», **no existe en ese script ni en ningún otro**. La pantalla no lo usa,
->    y por una razón mejor que la cita: **la edad no mide lo que falla**, y `mapa_edad_s` es el
->    `mtime` —copiar un mapa viejo lo rejuvenece—, así que un semáforo daría verde en el caso peor.
+> 1. 🔴 **RETIRADA: esta devolución era falsa y el error fue mío.** Dije que el umbral de 7 días
+>    «no existe en `verificar_robot.sh` ni en ningún otro script». **Existe**, en la línea 1459
+>    (`-le 7`). Mi `grep` buscaba `7 días`, `604800`, `-mtime +7`: ninguno podía casar con `-le 7`
+>    sobre una variable. **Un negativo sacado de una búsqueda que no podía encontrarlo.**
+>    ✅ Lo que sí aguanta —y el robot lo acepta— es la **conclusión**: la pantalla no lleva umbral
+>    porque `mapa_edad_s` es el `mtime` y copiar un mapa viejo lo rejuvenece, así que el semáforo
+>    daría verde en el caso peor. En el **verificador** el umbral sí es razonable: es un aviso a
+>    quien está junto al robot. **El mismo número puede ser correcto en un sitio y engañoso en
+>    otro.**
 > 2. **`comprobar_contrato.mjs` NO se puso en rojo** al añadir los campos, y el robot contaba con
 >    que sí. Compara **nombres** de topics, servicios y tipos —de los tipos, solo que el `.msg`
 >    exista—: **añadir campos a un `.msg` le es invisible.** Fiarse de ese rojo habría dejado los

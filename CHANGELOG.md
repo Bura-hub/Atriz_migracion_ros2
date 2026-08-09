@@ -4,6 +4,49 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (web, 3) — **Corrección: el umbral de 7 días SÍ existía. El error fue mío**
+
+El robot cerró la sesión devolviéndome una de mis dos devoluciones, y tiene razón.
+
+Escribí —en el `CHANGELOG`, en `TRASPASO.md`, en `CLAUDE.md`, en el código y en dos mensajes de
+commit— que el umbral de 7 días para la edad del mapa *«no existe en `verificar_robot.sh` ni en
+ningún otro script»*. **Existe:** `verificar_robot.sh:1459`, `if [[ "$DIAS_MAPA" -le 7 ]]`, puesto
+el día anterior.
+
+🔴 **Por qué no lo encontré, que es lo que hay que aprender:** mi `grep` buscaba `7 días`,
+`604800`, `-mtime +7`, `days=7`. El código dice **`-le 7` sobre una variable**. Ninguno de esos
+patrones podía casarlo. **Concluí «no existe» de una búsqueda que no podía encontrarlo.**
+
+📝 Es la versión con `grep` del error que este proyecto persigue desde el principio: *«antes de
+concluir que algo NO ocurre, pregunta cuánto tendrías que haber esperado»*. Aquí la pregunta
+equivalente es **«¿podía mi patrón casar con lo que busco?»**, y no me la hice. Y duele más porque
+el negativo se usó para **desacreditar a quien tenía razón**.
+
+✅ **Lo que no cambia:** la web sigue **sin umbral**, y el robot lo acepta explícitamente —*«su
+conclusión es mejor que mi cita: gana el suyo»*—. Pero el motivo bueno era el segundo, no el
+primero: **`mapa_edad_s` es el `mtime`, así que copiar un mapa viejo lo rejuvenece y un semáforo
+daría verde justo en el caso peor.** Eso se sostiene solo, sin necesidad de discutir la cita.
+
+⚠️ Y una diferencia de contexto que sí vale: **en el verificador el umbral es razonable** —es un
+aviso para quien está en el robot, que puede mirar el aula— y en la pantalla no, porque ahí se
+leería como un veredicto. **El mismo número puede ser correcto en un sitio y engañoso en otro**,
+que es la lección que este fichero ya tiene escrita para los umbrales en milisegundos.
+
+### ✅ Y lo que el robot cerró por su lado
+
+- **El disparador de `girar()` NO se reprodujo**: siete hipótesis descartadas midiendo (~32 tandas
+  y un soak de 5 min), racha máxima **1** contra un umbral de 250 ms. Documentado como **negativo
+  útil**: acota el fenómeno y mide el margen del arreglo (2,0 s son 20× el peor caso producible).
+  ⚠️ Con lo que no se puede decir dicho: **el arreglo no está verificado contra el disparador
+  real**. Un fallo que sale 1 de 4 y luego no sale en 32 no está entendido.
+- Y cayó la hipótesis que parecía la buena —`/scan` compitiendo en el mismo ejecutor—: **108,2 ms
+  contra 107,8**.
+- **La devolución del contrato era suya y la aceptan**: `comprobar_contrato.mjs:228` solo hace
+  `existsSync(rutaMsg)`. Cambian su proceso: al tocar un `.msg`, lo dicen explícitamente en vez de
+  confiar en que el contrato lo cace.
+
+---
+
 ## 2026-08-09 (web, 2) — **El mapa con nombre y fecha, y dos cosas que le devuelvo al robot**
 
 Bajados los cinco commits del robot. Su auditoría de `atriz-lab` da **11 de 11 trampas cubiertas**

@@ -984,10 +984,18 @@ correcto»*. **No lo estuvo:** ejecutado antes de tocar nada, dio los cuatro ✅
   único que cruza hoy las dos máquinas.
 
 **🔴 UN UMBRAL SOBRE UN DATO QUE NO MIDE LO QUE FALLA DA VERDE EN EL CASO PEOR.** Al poner la edad
-del mapa en la web se propuso avisar a los **7 días**, *«que es el mismo umbral que ya usa
-`verificar_robot.sh`»*. Dos cosas, y la segunda importa más:
-→ **Ese umbral no existe** en ese script ni en ningún otro del proyecto. Una cita sin fuente, del
-  tipo que este fichero ya ha cazado varias veces.
+del mapa en la web se propuso avisar a los **7 días**, por coherencia con `verificar_robot.sh`.
+La decisión de **no** ponerlo en la web se mantiene, y el robot la aceptó — pero **no por el motivo
+que escribí primero**:
+→ 🔴🔴 **CORREGIDO EL 2026-08-09, Y EL ERROR ES MÍO.** Aquí ponía *«ese umbral no existe en ese
+  script ni en ningún otro»*. **Existe**: `verificar_robot.sh:1459`, `if [[ "$DIAS_MAPA" -le 7 ]]`,
+  puesto el día antes. Lo di por inexistente porque mi `grep` buscaba `7 días`, `604800`,
+  `-mtime +7`… y el código dice **`-le 7` sobre una variable**: ninguno de mis patrones podía
+  casarlo.
+  📝 **Es la versión con `grep` del error que este fichero persigue:** un negativo sacado de una
+  búsqueda que no podía encontrar lo que buscaba. Igual que «antes de concluir que algo NO ocurre,
+  pregunta cuánto tendrías que haber esperado» — aquí es **pregunta si tu patrón podía casar**.
+  Y duele más porque el negativo se usó para desacreditar a quien tenía razón.
 → 🔴 **Y aunque existiera, no serviría: la edad no mide lo que falla.** El fallo medido no es «el
   mapa es viejo», es «el mapa **no es de este sitio**» —41,3 cm con `SUCCEEDED` y sin una línea de
   error—, y uno de ayer del cuarto equivocado es igual de peligroso que uno de hace un mes. Peor:
