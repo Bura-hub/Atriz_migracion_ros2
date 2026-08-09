@@ -1,6 +1,7 @@
 ════════════════════════════════════════════════════════════════════════════
- 91 · EL MAPA DE SLAM ENGORDA LOS OBJETOS ~5 cm POR LADO, Y ESO CIERRA LA
-      PUERTA — CON AMCL SOBRE UN MAPA SIN LOS OBJETOS, NO (ver apartado 5bis)
+ 91 · CON SLAM LA PUERTA SE CIERRA EN EL COSTMAP; CON AMCL NO
+      🔴 EL «ENGORDE DEL MAPA» DEL APARTADO 5 ESTÁ RETIRADO: salía de tres
+         celdas sobre un mapa que resultó estar casi vacío (evidencia 93)
       La variante con SLAM · el FALLO de la aceptación, explicado entero
       Y LA RETIRADA DE LA EXPLICACIÓN DE LA EVIDENCIA 90
 ════════════════════════════════════════════════════════════════════════════
@@ -88,6 +89,28 @@ En la línea de la puerta, con hueco físico de 45 cm:
     LIDAR crudo (retornos)  ... (82,-21)   [HUECO 44,8 cm]   (82,+24) ...
     cinta del usuario                          45 cm
     MAPA DE SLAM en x=85    ocupado en -20, -15  y  en +20  -> hueco 35 cm
+
+🔴🔴 CORRECCIÓN DEL 2026-08-09 (tarde): ESTE MECANISMO ESTÁ SOBREAFIRMADO.
+   Al intentar guardar un mapa para la casilla pendiente se midió que **el mapa
+   de slam_toolbox estaba casi vacío y CONGELADO**: 49 celdas ocupadas para un
+   cuarto entero (una pared de 15 m a 5 cm serían ~300), contenido **idéntico
+   celda por celda** tras 360° de giro y 160 cm de vaivén, republicando cada 5 s
+   con sello fresco. El LIDAR estaba sano (227/270 rayos válidos, 11,7 Hz, 360°)
+   y el grafo tenía 4 nodos.
+
+   👉 O sea que las «tres celdas ocupadas» de las que sale el engorde de 5 cm
+   **salen de un mapa con 49 celdas en total**. Tres celdas no miden un engorde
+   sistemático: es ruido con nombre de mecanismo.
+
+   ✅ **LO QUE SIGUE MEDIDO Y NO SE TOCA:** el efecto en el costmap —con SLAM el
+      canal de la puerta se cierra, con AMCL queda abierto a coste 84—, los planes
+      que rodean, y todos los números de las tandas.
+   🔴 **LO QUE SE RETIRA:** que la causa sea un engorde sistemático del mapa.
+   ⏳ **Y aparece un defecto mayor, sin explicar: por qué el mapa de SLAM no
+      crece.** NO VERIFICADO. Afecta a la ruta con la que se hacen los mapas del
+      aula, así que es prioritario.
+
+Lo que decía este apartado, conservado porque la forma del fallo vuelve:
 
 🔴 **El mapa marca ocupado a -15 cm cuando el objeto real empieza en -21,3.**
    Seis centímetros metidos dentro del hueco, por un lado; tres y medio por el

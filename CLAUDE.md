@@ -1009,6 +1009,55 @@ línea de la puerta (x=85 cm), lateral -40..+40, misma escena, mismos 45 cm
 → ⏳ **De dónde salen esos 5 cm: NO VERIFICADO.** Candidatos sin medir: celdas de 5 cm, el modelo de
   ocupación de slam_toolbox, error residual de pose.
 
+**🔴🔴 UN OBSTÁCULO A MENOS DE 18 cm INMOVILIZA AL ROBOT POR COMPLETO — NI SIQUIERA PUEDE
+ALEJARSE.** Medido el 2026-08-09 (evidencia 93) con la pared **detrás** a 16,8 cm y 188 cm libres
+delante, mandando por `/cmd_vel_raw`:
+
+```
+AVANZAR alejándose de la pared  ->  0.0 cm    monitor: APROXIMACION
+GIRAR en el sitio               ->  0.0°      monitor: APROXIMACION
+RETROCEDER hacia la pared       ->  0.0 cm    monitor: APROXIMACION
+```
+
+→ 🔴 `approach` escala el mando ENTERO —lineal y angular— por el tiempo hasta colisión, y con un
+  punto **ya dentro** del círculo (`Aproximacion.radius: 0.18`) ese factor es 0, **sin mirar si el
+  movimiento acerca o aleja**. Sólo sale a mano.
+→ ✅ **Y girando NO rozaría nada**: con el monitor puenteado dio **359,6° y 358,8° de 360**, 12,6 s
+  (igual que en campo abierto), y el usuario mirando: «no ha tocado la pared en ningún momento».
+  El radio circunscrito del robot es ~14,2 cm contra un círculo de 18: **el monitor es más gordo que
+  el robot.**
+→ ✅ Causa aislada con una variable: bajando `Aproximacion.radius` a 0.12 en caliente, las tres
+  órdenes funcionan y el monitor **frena al 40 %** en vez de congelar. Restaurado a 0.18.
+→ 🔴 **Contradice a la evidencia 19**, que anotó «PUDO SALIR: retrocedió 58 cm» — allí el obstáculo
+  estaba **al lado**, hoy **detrás**. ⏳ Por qué una geometría deja salir y la otra no: NO VERIFICADO.
+→ ⏳ **NO se ha tocado la configuración**: `radius` fija a la vez el hueco al parar (`≈ radius −
+  media longitud`) y el pasillo mínimo (`≈ 2 × radius`), y el 0.18 está respaldado por «para a
+  20,8 cm sin chocar» de la aceptación. Bajarlo exige repetir esa medida. 👤 Decisión del usuario.
+→ 💡 Idea anotada y sin implementar: el problema no es el radio, es que `approach` **no distingue
+  acercarse de alejarse**. Mitigación barata: que `atriz.py` lea `/collision_monitor_state` y avise
+  («no me muevo: hay algo a 17 cm») en vez de dejar al alumno mirando un robot mudo 40 s.
+
+**🔴 UNA MÉTRICA QUE DA EL MISMO NÚMERO PARA EL ÉXITO Y PARA EL FRACASO NO ES UNA MÉTRICA.**
+El 2026-08-09 se midió el error de un giro de 360° como `wrap(yaw_final − yaw_inicial)` contra un
+pedido de `((360+180) % 360) − 180 = 0`. **Una vuelta completa da 0; estar quieto también.** Se
+imprimió «error −0,1°» tres veces con el robot PARADO contra una pared, y se llegó a escribir una
+evidencia entera concluyendo lo contrario de la verdad. Lo paró el usuario mirando el robot: «es que
+ni siquiera giró».
+→ ✅ Para giros, **INTEGRA el acumulado** (`Σ|Δyaw|`), no restes rumbos. Y `girar()` **devuelve los
+  grados que giró de verdad**: úsalo.
+→ 📌 Los «40,5 s» que parecían un giro lento eran el plazo de `girar()` agotándose:
+  `|objetivo|/0.20 + 5.0` = **36,4 s** para 360°.
+
+**⚠️ EL MAPA DE slam_toolbox PUEDE QUEDARSE CONGELADO Y CASI VACÍO.** Medido el 2026-08-09:
+**49 celdas ocupadas** para un cuarto entero (una pared de 15 m a 5 cm serían ~300), contenido
+**idéntico celda por celda** tras 360° de giro y 160 cm de vaivén, republicando cada 5 s con sello
+fresco y con 4 nodos en el grafo. El LIDAR estaba sano (227/270 rayos, 11,7 Hz, 360°).
+→ 🔴 **Comprueba el mapa por su CONTENIDO, no porque `/map` se publique.** Cuenta celdas ocupadas y
+  compáralas con la geometría del sitio; un `slam: FUNCIONANDO` no dice nada de esto.
+→ ⏳ Causa **NO VERIFICADA**, y es prioritaria: es la ruta con la que se hacen los mapas del aula.
+→ 🔴 Y obliga a **matizar la evidencia 91**: su «el mapa engorda los objetos ~5 cm por lado» se
+  dedujo de tres celdas sobre un mapa así. El efecto en el costmap sigue medido; el mecanismo no.
+
 **✅ `compute_path_to_pose` PLANIFICA SIN MOVER EL ROBOT — ÚSALO ANTES DE GASTAR BATERÍA.** Es la
 acción que `bt_navigator` usa por dentro; llamada suelta devuelve la ruta sin encadenarla al
 controlador. **Cuatro tandas de robot en marcha no distinguieron «Nav2 traza recto y el robot no

@@ -1,0 +1,147 @@
+════════════════════════════════════════════════════════════════════════════
+ 93 · UN OBSTÁCULO A 17 cm INMOVILIZA AL ROBOT POR COMPLETO
+      No puede girar, ni avanzar, ni ALEJARSE. Y girando no rozaría nada.
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-09 (tarde)
+Robot:  rvr-01 · batería 89 % -> 78 %
+Testigo físico: el usuario, mirando el robot en todas las tandas
+Herramienta: `mediciones_banco/medir_giro_cerca_de_pared.py` (nueva)
+
+
+1 · DE DÓNDE SALE, Y DE QUIÉN
+────────────────────────────────────────────────────────────────────────────
+El usuario, tras ver un giro de 360° que acabó 12,6° desviado:
+
+    «existe buena precisión del sistema, pero cuando encuentra un obstáculo
+     cercano se atrofia»
+
+📌 **Aquel giro concreto no lo probaba** —era una parada en lazo abierto mía, y
+   la aritmética lo cerraba: 357,5° medidos + ~15° de inercia = 372,5 = 360+12,5—
+   **pero la intuición de fondo era correcta, y bastante peor de lo que sugería.**
+
+
+2 · EL RESULTADO
+────────────────────────────────────────────────────────────────────────────
+Con la pared **detrás a 16,8 cm** y 188 cm libres por delante, mandando por
+`/cmd_vel_raw` (el camino normal, con `collision_monitor`):
+
+    AVANZAR alejándose de la pared  ->  0.0 cm    monitor: APROXIMACION
+    GIRAR en el sitio               ->  0.0°      monitor: APROXIMACION
+    RETROCEDER hacia la pared       ->  0.0 cm    monitor: APROXIMACION
+
+🔴 **INMOVILIZACIÓN TOTAL. Ni siquiera puede alejarse.** El `approach` escala el
+   mando entero —lineal y angular— por el tiempo hasta colisión, y con un punto
+   **ya dentro** del círculo ese factor es 0, sin mirar si el movimiento acerca o
+   aleja. Un robot aparcado ahí sólo sale a mano.
+
+✅ **Y girando NO rozaría nada. Medido, con el monitor puenteado** (publicando en
+   `/cmd_vel`, con el usuario vigilando y autorizándolo):
+
+       1. GIRÓ 359,6° de 360   error -0,4°   12,7 s   deslizamiento 0,5 cm
+       2. GIRÓ 358,8° de 360   error -1,2°   12,6 s   deslizamiento 0,1 cm
+
+   Mismo tiempo que en campo abierto (12,6 s) y precisión de grado.
+   👤 **«no ha tocado la pared en ningún momento»** — el usuario, mirándolo.
+
+🔎 **El número que importa girando NO es el borde trasero, son las esquinas:** el
+   robot mide 21,8 × 18,5 cm (medido, fichero 19), o sea radio circunscrito
+   ~14,2 cm. Con la pared a 16,8 cm del LIDAR el margen real es **~2,6 cm**, no
+   los 9 del borde. Positivo, y por eso no toca.
+
+
+3 · LA CAUSA, AISLADA CON UNA SOLA VARIABLE
+────────────────────────────────────────────────────────────────────────────
+`Aproximacion.radius: 0.18` bajado **en caliente** a `0.12`, sin mover el robot y
+mandando por el mismo `/cmd_vel_raw`:
+
+    GIRAR en el sitio          ->  47,7°     monitor: FRENADO
+    AVANZAR alejándose         ->  18,0 cm   monitor: FRENADO
+    RETROCEDER hacia la pared  ->   8,8 cm   monitor: FRENADO
+
+✅ Y los tres números son **exactamente el 40 % del mando**, que es el
+   `slowdown_ratio` del polígono de precaución: 0,15 × 0,4 × 3 s = 18 cm ·
+   0,10 × 0,4 × 2 s = 8 cm. **Con el radio correcto el monitor FRENA, que es lo
+   que debe hacer, en vez de CONGELAR.**
+
+📌 Restaurado a `0.18` y verificado con `ros2 param get`. **No se ha cambiado la
+   configuración del repositorio** — ver el apartado 5.
+
+
+4 · 🔴 ESTO CONTRADICE EN PARTE LA EVIDENCIA 19
+────────────────────────────────────────────────────────────────────────────
+El fichero `evidencia_24_04/19_paso_estrecho.txt` (2026-07-31) ya documentó que
+con `radius: 0.18` el robot no cruza un paso de 40 cm, y anotó:
+
+    ✅ Y PUDO SALIR: retrocedio 58 cm.
+
+⚠️ **Hoy NO puede.** La diferencia de montaje: allí el obstáculo estaba **al
+   lado** (borde izquierdo a 17 cm, ángulos +72°..+87°); hoy está **detrás**, a
+   16,8 cm.
+
+⏳ **Sin explicar, y NO VERIFICADO:** por qué una geometría deja salir y la otra
+   no. Se comprueba repitiendo las tres órdenes con el obstáculo al lado. Hasta
+   entonces, lo seguro es lo medido hoy: **con la pared detrás, no hay salida.**
+
+📌 Lo que sí aporta esta evidencia sobre la 19: allí el hallazgo se enunció como
+   **«no cruza un pasillo estrecho»**, un problema de navegación. Es más grave:
+   **es que el robot queda muerto**, sin poder ni girar sobre su eje.
+
+
+5 · ⏳ POR QUÉ NO SE TOCA LA CONFIGURACIÓN
+────────────────────────────────────────────────────────────────────────────
+Porque `radius` fija **dos cosas a la vez y en sentidos opuestos**, y la evidencia
+19 ya lo tiene tabulado:
+
+        hueco al parar ≈ radius − media longitud
+        pasillo mínimo ≈ 2 × radius
+
+        radius   para a    pasillo mínimo
+         0.18     9 cm        36 cm      <- el actual
+         0.12     ~1 cm       24 cm
+
+🔴 **Bajarlo desatasca al robot y acorta la distancia de frenado.** El valor
+   actual está respaldado por una medida de la aceptación: *«el collision_monitor
+   para a 20,8 cm sin chocar»*. Cambiarlo sin repetir esa medida sería
+   exactamente el error que este proyecto persigue.
+
+💡 **La idea que resolvería el conflicto sin tocar el frenado, anotada y NO
+   implementada:** el problema no es el radio, es que la acción `approach` no
+   distingue **acercarse de alejarse**. Un mando que aumenta la distancia no
+   debería recortarse. `collision_monitor` no ofrece eso por configuración.
+   Mitigación barata mientras tanto: que `atriz.py` lea
+   `/collision_monitor_state` y **avise al alumno** («no me muevo: hay algo a
+   17 cm»), en vez de dejarlo mirando un robot mudo 40 segundos.
+   👤 **Decisión del usuario. No se implementa sin acordarlo.**
+
+
+6 · CÓMO SE LLEGÓ, PORQUE EL CAMINO ES EL HALLAZGO
+────────────────────────────────────────────────────────────────────────────
+Tres fallos del banco en tres tandas, y **el usuario paró las tres**:
+
+  1. 🔴 **Llamé «LEJOS» a 25 cm.** El monitor frenó en las dos vueltas. La foto
+     inicial decía «0 puntos dentro del polígono», pero **el polígono gira con el
+     robot**: un punto que empieza fuera entra a mitad de vuelta.
+     👤 *«no encontraste diferenciación porque no había variación»* — y pidió
+        colocar él las dos posiciones. Con eso salió el contraste real:
+        LEJOS 52 cm / 0 % del tiempo   ·   CERCA 16,9 cm / 100 % del tiempo.
+     ✅ El banco mide ahora el mínimo **durante toda la vuelta**.
+
+  2. 🔴 **`girar()` bloquea el hilo principal**, así que el nodo del banco no
+     giraba y **no llegaba ni un barrido mientras duraba la vuelta**. Medía justo
+     cuando no estaba mirando.
+
+  3. 🔴🔴 **LA MÉTRICA NO DISTINGUÍA «GIRÓ 360°» DE «NO SE MOVIÓ».** Se comparaba
+     `wrap(yaw_final − yaw_inicial)` contra un pedido de `((360+180) % 360) − 180
+     = 0`. Una vuelta completa da 0; estar quieto también. Imprimí **«error
+     −0,1°» tres veces seguidas con el robot parado contra la pared**, y llegué a
+     escribir una evidencia entera concluyendo «no pierde precisión, sólo
+     velocidad».
+     👤 *«para, es que el robot ni siquiera giró»*. La evidencia se retiró antes
+        de subirla.
+     ✅ Hay que **INTEGRAR el giro acumulado**, no restar rumbos. Y `girar()`
+        **devuelve los grados que giró de verdad** — el dato estaba ahí y lo tiré.
+
+📌 La lección, y es la de siempre en este proyecto: **una métrica que da el mismo
+   número para el éxito y para el fracaso no es una métrica.** Los 40,5 s
+   idénticos en las tres tandas tampoco eran un giro lento: eran el plazo de
+   `girar()` agotándose (`|objetivo|/0.20 + 5.0` = 36,4 s para 360°).

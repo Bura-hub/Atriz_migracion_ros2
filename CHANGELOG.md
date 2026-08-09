@@ -4,6 +4,53 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (robot, noche) — **El robot atrapado por su propia seguridad**
+
+El usuario, viendo un giro que salió torcido: *«cuando encuentra un obstáculo cercano se atrofia»*.
+Aquel giro concreto no lo probaba —era una parada en lazo abierto mía—, pero **la intuición era
+correcta y bastante peor de lo que sugería.**
+
+**Con la pared detrás a 16,8 cm y 188 cm libres delante**, mandando por el camino normal:
+
+```
+AVANZAR alejándose de la pared  ->  0.0 cm    monitor: APROXIMACION
+GIRAR en el sitio               ->  0.0°      monitor: APROXIMACION
+RETROCEDER hacia la pared       ->  0.0 cm    monitor: APROXIMACION
+```
+
+**Inmovilización total: ni siquiera puede alejarse.** `approach` escala el mando entero por el
+tiempo hasta colisión, y con un punto ya dentro del círculo ese factor es 0 **sin mirar si el
+movimiento acerca o aleja**. Sólo sale a mano.
+
+✅ **Y girando no rozaría nada.** Con el monitor puenteado —autorizado por el usuario, que lo
+vigilaba— dio **359,6° y 358,8° de 360**, en 12,6 s, los mismos que en campo abierto. Su veredicto:
+*«no ha tocado la pared en ningún momento»*. El radio circunscrito del robot es ~14,2 cm contra un
+círculo de 18: **el monitor es más gordo que el robot.**
+
+✅ **Causa aislada con una sola variable:** bajando `Aproximacion.radius` a 0.12 en caliente, las
+tres órdenes funcionan y el monitor **frena al 40 %** en vez de congelar. Restaurado a 0.18.
+
+🔴 **Contradice en parte la evidencia 19**, que anotó «PUDO SALIR: retrocedió 58 cm» — allí el
+obstáculo estaba **al lado**, hoy **detrás**. ⏳ Por qué: NO VERIFICADO.
+
+⏳ **No se ha tocado la configuración.** `radius` fija a la vez el hueco al parar y el pasillo
+mínimo, y el 0.18 está respaldado por «para a 20,8 cm sin chocar». 👤 Decisión del usuario.
+
+**Tres fallos del banco, y el usuario paró los tres.** El peor: **la métrica daba el mismo número
+para «giró 360°» y para «no se movió»** —`wrap(yaw_final − yaw_inicial)` contra un pedido que
+normaliza a 0—. Imprimí «error −0,1°» tres veces con el robot parado y **llegué a escribir una
+evidencia entera concluyendo lo contrario de la verdad**; se retiró antes de subirla. Lo paró él
+mirando el robot: *«es que ni siquiera giró»*.
+
+🔴 **Y un defecto mayor que salió de rebote:** el mapa de slam_toolbox estaba **casi vacío y
+congelado** —49 celdas ocupadas para un cuarto entero, idéntico celda por celda tras 360° de giro y
+160 cm de vaivén, con el LIDAR sano—. Eso **bloquea la casilla pendiente** (AMCL sobre un mapa con
+los objetos) y **obliga a matizar la evidencia 91**: su «engorde de 5 cm» se dedujo de tres celdas
+sobre ese mapa. El efecto en el costmap sigue medido; el mecanismo no. ⏳ Causa NO VERIFICADA, y es
+prioritaria: es la ruta con la que se hacen los mapas del aula.
+
+Evidencia 93.
+
 ## 2026-08-09 (robot, 15:07) — **El `FALLO` del obstáculo, cerrado por su efecto**
 
 Se aplicó la regla que salió de las evidencias 90 y 91 —**hueco de 60 cm medido con cinta**— y se
