@@ -1,0 +1,151 @@
+════════════════════════════════════════════════════════════════════════════
+ 90 · EL HUECO NO ERA EL PROBLEMA: METER OBJETOS EN UN MAPA YA HECHO
+      DESPLAZA A AMCL MÁS DE UN METRO
+      Cuatro tandas · el planificador NO rechazó ni una vez
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-09
+Robot:  rvr-01 · batería 100 % · mapa `cuarto3` (del 2026-08-07)
+Testigo físico: el usuario, con cinta métrica
+Herramienta: `mediciones_banco/probar_rodeo_obstaculo.py`
+
+
+1 · LA PREGUNTA
+────────────────────────────────────────────────────────────────────────────
+La prueba de aceptación del 2026-08-08 dejó **un solo FALLO** en 74
+comprobaciones: el objetivo con obstáculo dio `ABORTED`, y el journal mostró que
+**falla el planificador** —`compute_path_to_pose` abortando ocho veces— no el
+controlador. Quedó sin saber si era un defecto o **un montaje demasiado justo**.
+
+📌 Y los números con los que se iba a diseñar la repetición eran **derivados, no
+   medidos**: de `robot_radius: 0.145` (✅ medido con cinta) y de
+   `inflation_radius: 0.25` (⚠️ razonado) se dedujo «hueco mínimo 29 cm, cómodo
+   50». **Eso es un modelo de la capa de inflación, no una medida de este robot.**
+
+Así que en vez de usarlos como criterio, se decidió **medirlos**: una puerta de
+ancho variable, estrechándola tanda a tanda.
+
+
+2 · EL MONTAJE, Y LO QUE COSTÓ DEJARLO LIMPIO
+────────────────────────────────────────────────────────────────────────────
+Dos objetos formando una **puerta** a ~80 cm por delante, con el hueco centrado
+en el eje del robot, y el robot volviendo a una marca del suelo entre tandas.
+
+🔴 **El diseño inicial no era montable, y lo destapó dibujarlo.** «Un obstáculo de
+   16 cm dejando 60 de hueco» en un pasillo de 129 cm **deja hueco por los dos
+   lados**: el robot pasa por el ancho y el «hueco de 60» no obliga a nada.
+
+🔴 **Y el CENTRO del hueco importa tanto como el ancho** — lo señaló el usuario.
+   Si al estrechar se mueve el centro, cambian DOS variables y un fallo no se
+   puede atribuir: ¿fue por estrecho, o porque quedó descentrado y no había sitio
+   para maniobrar? Se fijó el centro en el eje (medido: +0,9 · −0,8 · +1,8 cm).
+
+Cada montaje se verificó **con dos instrumentos**: la cinta del usuario y el
+LIDAR. Coincidieron en 1 cm o menos las cuatro veces.
+
+
+3 · EL RESULTADO
+────────────────────────────────────────────────────────────────────────────
+                 planificador   desvío lateral   corrección map->odom
+    G = 60 cm      0 abortos         14 cm        —
+    G = 45 cm      0 abortos         15 cm        0,27 -> 1,02 m   (+75 cm)
+    G = 30 cm 1ª   0 abortos        116 cm        0,60 -> 1,21 m   (+61 cm)
+    G = 30 cm 2ª   0 abortos        156 cm        0,00 -> 1,68 m  (+167 cm)
+
+🔴 **EL PLANIFICADOR NO RECHAZÓ NADA. Ni una vez, en ninguna tanda.** La
+   hipótesis de partida —«el FALLO fue el planificador negándose por geometría»—
+   **no se reproduce ni con 30 cm de hueco y 4,1 cm de holgura por lado**.
+
+🔴 **Y una predicción mía que falló, escrita ANTES de medir:** con 45 cm el margen
+   es 11,9 cm por lado contra un `robot_radius` de 14,5, así que «debería
+   fallar». **Pasó sin despeinarse**, con 15 cm de desvío. Las celdas dentro del
+   radio del robot quedan con coste ALTO pero **no son intransitables**: NavFn las
+   cruza si no hay alternativa. Mis «29 mínimo / 50 cómodo» no eran el criterio.
+
+✅ **LO QUE SÍ DOMINA: AMCL pierde al robot.** La corrección `map -> odom` llega a
+   **1,68 m**. Con eso Nav2 conduce hacia un punto que en el mundo real está en
+   otro sitio, y de ahí el metro y medio de desvío lateral y el vagabundeo.
+
+💡 **La explicación, y es coherente con todo lo demás del proyecto:** los objetos
+   de la puerta **NO están en el mapa `cuarto3`**, hecho dos días antes con el
+   pasillo despejado. AMCL casa cada barrido contra un mapa que no los tiene, el
+   ajuste es malo, y la pose resbala.
+
+⚠️ **LO QUE NO SE PUEDE SEPARAR con estos datos: la dirección de la causa.** Si
+   AMCL se pierde y por eso el robot se desvía, o si el robot se desvía —con 4 cm
+   de margen la dirección tiene que ser casi perfecta— y por eso AMCL se pierde.
+   **Se realimentan**, y este experimento no los distingue.
+
+
+4 · LO QUE ESTO SIGNIFICA PARA EL AULA, Y VALE MÁS QUE LA PREGUNTA ORIGINAL
+────────────────────────────────────────────────────────────────────────────
+🔴 **Meter objetos en una habitación ya mapeada degrada la localización más de un
+   metro.** No es un matiz: es que **si un alumno deja una silla donde no
+   estaba**, la navegación se va al traste — y con `SUCCEEDED` de por medio, como
+   ya se sabía desde la evidencia 84.
+
+📌 Refuerza y precisa la regla que ya estaba escrita —«el mapa tiene que ser del
+   sitio y estar fresco»— con un mecanismo y un número: **no es sólo que un mapa
+   viejo dé error, es que basta con AÑADIR objetos.**
+
+
+5 · SEIS FALLOS DEL PROPIO BANCO, TODOS CAZADOS MIDIENDO
+────────────────────────────────────────────────────────────────────────────
+Se listan porque el patrón es el del proyecto entero: **el instrumento falló seis
+veces y ninguna dio error**.
+
+  1. **Objetivo absoluto en el mapa** en vez de relativo al robot. Lo cazó el
+     CONTROL: 206,8 cm recorridos para un objetivo de 140.
+  2. **`/initialpose` mintiéndole a AMCL.** Se copió del banco de navegación
+     —donde el robot SÍ arranca sobre el origen— y aquí decía «estás en el
+     origen» a un robot que no lo estaba. Dos tandas dieron 2,07 y 2,08 m para
+     objetivos de 1,40: esa coincidencia lo delató.
+  3. **Objetivo calculado desde la pose de AMCL**, que es justo lo que se estaba
+     midiendo. Se pasó a `odom`, que en este robot está medido contra cinta
+     cuatro veces (1,5 · 4,2 · 2,2 · 0,3 cm).
+  4. **El barrido apagado.** Una tanda murió con «la navegación no llegó a
+     funcionar» porque mis propias mediciones con el LIDAR lo dejaban apagado. El
+     supervisor SÍ lo decía —`CIEGO`, «encendido pero SIN barrido»— y el banco no
+     lo miraba. Ahora lo enciende él y **dice qué estado hay**, no sólo que no es
+     el bueno.
+  5. **`load average` usado como si midiera saturación de CPU.** Ver el apartado 6.
+  6. **No cancelar el objetivo al agotarse el plazo.** El banco salía imprimiendo
+     «DESENLACE: None» y **dejaba a Nav2 intentándolo con el robot suelto**. Un
+     banco que deja el robot en marcha al terminar es peor que uno que falla.
+
+
+6 · Y UN INSTRUMENTO QUE RETIRA UNA EXPLICACIÓN ANTERIOR
+────────────────────────────────────────────────────────────────────────────
+El banco esperaba a que `load average` bajara de 4,0. **Nunca ocurre** en esta
+máquina con Nav2 arrancado, así que agotaba sus 90 s y seguía igual. Al medirlo
+en serio, con `vmstat` y `top`:
+
+    load average 8,85    ·    r = 8-18 ejecutables    ·    b = 0 bloqueados
+    CPU 60-75 % usada    ·    25-39 % OCIOSA          ·    wa = 0,0 %
+    10 500 cambios de contexto por segundo
+
+🔴 **La carga alta NO es saturación de CPU.** Sobra entre un cuarto y un tercio de
+   CPU y no hay espera de disco. Lo que infla el `load average` son **muchos
+   hilos despertándose muy a menudo** — la firma de ROS 2 con doce nodos y sus
+   temporizadores.
+
+🔴 **Y eso retira una explicación del 2026-08-07:** los abortos de Nav2 se
+   atribuyeron entonces a «la Pi saturada, load 8,39». La causa real era
+   `default_server_timeout: 20` (evidencia 88) — y ahora se ve que **la Pi
+   tampoco estaba saturada**. El instrumento estaba mal leído las dos veces.
+
+✅ El banco mide ahora **% de CPU ociosa** leído de `/proc/stat`.
+
+
+7 · LO QUE FALTA PARA CERRAR LA PREGUNTA ORIGINAL
+────────────────────────────────────────────────────────────────────────────
+⏳ Hay que **quitar a AMCL del medio**, y la vía es usar **SLAM en vez de AMCL**
+   —`slam.launch.py` + `nav2.launch.py`, que es lo que hace la prueba de
+   aceptación—: SLAM construye el mapa **con la puerta puesta**, así que la
+   localización deja de pelearse con un mapa que miente.
+
+📌 `nav2.launch.py` **no incluye AMCL** (lo comprobé): `atriz-nav.sh` lanza
+   `localizacion.launch.py` y `nav2.launch.py` por separado. Así que la variante
+   es sustituir el primero por `slam.launch.py`.
+
+⚠️ Y el supervisor **se negará** a arrancar `atriz-nav` con SLAM vivo, por diseño
+   —los dos publican `map -> odom`—. Hay que lanzarlos a mano, como la aceptación.

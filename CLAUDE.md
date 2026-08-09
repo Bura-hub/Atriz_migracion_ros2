@@ -970,6 +970,47 @@ mire la fecha** — y quien tiene delante a la persona es la web, que solo recib
 → Verificado en el topic: `mapa_nombre='cuarto3.yaml'`, `mapa_edad_s=104976` (1,22 días) contra un
   fichero de hace ~29 h.
 
+**🔴🔴 METER OBJETOS EN UNA HABITACIÓN YA MAPEADA DESPLAZA A AMCL MÁS DE UN METRO.** Medido el
+2026-08-09 (evidencia 90) con una puerta de dos cajas en un pasillo, sobre el mapa `cuarto3` hecho
+dos días antes con el pasillo despejado:
+
+```
+                 planificador   desvío lateral   corrección map->odom
+   hueco 60 cm     0 abortos         14 cm        —
+   hueco 45 cm     0 abortos         15 cm        0,27 -> 1,02 m
+   hueco 30 cm     0 abortos        116 cm        0,60 -> 1,21 m
+   hueco 30 cm 2ª  0 abortos        156 cm        0,00 -> **1,68 m**
+```
+
+→ 🔴 **Para el aula es directo: si un alumno deja una silla donde no estaba, la navegación se va al
+  traste** — y con `SUCCEEDED` de por medio. Precisa la regla del mapa fresco con un mecanismo:
+  **no hace falta que el mapa sea viejo, basta con AÑADIR objetos.**
+→ ✅ **Y de paso: EL PLANIFICADOR NO RECHAZÓ NADA**, ni con 30 cm de hueco y 4,1 cm de holgura por
+  lado. La hipótesis de que el `FALLO` de la aceptación era «geometría demasiado justa» **no se
+  reproduce**.
+→ 🔴 **Y una predicción mía que falló:** con 45 cm de hueco el margen es 11,9 cm por lado contra un
+  `robot_radius` de 14,5, así que «debería fallar». **Pasó sin despeinarse.** Las celdas dentro del
+  radio del robot tienen coste ALTO pero **no son intransitables**: NavFn las cruza si no hay
+  alternativa. Los «29 cm mínimo / 50 cómodo» derivados de la inflación **no son el criterio**.
+→ ⚠️ **Sin separar:** si AMCL se pierde y por eso el robot se desvía, o al revés. Se realimentan.
+
+**🔴 `load average` NO MIDE SATURACIÓN DE CPU EN ESTA MÁQUINA, Y SE USÓ COMO SI LA MIDIERA.** Con
+`load average` marcando **8,85**, medido con `vmstat` y `top`:
+
+```
+r = 8-18 ejecutables · b = 0 bloqueados · wa = 0,0 %
+CPU 60-75 % usada · **25-39 % OCIOSA** · 10 500 cambios de contexto/s
+```
+
+→ Lo que infla la carga son **muchos hilos despertándose a menudo** —la firma de ROS 2 con doce
+  nodos y sus temporizadores—, no CPU agotada ni espera de disco.
+→ 🔴 **Y retira una explicación del 2026-08-07:** los abortos de Nav2 se atribuyeron a «la Pi
+  saturada, load 8,39». La causa real era `default_server_timeout: 20` (evidencia 88), **y la Pi
+  tampoco estaba saturada**. El instrumento estaba mal leído las dos veces.
+→ ✅ **Para saber si hay CPU, lee `/proc/stat`** y calcula el % ocioso. Un umbral tipo «load < 4»
+  es **inalcanzable** aquí con Nav2 arrancado: un banco que lo esperaba se pasaba 90 s para seguir
+  igual.
+
 **📝 `/amcl_pose` no llega con el robot quieto, y no es un fallo.** AMCL solo actualiza tras
 moverse `update_min_d` (0.15 m). Mueve el robot antes de dar por roto nada.
 
