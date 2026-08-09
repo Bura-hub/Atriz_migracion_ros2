@@ -211,7 +211,12 @@
 > `compute_path_to_pose` **ocho veces** y Nav2 agotó sus recuperaciones. **Falla el PLANIFICADOR,
 > no el controlador — no había plan que ejecutar.** Los otros dos números (46,5 cm y 162,6°) son
 > aguas abajo: los 162° son los **dos `spin` de la recuperación**.
-> ✅ **CERRADO el 2026-08-09 (evidencia 91): era MONTAJE DEMASIADO JUSTO, y no por poco.** El mapa
+> ✅✅ **CERRADO POR SU EFECTO el 2026-08-09 15:07 (evidencia 92): F7 entera en verde con el hueco
+> a 60 cm medido con cinta. 12 PASA · 0 REVISAR · 0 FALLO.** El objetivo con obstáculo da ahora
+> `SUCCEEDED` (8,0 cm, rumbo 13,0°), y el log de Nav2 lo confirma por otra vía: **planificador 0
+> fallos** (eran 8), 0 colisiones detectadas, 0 `patience exceeded`, **ninguna recuperación**.
+>
+> ✅ **CAUSA MEDIDA el 2026-08-09 (evidencia 91): era MONTAJE DEMASIADO JUSTO, y no por poco.** El mapa
 > engorda los objetos **~5 cm por lado**, así que un hueco de 45 cm entra en él como 35; la
 > inflación del radio inscrito (14,5 cm) lo cierra, NavFn **traza un rodeo** de 168-233 % de largo
 > en un cuarto con 55 y 67 cm a los lados, el rodeo roza la inflación, y `failure_tolerance: 0.3`

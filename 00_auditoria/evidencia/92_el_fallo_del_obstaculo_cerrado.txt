@@ -1,0 +1,114 @@
+════════════════════════════════════════════════════════════════════════════
+ 92 · EL ÚNICO `FALLO` DE LA ACEPTACIÓN, CERRADO POR SU EFECTO
+      F7 entera en verde con el hueco de 60 cm MEDIDO CON CINTA
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-09 15:07
+Robot:  rvr-01 · batería 8,27 V · 100 %
+Ejecutada por: el usuario, en terminal de verdad (el guion lo exige)
+Informe: `evidencia_24_04/47_aceptacion_20260809_150740.txt`
+Logs de Nav2: `/tmp/aceptacion_nav2.launch.py.log`
+
+📌 En el mismo directorio hay un `47_aceptacion_20260809_150221.txt`: una corrida
+   **abortada con Ctrl-C** cinco minutos antes, 7 PASA · 0 FALLO, parada antes del
+   objetivo con obstáculo. Se conserva porque el guion la escribe y porque una
+   corrida abortada NO es un aprobado — el informe lo marca en su cabecera.
+
+
+1 · QUÉ SE CERRÓ
+────────────────────────────────────────────────────────────────────────────
+La corrida del 2026-08-08 dejó **un solo FALLO en 74 comprobaciones**: el
+objetivo con obstáculo dio `ABORTED`. Las evidencias 90 y 91 midieron por qué —
+**el montaje era demasiado justo**— y el 91 dejó una regla: **60 cm de hueco,
+medidos con cinta.**
+
+Se aplicó y se volvió a correr F7. **12 PASA · 0 REVISAR · 0 FALLO.**
+
+    [OK] objetivo CON obstaculo: Nav2 lo dio por COMPLETADO   SUCCEEDED
+    [OK] objetivo CON obstaculo: error final SEGUN AMCL       8.0 cm
+    [OK] objetivo CON obstaculo: error de RUMBO al llegar     13.0 °
+    [OK] desvio lateral rodeando el obstaculo                 17.2 cm
+    [OK] sin «Failed to make progress»
+
+📌 **El explicado pasa a cerrado.** Hasta hoy había una causa medida; ahora hay
+   el efecto: el mismo guion, el mismo robot, el mismo cuarto, con el hueco
+   corregido.
+
+
+2 · LA CONFIRMACIÓN INDEPENDIENTE: EL LOG DE Nav2
+────────────────────────────────────────────────────────────────────────────
+No basta con que el guion diga PASA — el 2026-08-08 se aprendió que `ABORTED`
+puede ser mentira, así que también lo puede ser lo contrario. Se contó en el log:
+
+                                    2026-08-08        hoy
+    planificador «failed to plan»        8              0
+    «detected collision ahead»           —              0
+    «Controller patience exceeded»      sí              0
+    recuperaciones           spin→backup→spin       NINGUNA
+    desenlaces                    Goal failed     3 SUCCEEDED · 0 failed
+
+✅ **Nav2 no tuvo que recuperarse ni una vez.** No es que aguantara: es que no
+   hubo con qué pelearse. Coincide con lo que predijo la evidencia 91: con 60 cm
+   el plan sale RECTO y no hay rodeo que se coma el cuarto.
+
+
+3 · ⚠️ UN MARGEN JUSTO QUE HAY QUE ANOTAR, NO CELEBRAR
+────────────────────────────────────────────────────────────────────────────
+    desvio lateral rodeando el obstaculo   17,2 cm   ·   banda [15,0 · 50,0]
+
+🔎 **Pasa por 2,2 cm.** Y el suelo de esa banda no es cosmético: existe para
+   demostrar que el robot **rodeó** y no fue recto. Con el hueco a 60 cm el plan
+   es casi recto —eso es lo que buscábamos—, así que los 17,2 cm salen sobre todo
+   de que el obstáculo va escorado 6 cm a la izquierda y el robot tiene que
+   desplazarse a la derecha para pasar. **Es geometría forzada, no un esquive.**
+
+⚠️ **Consecuencia, y queda escrita:** si alguien ensancha el hueco «para ir sobre
+   seguro», el desvío bajará de 15 cm y esta comprobación dará FALLO diciendo
+   «no rodeó» — con el robot habiéndolo hecho todo bien. **El hueco de 60 cm no
+   es un mínimo con el que pasarse: es un valor.**
+
+📌 **No se toca la banda.** Cambiarla sin medir sería exactamente el error que
+   este proyecto persigue. Queda anotado para quien vea el número al límite.
+
+
+4 · Y LA INSTRUMENTACIÓN NUEVA SE GANÓ EL SITIO EN LA PRIMERA TANDA
+────────────────────────────────────────────────────────────────────────────
+El usuario preguntó antes de lanzar: *«el robot quedó torcido, ¿el obstáculo va
+delante de este nuevo POV o del inicial con el que empezó F7?»*. Se añadió el
+aviso ese mismo rato. Lo que imprimió en la corrida:
+
+    pose de partida: x=-0.00 y=+0.07 yaw=+62°
+    ...
+    rumbo tras el regreso: +53°  (partida +62°  ->  desvio -8°)
+    🔴 EL OBSTACULO VA SOBRE ESTE RUMBO, NO SOBRE EL DE PARTIDA.
+       A 0.75 m, -8° desplazan «delante» 11 cm de lado.
+
+✅ **Ocho grados, once centímetros.** Sin ese número, el montaje se habría hecho
+   sobre el eje de partida y el robot habría apuntado 11 cm fuera del centro del
+   hueco. Con 60 cm se habría salvado; con 45 la tanda habría medido otra cosa
+   **sin avisar** — que es el modo de fallo peor: no sale mal, sale sin
+   significado.
+
+📌 Es la segunda vez que la misma función se arregla por una pregunta del
+   usuario. La primera fue "¿pero el robot irá donde detecte 2 m libres?", que
+   destapó que el objetivo iba **a lo largo del eje X del mapa**, un eje
+   invisible que hacía imposible saber qué pasillo despejar.
+
+
+5 · LO QUE SIGUE BLOQUEANDO LA FASE 5
+────────────────────────────────────────────────────────────────────────────
+🔴 **Esta corrida NO da vía libre, y es correcto:** con `--solo F7` las otras
+   nueve fases quedan PENDIENTE por diseño. **Hace falta una corrida entera
+   F0-F9** para el veredicto.
+
+Y de los cuatro pendientes de F9, ninguno es del robot:
+
+    ⏳ rosbridge sin identidad por usuario (Fase B)  — trabajo pendiente
+    ⏳ el hueco de los precipicios                   — 👤 decisión del usuario
+    ⏳ la PSK legible por cualquier usuario          — 👤 necesita `sudo`
+    ⏳ purgar PSK y credencial del histórico de git  — 👤 higiene
+
+⏳ **Y una casilla de medición que se escapó hoy:** F7 construye un mapa de SLAM
+   **con el obstáculo dentro**, que es justo el artefacto que hace falta para
+   probar «AMCL sobre un mapa que SÍ contiene los objetos» (evidencia 91, § 5bis).
+   **F7 lo levanta y lo tira: no lo guarda.** Habrá que mapear aparte y guardar
+   con `map_saver_cli`. **NO VERIFICADO.**

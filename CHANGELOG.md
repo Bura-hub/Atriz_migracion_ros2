@@ -4,6 +4,49 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (robot, 15:07) — **El `FALLO` del obstáculo, cerrado por su efecto**
+
+Se aplicó la regla que salió de las evidencias 90 y 91 —**hueco de 60 cm medido con cinta**— y se
+volvió a correr `prueba_aceptacion.py --solo F7`. **12 PASA · 0 REVISAR · 0 FALLO.** El objetivo con
+obstáculo, que era el único hallazgo real de las 74 comprobaciones del 2026-08-08, da `SUCCEEDED`
+con 8,0 cm de error y 13,0° de rumbo.
+
+**Y se comprobó por una vía independiente, porque «PASA» también puede mentir:**
+
+```
+                                 2026-08-08        hoy
+  planificador «failed to plan»       8              0
+  «detected collision ahead»          —              0
+  «Controller patience exceeded»     sí              0
+  recuperaciones          spin→backup→spin       NINGUNA
+  desenlaces                   Goal failed   3 SUCCEEDED · 0 failed
+```
+
+Nav2 no tuvo que recuperarse ni una vez. Coincide con lo que predecía la 91: con 60 cm el plan sale
+recto y no hay rodeo que se coma el cuarto.
+
+⚠️ **Un margen justo que queda anotado, no celebrado:** el desvío lateral dio **17,2 cm sobre una
+banda [15, 50]** — pasa por 2,2 cm. El suelo de esa banda existe para demostrar que el robot
+**rodeó**; con 60 cm el plan es casi recto, así que los 17,2 cm salen sobre todo de que el obstáculo
+va escorado 6 cm. **Si alguien ensancha el hueco «para ir sobre seguro», el desvío bajará de 15 y la
+comprobación dará FALLO con el robot habiéndolo hecho bien.** La banda **no se toca** sin medir.
+
+✅ **Y el aviso añadido esa misma tarde se ganó el sitio en la primera tanda.** El usuario preguntó
+antes de lanzar: *«el robot quedó torcido, ¿el obstáculo va delante de este nuevo POV o del
+inicial?»*. La corrida imprimió `rumbo tras el regreso: +53° (partida +62° -> desvio -8°)` y
+`A 0.75 m, -8° desplazan «delante» 11 cm de lado`. Sin ese número el montaje se habría hecho sobre
+el eje equivocado.
+
+⏳ **Sigue sin haber vía libre, y es correcto:** con `--solo F7` las otras nueve fases quedan
+PENDIENTE por diseño. Hace falta una corrida entera F0-F9. De los cuatro pendientes de F9 ninguno es
+del robot: rosbridge Fase B, y tres del usuario (precipicios, PSK, histórico de git).
+
+⏳ **Y una casilla que se escapó:** F7 construye un mapa de SLAM **con el obstáculo dentro** —el
+artefacto exacto que hace falta para probar «AMCL sobre un mapa que sí contiene los objetos»— pero
+**lo levanta y lo tira, no lo guarda.** Habrá que mapear aparte con `map_saver_cli`.
+
+Evidencia 92.
+
 ## 2026-08-09 (robot, tarde) — **La variante con SLAM: el mapa engorda los objetos**
 
 Se hizo lo que la evidencia 90 dejó pendiente —**quitar a AMCL del medio usando SLAM**— y el

@@ -1,0 +1,97 @@
+==============================================================================
+PRUEBA DE ACEPTACION · rvr-01 · 2026-08-09 15:07:40
+==============================================================================
+
+
+── F0 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F0 · Arranque en frio — ¿arranco solo?
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F1 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F1 · Telemetria — los sentidos del robot
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F2 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F2 · LIDAR — arranca, barre y para
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F3 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F3 · Luces — esta la confirmas TU con los ojos
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F4 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F4 · Movimiento basico y parada de emergencia
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F5 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F5 · ANGULOS — el hueco que nadie habia medido
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F6 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F6 · Seguridad — collision_monitor y watchdog
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F8 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F8 · Web — rosbridge de verdad, no «el puerto esta abierto»
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F9 ──────────────────────────────────────────────────────────────────────
+  [PEND ] F9 · Veredicto
+          NO VERIFICADO: fase NO ejecutada en esta corrida (--solo F7) — sin correrla no se puede dar via libre
+
+── F7 ──────────────────────────────────────────────────────────────────────
+  [OK   ] Nav2 levanta y su action server responde
+  [OK   ] objetivo limpio a 1.50 m: Nav2 lo dio por COMPLETADO
+          estado = SUCCEEDED
+  [OK   ] objetivo limpio a 1.50 m: error final SEGUN AMCL
+          8.8 cm · banda [0.0, 15.0] cm · base coherencia interna, NO precision: 8-10 cm es la xy_goal_tolerance repetida
+  [OK   ] objetivo limpio a 1.50 m: error de RUMBO al llegar
+          12.6 ° · banda [0.0, 20.0] ° · base sin base historica; Nav2 lo da por bueno dentro de su yaw_goal_tolerance
+  [OK   ] regreso al origen: Nav2 lo dio por COMPLETADO
+          estado = SUCCEEDED
+  [OK   ] regreso al origen: error final SEGUN AMCL
+          7.8 cm · banda [0.0, 15.0] cm · base coherencia interna, NO precision: 8-10 cm es la xy_goal_tolerance repetida
+  [OK   ] regreso al origen: error de RUMBO al llegar
+          8.4 ° · banda [0.0, 20.0] ° · base sin base historica; Nav2 lo da por bueno dentro de su yaw_goal_tolerance
+  [OK   ] objetivo CON obstaculo: Nav2 lo dio por COMPLETADO
+          estado = SUCCEEDED
+  [OK   ] objetivo CON obstaculo: error final SEGUN AMCL
+          8.0 cm · banda [0.0, 15.0] cm · base coherencia interna, NO precision: 8-10 cm es la xy_goal_tolerance repetida
+  [OK   ] objetivo CON obstaculo: error de RUMBO al llegar
+          13.0 ° · banda [0.0, 20.0] ° · base sin base historica; Nav2 lo da por bueno dentro de su yaw_goal_tolerance
+  [OK   ] desvio lateral rodeando el obstaculo
+          17.2 cm · banda [15.0, 50.0] cm · base manual 11.13: 30 cm y vuelve al eje
+  [OK   ] sin «Failed to make progress»
+          el arreglo del SimpleProgressChecker sigue en pie
+
+── F9 ──────────────────────────────────────────────────────────────────────
+  [PEND ] rosbridge sin identidad por usuario (Fase B)
+          La Fase A ya cerro `raw_motors` y publicar en /cmd_vel — verificado con 0.00 cm de desplazamiento (evidencia 53). Lo que sigue abierto es que **rosbridge 2.7.0 en Jazzy NO TIENE AUTENTICACION** (no existe: ni `rosauth`, ni parametro `authenticate`, y `check_origin()` devuelve True siempre), asi que CUALQUIERA EN EL AULA PUEDE TELEOPERAR CUALQUIER ROBOT por cmd_vel_raw. Se cierra con el proxy que valida el JWT en cada robot. Ver 03_operacion/SEGURIDAD_ROSBRIDGE.md
+  [PEND ] el hueco de los precipicios
+          collision_monitor solo mira /scan, y un LIDAR 2D no ve un vacio a ninguna altura. Mitigado solo por la regla de laboratorio (suelo continuo y cerrado). Ver manual cap. 12.2b
+  [PEND ] la PSK del WiFi es legible por cualquier usuario
+          falta fmask=0177,dmask=0077 en /etc/fstab. chmod NO sirve: es FAT
+  [PEND ] purgar la PSK y la credencial del HISTORICO de git
+          ROTADAS el 2026-08-04 (eso es lo que cierra la exposicion). Lo que sigue abierto es HIGIENE: el historico de Atriz_rvr conserva las once lineas en main y en ros2. Purgar NO llega a los forks que ya existan, asi que nunca habria bastado solo -- y ahora que estan rotadas, los valores del historico ya no valen para nada.
+
+==============================================================================
+  12 PASA · 0 REVISAR · 0 FALLO · 13 PENDIENTE
+==============================================================================
+
+  🔴 NO HAY VIA LIBRE PARA LA FASE 5
+
+     Lo que lo impide:
+       · [PENDIENTE] F0 · Arranque en frio — ¿arranco solo?
+       · [PENDIENTE] F1 · Telemetria — los sentidos del robot
+       · [PENDIENTE] F2 · LIDAR — arranca, barre y para
+       · [PENDIENTE] F3 · Luces — esta la confirmas TU con los ojos
+       · [PENDIENTE] F4 · Movimiento basico y parada de emergencia
+       · [PENDIENTE] F5 · ANGULOS — el hueco que nadie habia medido
+       · [PENDIENTE] F6 · Seguridad — collision_monitor y watchdog
+       · [PENDIENTE] F8 · Web — rosbridge de verdad, no «el puerto esta abierto»
+       · [PENDIENTE] F9 · Veredicto
+       · [PENDIENTE] rosbridge sin identidad por usuario (Fase B)
+       · [PENDIENTE] el hueco de los precipicios
+       · [PENDIENTE] la PSK del WiFi es legible por cualquier usuario
+       · [PENDIENTE] purgar la PSK y la credencial del HISTORICO de git
+==============================================================================
