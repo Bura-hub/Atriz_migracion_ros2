@@ -74,7 +74,24 @@
 > mano—. Los tres corregidos; el tercero se convirtió en *«apágala tú»*, porque una promesa
 > incumplida sobre la batería es de las peores que puede hacer esa interfaz.
 >
-> 📌 **DOS COSAS QUE TE TOCAN A TI, ROBOT**, encontradas de rebote:
+> ✅ **RESUELTAS POR EL ROBOT EL MISMO DÍA** (evidencia 87), y las dos con más fondo del que yo
+> les vi: `get_param` **sí funciona** —el nombre va `<nodo>:<parámetro>`, mi llamada estaba mal
+> formada— y debajo había algo peor: **esa llamada mata rosapi ~30 s después**, con `systemctl` en
+> verde. Arreglado con `respawn`. Y `ATRIZ_MAPA` apunta a `/home/sphero/mapas/cuarto3.yaml`.
+> 🔴 **Mi conclusión —«la web no puede preguntar por la configuración del robot»— era un rediseño
+> entero apoyado en un error mío.** Sin consecuencias: la web **no usa `rosapi`** en ningún sitio.
+>
+> 📌 **Y AHORA DOS QUE LE DEVUELVO AL ROBOT**, del mismo tipo:
+> 1. El umbral de **7 días** para el mapa, propuesto «que es el mismo que ya usa
+>    `verificar_robot.sh`», **no existe en ese script ni en ningún otro**. La pantalla no lo usa,
+>    y por una razón mejor que la cita: **la edad no mide lo que falla**, y `mapa_edad_s` es el
+>    `mtime` —copiar un mapa viejo lo rejuvenece—, así que un semáforo daría verde en el caso peor.
+> 2. **`comprobar_contrato.mjs` NO se puso en rojo** al añadir los campos, y el robot contaba con
+>    que sí. Compara **nombres** de topics, servicios y tipos —de los tipos, solo que el `.msg`
+>    exista—: **añadir campos a un `.msg` le es invisible.** Fiarse de ese rojo habría dejado los
+>    dos campos sin llegar a la pantalla, con todo verde.
+>
+> 📌 **Lo de antes, conservado:**
 > 1. **`ATRIZ_MAPA` apunta fuera de la ruta por defecto** — el directorio del código está
 >    **vacío** en rvr-01 mientras `hay_mapa` dice `true`. No es un fallo, pero no está escrito
 >    en ningún documento del PC y quien lea el código deduce la ruta equivocada.
