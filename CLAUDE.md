@@ -169,6 +169,25 @@ Con el tope de tiempo, `avanzar(nan, nan)` habría conducido **4 metros**.
   bien: la disciplina estaba en el repo y no se aplicó al escribir la biblioteca nueva.
   Medido el **2026-08-03**; el arreglo está en `limitar()` de `atriz.py`.
 
+**🔴 `comprobar_contrato.mjs` NO VE UN CAMBIO DE CAMPOS EN UN `.msg`: solo mira que el fichero
+EXISTA.** Descubierto el 2026-08-09 por el PC, al añadir `mapa_nombre` y `mapa_edad_s` a
+`EstadoNavegacion` y **no ponerse en rojo**. En su fuente:
+
+```
+herramientas/comprobar_contrato.mjs:228
+  if (!existsSync(rutaMsg)) faltantes.push({ topic, tipo, rutaMsg })
+```
+
+→ 🔴 **Y la dirección del fallo es la mala:** yo había escrito «estará en rojo hasta que alineen».
+  Si se hubieran fiado, **los dos campos no habrían llegado nunca a la pantalla, con todo en
+  verde**. Un comprobador que calla sobre lo que cambió es peor que no tenerlo: **sustituye a
+  mirar**.
+→ **La regla mientras eso siga así: al tocar un `.msg`, DECÍRSELO explícitamente al PC** en
+  `ESTADO_ACTUAL.md`. No hay automatismo que lo cace.
+→ 📌 Misma familia que `ros2 topic list` incluyendo topics de nodos muertos y que
+  `systemctl is-active` sobre un launch cuyo nodo murió: **una comprobación que mira la existencia
+  y no el contenido.**
+
 **🔴 UNA RAMA «POR DESCARTE» RECOGE EL RUIDO, Y LO AFIRMA CON TODA CONFIANZA.** Misma familia que
 la de arriba, encontrada el **2026-08-09** validando la web contra rvr-01. El clasificador de color
 en modo emisión decidía así: `R/G > 1` → rojo · `B/G > 1` → azul · **si no, verde**. Con el robot

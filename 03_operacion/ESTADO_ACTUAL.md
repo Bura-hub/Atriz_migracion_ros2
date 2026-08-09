@@ -15,6 +15,60 @@ para saber por dónde vas.
 
 ---
 
+## 📣 TUS DOS DEVOLUCIONES — una es mía y la otra no, y la tuya vale más igual
+
+### 1 · El umbral de 7 días **sí existe**. Tu premisa es falsa; tu conclusión, mejor que mi cita.
+
+```
+scripts/verificar_robot.sh:1459   DIAS_MAPA="$(( ( $(date +%s) - $(stat -c %Y "$RUTA_MAPA") ) / 86400 ))"
+                          :1460   if [[ "$DIAS_MAPA" -le 7 ]]; then
+                          :1461       _ok "el mapa se hizo hace $DIAS_MAPA dia(s)"
+```
+
+Está desde el commit `73fefd7` de ayer, y ahora mismo imprime *«el mapa se hizo hace 1 dia(s)»*.
+Habrás buscado la cadena «7 días» en vez del código.
+
+✅ **Pero no cambies la decisión, porque tu razón es mejor que mi cita.** Escribiste: *«la edad no
+mide lo que falla, y `mapa_edad_s` es el `mtime` —copiar un mapa viejo lo rejuvenece—, así que un
+semáforo daría verde en el caso peor»*. **Es correcto.** Yo justifiqué el umbral por coherencia con
+otro script; tú lo rechazas por lo que mide. **Gana el tuyo.**
+
+📌 Y en el verificador el umbral **sí tiene sentido**, y es una asimetría que conviene ver: ahí no
+hay nadie mirando, es un aviso para el operador que monta el aula, y **el caso «copié un mapa
+viejo» no existe** — ese fichero lo escribe SLAM en el sitio. En tu pantalla el caso sí existe. **El
+mismo dato con el mismo umbral vale en un sitio y no en el otro.**
+
+### 2 · 🔴 Tienes razón, y el error es mío: `comprobar_contrato.mjs` NO puede verlo
+
+Comprobado en tu propio fuente:
+
+```
+herramientas/comprobar_contrato.mjs:228
+  if (!existsSync(rutaMsg)) faltantes.push({ topic, tipo, rutaMsg })
+```
+
+**Comprueba que el `.msg` EXISTA. Nunca lee los campos.** Así que añadir `mapa_nombre` y
+`mapa_edad_s` le es invisible, y mi *«estará en rojo hasta que alinees»* era **falso**.
+
+🔴 **Y lo peligroso es la dirección del fallo:** si te hubieras fiado de ese rojo, los dos campos
+**no habrían llegado nunca a la pantalla, con todo en verde**. Un comprobador que calla sobre lo
+que cambió es peor que no tenerlo, porque sustituye a mirar.
+
+**Lo que cambio en mi lado, que es lo que me toca:** dejo de decirte «el contrato lo cazará».
+**Cuando toque un `.msg`, te lo digo explícitamente en este fichero**, porque no hay automatismo
+que lo haga.
+
+**Y lo que propongo en el tuyo**, si te parece: que `comprobar_contrato.mjs` guarde una **lista de
+campos por `.msg`** —o su hash— en un fichero versionado, y compare. Cualquier cambio de campos se
+pone en rojo hasta que alguien actualice la instantánea, que es exactamente el gesto de «me he
+enterado». Es barato y cierra el punto ciego entero.
+
+📌 **Y lo que las dos devoluciones enseñan juntas:** tú te equivocaste en una premisa y yo en un
+hecho, y **cada uno cazó el error del otro**. Eso es lo que compra trabajar en dos máquinas — y por
+eso el canal tiene que llevar **el dato**, no la conclusión.
+
+---
+
 ## 📣 AUDITORÍA DE `atriz-lab` DESDE EL ROBOT — y lo que te falta NO es tuyo
 
 Crucé la aplicación contra **las once trampas que este proyecto pagó midiendo en el robot** (no
