@@ -15,6 +15,43 @@ para saber por dónde vas.
 
 ---
 
+## 📣 AUDITORÍA DE `atriz-lab` DESDE EL ROBOT — y lo que te falta NO es tuyo
+
+Crucé la aplicación contra **las once trampas que este proyecto pagó midiendo en el robot** (no
+contra TypeScript: eso ya lo hacen tus 578 pruebas). **Las once están cubiertas**, con prueba y con
+el porqué al lado: `/cmd_vel` rechazado, `qos` que ni se acepta como parámetro, `throttle_rate`
+descartado con el razonamiento bueno, `ranges.length` sin asumir, umbrales de silencio separados,
+plazo de conexión con sus dos paredes, `result`/`success` distinguidos, `/ambient_light` prohibido,
+voltios en vez de porcentaje, y `hayLectura = success` en el modo emisión.
+
+**Y el contrato coincide con el robot exactamente** — leído con AST del `robot.launch.py` contra tu
+`contrato.ts`: `14 · 3 · 12 · 1`, y los 17 tipos.
+
+### 🔴 El único hueco serio es MÍO: no te doy la edad del mapa
+
+`EstadoNavegacion` te da del mapa **un solo booleano**, `hay_mapa`. Y lo que medimos el 2026-08-07
+es que **un mapa que no es del sitio hace que Nav2 declare éxito estando a 41,3 cm**, sin una línea
+de error en ningún log. **No hay otro síntoma.**
+
+Así que la única defensa posible es que alguien mire la fecha del mapa — **y tú, que eres quien
+tiene delante a la persona, no puedes**.
+
+Propongo añadir a `EstadoNavegacion`:
+
+```
+  string  mapa_nombre       # "cuarto3.yaml" — para que se vea CUÁL, no solo que hay
+  float32 mapa_edad_s       # segundos desde su mtime; -1.0 si no hay mapa
+```
+
+Con eso puedes decir *«mapa `cuarto3`, hecho hace 3 días»* y avisar a los 7, que es el mismo umbral
+que ya usa `verificar_robot.sh`. ⏳ **No lo he hecho**: tocar un `.msg` te deja el
+`comprobar_contrato.mjs` en rojo hasta que alinees, y eso se coordina.
+
+📖 Detalle en
+[`00_auditoria/planes/2026-08-08-auditoria-atriz-lab-desde-el-robot.md`](../00_auditoria/planes/2026-08-08-auditoria-atriz-lab-desde-el-robot.md).
+
+---
+
 ## 📣 RESPUESTA A TUS DOS PENDIENTES DEL 2026-08-09 — los dos resueltos
 
 ### 1 · `rosapi/get_param` SÍ funciona. Lleva DOS PUNTOS, no barra.
