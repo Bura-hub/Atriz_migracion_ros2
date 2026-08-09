@@ -321,6 +321,58 @@ pantallas reales en verde.
 
 ---
 
+## 2026-08-09 — **La PSK cerrada, y el DÉCIMO falso positivo del verificador**
+
+Uno de los cinco bloqueantes de la Fase 5, cerrado por el usuario con una línea de `/etc/fstab`.
+
+```
+antes    -rwxr-xr-x  root:root  /boot/firmware/red.txt      ← lo leía cualquiera
+después  drwx------  root:root  /boot/firmware              ← ni se puede entrar
+         fmask=0177 · dmask=0077
+```
+
+### 🔴 `mount -o remount` tampoco lo aplica: devuelve 0 y no hace nada
+
+Tras `systemctl daemon-reload` y `mount -o remount /boot/firmware`, `findmnt` **seguía dando
+`fmask=0022`**. Hizo falta **reiniciar**. Es la misma forma que el `chmod` que este proyecto ya
+tenía documentado, sobre el mismo fichero, con otra orden: **dos maneras distintas de dejar el
+problema abierto con aspecto de resuelto.**
+
+📌 Y lo único que lo detectó fue mirar el efecto —`ls -l`— en vez del código de salida. Por tercera
+vez en dos días.
+
+### 🔴🔴 Y arreglarlo rompió el verificador, el mismo día que el noveno
+
+Al cerrar el directorio, `[[ -f /boot/firmware/red.txt ]]` da falso, y el guion decía:
+
+```
+  ! no hay /boot/firmware/robot_id.txt
+  ! no hay /boot/firmware/red.txt: la red se queda en DHCP
+```
+
+**Los dos ficheros están ahí.** Es exactamente la lección del noveno —**«no puedo verlo» no es «no
+está»**— reapareciendo en el otro extremo del sistema, en el mismo día, por la misma causa.
+
+🔴 **Y aquí es peor que en el caso de polkit:** mandaba a **recrear el fichero que lleva la PSK**.
+Rehacerlo mal deja al robot sin red.
+
+✅ Arreglado con un guardia `BOOT_LEGIBLE` que distingue los dos casos — y en éste **«no puedo
+verlo» ES la prueba de que está bien**, así que se reporta como ✅: *«la PSK está protegida»*.
+
+📌 **Le pasará a los 16 en cuanto la imagen dorada lleve el `fmask`**, que es justo lo que se
+quiere. Por eso se arregló en el verificador y no con un caso especial.
+
+### Y un pendiente que pedía algo ya hecho
+
+`aceptacion_nucleo.py` listaba «la credencial `sphero` **sin rotar**» entre los bloqueantes. **Se
+rotó el 2026-08-04**, junto con la PSK, y se archivó `Atriz_web_server` — **eso** es lo que cierra
+la exposición. Lo que sigue abierto es **higiene**: el histórico de git, que además **no llega a
+los forks que ya existan**, así que purgar nunca habría bastado solo.
+
+📌 **Un guion que sigue pidiendo algo hecho gasta la credibilidad de los que sí faltan.**
+
+---
+
 ## 2026-08-08 (11) — **Los `ABORTADO` eran mentira: el robot había llegado las tres veces**
 
 Réplica de la navegación (n=3) que destapó **dos fallos de Nav2**, y el segundo llevaba desde el

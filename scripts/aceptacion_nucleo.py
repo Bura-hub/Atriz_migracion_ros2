@@ -115,8 +115,17 @@ PENDIENTES_CONOCIDOS = [
               'cerrado). Ver manual cap. 12.2b'),
     Resultado('F9', 'la PSK del WiFi es legible por cualquier usuario', PENDIENTE,
               'falta fmask=0177,dmask=0077 en /etc/fstab. chmod NO sirve: es FAT'),
-    Resultado('F9', 'la credencial sphero sin rotar', PENDIENTE,
-              'y sin purgar del historico de git'),
+    # 🔴 CORREGIDO EL 2026-08-08: este pendiente decia «la credencial sphero SIN
+    #    ROTAR», y eso dejo de ser cierto el 2026-08-04 -- el usuario roto la PSK
+    #    del WiFi y la contrasena de `sphero`, y se archivo Atriz_web_server.
+    #    ESO es lo que cierra la exposicion, y ya esta hecho. Un guion que sigue
+    #    pidiendo algo hecho gasta la credibilidad de los que si faltan.
+    Resultado('F9', 'purgar la PSK y la credencial del HISTORICO de git', PENDIENTE,
+              'ROTADAS el 2026-08-04 (eso es lo que cierra la exposicion). Lo que '
+              'sigue abierto es HIGIENE: el historico de Atriz_rvr conserva las once '
+              'lineas en main y en ros2. Purgar NO llega a los forks que ya existan, '
+              'asi que nunca habria bastado solo -- y ahora que estan rotadas, los '
+              'valores del historico ya no valen para nada.'),
 ]
 
 

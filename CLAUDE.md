@@ -677,6 +677,28 @@ desde ahí el rumbo sale de la IMU. La app de Sphero nunca lee el magnetómetro.
   planeaba) o del operador. No bloquea nada: AMCL sigue la pose con 0.1 cm. **Deja de
   buscarlo.** Evidencia 42.
 
+**✅ CERRADO EL 2026-08-08: la PSK ya NO es legible.** `fmask=0177,dmask=0077` en `/etc/fstab`,
+aplicado y **verificado por efecto**:
+
+```
+antes    -rwxr-xr-x  root:root  /boot/firmware/red.txt      ← lo leía cualquiera
+después  drwx------  root:root  /boot/firmware              ← ni se puede entrar
+         fmask=0177 · dmask=0077
+```
+
+→ 🔴 **Y `mount -o remount /boot/firmware` A SECAS NO LO APLICA: devuelve 0 y deja las máscaras
+  viejas.** Medido: tras el remount, `findmnt` seguía dando `fmask=0022`. **Hizo falta REINICIAR.**
+  Es la MISMA forma que el `chmod` de abajo, sobre el mismo fichero, con otra orden — dos maneras
+  distintas de que el problema quede **abierto con aspecto de resuelto**.
+→ 🔴🔴 **Y rompió el verificador: DÉCIMO falso positivo, el mismo día que el noveno.** Al cerrar el
+  directorio, `[[ -f /boot/firmware/red.txt ]]` da falso y el guion decía **«no hay red.txt: la red
+  se queda en DHCP»** sobre un fichero que está ahí. Peor que el caso de polkit: **mandaba a
+  recrear el fichero que lleva la PSK**, y rehacerlo mal deja al robot sin red.
+  ✅ Arreglado con un guardia `BOOT_LEGIBLE` que **distingue «no puedo verlo» de «no está»** — y en
+  este caso el «no puedo verlo» **es la prueba de que está bien**, así que se reporta como ✅.
+→ 📌 **Le pasará a los 16 en cuanto la imagen dorada lleve el `fmask`**, que es justo lo que se
+  quiere. Por eso se arregló en el verificador y no con un caso especial.
+
 **🔴 `chmod` NO HACE NADA EN `/boot/firmware`, Y NO DA ERROR.** Es **vfat**, y FAT no
 almacena permisos de Unix: los fija `fmask` en el **montaje**, para toda la partición. Con el
 `defaults` de Ubuntu queda todo en **755**, así que `red.txt` —que lleva **la PSK del WiFi**—

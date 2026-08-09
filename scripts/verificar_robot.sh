@@ -98,11 +98,35 @@ esac
 sec "2 · Arranque y UART (lo que decide si el robot habla)"
 
 # cmdline.txt NO debe reservar el puerto serie para la consola del kernel
-if grep -q 'console=serial' /boot/firmware/cmdline.txt 2>/dev/null; then
+# 🔴🔴 DECIMO FALSO POSITIVO DE ESTE VERIFICADOR, y llego el 2026-08-08 el mismo
+#    dia que el noveno, por la misma causa y en el otro extremo del sistema.
+#
+#    Al cerrar la PSK con `fmask=0177,dmask=0077` en /etc/fstab -- que es LO
+#    CORRECTO y cierra un bloqueante de la Fase 5 -- el directorio pasa a
+#    `drwx------ root:root`, y este verificador, que corre como `sphero`, deja de
+#    poder ATRAVESARLO. Entonces `[[ -f ... ]]` da falso sobre ficheros que SI
+#    existen, y el guion decia:
+#
+#      ! no hay /boot/firmware/robot_id.txt
+#      ! no hay /boot/firmware/red.txt: la red se queda en DHCP
+#
+#    Los dos estaban ahi. **«No puedo verlo» NO es «no esta»**, y aqui es peor que
+#    en el caso de polkit: manda al operador a RECREAR un fichero que ya existe, y
+#    red.txt lleva la PSK. Rehacerlo mal deja al robot sin red.
+#
+# 📌 Y esto le va a pasar a los 16 en cuanto la imagen dorada lleve el fmask, que
+#    es justo lo que se quiere. Por eso se arregla aqui y no con un caso especial.
+BOOT_LEGIBLE=1
+if [[ ! -x /boot/firmware ]]; then
+    BOOT_LEGIBLE=0
+    _nota "/boot/firmware no es atravesable por $USER (dmask=0077): las comprobaciones de esa partición se saltan. NO es un fallo -- es la PSK protegida. Para verlas: sudo bash $0"
+fi
+
+if [[ "$BOOT_LEGIBLE" == "1" ]] && grep -q 'console=serial' /boot/firmware/cmdline.txt 2>/dev/null; then
     _mal "cmdline.txt reserva el serie para la consola" \
          "quita 'console=serial0,115200' de /boot/firmware/cmdline.txt y reinicia"
 else
-    _ok "cmdline.txt no reserva el puerto serie ($(grep -o 'console=[^ ]*' /boot/firmware/cmdline.txt | tr '\n' ' '))"
+    _ok "cmdline.txt no reserva el puerto serie ($(grep -o 'console=[^ ]*' /boot/firmware/cmdline.txt 2>/dev/null | tr '\n' ' '))"
 fi
 
 # El device-tree del arranque ACTUAL es la única prueba de que disable-bt surtió
@@ -1129,7 +1153,7 @@ fi
 #    Aviso y no fallo: la banda que usa el laboratorio (2.4 GHz) está permitida
 #    en los dos dominios, así que hoy no rompe nada. Queda escrito para que
 #    nadie vuelva a leer el cmdline.txt y dé por hecho que está aplicado.
-if command -v iw >/dev/null 2>&1 && grep -q 'ieee80211_regdom' /boot/firmware/cmdline.txt 2>/dev/null; then
+if [[ "$BOOT_LEGIBLE" == "1" ]] && command -v iw >/dev/null 2>&1 && grep -q 'ieee80211_regdom' /boot/firmware/cmdline.txt 2>/dev/null; then
     REG_PEDIDO="$(grep -o 'ieee80211_regdom=[A-Z][A-Z]' /boot/firmware/cmdline.txt | cut -d= -f2)"
     REG_REAL="$(iw reg get 2>/dev/null | sed -n 's/^country \([A-Z0-9]*\):.*/\1/p' | head -1)"
     if [[ "$REG_PEDIDO" == "$REG_REAL" ]]; then
@@ -1143,7 +1167,9 @@ fi
 # --- La identidad y el perfil de red, en la partición FAT --------------------
 # 🔴 Viven en la FAT a propósito: una IP estática mal puesta deja al robot sin
 #    dirección en esa LAN, y la FAT se corrige metiendo la microSD en un PC.
-if [[ -f /boot/firmware/robot_id.txt ]]; then
+if [[ "$BOOT_LEGIBLE" == "0" ]]; then
+    :   # ya avisado arriba: no se puede mirar, y eso no es que falte
+elif [[ -f /boot/firmware/robot_id.txt ]]; then
     RID="$(grep -oP '^\s*ROBOT_ID\s*=\s*\K[0-9]+' /boot/firmware/robot_id.txt 2>/dev/null | head -1 || true)"
     if [[ -n "$RID" ]]; then
         _ok "robot_id.txt → ROBOT_ID=$RID"
@@ -1182,7 +1208,12 @@ else
          "sin él, first-boot no puede personalizar un clon de la imagen dorada"
 fi
 
-if [[ -f /boot/firmware/red.txt ]]; then
+if [[ "$BOOT_LEGIBLE" == "0" ]]; then
+    # 🔴 Y AQUI EL «no puedo verlo» ES LA PRUEBA DE QUE ESTA BIEN. El unico
+    #    motivo por el que este proceso no puede leer red.txt es que la dmask lo
+    #    esta protegiendo, que es exactamente lo que se queria conseguir.
+    _ok "la PSK está protegida: /boot/firmware no es legible sin privilegio (fmask/dmask en fstab)"
+elif [[ -f /boot/firmware/red.txt ]]; then
     _ok "existe /boot/firmware/red.txt (perfil de red)"
     # 🔴 red.txt LLEVA LA PSK DEL WIFI Y ESTÁ EN UNA FAT, QUE NO GUARDA
     #    PERMISOS DE UNIX. `chmod 600` sobre él **no hace nada** y devuelve 0,
