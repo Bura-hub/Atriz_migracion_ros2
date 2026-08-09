@@ -202,8 +202,14 @@
 > 1. **La sesión física, a medias.** El **2026-08-03 se midieron cinco de las siete evidencias**
 >    (57, 58, 59, 60, 61) y salió un fallo real: `girar()` sobregiraba **+4.01° constantes** por
 >    no compensar la inercia — arreglado y remedido en la misma sesión (**+0.19°**). Faltan las
->    dos que necesitan `sudo` y rearrancar el robot con `color_detection:=true`: **la 62 (las dos
->    prácticas de color) y la 63 (el seguidor de línea)**. Va más abajo.
+>    dos que necesitaban `sudo` y rearrancar con `color_detection:=true`: la 62 (las prácticas de
+>    color) y la 63 (el seguidor de línea).
+>    ✅ **LA 62 ESTÁ CERRADA desde el 2026-08-08, y el requisito que la bloqueaba YA NO EXISTE.**
+>    Encender el sensor **en caliente** se verificó el 2026-08-06 (`/enable_color`, evidencia 76),
+>    así que ni `sudo` ni reinicio. Corridas ese día con arnés que mide el efecto:
+>    **05** lectura estable y **sin mover el robot** (que es lo que promete), **11** detectó negro
+>    a `claro=396` tras **46,5 cm** y paró. Evidencia 85.
+>    ⏳ **Solo queda la 63, el seguidor de línea** — y por otra razón: hace falta cinta.
 > 2. ✅ **ROTADAS el 2026-08-04.** El usuario rotó la PSK del WiFi y la contraseña de `sphero`, y
 >    a continuación se **archivó `Atriz_web_server`** (público, solo lectura). **Eso es lo que
 >    cierra la exposición**, y ya está hecho.
@@ -597,8 +603,11 @@ done
 
 # y este, suelto y repetido, midiendo con cinta lo que recorre TRAS el Ctrl-C:
 python3 99_test_ctrl_c.py        # x5, pulsando a distintas alturas
-# 05_sensor_color.py, 11_sensor_avanzado.py y seguidor_linea_pid_demo.py van aparte:
-# necesitan arrancar el driver con color_detection:=true (ver API_LABORATORIO.md)
+# 🔴 CADUCADO: aqui ponia que 05, 11 y el seguidor "necesitan arrancar el driver
+#    con color_detection:=true". YA NO. El encendido en caliente esta verificado
+#    desde el 2026-08-06 (/enable_color, evidencia 76): las practicas lo hacen
+#    solas. 05 y 11 se corrieron asi el 2026-08-08 (evidencia 85).
+#    Del seguidor lo unico que falta es CINTA, no configuracion.
 ```
 
 🔴 **Un script que «no da error» y no mueve el robot NO cuenta como verificado.** Hay que
