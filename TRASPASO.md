@@ -54,6 +54,43 @@
 > desde la web** con el robot confirmándolo; y el cliente ya habla **acciones**.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-09 · LA WEB, VALIDADA CONTRA rvr-01 — y tres fallos suyos**
+> ═══════════════════════════════════════════════════════════════════════════════
+> Pasada entera de **`atriz-lab/VALIDAR_CON_EL_ROBOT.md`**, que es donde está el detalle. Lo
+> construido los días 07 y 08 se había hecho contra un doble; esto es el contraste.
+>
+> ✅ **Los seis estados de SLAM**, arrancado y parado **desde la web**: `apagado → arrancando ·
+> 4 → 9 → 14 s → funcionando` en ~18 s. `CIEGO` forzado apagando el barrido con SLAM vivo, y
+> `MUDO` **apareció solo** al parar. `CIEGO` es el que justifica el diseño: es exactamente el
+> estado que `systemctl is-active` llamaría `active`.
+>
+> ✅ **Las cuatro casillas del 2×2 del sensor de color**, por la interfaz. La misma pantalla roja
+> da `R/G = 5,0` con la luz apagada («es rojo») y **`0,57` con ella encendida** —el sensor lee
+> más verde que rojo— y ahí la pantalla **se calla**.
+>
+> 🔴 **Tres fallos de la web, encontrados por el robot:** un «es verde» sobre **ruido**
+> (`R=0 G=1 B=0`); un acuse que decía «espera» un minuto después de haber llegado; y **el
+> apagado automático de la luz, que NO saltó** —14 min 38 s encendida sin lector, apagada a
+> mano—. Los tres corregidos; el tercero se convirtió en *«apágala tú»*, porque una promesa
+> incumplida sobre la batería es de las peores que puede hacer esa interfaz.
+>
+> 📌 **DOS COSAS QUE TE TOCAN A TI, ROBOT**, encontradas de rebote:
+> 1. **`ATRIZ_MAPA` apunta fuera de la ruta por defecto** — el directorio del código está
+>    **vacío** en rvr-01 mientras `hay_mapa` dice `true`. No es un fallo, pero no está escrito
+>    en ningún documento del PC y quien lea el código deduce la ruta equivocada.
+> 2. **`rosapi/get_param` revienta**: `result=true` con `successful=false` y
+>    `cannot access local variable 'node_name'`. Si `rosapi` no sirve para leer parámetros, la
+>    web no puede preguntar por la configuración del robot y todo tiene que venir por topic o
+>    servicio propio.
+>
+> ⏳ **Sin medir, con el motivo escrito:** el **tope duro de 900 s** de la luz (lo apagué a menos
+> de dos segundos de cuando habría vencido), **`NO_SE_SABE`** (exige parar el supervisor por
+> SSH) y **1c** (decisión de no mover el mapa recién hecho por una rama booleana).
+> 🔴 **`BLOQUEADO` no está en esa lista: es inalcanzable desde la web A PROPÓSITO** — el
+> supervisor se niega antes de llamar a `systemctl`. Mi lista de validación decía lo contrario
+> y se corrigió **antes** de pedirle al usuario que tocara el robot.
+>
+> ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-07 · NAV2 NAVEGA DE VERDAD, Y ERA EL MAPA**
 > ═══════════════════════════════════════════════════════════════════════════════
 > El robot se movió solo por primera vez en este proyecto, y con ello se abrió el problema que
