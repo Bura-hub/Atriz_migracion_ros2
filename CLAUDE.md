@@ -941,6 +941,36 @@ a los 32 s          1        ros2 topic info /color --verbose
   por servicio en los dos modos. ✅ Lo que protege hoy es el **tope duro de 900 s**, que no depende
   de la actividad: la exposición está acotada a 15 min, no es indefinida.
 
+
+**🔴 `comprobar_contrato.mjs` NO VE LOS CAMPOS DE UN `.msg`, Y SE CONTABA CON QUE SÍ.** El
+2026-08-08 el robot añadió `mapa_nombre` y `mapa_edad_s` a `EstadoNavegacion` y escribió: *«le toca
+al PC añadirlos a `contrato.ts`; `comprobar_contrato.mjs` estará en rojo hasta entonces, que es lo
+correcto»*. **No lo estuvo:** ejecutado antes de tocar nada, dio los cuatro ✅.
+→ Compara **nombres** de topics, servicios y acciones, y de los **tipos** solo que el `.msg`
+  **exista**. Los campos de dentro le son invisibles.
+→ 🔴 **Fiarse de ese rojo habría dejado los dos campos sin llegar a la pantalla, con todo verde** —
+  y esos dos campos existen para avisar del fallo de los 41,3 cm.
+→ 📝 Misma familia que «`ros2 topic list` incluye topics de nodos muertos» y que los ocho fallos
+  propios del verificador: **una comprobación que se cree que cubre algo y no lo cubre**. Lo que la
+  hace peligrosa no es lo que no mira, es que alguien planifique contando con que sí.
+→ ⏳ Cerrarlo sería leer los campos del `.msg` y cruzarlos con la interfaz de TypeScript. **No
+  hecho.** Mientras tanto: al añadir un campo a un `.msg`, **avísalo por el CHANGELOG**, que es lo
+  único que cruza hoy las dos máquinas.
+
+**🔴 UN UMBRAL SOBRE UN DATO QUE NO MIDE LO QUE FALLA DA VERDE EN EL CASO PEOR.** Al poner la edad
+del mapa en la web se propuso avisar a los **7 días**, *«que es el mismo umbral que ya usa
+`verificar_robot.sh`»*. Dos cosas, y la segunda importa más:
+→ **Ese umbral no existe** en ese script ni en ningún otro del proyecto. Una cita sin fuente, del
+  tipo que este fichero ya ha cazado varias veces.
+→ 🔴 **Y aunque existiera, no serviría: la edad no mide lo que falla.** El fallo medido no es «el
+  mapa es viejo», es «el mapa **no es de este sitio**» —41,3 cm con `SUCCEEDED` y sin una línea de
+  error—, y uno de ayer del cuarto equivocado es igual de peligroso que uno de hace un mes. Peor:
+  `mapa_edad_s` es el **`mtime`**, así que **copiar un mapa viejo lo rejuvenece** y el semáforo
+  daría **verde justo en el caso peor**.
+→ **Antes de poner un umbral, pregunta si la magnitud que mides es la que falla.** Cuando no lo es,
+  lo honesto es enseñar el dato y **preguntar**, no graduar. La pantalla lo hace así, y una prueba
+  impide añadir el umbral sin justificarlo.
+
 **🔴 `TRANSIENT_LOCAL` EN EL PUBLICADOR NO GARANTIZA QUE UN SUSCRIPTOR TARDÍO RECIBA EL ÚLTIMO
 VALOR.** El driver lo daba por hecho para `/motor_status` y `/battery_state`. Medido: un
 suscriptor nuevo se quedaba **sin recibir nada en 10 s, 2 de cada 3 intentos**, con el topic
