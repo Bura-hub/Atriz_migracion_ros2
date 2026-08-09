@@ -150,6 +150,22 @@ Del **eje del LIDAR** al borde, con cinta y con las orugas:
       sólo sobrevivió uno oblicuo, recortado en 10,02 cm — y ese basta para que
       el monitor siga congelando al robot.
 
+⏳ **UN CONFLICTO ABIERTO EN EL BORDE DELANTERO, y no se resuelve por decreto.**
+   El URDF (corregido el 2026-08-02, con sus valores marcados ✅ medido) dice
+   `base_length 0.190` y `laser_x -0.005`, o sea el LIDAR **5 mm por detrás** del
+   centro del chasis:
+
+       del LIDAR al borde TRASERO    9,5 − 0,5 =  9,0 cm   ✅ coincide con la cinta
+       del LIDAR al borde DELANTERO  9,5 + 0,5 = 10,0 cm   ⚠️ la cinta dio 9,0
+
+   **El trasero cuadra exacto**, y es el único validado con el LIDAR. El delantero
+   difiere en 1 cm entre dos medidas, las dos con cinta y en fechas distintas.
+   🔎 **Se cierra igual que se cerró el trasero:** robot mirando a la pared,
+      tocándola, separarlo 3 cm y leer el LIDAR. Si da ~12,0 la cinta de hoy tiene
+      razón; si da ~13,0 la tiene el URDF. **NO VERIFICADO.**
+   📌 No se toca el URDF mientras tanto: cambiar un valor medido por otro medido,
+      sin desempate, es como se metió el cruce de ejes original.
+
 📌 **La tabla de decisión del radio, ya con la geometría medida:**
 
       radius   para a (≈r−0,09)   banda de trampa      pasillo mínimo

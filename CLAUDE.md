@@ -1038,6 +1038,20 @@ RETROCEDER hacia la pared       ->  0.0 cm    monitor: APROXIMACION
   acercarse de alejarse**. Mitigación barata: que `atriz.py` lea `/collision_monitor_state` y avise
   («no me muevo: hay algo a 17 cm») en vez de dejar al alumno mirando un robot mudo 40 s.
 
+**🔴 EL PUNTO CIEGO DEL LIDAR SOBRESALE DEL CHASIS POR DELANTE Y POR DETRÁS — 1 cm QUE NINGÚN
+POLÍGONO CUBRE.** El manual y `collision_monitor.yaml` afirmaban lo contrario («cae dentro del
+chasis, no hay zona muerta»), el manual **con los números correctos y la conclusión mala**:
+`range_min 0.100 > media longitud 0.091`. Medido el 2026-08-09 con el robot **tocando** la pared:
+**10 277 rayos traseros descartados** y sólo uno oblicuo superviviente, recortado en 10,02 cm — que
+basta para que el `collision_monitor` siga congelando al robot.
+→ ✅ Geometría medida con cinta desde el **eje del LIDAR**: 9,0 detrás · 10,8 a cada costado →
+  circunscrito **0,1406**. Validada contra el propio LIDAR con **2 mm** (12,20 leídos vs 12,00
+  predichos separando el robot 3 cm, n=8268 rayos, perfil plano en ±20°).
+→ 🔴 **Y ojo con las medias dimensiones: el RVR es MÁS ANCHO QUE LARGO.** Media longitud **0,090**,
+  media anchura **0,108**. Los `0.109` que aparecen por el proyecto son del URDF **cruzado de eje**;
+  el fichero 19 ya lo avisaba en 2026-07-31 y aun así se volvieron a usar el 2026-08-09.
+→ ⏳ Borde DELANTERO en conflicto: cinta 9,0 vs URDF 10,0. **NO VERIFICADO.**
+
 **🔴 UNA MÉTRICA QUE DA EL MISMO NÚMERO PARA EL ÉXITO Y PARA EL FRACASO NO ES UNA MÉTRICA.**
 El 2026-08-09 se midió el error de un giro de 360° como `wrap(yaw_final − yaw_inicial)` contra un
 pedido de `((360+180) % 360) − 180 = 0`. **Una vuelta completa da 0; estar quieto también.** Se

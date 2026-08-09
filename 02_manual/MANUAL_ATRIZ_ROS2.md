@@ -3478,9 +3478,30 @@ de lo que estaba documentado.
 No es un fallo de configuración: es lo que un LIDAR 2D puede ver. **Tiene que ir en las
 instrucciones a los estudiantes.**
 
-📝 Lo que sí está cubierto: el X2 tiene `range_min: 0.1` y va montado en el centro
-(`laser_x: 0.0`), así que su punto ciego de 10 cm cae **dentro del chasis** (media longitud
-0.091 m, media anchura 0.1085). No hay zona muerta alrededor del robot.
+🔴 **Y hay una SEGUNDA zona ciega que este manual negaba con sus propios números.** Decía:
+
+> *«el X2 tiene `range_min: 0.1` y va montado en el centro (`laser_x: 0.0`), así que su punto ciego
+> de 10 cm cae dentro del chasis (media longitud 0.091 m, media anchura 0.1085). No hay zona muerta
+> alrededor del robot.»*
+
+**Con esos mismos números no sale la conclusión**: `0.100 > 0.091`, así que el punto ciego
+**sobresale** por delante y por detrás. Medido el 2026-08-09 (evidencia 93) con el robot **tocando**
+la pared: se descartaron **10 277 rayos traseros** por debajo de `range_min` y sólo sobrevivió uno
+oblicuo, recortado en 10,02 cm.
+
+```
+delante/detrás   0.100 − 0.090 ≈ 1 cm CIEGO, fuera del chasis
+costados         0.100 − 0.108 = dentro del chasis, ahí sí está cubierto
+```
+
+⚠️ **Ningún polígono puede cubrir ese centímetro**: no es cuestión de ajustar `radius`, es que el
+sensor no entrega el dato. Y `laser_x` no es 0.0 sino **−0.005** (URDF, medido el 2026-08-02).
+
+✅ **Geometría medida con cinta desde el eje del LIDAR el 2026-08-09:** 9,0 cm detrás · 10,8 a cada
+costado, validado contra el propio LIDAR con **2 mm** de error (12,20 leídos contra 12,00 predichos,
+n=8268 rayos). ⏳ **El borde delantero queda en conflicto:** la cinta da 9,0 y el URDF 10,0
+(`base_length 0.190` con `laser_x −0.005`). **NO VERIFICADO** — se cierra repitiendo la misma medida
+con el robot mirando a la pared.
 
 📝 Y el desglose completo de la altura, medido: `suelo → tapa del RVR 7.0` + `tapa → base del
 LIDAR 4.6` + `base → centro del disco 3.9` = **15.5 cm**. Cierra contra la otra medida: los

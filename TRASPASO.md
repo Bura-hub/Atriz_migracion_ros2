@@ -182,6 +182,19 @@
 >   menos de 20 cm. Si no obedece, mira `/collision_monitor_state` antes de pensar que se colgó.
 >   El verificador ya comprueba el valor en cada robot.
 >
+> 🆕 **2026-08-09 · LA GEOMETRÍA DEL ROBOT, MEDIDA DESDE EL EJE DEL LIDAR**
+>
+> `9,0 cm detrás · 10,8 a cada costado`, validado contra el propio LIDAR con **2 mm** de error
+> (12,20 leídos contra 12,00 predichos, n=8268 rayos). Radio circunscrito **0,1406 m**.
+> → 🔴 **Y tumba una afirmación de seguridad que estaba en el manual y en la configuración:** «el
+>   punto ciego de 10 cm cae dentro del chasis, no hay zona muerta». Con la media longitud real
+>   (0,090) **sobresale 1 cm por delante y por detrás**, y **ningún polígono puede cubrirlo**: no es
+>   cuestión de ajustar `radius`, es que el sensor no da el dato. A los costados sí queda dentro.
+> → ⏳ **Conflicto abierto en el borde DELANTERO:** la cinta de hoy da 9,0 cm y el URDF 10,0
+>   (`base_length 0.190` + `laser_x −0.005`, medidos el 2026-08-02). El trasero cuadra exacto en
+>   las dos. **NO VERIFICADO** — se cierra repitiendo la medida con el robot mirando a la pared.
+>   No se toca el URDF sin desempate: así se metió el cruce de ejes original.
+>
 > 🆕🔴 **2026-08-09 · EL MAPA DE slam_toolbox SE QUEDA CONGELADO Y CASI VACÍO**
 >
 > 49 celdas ocupadas para un cuarto entero (una pared de 15 m a 5 cm serían ~300), **idéntico celda

@@ -68,6 +68,22 @@ la columna «para a» sale de un modelo (`≈ radius − 0,09`) y la única cifr
 sin chocar» con 0,18. **Falta medir la distancia de frenado a cada radio candidato** — y hasta
 entonces el radio no se toca.
 
+**Y una segunda zona ciega que el manual negaba con sus propios números.** Decía «el punto ciego de
+10 cm cae dentro del chasis (media longitud 0.091), no hay zona muerta» — pero `0.100 > 0.091`, así
+que **sobresale**. Confirmado con el robot tocando la pared: **10 277 rayos traseros descartados** y
+un solo superviviente oblicuo, recortado en 10,02 cm. **Ningún polígono puede cubrir ese
+centímetro**: no es cuestión de ajustar `radius`, es que el sensor no da el dato. A los costados sí
+queda dentro del chasis (media anchura 0,108).
+
+⏳ **Y queda un conflicto abierto en el borde delantero**, que no se resuelve por decreto: la cinta
+de hoy da **9,0 cm** y el URDF **10,0** (`base_length 0.190` con `laser_x −0.005`, medidos el
+2026-08-02). El trasero cuadra exacto en las dos y es el único con desempate instrumental. Se cierra
+repitiendo la misma prueba con el robot mirando a la pared. **No se toca el URDF mientras tanto:
+cambiar un valor medido por otro medido sin desempate es como se metió el cruce de ejes original.**
+
+Alineado en los dos repositorios: `collision_monitor.yaml` (imagen dorada), manual cap. 12,
+`CLAUDE.md`, `TRASPASO.md`, evidencia 93 y el banco `medir_limite_del_monitor.py`.
+
 Evidencia 93.
 
 ## 2026-08-09 (robot, 15:07) — **El `FALLO` del obstáculo, cerrado por su efecto**
