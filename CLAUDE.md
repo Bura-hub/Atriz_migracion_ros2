@@ -869,6 +869,69 @@ que `Restart=always` no cubre este caso. Medido el 2026-08-01: un `SyntaxError` 
   bloquea el movimiento, así que el robot queda **seguro**. Si muere el monitor, queda conduciendo
   **sin filtro**. Son situaciones opuestas.
 
+**🔴🔴 UNA LLAMADA DE LA WEB A `/rosapi/get_param` MATA EL NODO `rosapi` ~30 s DESPUÉS, Y
+`systemctl` SIGUE EN VERDE.** Medido el 2026-08-08 (evidencia 87), con control:
+
+```
+llamada BIEN formada a un nodo QUE EXISTE   ->  rosapi VIVO a los 80 s   ✅
+llamada a un nodo QUE NO EXISTE             ->  MUERTO entre 20 y 40 s   🔴
+sin tocarlo durante 60 s                    ->  VIVO                     ✅
+
+rosapi/params.py:174, en un temporizador de limpieza suyo:
+  (now - cached_client.last_used_time)
+  TypeError: Can't subtract times with different clock types
+```
+
+→ 🔴 **No es un caso raro: es el caso NORMAL de la web.** `amcl`, `slam_toolbox` y los nodos de
+  Nav2 **solo existen con la navegación arrancada**. Una pantalla que lea un parámetro de Nav2 con
+  la navegación parada **mata rosapi para todos los clientes de ese robot**. Verificado con
+  `/amcl:alpha1`.
+→ ⚠️ **El modo de fallo, otra vez el peor:** `systemctl` dice `active`, rosbridge sigue
+  contestando, el driver publica, y lo único que desaparece es `/rosapi/*` — que es lo que
+  **roslibjs usa AL CONECTAR**. Los clientes conectados parecen sanos; los nuevos no arrancan.
+→ ✅ **Arreglado con `respawn=True, respawn_delay=2.0`** en el nodo `rosapi` de `robot.launch.py`.
+  **`respawn` y NO `on_exit=Shutdown()`**, al revés que el driver: perder rosapi no deja al robot
+  inservible, y reiniciar el launch entero le costaría la sesión a un alumno. Verificado por
+  efecto: PID 53455→53711 matándolo, y 53711→54485 con la llamada venenosa.
+→ ⚠️ **No arregla la causa**, que es de rosapi en Jazzy. Hace que el fallo dure ~2 s en vez de para
+  siempre. **La web no debería preguntar por parámetros de nodos que puede que no corran.**
+
+**📌 Y `get_param` SÍ FUNCIONA — el nombre lleva DOS PUNTOS, no barra.** Es lo que costó el
+diagnóstico falso de arriba:
+
+```
+'keepalive_period'                  ->  «cannot access local variable 'node_name'»
+'/supervisor_navegacion/mapa'       ->  lo mismo
+'/rvr_driver:keepalive_period'      ->  value '30.0'  successful=True   ✅
+```
+
+→ **El nodo se llama `/rvr_driver`, no `/rvr_driver_node`.** La lista buena la da
+  `/rosapi/get_param_names`, que funciona sin problemas y ya devuelve la forma correcta.
+→ 🔴 **Y el log del robot lo decía desde la primera llamada:** `[WARN] [rosapi]: Malformed
+  parameter name: ...; expecting <node_name>:<param_name>`. **El PC no ve el journal**, y ahí está
+  el límite real de trabajar en dos máquinas: quien ve el síntoma no ve el log.
+
+**🔴 rosbridge NO SUELTA LA SUSCRIPCIÓN CUANDO EL CLIENTE SE CAE, Y ESO IMPIDE QUE SE APAGUE EL LED
+DEL SENSOR.** Confirma la hipótesis que dejó escrita el PC tras medir **14 min 38 s** con la luz
+encendida sin nadie leyendo (apagado por inactividad: 120 s). Medido el 2026-08-08 cerrando el
+socket **de golpe, sin `unsubscribe`**:
+
+```
+justo tras cerrar   Subscription count: 1
+a los 32 s          1        ros2 topic info /color --verbose
+                             Node name: rosbridge_websocket   <- sin cliente conectado
+```
+
+→ El driver cuenta `pub_color.get_subscription_count() > 0` como actividad, así que **el apagado
+  por inactividad no vence nunca**.
+→ 📌 Encaja con lo ya conocido: rosbridge mantiene **UNA suscripción ROS por topic** compartida
+  entre clientes — lo mismo que hace que el primero imponga el QoS. Que no la suelte al perder un
+  cliente es la misma arquitectura vista desde otro lado.
+→ ⏳ **Propuesto y NO hecho** (cambia el comportamiento del alumno): contar como actividad **solo
+  las llamadas a servicio**, que no pueden quedarse colgadas — y el contrato ya dice que la web lea
+  por servicio en los dos modos. ✅ Lo que protege hoy es el **tope duro de 900 s**, que no depende
+  de la actividad: la exposición está acotada a 15 min, no es indefinida.
+
 **🔴 `TRANSIENT_LOCAL` EN EL PUBLICADOR NO GARANTIZA QUE UN SUSCRIPTOR TARDÍO RECIBA EL ÚLTIMO
 VALOR.** El driver lo daba por hecho para `/motor_status` y `/battery_state`. Medido: un
 suscriptor nuevo se quedaba **sin recibir nada en 10 s, 2 de cada 3 intentos**, con el topic

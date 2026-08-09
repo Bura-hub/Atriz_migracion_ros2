@@ -1,0 +1,162 @@
+════════════════════════════════════════════════════════════════════════════
+ 87 · UNA LLAMADA DE LA WEB MATA rosapi, Y SYSTEMCTL SIGUE EN VERDE
+      Y de paso: `get_param` SÍ funciona, y el LED que no se apagaba es
+      rosbridge conservando la suscripción.
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-08
+Robot:  rvr-01
+Origen: los dos pendientes que el PC dejó «para el robot» en TRASPASO (2026-08-09)
+
+
+1 · EL PENDIENTE, Y POR QUÉ SU DIAGNÓSTICO ERA INCOMPLETO
+────────────────────────────────────────────────────────────────────────────
+El PC escribió:
+
+    «`rosapi/get_param` REVIENTA: result=true con successful=false y
+     `cannot access local variable 'node_name'`. Si rosapi no sirve para leer
+     parámetros, la web no puede preguntar por la configuración del robot.»
+
+🔴 **La conclusión es falsa, y lo que hay debajo es peor que lo que se creía.**
+
+
+2 · `get_param` SÍ FUNCIONA — EL NOMBRE HAY QUE ESCRIBIRLO CON DOS PUNTOS
+────────────────────────────────────────────────────────────────────────────
+    name = 'keepalive_period'                 -> «cannot access local variable»
+    name = '/supervisor_navegacion/mapa'      -> lo mismo   (lo que probó el PC)
+    name = '/rvr_driver:keepalive_period'     -> value '30.0'  successful=True  ✅
+
+El propio rosapi lo dice en su log, y ahí estaba desde el principio:
+
+    [WARN] [rosapi]: Malformed parameter name: keepalive_period;
+                     expecting <node_name>:<param_name>
+
+📌 **Y el nodo se llama `/rvr_driver`, no `/rvr_driver_node`.** La lista buena
+   la da `/rosapi/get_param_names`, que **funciona sin problemas** y devuelve
+   los nombres ya en la forma correcta (`/rvr_driver:serial_port`, …).
+
+⚠️ **Lo que sí es un defecto de rosapi: el error que devuelve.** Ante un nombre
+   mal formado suelta un `UnboundLocalError` interno en vez de decir «usa
+   `<nodo>:<parámetro>`», que es justo lo que ya había escrito en su log. Eso es
+   lo que despistó al PC.
+
+
+3 · 🔴🔴 Y LO GORDO: ESA LLAMADA MATA EL NODO ~30 s DESPUÉS
+────────────────────────────────────────────────────────────────────────────
+    20:21:17  llamada a get_param                    [WARN] Malformed
+    20:21:59  💥  rosapi_node muere
+
+    rosapi/params.py:174, en un TEMPORIZADOR DE LIMPIEZA suyo:
+        if cached_client.use_count == 0 and (now - cached_client.last_used_time)...
+    TypeError: Can't subtract times with different clock types
+    process has died [pid 855, exit code 1]
+
+**El aislamiento, con control:**
+
+    llamada BIEN formada a un nodo QUE EXISTE   ->  rosapi VIVO a los 80 s   ✅
+    llamada a un nodo QUE NO EXISTE             ->  MUERTO entre 20 y 40 s   🔴
+    sin tocar rosapi durante 60 s               ->  VIVO                     ✅
+
+🔴 **No es un caso raro: es el caso NORMAL de la web.** `amcl`, `slam_toolbox` y
+   los nodos de Nav2 **solo existen cuando la navegación está arrancada**. Una
+   pantalla que lea un parámetro de Nav2 con la navegación parada **mata rosapi
+   para todos los clientes conectados a ese robot**. Verificado con `/amcl:alpha1`,
+   que es exactamente lo que la web pediría.
+
+⚠️ **Y el modo de fallo es el peor de este proyecto, otra vez:**
+   `systemctl is-active` dice **active**. rosbridge sigue vivo y contestando. El
+   driver publica. Lo único que desaparece es `/rosapi/*` — que es lo que
+   **roslibjs usa AL CONECTAR**. Los clientes ya conectados parecen sanos; los
+   nuevos no arrancan. Es la misma forma que el nodo muerto con systemd en verde,
+   el RVR dormido con el driver «sano» y el LIDAR con el descriptor muerto.
+
+
+4 · ARREGLO: `respawn`, Y NO `on_exit=Shutdown()`
+────────────────────────────────────────────────────────────────────────────
+    robot.launch.py, nodo `rosapi`:   respawn=True, respawn_delay=2.0
+
+✅ **VERIFICADO POR EFECTO, dos veces:**
+
+    matándolo a mano          PID 53455 -> 53711   ✅ vuelve
+    con la llamada VENENOSA   PID 53711 -> 54485   ✅ muere y vuelve solo
+
+📌 **Por qué `respawn` y no `on_exit=Shutdown()`**, al revés que el driver y el
+   `collision_monitor`. Allí tirar el launch entero está justificado: sin driver
+   no hay robot, y sin monitor no hay seguridad. Aquí perder rosapi es que la web
+   no puede enumerar — **reiniciar el robot entero por eso le costaría la sesión
+   a un alumno**. Se reinicia solo el nodo que muere.
+
+⚠️ **Esto NO arregla la causa**, que es de rosapi (Jazzy) y está aguas arriba.
+   Lo que hace es que el fallo dure ~2 s en vez de para siempre. La web debería
+   **no preguntar por parámetros de nodos que puede que no estén corriendo**.
+
+
+5 · EL LED QUE NO SE APAGABA: ERA rosbridge, Y AHORA ESTÁ MEDIDO
+────────────────────────────────────────────────────────────────────────────
+El PC midió **14 min 38 s** con la luz encendida sin nadie leyendo, con el
+apagado por inactividad en 120 s. Y dejó escrita la hipótesis: *«rosbridge puede
+conservar la suscripción cuando la pestaña se cierra de golpe»*.
+
+✅ **CONFIRMADO.** Suscrito a `/color` por WebSocket y cerrando el socket **de
+   golpe, sin `unsubscribe`**:
+
+    justo tras cerrar   Subscription count: 1
+    a los 12 s          1
+    a los 32 s          1
+
+    ros2 topic info /color --verbose
+      Node name: rosbridge_websocket        <- sin ningún cliente conectado
+
+🔴 **El driver cuenta `pub_color.get_subscription_count() > 0` como actividad**,
+   así que mientras rosbridge conserve esa suscripción **el apagado por
+   inactividad no vence nunca**. La hipótesis del PC era exacta.
+
+📌 **Y encaja con lo que ya se sabía de rosbridge:** mantiene **UNA suscripción
+   ROS por topic** compartida entre todos los clientes — lo mismo que hace que el
+   primero que se suscribe imponga el QoS a los demás. Que no la suelte al
+   perder un cliente es la misma arquitectura vista desde otro lado.
+
+⏳ **Qué hacer, y NO se decide aquí porque cambia el comportamiento del alumno:**
+   el criterio de actividad no puede apoyarse en el contador de suscriptores
+   mientras rosbridge esté en el camino. La salida limpia es contar **solo las
+   llamadas a servicio**, que son por petición y no pueden quedarse colgadas —
+   y el contrato de `SENSOR_COLOR.md` ya dice que la web debe leer por servicio
+   en los DOS modos. Queda propuesto, no hecho.
+
+✅ **Lo que sí protege hoy:** el **tope duro de 900 s**, que no depende de la
+   actividad. La exposición está acotada a 15 min, no es indefinida.
+
+
+6 · EL OTRO PENDIENTE: `ATRIZ_MAPA` NO ESTABA DOCUMENTADO PARA EL PC
+────────────────────────────────────────────────────────────────────────────
+    Environment del servicio   ATRIZ_MAPA=/home/sphero/mapas/cuarto3.yaml
+    /etc/default/atriz         ATRIZ_MAPA + ATRIZ_DIR_MAPAS=/home/sphero/mapas
+
+    el directorio POR DEFECTO del código   .../atriz_rvr_bringup/maps/
+      -> solo README.md. **Ningún mapa.**
+    el directorio REAL                      /home/sphero/mapas/
+      -> cuarto3.yaml + cuarto3.pgm
+
+📌 **Los dos sitios son correctos y NO son lo mismo**, y `SENSOR_COLOR.md` no era
+   el sitio de explicarlo: está en `maps/README.md` — el del paquete es **el mapa
+   de la flota**, igual en los 16, que reparten `provision.sh` y la imagen dorada;
+   `~/mapas` es **lo que SLAM produce en este robot**. Quien decide cuál se usa es
+   `ATRIZ_MAPA`, no la convención de nombres.
+
+✅ **Cómo consultarlo sin adivinar**, que es lo que le faltaba al PC:
+
+    systemctl show atriz-robot -p Environment --value | tr ' ' '\\n' | grep MAPA
+
+
+7 · LA LECCIÓN
+────────────────────────────────────────────────────────────────────────────
+📝 **Un diagnóstico correcto en el síntoma puede ser incorrecto en la causa, y
+   entonces la conclusión que se saca es peor que no tener ninguna.** El PC vio
+   `get_param` fallar y concluyó «rosapi no sirve para parámetros» → *«todo tiene
+   que venir por topic o servicio propio»*. Eso es un rediseño entero apoyado en
+   una llamada mal formada. Lo que había de verdad era otra cosa **y más grave**:
+   el nodo se muere.
+
+📝 **Y el log lo decía.** `[WARN] Malformed parameter name: ...; expecting
+   <node_name>:<param_name>` estaba escrito en el journal del robot desde la
+   primera llamada. **El PC no tiene acceso al journal**, y ahí está el límite
+   real de trabajar en dos máquinas: el que ve el síntoma no ve el log.
