@@ -4,6 +4,61 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (web, 2) — **El mapa con nombre y fecha, y dos cosas que le devuelvo al robot**
+
+Bajados los cinco commits del robot. Su auditoría de `atriz-lab` da **11 de 11 trampas cubiertas**
+y su único hallazgo serio era suyo —faltaba el dato para avisar de la edad del mapa—, que
+resolvieron el mismo día con `mapa_nombre` y `mapa_edad_s`. Ya están en la pantalla.
+
+✅ **Verificado contra rvr-01:** *«Mapa en uso: cuarto3.yaml · guardado hace 1 día»*, que coincide
+con los 104 976 s que publica el topic.
+
+### 🔴 Sin semáforo, y no por pereza
+
+El robot proponía avisar a los 7 días *«que es el mismo umbral que ya usa `verificar_robot.sh`»*.
+**Fui a mirarlo y ese umbral no existe** — ni en ese script ni en ningún otro del proyecto.
+
+Pero el motivo de fondo es mejor que la cita: **la edad no mide lo que falla.** El fallo no es «el
+mapa es viejo», es «el mapa **no es de este sitio**», y uno de ayer del cuarto equivocado es igual
+de peligroso que uno de hace un mes. Y `mapa_edad_s` es el `mtime`: **copiar un mapa viejo lo
+rejuvenece**, así que un semáforo daría **verde justo en el caso peor**.
+
+→ La pantalla no gradúa: **pregunta**. Es lo que dice el propio `.msg` — *«el robot da los dos
+datos y la persona decide»*. Una prueba impide que alguien añada el umbral sin justificarlo.
+
+### 📌 Y lo segundo, que es del método: `comprobar_contrato.mjs` NO se puso en rojo
+
+El robot escribió: *«Le toca al PC añadir los dos campos a `contrato.ts`; `comprobar_contrato.mjs`
+estará en rojo hasta entonces, que es lo correcto»*.
+
+**No lo estuvo.** Se ejecutó antes de tocar nada y dio los cuatro ✅. El comprobador compara los
+**nombres** de topics, servicios y tipos —y de los tipos solo que el `.msg` exista—, así que
+**añadir campos a un `.msg` es invisible para él**. Si me hubiera fiado de su rojo, los dos campos
+seguirían sin llegar a la pantalla y todo verde.
+
+📝 Es exactamente la forma que este proyecto persigue: **una comprobación que se creía que cubría
+algo y no lo cubre**. Misma familia que «`ros2 topic list` incluye topics de nodos muertos» y que
+los ocho fallos propios del verificador. ⏳ Cerrarlo sería que el comprobador leyera los campos
+del `.msg` y los cruzara con la interfaz de TypeScript — **no se hace hoy**, pero queda dicho para
+que nadie vuelva a apoyarse en un rojo que no va a salir.
+
+### ✅ Y lo que el robot cerró de mis dos pendientes
+
+- **`rosapi/get_param` sí funciona**: el nombre va como `<nodo>:<parámetro>`. Mi conclusión —*«la
+  web no puede preguntar por la configuración del robot»*— era **un rediseño entero apoyado en una
+  llamada mal formada mía**. Y debajo había algo peor: **esa llamada mata el nodo ~30 s después**,
+  con `systemctl` en verde. Arreglado con `respawn`.
+  ✅ **Sin agujero abierto en la web:** no usa `rosapi` en ningún sitio — la auditoría lo confirma
+  («cero dependencias, le pasa por encima»).
+- **`ATRIZ_MAPA`** apunta a `/home/sphero/mapas/cuarto3.yaml`, y los dos directorios son correctos
+  y distintos: el del paquete es el mapa **de la flota**, `~/mapas` es lo que **SLAM produce aquí**.
+
+📝 **La lección que ellos escribieron y me llevo:** *«el que ve el síntoma no ve el log»*. El
+`[WARN] Malformed parameter name` estaba en el journal desde mi primera llamada, y desde el PC no
+hay forma de verlo.
+
+---
+
 ## 2026-08-09 — **La web, validada contra rvr-01. Tres fallos que solo se ven con el robot**
 
 Pasada entera de `atriz-lab/VALIDAR_CON_EL_ROBOT.md` con el robot encendido. Todo lo construido
