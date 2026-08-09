@@ -4,6 +4,103 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 — **La web, validada contra rvr-01. Tres fallos que solo se ven con el robot**
+
+Pasada entera de `atriz-lab/VALIDAR_CON_EL_ROBOT.md` con el robot encendido. Todo lo construido
+los días 07 y 08 se había hecho contra un doble; esto es el contraste.
+
+### ✅ Los seis estados de SLAM, vistos de verdad
+
+```
+  apagado -> arrancando · 4 → 9 → 14 s -> funcionando        ~18 s
+  CIEGO    apagando el barrido con SLAM vivo
+  MUDO     aparecio SOLO al parar SLAM
+  parar    funcionando -> MUDO -> apagado
+```
+
+`CIEGO` es el que justifica el diseño: *«levantado, pero no le llega el barrido — el robot no
+conducirá»*, con el detalle del robot literal —«encendido pero SIN barrido: no puede funcionar»—.
+**Es exactamente el estado que `systemctl is-active` llamaría `active`.** Un interruptor lo habría
+pintado verde.
+
+SLAM además construyó un mapa real (71×82 celdas a 5 cm) que la pantalla dibujó, distinguiendo
+*«esto parece SLAM, no Nav2»* por la ausencia de `/amcl_pose`.
+
+### 🎯 El 2×2 del sensor de color, las cuatro casillas por la web
+
+```
+  MISMA pantalla roja      luz APAGADA          luz ENCENDIDA
+  lectura               R 78 · G 15 · B 3   R 409 · G 721 · B 357
+  R/G                          5,0                  0,57
+  veredicto                «es rojo» ✅     «no se puede decir» ✅
+
+  MISMO papel rojo mate    luz APAGADA          luz ENCENDIDA
+  lectura                  0 · 0 · 0 · 0     R 583 · G 197 · B 62
+  veredicto           «no se puede decir» ✅     «es rojo» ✅
+```
+
+Factor **9** entre los dos cocientes de la pantalla, sobre el mismo objeto físico y a lados
+opuestos de 1. **Con la regla ingenua —`R/G > 1` es rojo, si no verde por descarte— la casilla de
+arriba a la derecha habría dicho «verde» sobre una pantalla roja.**
+
+### 🔴 Los tres fallos que encontró la pasada
+
+**1 · Ruido no es un color.** Robot sobre suelo mate en modo emisión: `R=0 G=1 B=0`, y la pantalla
+afirmó *«la luz que sale de la superficie es verde»*. Verde era el caso **por descarte** y una sola
+cuenta se coló por el borde de una guarda que comprobaba `verde === 0`.
+📝 Es la lección que este proyecto tiene escrita —*«un test que barre tres puntos representativos
+puede dejar sin cubrir justo el tramo donde vive el bug»*— cometida en el fichero donde la cité.
+El arreglo lleva el umbral **derivado**: las cuentas son enteras, el error de `R/G` es ±1/G, y con
+G=1 eso es ±100 %. La prueba nueva barre el tramo entero, no tres puntos.
+
+**2 · El acuse de petición mentía dos veces.** Seguía diciendo *«no dirá "funcionando" hasta que
+lo esté»* **un minuto después** de estar funcionando, con la palabra escrita tres centímetros más
+arriba; y ese mismo texto salía tras pulsar PARAR, donde no significa nada.
+
+**3 · 🔴 El apagado automático de la luz NO saltó.** Pestaña cerrada tras la última lectura, la luz
+siguió encendida **14 min 38 s** —visto en el robot por el usuario, no solo en `color_activo`— y se
+apagó porque la apagué a mano. El apagado por inactividad son 120 s y pasaron 878.
+⚠️ **El tope duro de 900 s queda sin medir, y por mi culpa:** lo apagué a menos de dos segundos de
+cuando habría vencido.
+📌 **Hipótesis, no medida:** el driver cuenta como actividad que alguien esté suscrito a `/color`, y
+rosbridge puede conservar la suscripción cuando la pestaña se cierra de golpe. Se cierra con
+`ros2 topic info /color` en el robot, con la web cerrada.
+→ **La pantalla ya no promete que se apague sola.** Una promesa incumplida sobre la batería es de
+las peores que puede hacer esta interfaz: el alumno se fía y el robot se queda sin clase.
+
+### 🔴 Y una corrección de mi propia lista de validación
+
+Decía que `BLOQUEADO` se produce pidiendo Nav2 sin mapa tres veces. **Es falso**, y se vio al
+leer el supervisor **antes** de pedirle al usuario que quitara el mapa: comprueba `hay_mapa` y
+devuelve un rechazo limpio **sin llamar a `systemctl`**. Su propia cabecera lo dice — *«por eso este
+nodo se NIEGA antes de llamar a systemctl. Un `isfile` de coste cero evita el único estado del que
+la web no puede salir sola»*. **`BLOQUEADO` es inalcanzable desde la web a propósito**: una
+propiedad del diseño, no un hueco.
+📝 Copié la consecuencia de un comentario del `.msg` que describe el `systemctl start` **a mano**,
+o sea la situación anterior al supervisor, sin comprobar si el camino seguía abierto.
+
+### 📌 Dos preguntas para el robot
+
+1. **`ATRIZ_MAPA` apunta fuera de la ruta por defecto** — el directorio del código está vacío en
+   rvr-01 mientras `hay_mapa` dice `true`. No es un fallo, pero **no está escrito en ningún
+   documento del PC** y quien lea el código deduce la ruta equivocada.
+2. **`rosapi/get_param` revienta**: `result=true` con `successful=false` y
+   `cannot access local variable 'node_name'`. Error interno, no respuesta. Si `rosapi` no sirve
+   para leer parámetros, la web no puede preguntar por la configuración del robot y todo tiene que
+   venir por topic o servicio propio.
+
+### 📝 Y tres veces que el instrumento fui yo
+
+- los 7,3 s de apertura del WebSocket que me preocupaban eran **Node resolviendo mDNS**: desde el
+  navegador son **2736 ms en frío y 16-25 en caliente**, dentro del plazo de 10 s;
+- la primera medida de frecuencias contó 8 s desde el arranque del proceso con un socket que tardó
+  7,3 en abrir → midió sobre 0,7 s y dio **0,5 Hz sobre un `/odom` a 16,58**;
+- y el detector de tokens de color nació con **ocho falsos positivos**.
+
+**579 pruebas** · contrato 14 · 3 · 12 · `tsc` y `eslint` limpios.
+
+---
+
 ## 2026-08-08 (web, 2) — **La capa de seguridad deja de ser invisible para el alumno**
 
 Barrido de los veinte commits del robot buscando lo que la web todavía no reflejaba. Quedaba el
