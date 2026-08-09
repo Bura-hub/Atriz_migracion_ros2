@@ -3383,7 +3383,35 @@ números lo confirman.
 📝 A 0.40 m/s (el máximo del robot) para **más lejos**, no más cerca: el controlador empieza a
 frenar antes cuanto mayor es la velocidad.
 
-### 12.5 ✅ No queda atrapado — lo que justifica todo el diseño
+### 12.5 🔴 SÍ queda atrapado — el 2026-08-09 lo desmintió
+
+> 🔴🔴 **AVISO: EL TÍTULO Y LA TABLA DE ESTA SECCIÓN ESTÁN EN DISPUTA.**
+> El 2026-08-09 (evidencia 93) se midió lo contrario, con el usuario mirando el robot:
+>
+> ```
+> pared DETRÁS a 16,8 cm, 188 cm libres delante, mandos por /cmd_vel_raw
+>   AVANZAR alejándose de la pared  ->  0.0 cm    monitor: APROXIMACION
+>   GIRAR en el sitio               ->  0.0 °
+>   RETROCEDER hacia la pared       ->  0.0 cm
+> ```
+>
+> **Inmovilización total: ni siquiera puede alejarse.** Y girando **no rozaría nada**: con el
+> monitor puenteado dio **359,6° y 358,8° de 360** en 12,6 s —los mismos que en campo abierto— sin
+> tocar la pared. El radio circunscrito del robot es ~14,2 cm contra un círculo de 18.
+>
+> ⏳ **LO QUE NO SE SABE, y no se presenta como sabido:** por qué los tres casos de la tabla de
+> abajo sí salieron. Variables sin controlar entre unas medidas y otras:
+> **(a)** la dirección del obstáculo respecto al movimiento mandado —abajo la pared estaba delante
+> o al lado, hoy detrás—, y **(b)** si aquellas distancias se midieron desde el **borde** del robot
+> o desde el **LIDAR**, que son 10,9 cm de diferencia y cambian el veredicto.
+>
+> 🔎 **El experimento que lo discrimina:** repetir las tres órdenes con la pared **delante** y con
+> la pared **al lado**, a la misma distancia medida desde el LIDAR. Hasta entonces, lo que hay que
+> dar por bueno en operación es lo peor: **con algo a menos de 20 cm el robot puede quedar muerto.**
+
+**Lo que decía esta sección, conservado porque sus medidas siguen siendo datos:**
+
+
 
 Un polígono `stop` fijo para **cualquier** movimiento mientras haya algo dentro. Un robot
 pegado a una pared se congela: ni retrocede ni gira. En un laboratorio **remoto** no hay nadie

@@ -63,7 +63,8 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          └── dos objetivos autónomos, ~89 % de un núcleo (⚠️ el «9-10 cm» era la tolerancia repetida)
 
      F8  collision_monitor: la capa de seguridad  manual, cap. 12            ✅
-         └── para a 8-9 cm de una pared · sin LIDAR no conduce · no queda atrapado
+         └── para a 8-9 cm de una pared · sin LIDAR no conduce
+             🔴 SÍ queda atrapado: con algo a menos de 18 cm no gira ni se aleja (ev. 93)
 
      F9  Navegando a 0.40 m/s                  manual, cap. 11.10             ✅
          └── meseta 0.407 m/s · dos objetivos SUCCEEDED con 8 cm de error

@@ -162,6 +162,39 @@
 > prueba vive ahora en **un solo proceso** (`mediciones_banco/prueba_navegacion_completa.py`).
 >
 > ═══════════════════════════════════════════════════════════════════════════════
+> 🆕🔴 **2026-08-09 · UN OBSTÁCULO A MENOS DE 18 cm INMOVILIZA AL ROBOT POR COMPLETO**
+>
+> No gira, no avanza y **ni siquiera puede alejarse** (evidencia 93). Medido con la pared **detrás**
+> a 16,8 cm y 188 cm libres delante: `avanzar -> 0.0 cm · girar -> 0.0° · retroceder -> 0.0 cm`.
+> `approach` escala el mando entero por el tiempo hasta colisión y con un punto **ya dentro** del
+> círculo ese factor es 0, **sin mirar si el movimiento acerca o aleja**. Sólo sale a mano.
+> → ✅ **Y girando no rozaría nada**: con el monitor puenteado, 359,6° y 358,8° de 360 en 12,6 s,
+>   sin tocar la pared (el usuario mirando). Radio circunscrito 14,2 cm contra un círculo de 18:
+>   **el monitor es más gordo que el robot.**
+> → ✅ Causa aislada con una variable: `Aproximacion.radius` 0.18 → 0.12 en caliente y las tres
+>   órdenes funcionan, con el monitor **frenando al 40 %** en vez de congelar. Restaurado a 0.18.
+> → 🔴 **Desmiente el título del cap. 12.5 del manual** («No queda atrapado») y matiza la
+>   evidencia 19 («PUDO SALIR: retrocedió 58 cm»). ⏳ Por qué unas geometrías salen y otras no:
+>   **NO VERIFICADO** — falta repetirlo con la pared delante y al lado.
+> → ⏳ **La configuración NO se ha tocado.** `radius` fija a la vez el hueco al parar y el pasillo
+>   mínimo, y el 0.18 lo respalda «para a 20,8 cm sin chocar» de la aceptación. 👤 **Decisión tuya.**
+> → 🔴 **Regla de operación mientras tanto, y vale para los 16:** no dejes un robot con nada a
+>   menos de 20 cm. Si no obedece, mira `/collision_monitor_state` antes de pensar que se colgó.
+>   El verificador ya comprueba el valor en cada robot.
+>
+> 🆕🔴 **2026-08-09 · EL MAPA DE slam_toolbox SE QUEDA CONGELADO Y CASI VACÍO**
+>
+> 49 celdas ocupadas para un cuarto entero (una pared de 15 m a 5 cm serían ~300), **idéntico celda
+> por celda** tras 360° de giro y 160 cm de vaivén, republicando cada 5 s con sello fresco y con 4
+> nodos en el grafo. El LIDAR estaba sano (227/270 rayos, 11,7 Hz, 360°).
+> → 🔴 **Es la ruta con la que se hacen los mapas del aula**, así que bloquea la Fase 6 más que
+>   ningún otro pendiente de navegación. ⏳ Causa **NO VERIFICADA**.
+> → 🔴 Y obliga a **matizar la evidencia 91**: su «el mapa engorda los objetos ~5 cm por lado» se
+>   dedujo de **tres celdas** sobre un mapa así. El efecto en el costmap sigue medido; el mecanismo
+>   se ha retirado.
+> → ⏳ Bloquea también la casilla que quedaba abierta: **AMCL sobre un mapa que SÍ contiene los
+>   objetos**, que es el caso real del aula.
+
 > 🆕 **2026-08-08 · LAS PRÁCTICAS SE EJECUTARON POR FIN, Y SALIERON CUATRO FALLOS**
 > ═══════════════════════════════════════════════════════════════════════════════
 > El pendiente más viejo del material docente: las diez prácticas estaban escritas, revisadas y con

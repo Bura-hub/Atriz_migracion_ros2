@@ -697,6 +697,28 @@ if command -v ros2 >/dev/null && [[ -n "${ROS_DISTRO:-}" ]]; then
             _mal "/cmd_vel tiene $N_PUB publicadores: algo conduce SALTÁNDOSE la seguridad" \
                  "mira quién con: ros2 topic info /cmd_vel --verbose. Si es behavior_server, falta su remapeo a cmd_vel_raw"
         fi
+
+        # 🔴 EL CIRCULO DE APROXIMACION ES MAS GORDO QUE EL ROBOT, Y ESO INMOVILIZA.
+        #    Medido el 2026-08-09 (evidencia 93): con la pared DETRAS a 16,8 cm y
+        #    188 cm libres delante, el robot no avanza, no retrocede y NO GIRA —
+        #    `approach` escala el mando entero por el tiempo hasta colision y con un
+        #    punto ya DENTRO del circulo ese factor es 0, sin mirar si el movimiento
+        #    acerca o aleja. Solo sale a mano. Y girando NO rozaria: 359,6 y 358,8 de
+        #    360 con el monitor puenteado, sin tocar la pared.
+        #    El radio circunscrito del robot es ~0.142 (18x22 cm medidos).
+        # 📌 Se comprueba en CADA robot porque va en la imagen dorada: si alguien
+        #    toca este valor, la franja de inmovilizacion cambia con el.
+        R_APROX="$(timeout 8 ros2 param get /collision_monitor Aproximacion.radius 2>/dev/null \
+                   | awk '{print $NF}')"
+        if [[ -z "$R_APROX" ]]; then
+            _avi "no se pudo leer Aproximacion.radius del collision_monitor" ""
+        elif [[ "$R_APROX" == "0.18" ]]; then
+            _ok "Aproximacion.radius = 0.18 (el valor decidido)"
+            _nota "franja de INMOVILIZACION 14.2-18 cm: con algo mas cerca el robot no gira ni se aleja (ev. 93)"
+        else
+            _avi "Aproximacion.radius = $R_APROX, no el 0.18 decidido" \
+                 "fija a la vez el hueco al parar (~radius-0.09) y el pasillo minimo (~2xradius). Bajarlo desatasca al robot pero acorta el frenado: hay que repetir la medida de 20,8 cm de la aceptacion. Evidencia 93"
+        fi
     fi
 fi
 
