@@ -13,7 +13,18 @@ Testigo físico: el usuario, mirando el robot
 Las diez prácticas estaban escritas, revisadas y con 91 tests, y **nunca se
 habían ejecutado con el robot moviéndose**. Era el pendiente más viejo del
 material docente. Se corrieron las que no necesitan una línea pintada en el
-suelo (el seguidor queda pendiente: el usuario no tiene cinta).
+suelo.
+
+🔴 **EL SEGUIDOR DE LÍNEA SE APARCA HASTA EL AULA — decisión del usuario,
+   2026-08-09, y NO es por la cinta.** Una línea pegada en el suelo de una
+   habitación **no reproduce lo que esa práctica tiene que validar**: el recorrido
+   real, su iluminación y el contraste sobre el suelo del laboratorio. Un ✅ aquí
+   **no se transfiere**.
+   📌 Y no es una precaución teórica: esta misma sesión midió que el suelo da
+      `claro` **1275 en una habitación y ~950 en otra**, con el mismo robot y el
+      mismo día — y el seguidor decide **por umbral de `claro`**. Validarlo sobre
+      un suelo que no es el suyo mediría el suelo, no el algoritmo.
+   ✅ **Sale de «lo que falta hacer» y entra en «lo que espera al aula».**
 
 📌 **Y lo primero que hizo falta fue un instrumento.** La práctica 1 imprimió
    «Avanzando... Listo.» y salió con código 0. Eso no dice nada: este proyecto
@@ -255,7 +266,8 @@ en esos 18 s queda **sellado en el pasado**, incluido `atriz-robot`.
    dos fuentes son independientes y coinciden a **0,1°**.
 
 ⏳ **PENDIENTES de esta pasada:** las prácticas 3, 4, 10, 11 y 90 (falta espacio:
-   quedaban 61 cm libres delante y la 1 recorre 60), y el **seguidor de línea**,
+   quedaban 61 cm libres delante y la 1 recorre 60). ⏳ Y el **seguidor de línea**
+   queda para el AULA (ver el apartado 0),
    que necesita cinta que el usuario no tiene.
 
 

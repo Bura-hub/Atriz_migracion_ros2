@@ -166,7 +166,8 @@
 > ═══════════════════════════════════════════════════════════════════════════════
 > El pendiente más viejo del material docente: las diez prácticas estaban escritas, revisadas y con
 > 91 tests, y **nunca se habían corrido con el robot moviéndose**. Se corrieron ocho (falta el
-> seguidor de línea: hace falta cinta). **Ninguno de los fallos es visible leyendo el código.**
+> seguidor de línea, aparcado hasta el aula por decisión del usuario). **Ninguno de los fallos es
+> visible leyendo el código.**
 >
 > | | qué pasó |
 > |---|---|
@@ -248,7 +249,15 @@
 >    así que ni `sudo` ni reinicio. Corridas ese día con arnés que mide el efecto:
 >    **05** lectura estable y **sin mover el robot** (que es lo que promete), **11** detectó negro
 >    a `claro=396` tras **46,5 cm** y paró. Evidencia 85.
->    ⏳ **Solo queda la 63, el seguidor de línea** — y por otra razón: hace falta cinta.
+>    ⏳ **Solo queda la 63, el seguidor de línea.**
+>    🔴 **DECISIÓN del usuario, 2026-08-09: se aparca hasta el AULA, y no por la cinta.** Una
+>    línea pegada en el suelo de una habitación no reproduce lo que la práctica tiene que
+>    validar: el recorrido real, su iluminación y su contraste sobre el suelo del laboratorio.
+>    Probarlo aquí daría un ✅ que **no se transfiere** — y este proyecto ya tiene medido que un
+>    número correcto en su contexto se vuelve falso al mudarlo de sitio (el suelo dio `claro`
+>    1275 en una habitación y ~950 en otra, con el mismo robot **el mismo día**).
+>    📌 **Sale de «lo que falta hacer» y entra en «lo que espera al aula»**, junto al SSID, la
+>    F0 del AP y el mapa del laboratorio.
 > 2. ✅ **ROTADAS el 2026-08-04.** El usuario rotó la PSK del WiFi y la contraseña de `sphero`, y
 >    a continuación se **archivó `Atriz_web_server`** (público, solo lectura). **Eso es lo que
 >    cierra la exposición**, y ya está hecho.
