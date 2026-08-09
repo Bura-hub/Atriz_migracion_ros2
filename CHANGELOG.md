@@ -362,6 +362,29 @@ verlo» ES la prueba de que está bien**, así que se reporta como ✅: *«la PS
 📌 **Le pasará a los 16 en cuanto la imagen dorada lleve el `fmask`**, que es justo lo que se
 quiere. Por eso se arregló en el verificador y no con un caso especial.
 
+### 🔴 Y al escalarlo apareció la divergencia que la regla del proyecto existe para impedir
+
+**Nada en el repositorio aplicaba el `fmask`.** `fase_1_higiene_so.sh` toca `/etc/fstab` —para el
+`noatime` de la raíz— pero nunca la línea de `/boot/firmware`. Consecuencia:
+
+```
+  la imagen dorada        SÍ lo lleva      (un dd copia el fstab)
+  provision.sh desde 0    NO lo aplicaba   → PSK expuesta
+```
+
+Y la regla del proyecto es explícita: **«la imagen dorada es el atajo; `provision.sh` es la verdad.
+Si divergen, gana el script.»** Un robot reprovisionado saldría con la PSK expuesta mientras los
+clonados no.
+
+✅ **Añadido a `fase_1_higiene_so.sh`** (paso 8bis/9), con el mismo patrón que el `noatime`:
+idempotente —salta si ya está—, y **comprueba `findmnt --verify` antes de que un reinicio estrene
+el fstab**, porque un `fstab` roto deja la Pi sin arrancar y esta máquina es headless.
+
+✅ **Y el verificador comprueba ahora el `fstab` en sí**, no solo el efecto. Hace falta: un robot
+**sin** la máscara tiene el directorio atravesable, así que el guardia `BOOT_LEGIBLE` lo daría por
+legible y la comprobación se iría por otro camino. Probado contra un `fstab` con y sin la máscara:
+discrimina en los dos sentidos. **149 comprobaciones.**
+
 ### Y un pendiente que pedía algo ya hecho
 
 `aceptacion_nucleo.py` listaba «la credencial `sphero` **sin rotar**» entre los bloqueantes. **Se

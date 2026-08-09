@@ -116,6 +116,17 @@ sec "2 · Arranque y UART (lo que decide si el robot habla)"
 #
 # 📌 Y esto le va a pasar a los 16 en cuanto la imagen dorada lleve el fmask, que
 #    es justo lo que se quiere. Por eso se arregla aqui y no con un caso especial.
+# 🔴 SE MIRA EL FSTAB, QUE ES LEGIBLE SIEMPRE, y no solo el efecto. Un robot sin
+#    la máscara tiene el directorio ATRAVESABLE, así que el guardia de abajo lo
+#    daría por «legible» y la comprobación del efecto pasaría por otro camino.
+#    Esto lo caza en los dos casos, y es lo que reproduce `fase_1_higiene_so.sh`.
+if grep -qE '/boot/firmware.*fmask=0177' /etc/fstab 2>/dev/null; then
+    _ok "/etc/fstab cierra la PSK (fmask=0177,dmask=0077)"
+else
+    _mal "/etc/fstab NO protege la PSK del WiFi de red.txt" \
+         "chmod NO sirve (es FAT) y remount TAMPOCO: hace falta el fmask en fstab y REINICIAR · sudo bash $REPO/scripts/fase_1_higiene_so.sh"
+fi
+
 BOOT_LEGIBLE=1
 if [[ ! -x /boot/firmware ]]; then
     BOOT_LEGIBLE=0

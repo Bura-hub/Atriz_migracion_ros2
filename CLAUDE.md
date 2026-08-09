@@ -696,6 +696,11 @@ después  drwx------  root:root  /boot/firmware              ← ni se puede ent
   recrear el fichero que lleva la PSK**, y rehacerlo mal deja al robot sin red.
   ✅ Arreglado con un guardia `BOOT_LEGIBLE` que **distingue «no puedo verlo» de «no está»** — y en
   este caso el «no puedo verlo» **es la prueba de que está bien**, así que se reporta como ✅.
+→ 🔴 **Y NADIE EN EL REPOSITORIO LO APLICABA.** `fase_1_higiene_so.sh` tocaba el `fstab` para el
+  `noatime` de la raíz y nunca la línea de `/boot/firmware`: la imagen dorada sí lo llevaba (un
+  `dd` copia el fstab) pero **`provision.sh` desde cero dejaba la PSK expuesta** — justo la
+  divergencia que la regla «gana el script» existe para impedir. ✅ Añadido como paso 8bis/9,
+  idempotente y con `findmnt --verify` antes de que un reinicio estrene el fstab.
 → 📌 **Le pasará a los 16 en cuanto la imagen dorada lleve el `fmask`**, que es justo lo que se
   quiere. Por eso se arregló en el verificador y no con un caso especial.
 

@@ -335,6 +335,48 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
+say "8bis/9 · Cerrar la PSK del WiFi en /boot/firmware (fmask)"
+# 🔴 POR QUE ESTO NO ES OPCIONAL. `/boot/firmware/red.txt` lleva **la PSK del
+#    WiFi del laboratorio en texto plano**, y con `defaults` la lee CUALQUIER
+#    usuario del robot sin sudo. Con 16 robots, eso son 16 copias.
+#
+# 🔴 Y `chmod` NO SIRVE: es una particion FAT y FAT no guarda permisos de Unix.
+#    `sudo chmod 600` se acepta, devuelve 0, y `ls` sigue diciendo 755. Los
+#    permisos los sintetiza el MONTAJE a partir de dos mascaras:
+#       ficheros     0666 & ~fmask   ->  con 0177 sale 0600
+#       directorios  0777 & ~dmask   ->  con 0077 sale 0700
+#
+# ⚠️ Y `mount -o remount` TAMPOCO lo aplica: medido el 2026-08-08, tras
+#    `daemon-reload` + `remount` el montaje seguia con `fmask=0022`. **Hace falta
+#    REINICIAR**, que esta fase ya pide al terminar.
+#
+# 📌 Se anade aqui, y no solo en la imagen dorada, por la regla del proyecto: la
+#    imagen es el atajo y **provision.sh es la verdad**. Sin esto, un robot
+#    reprovisionado desde cero saldria con la PSK expuesta mientras los clonados
+#    no -- y eso es justo la divergencia que la regla existe para impedir.
+respalda /etc/fstab
+if grep -qE '/boot/firmware.*fmask=0177' /etc/fstab; then
+    salta "la PSK ya está protegida (fmask en fstab)"
+else
+    if sed -i -E 's|^(LABEL=system-boot[[:space:]]+/boot/firmware[[:space:]]+vfat[[:space:]]+)defaults|\1defaults,fmask=0177,dmask=0077|' /etc/fstab \
+       && grep -qE '/boot/firmware.*fmask=0177' /etc/fstab; then
+        ok "fmask=0177,dmask=0077 añadido — la PSK deja de ser legible AL REINICIAR"
+        # 🔴 Se comprueba que el fstab siga siendo valido ANTES de que un
+        #    reinicio lo estrene: un fstab roto deja la Pi sin arrancar, y esta
+        #    maquina es headless.
+        if findmnt --verify --quiet 2>/dev/null; then
+            ok "findmnt --verify: el fstab sigue siendo válido"
+        else
+            avis "🔴 findmnt --verify se queja del fstab. REVISALO ANTES DE REINICIAR:"
+            findmnt --verify --verbose 2>&1 | tail -8 | sed 's/^/       /'
+        fi
+    else
+        avis "no se pudo editar automáticamente. Añade ',fmask=0177,dmask=0077' a mano en:"
+        grep -E '/boot/firmware' /etc/fstab | sed 's/^/       /'
+    fi
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
 say "9/9 · Comprobar la red antes de reiniciar (esta máquina es headless)"
 # `systemctl is-enabled` de una unidad ausente imprime "not-found" Y sale con
 # codigo != 0, asi que un `|| echo no` concatenaba las dos cosas y salia
