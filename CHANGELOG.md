@@ -4,6 +4,31 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (web, 5) — **Barrido de lo retirado a medias**
+
+Alineación final de la sesión. Al repasar los documentos apareció el descuido que este proyecto
+persigue con el nombre de *«busca TODAS las menciones, no la primera»*, cometido dos veces:
+
+| dónde | qué decía todavía |
+|---|---|
+| `README.md`, fila de SLAM | Empezaba retractando *«los servicios no existen en el robot»*… y **terminaba repitiéndolo** tres líneas más abajo. Y decía «sigue sin verificar esta pantalla», con la pantalla ya validada |
+| `navegacion.ts`, cabecera | *«TODO ESTE FICHERO ES NO VERIFICADO CONTRA EL ROBOT»* — cierto el 07, falso desde el 09 |
+
+📝 **Un «no verificado» que ya no lo es manda a desconfiar de código que funciona**, y gasta la
+credibilidad de los avisos que sí importan. Misma regla que hizo quitar el aviso de «los LEDs se
+encienden al arrancar el driver», que llevaba meses siendo falso.
+
+✅ **Y lo que sí se conserva a propósito:** las citas de lo retirado **dentro de sus bloques de
+retractación**. Se distinguen de la deriva en que van con el «esto era falso» al lado — la forma
+del fallo vuelve, y borrarlas dejaría el camino abierto otra vez.
+
+Añadidas además dos filas al README que faltaban: la de SLAM ya validada —con `CIEGO` y `MUDO`
+vistos de verdad— y la del **desenlace de Nav2, que no se cree en ninguna dirección**.
+
+**590 pruebas** · contrato 14 · 3 · 12 · `tsc`, `eslint` y el auditor de documentación limpios.
+
+---
+
 ## 2026-08-09 (web, 4) — **El desenlace de Nav2 miente en las DOS direcciones**
 
 Revisadas las cinco actualizaciones del robot. Una recae de lleno en la web y ya está adaptada; el
