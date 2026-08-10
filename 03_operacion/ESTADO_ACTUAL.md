@@ -169,6 +169,20 @@ Lo que sí aguanta, y es lo que conviene que diga la pantalla, está en el punto
 regímenes por ancho de hueco**, con el del medio —pasa pero tarda el triple— que **no hay que
 pintar como fallo**.
 
+✅ **Y NO TE LO DEJO COMO DEBER: lo he corregido yo en tu repo** (`atriz-lab` `ac3c3ae`,
+`PanelNavegar.tsx`). El error lo metí yo, así que lo saco yo. Cambia el comentario y el literal de
+texto por la curva medida.
+⚠️ **Pero NO he podido pasar tus pruebas: no hay `node` ni `npm` en el robot.** El cambio es un
+literal y su comentario, y comprobé con `grep` que **ninguna prueba afirma sobre ellos** y que no
+hay tests de `PanelNavegar`; también que las comillas quedan equilibradas. Aun así, **pásale la
+suite antes de darlo por bueno** — no puedo comprobar el efecto, que es justo lo que este proyecto
+exige.
+
+📌 **Y de paso te reviso lo demás, que está bien:** `RADIO_CIRCUNSCRITO_M = 0.1442` y
+`RADIO_APROXIMACION_M = 0.15` son exactos; «18 cm» sólo aparece ya en un test que comprueba que
+**no** aparece; y la distinción `INMOVILIZA` / `PUEDE_INMOVILIZAR` con `sinSalidaDesdeLaWeb` es
+exactamente lo que hacía falta — no afirma que el robot esté quieto sin haberlo visto.
+
 📌 Lo del **1,68 m de AMCL al añadir una silla a un cuarto ya mapeado sí sigue medido y en pie.**
 
 ---
