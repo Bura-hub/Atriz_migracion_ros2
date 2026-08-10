@@ -136,7 +136,15 @@ de <~50 cm y que **añadir** una silla a un cuarto ya mapeado se lleva AMCL a
 1. ✅ **El único `FALLO` de la aceptación está cerrado** (evidencia 92): F7 entera en verde,
    12 PASA · 0 REVISAR · 0 FALLO. Era **el montaje demasiado justo**, no un defecto: el guion ahora
    exige **60 cm de hueco medidos con cinta** y explica por qué.
-2. 🔴 **Nav2 no se cuela por huecos estrechos: los RODEA.** Con menos de ~50 cm traza un rodeo del
+2. 🔄 **CORREGIDO esa misma noche (evidencia 97): Nav2 NO rodea por el hueco, rodea por el MAPA
+   MALO.** Cerrada la casilla que faltaba —AMCL sobre un mapa nuevo que sí contiene los objetos—
+   el plan sale **RECTO al 102 %**, igual que sin objetos. Lo que rodeaba era un mapa de SLAM
+   construido con 160 cm de recorrido: 4 nodos.
+   🔴 **Y para ti hay algo aprovechable:** si la web ofrece «navegar» justo después de «mapear», el
+   robot estará navegando sobre un mapa casi vacío. **Mapear no es instantáneo: son metros.**
+   ⚠️ Lo de abajo, conservado porque el número del hueco sigue valiendo para el montaje de F7:
+
+2bis. **Nav2 con un mapa pobre RODEA en vez de colarse.** Con menos de ~50 cm traza un rodeo del
    168-233 % de la recta, y en un cuarto pequeño ese rodeo no cabe y aborta. Si la web deja poner
    objetivos o el alumno mueve muebles, **es la explicación de la mayoría de los «no llegó»**.
    Se puede saber **antes de mover el robot** preguntándole la ruta a Nav2 con

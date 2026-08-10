@@ -1,0 +1,94 @@
+════════════════════════════════════════════════════════════════════════════
+ 97 · NO ERA «SLAM CONTRA AMCL»: ERA UN MAPA DE CUATRO NODOS
+      La casilla que faltaba, cerrada — y con Nav2 arrancando MAL sin decirlo
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-09 (noche)
+Robot:  rvr-01 · batería 43 % -> 36 %
+Montaje: lo colocó y verificó el usuario · puerta de 47,4 cm, centro +1,3
+Mapa nuevo: `~/mapas/cuarto_con_puerta.pgm` (781 cm de recorrido, 17 nodos)
+
+
+1 · LA CASILLA QUE FALTABA
+────────────────────────────────────────────────────────────────────────────
+Desde la evidencia 91 quedaba abierta la comparación que de verdad importa para
+el aula: **AMCL sobre un mapa que SÍ contiene los objetos.** Se cerró así:
+
+    1. odometría a cero y SLAM en limpio -> el robot mapea desde map(0,0,0)
+    2. sesión de mapeo CON la puerta puesta: 781 cm, 17 nodos, 47,4 % desconocido
+    3. vuelta al origen (10,1 cm y -6,7° de residuo)
+    4. `map_saver_cli` -> `cuarto_con_puerta`
+    5. SLAM fuera, AMCL sobre ESE mapa con `set_initial_pose: true`
+    6. consulta del plan, SIN mover el robot
+
+
+2 · EL RESULTADO, Y DESMIENTE LA PREDICCIÓN
+────────────────────────────────────────────────────────────────────────────
+    localización   mapa                                   plan
+    AMCL           cuarto3, SIN objetos, 4,3 m de error   RECTO 109 % · 13 cm
+    SLAM           mapa VIVO de 160 cm (4 nodos)          RODEA 168-233 % · 68-115 cm
+    AMCL           mapa nuevo, CON objetos, 781 cm        RECTO 102 % · 8,3 cm
+
+🔴 **Se predijo RODEA —«como SLAM, porque el engorde va dentro del .pgm»— y salió
+   RECTO.** La predicción estaba escrita antes de medir, y falló.
+
+✅ **LA CONCLUSIÓN SE MUEVE DE SITIO: lo que hacía rodear a Nav2 NO era que los
+   objetos estuvieran en el mapa, ni SLAM contra AMCL. Era la CALIDAD del mapa.**
+   Las tandas con SLAM usaban un mapa construido con **160 cm de recorrido**: 4
+   nodos y 49 celdas ocupadas (evidencia 96). Con un mapa de 781 cm el mismo
+   escenario, el mismo hueco y el mismo objetivo dan plan recto.
+
+📌 **Y eso tiene una consecuencia operativa grande: la fase F7 de la aceptación
+   ARRANCA SLAM Y NAVEGA INMEDIATAMENTE**, o sea sobre un mapa de segundos de
+   antigüedad — casi vacío por construcción. Es una explicación más profunda del
+   `FALLO` original que «el hueco era estrecho».
+   ⏳ Si conviene que F7 dé una vuelta de mapeo antes de navegar: **sin decidir**.
+
+⚠️ **Dos de las cuatro consultas dieron SIN CAMINO** antes de las dos que
+   salieron rectas. La explicación más probable es que el costmap todavía se
+   estaba poblando tras activarse, pero **no está comprobado**, y con un hueco de
+   47 cm el planificador puede negarse legítimamente. **NO VERIFICADO.**
+
+
+3 · 🔴 Y NAV2 ARRANCÓ MAL SIN DECIRLO — CASI SE DA POR BUENO UN RESULTADO FALSO
+────────────────────────────────────────────────────────────────────────────
+La primera tanda de consultas dio **plan recto al 99 % con 3,5 cm de lateral, las
+cuatro idénticas**. Se estuvo a punto de escribirlo como resultado.
+
+**Era falso.** Nav2 se lanzó **4 segundos después** de AMCL, y AMCL aún no
+publicaba `map -> odom` porque **el barrido estaba apagado**:
+
+    [global_costmap] Failed to activate global_costmap because transform from
+                     base_footprint to map ... timed out
+    [lifecycle_manager_navigation] Failed to change state for node: planner_server
+    [lifecycle_manager_navigation] Failed to bring up all requested nodes. Aborting
+
+🔎 **El costmap NUNCA se activó, y un plan de 139 cm para 140 con 3,5 cm de
+   lateral es exactamente la firma de un costmap VACÍO**: NavFn sin obstáculos
+   devuelve la recta. El «resultado perfecto» era el síntoma.
+
+📌 **La señal que lo delató estaba a la vista y casi se pasa por alto:** el
+   suscriptor al costmap recibía **0 mensajes**. Se leyó como «fallo de mi
+   suscriptor» y se reintentó dos veces antes de mirar el log de Nav2.
+
+✅ **REGLA: antes de creerse cualquier medida de planificación, comprobar que
+   `planner_server` y `global_costmap` están en `active`.**
+
+       ros2 lifecycle get /planner_server
+       ros2 lifecycle get /global_costmap/global_costmap
+
+   `navigate_to_pose` y `compute_path_to_pose` **existen y responden aunque el
+   arranque haya abortado**, así que su presencia NO prueba nada.
+
+⚠️ Y el orden importa: **`nav2.launch.py` necesita `map -> odom` YA PUBLICÁNDOSE**,
+   o sea AMCL localizado, o sea **el barrido encendido**. Lanzarlo pegado a
+   `localizacion.launch.py` no basta.
+
+
+4 · LO QUE SIGUE ABIERTO ⏳
+────────────────────────────────────────────────────────────────────────────
+  ⏳ Por qué dos consultas de cuatro dieron SIN CAMINO. NO VERIFICADO.
+  ⏳ Si F7 debe mapear antes de navegar, en vez de navegar sobre un mapa recién
+     nacido. Es una decisión, no una medida.
+  📌 Lo que la evidencia 91 llamó «el engorde del mapa» quedó retirado, y ahora
+     también queda sin sostén su marco entero de «SLAM cierra la puerta, AMCL
+     no»: lo que cierra la puerta es un mapa mal muestreado, venga de donde venga.

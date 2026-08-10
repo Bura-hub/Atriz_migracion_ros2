@@ -1092,6 +1092,46 @@ ni siquiera giró».
 → 📌 Los «40,5 s» que parecían un giro lento eran el plazo de `girar()` agotándose:
   `|objetivo|/0.20 + 5.0` = **36,4 s** para 360°.
 
+**🔴🔴 NAV2 PUEDE ARRANCAR MAL SIN DECIRLO, Y SU «PLAN PERFECTO» ES EL SÍNTOMA.** El 2026-08-09
+(evidencia 97) se lanzó `nav2.launch.py` **4 s después** de `localizacion.launch.py`, con el barrido
+apagado, así que AMCL aún no publicaba `map -> odom`:
+
+```
+[global_costmap] Failed to activate global_costmap because transform from base_footprint to map ... timed out
+[lifecycle_manager_navigation] Failed to bring up all requested nodes. Aborting bringup
+```
+
+→ 🔎 **Y las consultas de plan salieron «perfectas»: 139 cm para 140, 3,5 cm de lateral, las cuatro
+  idénticas.** Es la firma de un costmap **VACÍO** — NavFn sin obstáculos devuelve la recta. Se
+  estuvo a punto de escribirlo como resultado.
+→ 🔴 **`navigate_to_pose` y `compute_path_to_pose` EXISTEN Y RESPONDEN aunque el arranque haya
+  abortado.** Que el servidor de acción conteste no prueba nada.
+→ ✅ **Antes de creerte cualquier medida de planificación:**
+
+```bash
+ros2 lifecycle get /planner_server                 # active [3]
+ros2 lifecycle get /global_costmap/global_costmap  # active [3]
+```
+
+→ ⚠️ **Y el orden importa:** `nav2.launch.py` necesita `map -> odom` **ya publicándose** —o sea AMCL
+  localizado, o sea **el barrido encendido**—. Lanzarlo pegado al de localización no basta.
+→ 📌 La señal estaba a la vista: el suscriptor al costmap recibía **0 mensajes**. Se leyó como «fallo
+  de mi suscriptor» y se reintentó dos veces antes de mirar el log.
+
+**🔴 LO QUE HACÍA RODEAR A NAV2 ERA UN MAPA DE CUATRO NODOS, NO «SLAM CONTRA AMCL».** Cerrada la
+casilla que faltaba (evidencia 97), con el mismo escenario y el mismo hueco:
+
+```
+localización   mapa                                   plan
+AMCL           cuarto3, SIN objetos, 4,3 m de error   RECTO 109 % · 13 cm
+SLAM           mapa VIVO de 160 cm (4 nodos)          RODEA 168-233 % · 68-115 cm
+AMCL           mapa nuevo, CON objetos, 781 cm        RECTO 102 % · 8,3 cm
+```
+
+→ 🔴 **Consecuencia operativa: la fase F7 de la aceptación ARRANCA SLAM Y NAVEGA INMEDIATAMENTE**, o
+  sea sobre un mapa de segundos — casi vacío por construcción. Es una explicación más profunda del
+  `FALLO` original que «el hueco era estrecho». ⏳ Si F7 debe mapear antes de navegar: **sin decidir**.
+
 **🔴 UN SISTEMA QUE ACUMULA NO SE JUZGA CON UNA FOTO: HACE FALTA LA CURVA.** El 2026-08-09 se
 concluyó que «el mapa de slam_toolbox está congelado» a partir de **160 cm de vaivén y un giro de
 360°** — y era **falso**: con `minimum_travel_distance: 0.3` eso son 4 nodos, y un giro de 360° con
