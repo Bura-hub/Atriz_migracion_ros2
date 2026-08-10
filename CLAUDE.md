@@ -1144,6 +1144,18 @@ consultas     3 de 8                     8 de 8
 → ✅ **Y da la regla general para dimensionar un paso: no cuentes centímetros, cuenta CELDAS
   TRANSITABLES en la fila más estrecha, y ten al menos 2-3.** Con `resolution: 0.05` eso son ~10-15 cm
   de holgura sobre el mínimo geométrico. Explica los 60 cm del guion, que eran empíricos.
+→ ✅ **LA CURVA, medida con tres anchos el 2026-08-09 (evidencia 97):**
+
+```
+hueco     celdas en la pinza      consultas    travesía real
+38,6 cm   0 · cerrada 37/37        0 de 6      no intentada (no hay paso)
+47,1 cm   1 · cerrada 19/49        3 de 8      3 de 3, DEGRADADA (5x desvío, 2,7x tiempo)
+61,1 cm   2-3 · cerrada 0/50       8 de 8      1 de 1, limpia en 7,8 s
+```
+
+  🔎 **Y el umbral cae donde lo pone la fórmula:** `2 × (14,5 + 5) = 39 cm` para tener UNA celda, y
+  con **38,6** —4 mm por debajo— está cerrado en las 37 muestras. **Tres regímenes: <39 no pasa ·
+  39-55 pasa y cuesta · >55 estable.**
 → 🔴🔴 **PERO LA TASA DE CONSULTA NO PREDICE FALLO: PREDICE COSTE**, y esto corrigió una conclusión
   precipitada del mismo día. Con el robot **pasando de verdad** por ese hueco de 47 cm: **3 de 3 con
   éxito**, porque Nav2 **replanifica continuamente** —16, 15 y hasta **35 planes** en un solo
