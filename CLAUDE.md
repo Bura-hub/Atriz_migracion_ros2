@@ -1027,8 +1027,16 @@ RETROCEDER hacia la pared       ->  0.0 cm    monitor: APROXIMACION
   El radio circunscrito del robot es **14,06 cm** —18 × 21,6 cm medidos con cinta el 2026-08-09, LIDAR
   centrado y validado contra el propio LIDAR con 2 mm de error— contra un círculo de 18: **el monitor es más gordo que
   el robot.**
-→ ✅ Causa aislada con una variable: bajando `Aproximacion.radius` a 0.12 en caliente, las tres
-  órdenes funcionan y el monitor **frena al 40 %** en vez de congelar. Restaurado a 0.18.
+→ 🔴🔴 **`Aproximacion.radius` ES INERTE EN CALIENTE, y esto retracta una conclusión del mismo día.**
+  `ros2 param set` lo guarda y `get` lo devuelve, pero el `collision_monitor` **no reconstruye el
+  polígono**. Demostrado con 0,30 —que debería frenar mucho antes— dando el perfil IDÉNTICO a 0,18
+  y a 0,15: `mando ≈ 0,0125 × (distancia_LIDAR − 18 cm)` en los tres. **Cambiar el radio exige
+  editar el YAML y reiniciar**, o sea es un cambio de imagen dorada para los 16, no un botón.
+  ⚠️ Y la prueba que «aislaba la causa» tenía además el control roto: la pared estaba a 18,3 cm y no
+  a 16,8, o sea **ya fuera del círculo**. Dos fallos independientes en la misma medida.
+→ ✅ **Hueco al parar MEDIDO con el radio real (0.18), a 0,25 m/s: 9,3 · 9,4 · 9,3 · 9,4 cm**
+  (n=4, 1 mm de dispersión). Cuadra con la asíntota `18 − 9,5 = 8,5` más ~1 cm de arrastre, y con
+  los 9,9 cm del fichero 17. El escalón de 0,25 a 0,100 a ~36 cm es el polígono `Precaucion`.
 → 🔴 **Contradice a la evidencia 19**, que anotó «PUDO SALIR: retrocedió 58 cm» — allí el obstáculo
   estaba **al lado**, hoy **detrás**. ⏳ Por qué una geometría deja salir y la otra no: NO VERIFICADO.
 → ⏳ **NO se ha tocado la configuración**: `radius` fija a la vez el hueco al parar (`≈ radius −

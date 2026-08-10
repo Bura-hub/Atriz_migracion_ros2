@@ -57,22 +57,61 @@ Con la pared **detrás a 16,8 cm** y 188 cm libres por delante, mandando por
       separado 3 cm (12,00 esperados, n=8268 rayos, perfil plano en ±20°).
 
 
-3 · LA CAUSA, AISLADA CON UNA SOLA VARIABLE
+3 · 🔴🔴 RETIRADO: «LA CAUSA, AISLADA CON UNA SOLA VARIABLE»
 ────────────────────────────────────────────────────────────────────────────
-`Aproximacion.radius: 0.18` bajado **en caliente** a `0.12`, sin mover el robot y
-mandando por el mismo `/cmd_vel_raw`:
+Aquí se escribió que bajando `Aproximacion.radius` de 0.18 a 0.12 **en caliente**
+las tres órdenes volvían a funcionar, y se presentó como la causa aislada:
 
-    GIRAR en el sitio          ->  47,7°     monitor: FRENADO
-    AVANZAR alejándose         ->  18,0 cm   monitor: FRENADO
-    RETROCEDER hacia la pared  ->   8,8 cm   monitor: FRENADO
+    GIRAR 47,7°  ·  AVANZAR 18,0 cm  ·  RETROCEDER 8,8 cm   [monitor: FRENADO]
 
-✅ Y los tres números son **exactamente el 40 % del mando**, que es el
-   `slowdown_ratio` del polígono de precaución: 0,15 × 0,4 × 3 s = 18 cm ·
-   0,10 × 0,4 × 2 s = 8 cm. **Con el radio correcto el monitor FRENA, que es lo
-   que debe hacer, en vez de CONGELAR.**
+🔴 **ES FALSO, POR DOS MOTIVOS INDEPENDIENTES**, los dos medidos el mismo día:
 
-📌 Restaurado a `0.18` y verificado con `ros2 param get`. **No se ha cambiado la
-   configuración del repositorio** — ver el apartado 5.
+  1. **`Aproximacion.radius` ES INERTE EN CALIENTE.** `ros2 param set` lo guarda y
+     `ros2 param get` lo devuelve, pero el `collision_monitor` **no reconstruye el
+     polígono**: sigue usando el que creó al configurarse. Demostrado con un radio
+     MUCHO mayor, que debería frenar mucho antes:
+
+         radius 0,18 -> el mando se anula en 18 cm · paró a 19,4
+         radius 0,15 -> el mando se anula en 18 cm · paró a 19,2
+         radius 0,30 -> el mando se anula en 18 cm · paró a 19,3
+
+     Tres perfiles idénticos: `mando ≈ 0,0125 × (distancia_LIDAR − 18 cm)`.
+     **Sólo cambia editando el YAML y reiniciando el nodo.**
+
+  2. **Y el control estaba roto igualmente.** Aquella prueba tenía la pared a
+     **18,3 cm**, no a los 16,8 de la prueba congelada: el robot se había movido
+     entre medias. A 18,3 del LIDAR son 18,8 desde `base_footprint`, o sea **ya
+     estaba FUERA del círculo** y se habría movido con cualquier radio.
+
+📌 **Lo que sigue en pie del apartado 2 no depende de esto:** la inmovilización a
+   16,8 cm está medida, y que girando no rozaría también.
+   Lo que se retira es la **atribución de causa por manipulación**, porque la
+   manipulación no manipulaba nada.
+
+📌 Y una consecuencia práctica que sube el listón: **si el radio no se puede tocar
+   en caliente, cualquier ajuste es un cambio de IMAGEN DORADA para los 16
+   robots**, no un botón. Probar un valor distinto exige editar el YAML y
+   reiniciar el servicio (👤 `sudo`).
+
+
+3bis · ✅ EL HUECO AL PARAR, YA MEDIDO Y NO DEDUCIDO
+────────────────────────────────────────────────────────────────────────────
+Con el radio REAL (0.18) y el robot avanzando a 0,25 m/s contra una pared, por
+`/cmd_vel_raw`:
+
+    hueco al morro:  9,3 · 9,4 · 9,3 · 9,4 cm   (n=4, dispersión 1 mm)
+
+✅ Cuadra con el modelo —asíntota `18 − 9,5 = 8,5 cm` más ~1 cm de arrastre— y con
+   los 9,9 cm a 0,25 m/s del fichero 17. **La columna que la tabla del apartado 5
+   daba como MODELO ya está medida para el valor en producción.**
+
+📌 El perfil del recorte, que es lo que explica la asíntota:
+
+       distancia (LIDAR)   26    24    22    21    20    19  cm
+       mando /cmd_vel     0,100 0,075 0,050 0,038 0,025 0,013  m/s
+
+   Lineal en `(d − 18)`. Y el escalón de 0,25 a 0,100 aparece a ~36 cm: es el
+   polígono `Precaucion` con su `slowdown_ratio: 0.4`, no la aproximación.
 
 
 4 · 🔴 ESTO CONTRADICE EN PARTE LA EVIDENCIA 19

@@ -61,8 +61,17 @@ from geometry_msgs.msg import Twist
 from nav2_msgs.msg import CollisionMonitorState
 
 DIRECCIONES = ('DETRAS', 'DELANTE', 'IZQUIERDA', 'DERECHA')
-# Del eje del LIDAR al borde del robot, por sentido. Medido con cinta 2026-08-09.
-BORDE = {'DETRAS': 0.090, 'DELANTE': 0.090, 'IZQUIERDA': 0.108, 'DERECHA': 0.108}
+# 🔴 DEL EJE DEL LIDAR AL BORDE, POR SENTIDO. NO ES SIMÉTRICO: el LIDAR va 5 mm
+#    POR DETRÁS del centro del chasis (`laser_x: -0.005`), así que delante y
+#    detrás NO miden lo mismo. Medido el 2026-08-09 con el robot tocando la pared:
+#      detrás   9,00 cm  (4 estaciones del barrido, y perfil plano)
+#      delante 10,03 cm  (perfil perpendicular plano en ±24°, n=3478,
+#                         mín 9,88 máx 10,10; los rayos centrales RECORTADOS)
+#    ✅ Coincide con el URDF en los tres ejes: base_length 0.190 + laser_x -0.005
+#       -> 9.0 y 10.0 · base_width 0.217 -> 10.85 contra 10.8 de cinta.
+#    📌 La cinta había dado 9,0 delante: era AL CHASIS. El LIDAR ve algo que
+#       sobresale 1 cm. El usuario pidió repetir la medida y por eso se cazó.
+BORDE = {'DETRAS': 0.090, 'DELANTE': 0.100, 'IZQUIERDA': 0.1085, 'DERECHA': 0.1085}
 CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'barrido_pared.csv')
 
 p = argparse.ArgumentParser()
@@ -160,8 +169,8 @@ esperado = a.hueco_cm / 100.0 + BORDE[a.direccion]
 lid = esc.get('sector')
 print(f'  cinta: {a.hueco_cm:.0f} cm de hueco  ->  esperado en el LIDAR '
       f'{esperado*100:.1f} cm (borde {BORDE[a.direccion]*100:.1f})'
-      + ('   ⏳ el borde DELANTERO está en conflicto: cinta 9,0 vs URDF 10,0'
-         if a.direccion == 'DELANTE' else ''))
+      + ('   (el LIDAR va 5 mm por detrás del centro: delante y detrás NO son iguales)'
+         if a.direccion in ('DELANTE', 'DETRAS') else ''))
 if lid is None:
     print(f'  LIDAR en ese sector: NADA. El obstáculo está por debajo de '
           f'range_min (10 cm): INVISIBLE para el monitor por ese lado.')

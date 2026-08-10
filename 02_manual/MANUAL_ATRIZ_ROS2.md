@@ -3399,12 +3399,24 @@ frenar antes cuanto mayor es la velocidad.
 > monitor puenteado dio **359,6° y 358,8° de 360** en 12,6 s —los mismos que en campo abierto— sin
 > tocar la pared. El radio circunscrito del robot es **14,06 cm** —18 × 21,6 cm medidos con cinta, LIDAR centrado— contra un círculo de 18.
 >
-> ⏳ **LO QUE NO SE SABE, y no se presenta como sabido:** por qué los tres casos de la tabla de
-> abajo sí salieron. Variables sin controlar entre unas medidas y otras:
-> **(a)** la dirección del obstáculo respecto al movimiento mandado —abajo la pared estaba delante
-> o al lado, hoy detrás—, y **(b)** si aquellas distancias se midieron desde el **borde** del robot
-> o desde el **LIDAR**, que para un obstáculo delante o detrás son **9 cm** de diferencia
-> (media longitud real 0,09; los 0,109 del URDF están cruzados) y cambian el veredicto.
+> ✅ **Y el 2026-08-09 por la noche se barrieron las CUATRO direcciones, 24 estaciones colocadas a
+> mano de 2 en 2 cm (evidencia 94): el umbral es EL MISMO en las cuatro.** Desde `base_footprint`,
+> la intersección de las cuatro horquillas es **(17,9 · 19,6) cm**, que contiene los 18,0 del
+> círculo. **24 de 24 estaciones todo-o-nada.**
+>
+> ```
+> DETRAS     bloqueado hasta 17,8  ·  libre desde 19,6
+> DELANTE            "     16,1  ·      "      19,8
+> IZQUIERDA          "     17,9  ·      "      19,7
+> DERECHA            "     17,9  ·      "      19,7
+> ```
+>
+> 🔴 **Así que NO hay dependencia de la dirección, y la tabla de abajo no se reproduce.** Su caso
+> «dentro de un paso de 40 cm → retrocedió 58 cm» tenía el obstáculo **al lado a 17 cm**; aquí, a la
+> izquierda y a 17,9, el robot **está bloqueado**. Lo que explica la discrepancia es probablemente
+> **desde dónde se midieron aquellas distancias** —borde o LIDAR, y el LIDAR va 5 mm por detrás del
+> centro—, pero eso ya no se puede reconstruir. **Los números de abajo se conservan como registro,
+> no como comportamiento esperable.**
 >
 > 🔎 **El experimento que lo discrimina:** repetir las tres órdenes con la pared **delante** y con
 > la pared **al lado**, a la misma distancia medida desde el LIDAR. Hasta entonces, lo que hay que

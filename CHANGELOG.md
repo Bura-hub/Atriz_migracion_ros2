@@ -4,6 +4,62 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (robot, noche 2) — **El barrido de pared, y un parámetro que no hacía nada**
+
+Lo propuso el usuario: el robot pegado a la pared y separándolo **de 2 en 2 cm en las cuatro
+direcciones**, probando arrancar y girar en cada estación. Y eligió **moverlo a mano en las cuatro**
+pudiendo automatizar dos, para que el método no cambiara entre direcciones. **24 estaciones,
+75 filas, en `barrido_pared.csv`.**
+
+**El umbral es el mismo en las cuatro direcciones**, medido desde `base_footprint`:
+
+```
+DETRAS     bloqueado hasta 17,8  ·  libre desde 19,6
+DELANTE            "     16,1  ·      "      19,8
+IZQUIERDA          "     17,9  ·      "      19,7
+DERECHA            "     17,9  ·      "      19,7
+-> intersección (17,9 · 19,6), que contiene los 18,0 de `Aproximacion.radius`
+```
+
+**24 de 24 estaciones todo-o-nada.** Y eso **retira la observación de la evidencia 19** («PUDO
+SALIR» con el obstáculo al lado a 17 cm): aquí, a la izquierda y a 17,9, está bloqueado. No hay
+dependencia de la dirección. **Banda de defecto: 3,6 cm en las cuatro.**
+
+🔴🔴 **Y el barrido destapó que la evidencia 93 se equivocaba en su punto central.** Decía «causa
+aislada bajando `Aproximacion.radius` a 0.12 en caliente». Falso por **dos motivos independientes**:
+
+1. **El parámetro es INERTE en caliente.** `param set` lo guarda, `get` lo devuelve, y el nodo **no
+   reconstruye el polígono**. Demostrado con 0,30 —que debería frenar mucho antes— dando el perfil
+   idéntico a 0,18 y 0,15: `mando ≈ 0,0125 × (distancia_LIDAR − 18 cm)` en los tres.
+2. **El control estaba roto igualmente:** aquella prueba tenía la pared a **18,3 cm**, no a 16,8. Ya
+   estaba fuera del círculo y se habría movido con cualquier radio.
+
+⚠️ **Consecuencia práctica que sube el listón:** cambiar el radio es **editar el YAML y reiniciar**,
+o sea un cambio de imagen dorada para los 16 robots, no un botón.
+
+✅ **Lo que sí queda medido, y era la única columna que faltaba: el hueco al parar.** Con el valor
+en producción (0.18) a 0,25 m/s: **9,3 · 9,4 · 9,3 · 9,4 cm** (n=4, 1 mm de dispersión). Cuadra con
+la asíntota y con los 9,9 cm del fichero 17.
+
+✅ **Y se cerró el conflicto del borde delantero a favor del URDF**: con el robot tocando la pared de
+frente, perfil perpendicular plano en ±24° con mediana **10,03 cm** (n=3478) y rayos centrales
+recortados en `range_min`. La cinta había dado 9,0 porque medía **al chasis**. `base_length 0.190` +
+`laser_x −0.005` da 9,0 detrás y 10,0 delante: **el URDF acierta en los tres ejes**, y el LIDAR **no
+está centrado**.
+
+📌 Y queda claro que **la referencia que importa es `base_footprint`, no el LIDAR**: el polígono se
+centra ahí. Radio circunscrito real **0,1442**.
+
+⏳ **Dos cosas sin explicar, escritas como tales:** un sesgo sistemático de ~1 cm en los costados
+entre cinta y LIDAR, y la estación `DELANTE 8`, que leyó más lejos que la de 10 y no se promedia.
+
+⏳ **Y la decisión del radio, cuantificada pero sin tomar:** `banda de trampa = margen ante el error
+del LIDAR = radius − 14,42`. **Son el mismo número**, así que no se puede encoger uno sin el otro —
+por eso el 0,145 que coincidiría con el `robot_radius` de Nav2 **no vale**: 1 mm de margen contra un
+ruido medido de 3. Probar 0,15 exige YAML + reinicio. **La configuración NO se ha tocado.**
+
+Evidencia 94.
+
 ## 2026-08-09 (robot, noche) — **El robot atrapado por su propia seguridad**
 
 El usuario, viendo un giro que salió torcido: *«cuando encuentra un obstáculo cercano se atrofia»*.

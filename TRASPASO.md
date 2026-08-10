@@ -171,8 +171,14 @@
 > → ✅ **Y girando no rozaría nada**: con el monitor puenteado, 359,6° y 358,8° de 360 en 12,6 s,
 >   sin tocar la pared (el usuario mirando). Radio circunscrito **14,06 cm** (18 × 21,6 cm medidos con cinta, LIDAR centrado) contra un círculo de 18:
 >   **el monitor es más gordo que el robot.**
-> → ✅ Causa aislada con una variable: `Aproximacion.radius` 0.18 → 0.12 en caliente y las tres
->   órdenes funcionan, con el monitor **frenando al 40 %** en vez de congelar. Restaurado a 0.18.
+> → 🔴 **RETIRADO lo de «causa aislada bajando `radius` en caliente»:** `Aproximacion.radius` es
+>   **INERTE en caliente** —`param set` lo guarda, el nodo NO reconstruye el polígono—, demostrado
+>   con 0,30, que debería frenar mucho antes y da el perfil idéntico. Y aquella prueba tenía además
+>   la pared a 18,3 cm, no a 16,8: ya estaba fuera del círculo. **Cambiar el radio exige editar el
+>   YAML y reiniciar (👤 `sudo`), o sea es un cambio de imagen dorada, no un botón.**
+> → ✅ **Y lo que sí queda medido: el hueco al parar con el radio real (0.18) a 0,25 m/s son
+>   9,3 · 9,4 · 9,3 · 9,4 cm** (n=4, 1 mm de dispersión). Cuadra con el modelo y con los 9,9 cm del
+>   fichero 17. El recorte es lineal: `mando ≈ 0,0125 × (distancia_LIDAR − 18 cm)`.
 > → 🔴 **Desmiente el título del cap. 12.5 del manual** («No queda atrapado») y matiza la
 >   evidencia 19 («PUDO SALIR: retrocedió 58 cm»). ⏳ Por qué unas geometrías salen y otras no:
 >   **NO VERIFICADO** — falta repetirlo con la pared delante y al lado.
@@ -182,6 +188,20 @@
 >   menos de 20 cm. Si no obedece, mira `/collision_monitor_state` antes de pensar que se colgó.
 >   El verificador ya comprueba el valor en cada robot.
 >
+> 🆕🔴 **2026-08-09 · EL UMBRAL DEL MONITOR ES EL MISMO EN LAS CUATRO DIRECCIONES, Y EL `radius` NO
+> SE PUEDE TOCAR EN CALIENTE** (evidencia 94, 24 estaciones a mano por el usuario)
+>
+> Umbral desde `base_footprint`: intersección **(17,9 · 19,6)**, que contiene los 18,0 del círculo.
+> **24 de 24 estaciones todo-o-nada.** Banda de defecto **3,6 cm en las cuatro direcciones**.
+> → 🔴 **Retira la observación de la evidencia 19** («PUDO SALIR» con el obstáculo al lado a 17 cm):
+>   aquí, a la izquierda y a 17,9, está bloqueado. No hay dependencia de la dirección.
+> → 🔴🔴 **`Aproximacion.radius` es INERTE en caliente** —`param set` lo guarda, el nodo no
+>   reconstruye el polígono—: con 0,18, 0,15 y **0,30** el perfil es idéntico. **Cambiarlo es editar
+>   el YAML y reiniciar: un cambio de imagen dorada para los 16, no un botón.**
+> → ✅ **Hueco al parar MEDIDO** con el valor en producción, a 0,25 m/s: **9,3 · 9,4 · 9,3 · 9,4 cm**.
+> → ⏳ **La decisión del radio, cuantificada pero sin tomar:** `banda de trampa = margen ante el
+>   error del LIDAR = radius − 14,42`. Son **el mismo número**. Probar 0,15 exige 👤 `sudo`.
+>
 > 🆕 **2026-08-09 · LA GEOMETRÍA DEL ROBOT, MEDIDA DESDE EL EJE DEL LIDAR**
 >
 > `9,0 cm detrás · 10,8 a cada costado`, validado contra el propio LIDAR con **2 mm** de error
@@ -190,10 +210,11 @@
 >   punto ciego de 10 cm cae dentro del chasis, no hay zona muerta». Con la media longitud real
 >   (0,090) **sobresale 1 cm por delante y por detrás**, y **ningún polígono puede cubrirlo**: no es
 >   cuestión de ajustar `radius`, es que el sensor no da el dato. A los costados sí queda dentro.
-> → ⏳ **Conflicto abierto en el borde DELANTERO:** la cinta de hoy da 9,0 cm y el URDF 10,0
->   (`base_length 0.190` + `laser_x −0.005`, medidos el 2026-08-02). El trasero cuadra exacto en
->   las dos. **NO VERIFICADO** — se cierra repitiendo la medida con el robot mirando a la pared.
->   No se toca el URDF sin desempate: así se metió el cruce de ejes original.
+> → ✅ **CERRADO el borde delantero, a favor del URDF:** con el robot tocando la pared de frente el
+>   perfil perpendicular sale plano en ±24° con mediana **10,03 cm** (n=3478) y los rayos centrales
+>   recortados en `range_min`. La cinta había dado 9,0 porque medía **al chasis**. `base_length
+>   0.190` + `laser_x −0.005` da 9,0 detrás y 10,0 delante: **el URDF acierta en los tres ejes** y
+>   el LIDAR **no está centrado**. Radio circunscrito desde `base_footprint`: **0,1442**.
 >
 > 🆕🔴 **2026-08-09 · EL MAPA DE slam_toolbox SE QUEDA CONGELADO Y CASI VACÍO**
 >

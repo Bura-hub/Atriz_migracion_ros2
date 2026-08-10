@@ -1,0 +1,133 @@
+════════════════════════════════════════════════════════════════════════════
+ 94 · EL BARRIDO DE PARED EN LAS CUATRO DIRECCIONES
+      El umbral es el mismo en las cuatro · y `Aproximacion.radius` resultó
+      SER INERTE EN CALIENTE, lo que retracta la evidencia 93
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-09 (noche), tras un reinicio limpio
+Robot:  rvr-01 · batería 77 % -> 62 %
+Montaje: lo colocó el usuario en las 24 estaciones, con cinta
+Datos:  `mediciones_banco/barrido_pared.csv` (75 filas · 24 estaciones)
+Herramientas: `medir_barrido_de_pared.py` · `medir_hueco_al_parar.py` (nuevas)
+
+
+1 · EL DISEÑO, Y POR QUÉ TODO A MANO
+────────────────────────────────────────────────────────────────────────────
+Lo propuso el usuario: *«que probemos si el robot puede moverse, arrancar, girar,
+pegado a la pared e irse alejando de a 2 cm para ver su efecto, todo desde
+alfrente, atrás, lado izquierdo y lado derecho»*.
+
+📌 Se le ofreció que el robot se separase solo en frente/atrás —la odometría está
+   validada a 1 cm en 31— y **eligió moverlo a mano en las cuatro**: el método
+   queda idéntico entre direcciones. Es más lento y es lo correcto; ese mismo día
+   tres comparaciones se habían arruinado por una variable sin controlar.
+
+
+2 · EL RESULTADO: EL UMBRAL ES EL MISMO EN LAS CUATRO DIRECCIONES
+────────────────────────────────────────────────────────────────────────────
+Distancias desde `base_footprint` (el LIDAR va 5 mm por detrás):
+
+    dirección    último BLOQUEADO   primer LIBRE
+    DETRAS             17,8            19,6
+    DELANTE            16,1            19,8
+    IZQUIERDA          17,9            19,7
+    DERECHA            17,9            19,7
+    -> INTERSECCIÓN (17,9 · 19,6)  ·  contiene los 18,0 de `radius`  ✅
+
+✅ **24 de 24 estaciones con resultado TODO-O-NADA**: o se mueven las tres órdenes
+   o ninguna. No hay régimen intermedio.
+
+🔴 **Y eso retira la observación de la evidencia 19**, que anotó «PUDO SALIR:
+   retrocedió 58 cm» con un obstáculo AL LADO a 17 cm. Aquí, a la izquierda y a
+   17,9 cm, está **bloqueado**. No hay dependencia de la dirección.
+
+📌 **Banda de defecto, medida:** del radio circunscrito (14,42 cm desde
+   `base_footprint`) a los 18,0 del círculo = **3,6 cm en las cuatro
+   direcciones**, donde el robot está congelado pudiendo girar sin rozar.
+
+
+3 · DOS COSAS QUE EL CSV DELATA
+────────────────────────────────────────────────────────────────────────────
+⚠️ **La estación `DELANTE 8` no es fiable:** leyó 20,4 cm, MÁS LEJOS que la de
+   10 cm (20,3). El robot no quedó donde decía la etiqueta. Por eso la horquilla
+   de DELANTE sale ancha (16,1-19,8): es un hueco de muestreo, no un
+   comportamiento distinto. **No se promedia con las demás.**
+
+⚠️ **Sesgo sistemático en los costados, sin explicar.** Residuos de
+   `LIDAR − (cinta + borde)`:
+
+       DETRAS +0,06 cm   ·   DELANTE +0,42   ·   IZQUIERDA +0,92   ·   DERECHA +1,10
+
+   Detrás cuadra clavado; los costados salen ~1 cm largos de forma CONSISTENTE
+   (0,8-1,7), o sea no es ruido. La cinta y el URDF coinciden en 10,8/10,85, así
+   que o los pasos laterales quedaron sistemáticamente largos o hay algo en el
+   borde lateral sin modelar. ⏳ **NO VERIFICADO.**
+   📌 No afecta al umbral: ése se calcula con la lectura del LIDAR, no con la cinta.
+
+✅ **Y un control que salió gratis:** girando libres, las estaciones de 8 cm dan
+   ~35° y las de 10 cm en los costados dan **53°**. Es el polígono `Precaucion`
+   (±20 cm): a 21,9 la pared sale de él y deja de frenar al 40 %. Una predicción
+   del modelo que se cumple sin haberla buscado.
+
+
+4 · 🔴🔴 EL HALLAZGO QUE RETRACTA LA EVIDENCIA 93
+────────────────────────────────────────────────────────────────────────────
+La 93 escribió: «causa aislada con UNA variable: bajando `Aproximacion.radius` a
+0.12 en caliente, las tres órdenes funcionan». **Es falso, por dos motivos
+independientes.**
+
+  1. **EL PARÁMETRO ES INERTE EN CALIENTE.** `ros2 param set` lo guarda y
+     `ros2 param get` lo devuelve, pero el `collision_monitor` **no reconstruye el
+     polígono**. Demostrado con un radio MUCHO mayor, que debería frenar antes:
+
+         radius 0,18 -> mando anulado en 18 cm · paró a 19,4
+         radius 0,15 -> mando anulado en 18 cm · paró a 19,2
+         radius 0,30 -> mando anulado en 18 cm · paró a 19,3
+
+     Tres perfiles idénticos: `mando ≈ 0,0125 × (distancia_LIDAR − 18 cm)`.
+
+  2. **El control estaba roto igualmente:** aquella prueba tenía la pared a
+     **18,3 cm**, no a los 16,8 de la prueba congelada — el robot se había movido
+     entre medias. A 18,3 del LIDAR son 18,8 desde `base_footprint`, o sea **ya
+     fuera del círculo**: se habría movido con cualquier radio.
+
+📌 **Lo que NO se retira:** la inmovilización a 16,8 cm, que está medida; que
+   girando no rozaría, confirmado por el usuario mirando; y la banda de 3,6 cm,
+   que sale de este barrido y no de aquella manipulación.
+
+⚠️ **Y sube el listón de cualquier ajuste:** si el radio no se toca en caliente,
+   cambiarlo es **editar el YAML y reiniciar**, o sea un cambio de imagen dorada
+   para los 16 robots.
+
+
+5 · ✅ EL HUECO AL PARAR, YA MEDIDO Y NO DEDUCIDO
+────────────────────────────────────────────────────────────────────────────
+Con el valor en producción (0.18), avanzando a 0,25 m/s contra una pared:
+
+    9,3 · 9,4 · 9,3 · 9,4 cm al morro     (n=4, dispersión 1 mm)
+
+✅ Cuadra con la asíntota `18 − 9,5 = 8,5 cm` más ~1 cm de arrastre, y con los
+   9,9 cm a 0,25 m/s del fichero 17. **La columna que la evidencia 93 daba como
+   MODELO ya está medida para el valor real.**
+
+📌 El escalón de 0,25 a 0,100 m/s aparece a ~36 cm: es `Precaucion` con su
+   `slowdown_ratio: 0.4`, no la aproximación.
+
+
+6 · LO QUE FALTA PARA DECIDIR EL RADIO ⏳
+────────────────────────────────────────────────────────────────────────────
+La disyuntiva quedó cuantificada, y tiene una simetría que la decide casi sola:
+
+    banda de trampa = margen ante el error del LIDAR = `radius − 14,42`
+
+    radius   banda   margen   hueco al parar
+     0,180   3,6 cm  3,6 cm   9,3 ✅ MEDIDO
+     0,150   0,6     0,6      ~6,5  (modelo)
+     0,145   0,1     0,1      ~6,0  <- por debajo del ruido medido (±0,3)
+
+🔴 **No se pueden encoger la trampa y conservar el margen: son el mismo número.**
+   Por eso el 0,145 que coincidiría con el `robot_radius` de Nav2 **no vale**:
+   dejaría 1 mm contra un ruido de 3.
+
+⏳ **Probar 0,15 exige editar el YAML y reiniciar (👤 `sudo`).** Predicción, para
+   que pueda desmentirse: el hueco al parar bajaría de 9,3 a ~6,5 cm.
+   **NO VERIFICADO. La configuración NO se ha tocado.**
