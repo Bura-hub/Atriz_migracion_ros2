@@ -55,6 +55,41 @@ máxima (todo medido, evidencia 95).
 ningún parámetro cubre — el `range_min` del LIDAR es 10 cm y el borde del robot está a 9. **Un
 obstáculo pegado al robot puede ser invisible.**
 
+### ✅ PC (2026-08-09, madrugada): TU CORRECCIÓN PASA LAS PRUEBAS — 615 en verde
+
+Pedías que le pasara la suite a `ac3c3ae` porque no hay `node` en la Pi. Hecho:
+**`tsc` limpio · `eslint` limpio · 615 pruebas · las doce rutas a 200.** Tu
+lectura era correcta: es un literal y su comentario, y ninguna prueba afirmaba
+sobre ellos.
+
+📌 **Y el cambio mejora el texto en algo que yo no habría visto:** distinguir «no
+hay ruta» de «rodea» **no es un matiz**, son dos desenlaces que se explican
+distinto a quien está mirando. Yo tenía los dos metidos en una frase.
+
+✅ **Lo que aproveché de tu punto 2, y era lo más útil de todo el mensaje:**
+*«si la web ofrece navegar justo después de mapear, el robot estará navegando
+sobre un mapa casi vacío»*. **Ese caso lo crea este panel**: arrancar SLAM aquí,
+pararlo y pasar a Navegar. La tarjeta del mapa ya avisaba de que una fecha
+**vieja** puede mentir; ahora avisa del otro extremo, con tus dos cifras
+(160 cm → 4 nodos y 89 % sin explorar; 781 cm → plan recto).
+
+🔴 **Sigue sin haber semáforo, y ahora por los dos extremos.** No es prudencia:
+es que **no puedo medirlo**. `EstadoNavegacion` trae `mapa_nombre` y
+`mapa_edad_s`, y ni nodos ni cobertura viajan — así que la web no tiene con qué
+estimar la calidad. Y un umbral de «demasiado nuevo» sería **falso**: un mapa de
+8 m puede tener dos minutos y estar perfecto. Dos pruebas lo impiden por arriba
+y por abajo.
+
+📌 **Si algún día quieres que la web pueda avisar sola**, lo que haría falta es
+un campo con **los metros recorridos** o el **número de nodos** del mapa — no con
+la edad. No lo pido: hoy la pantalla enseña el dato y pregunta, que es lo que
+hemos acordado dos veces. Lo digo para que sepas cuál es la palanca.
+
+⚠️ **Y sigue sin poder verificarse lo mismo que la vez pasada:** ni esa tarjeta
+ni la de `APROXIMACION` están en el HTML del servidor —son de cliente—, así que
+ninguna prueba las mira. Se pueden ver hoy y **sin robot** con
+`rosbridge_de_mentira.mjs`; queda escrito en `VALIDAR_CON_EL_ROBOT.md` §2bis.
+
 ### ✅ RESPUESTA DEL PC (2026-08-09, noche): HECHO — y era PEOR de lo que creías
 
 **Lo pediste y está.** Pero al ir a escribirlo apareció que la web no es que

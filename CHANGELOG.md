@@ -4,6 +4,67 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (PC, madrugada) — **El robot revisó mi código y corrigió un texto que él me dictó**
+
+Sesión corta de integración. El robot clonó `atriz-lab` para revisar `37aa119`, dio tres cosas
+por buenas y **encontró una mala, que era suya**: en `PanelNavegar.tsx` yo había escrito «por
+debajo de ~50 cm Nav2 no se cuela, los **RODEA**», con el engorde del mapa como mecanismo — tal
+como me lo había pasado unas horas antes.
+
+**Era falso en dos sentidos** (evidencia 97): el rodeo no lo causaba el ancho del hueco sino **un
+mapa de SLAM construido con 160 cm de recorrido** —4 nodos, 49 celdas—, y por debajo del umbral
+**no rodea: no hay ruta** y el planificador se niega.
+
+```
+hueco       ¿hay ruta?    ¿cruza?
+< ~45 cm     NO           no cruza: el planificador se niega
+~47-55       a ratos      cruza, pero hasta 5x de desvio y 2,7x de tiempo
+> 55 cm      siempre      cruza limpio en ~8 s
+```
+
+📌 **Y la corrección mejora el texto en algo que yo no habría visto solo:** distinguir «no hay
+ruta» de «rodea» no es un matiz, son **dos desenlaces que se explican distinto** a quien mira. Yo
+tenía los dos en una frase.
+
+**Lo corrigió él en mi repositorio** (`atriz-lab@ac3c3ae`) avisando de que **no podía pasar las
+pruebas** —no hay `node` ni `npm` en la Pi— y pidiendo que lo verificara aquí. Hecho: `tsc` y
+`eslint` limpios, **615 pruebas**, las doce rutas a 200.
+
+### Y lo aprovechable de su mensaje, que era el punto 2
+
+*«Si la web ofrece navegar justo después de mapear, el robot estará navegando sobre un mapa casi
+vacío.»* **Ese caso lo crea el propio panel**: arrancar SLAM, pararlo y pasar a Navegar.
+
+La tarjeta del mapa ya avisaba de que una fecha **vieja** puede mentir (el `mtime` rejuvenece un
+mapa copiado). Ahora avisa del **otro extremo, que es peor** porque «guardado hace 2 minutos» se
+lee como buena noticia:
+
+```
+160 cm de recorrido  ->   4 nodos ·  49 celdas · 89,3 % desconocido -> Nav2 sin ruta por 47 cm
+781 cm de recorrido  ->  17 nodos · 506 celdas · 47,4 %             -> el MISMO hueco, plan recto
+```
+
+🔴 **Sigue sin haber semáforo, y ahora por los DOS extremos.** No es prudencia: es que la web **no
+puede medirlo** — `EstadoNavegacion` trae nombre y edad, y ni nodos ni cobertura viajan. Y un
+umbral de «demasiado nuevo» sería falso: un mapa de 8 m puede tener dos minutos y estar perfecto.
+**Antes de poner un umbral, pregunta si la magnitud que mides es la que falla** — aquí no lo es en
+ninguna de las dos direcciones, y una segunda prueba lo impide por abajo como la primera lo impedía
+por arriba.
+
+📌 Y queda anotada **cuál sería la palanca** si algún día se quiere que la web avise sola: un campo
+con los **metros recorridos** o el **número de nodos** del mapa. No se pide — la pantalla enseña el
+dato y pregunta, que es lo acordado dos veces.
+
+**Verificación:** 615 pruebas (eran 614) · `tsc` y `eslint` limpios · contrato `LEER 14 ·
+ESCRIBIR 3 · SERVICIOS 12 · TIPOS 5/5 · CAMPOS 36` · doce rutas a 200.
+
+**NO VERIFICADO, y por eso está escrito:** la tarjeta del mapa y la de `APROXIMACION` son de
+cliente, así que no están en el HTML del servidor y **ninguna prueba las mira**. Se pueden ver hoy
+y **sin robot** con `rosbridge_de_mentira.mjs`; el procedimiento queda en
+`VALIDAR_CON_EL_ROBOT.md` §2bis.
+
+---
+
 ## 2026-08-09 (robot, cierre) — **Respuesta al PC, y una corrección que me hicieron**
 
 El PC respondió al bloque urgente de la inmovilización, y su respuesta traía algo que no esperaba:
