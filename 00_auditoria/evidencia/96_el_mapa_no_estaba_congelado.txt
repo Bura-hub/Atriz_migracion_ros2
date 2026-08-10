@@ -97,7 +97,9 @@ de ese recorrido.**
 ✅ **Y se desbloquea la casilla pendiente desde la evidencia 91:** «AMCL sobre un
    mapa que SÍ contiene los objetos». Ahora se puede construir ese mapa: poner la
    puerta, conducir una sesión como ésta, guardar con `map_saver_cli` y arrancar
-   AMCL sobre él. ⏳ **NO VERIFICADO todavía.**
+   AMCL sobre él. ✅ **HECHO esa misma noche (evidencia 97): plan RECTO al 102 %,
+   igual que sin objetos.** Lo que hacía rodear a Nav2 no era el mapa: era un mapa
+   de cuatro nodos.
 
 📌 **Regla operativa para el aula, con número:** un mapa utilizable necesita
    **varios metros de recorrido**, no unos centímetros. En este cuarto, con ~3 m

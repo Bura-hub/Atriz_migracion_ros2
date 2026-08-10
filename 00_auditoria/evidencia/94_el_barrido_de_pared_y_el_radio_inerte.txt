@@ -113,7 +113,10 @@ Con el valor en producción (0.18), avanzando a 0,25 m/s contra una pared:
    `slowdown_ratio: 0.4`, no la aproximación.
 
 
-6 · LO QUE FALTA PARA DECIDIR EL RADIO ⏳
+6 · ✅ RESUELTO: EL RADIO SE DECIDIÓ ESA MISMA NOCHE (evidencia 95)
+     Se adoptó 0.15, con el hueco al parar medido a dos velocidades y la
+     aceptación F6 comprobada ANTES de aplicarlo. Lo de abajo es el análisis
+     con el que se tomó la decisión.
 ────────────────────────────────────────────────────────────────────────────
 La disyuntiva quedó cuantificada, y tiene una simetría que la decide casi sola:
 

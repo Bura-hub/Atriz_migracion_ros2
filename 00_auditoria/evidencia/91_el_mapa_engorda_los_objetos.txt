@@ -173,7 +173,11 @@ en cuatro consultas. No fue casualidad ni un artefacto de una tanda.
 ⚠️ **Con AMCL sobre un mapa que NO contiene los objetos, 45 cm pasan.** Medido dos
    veces. Es el caso del aula cuando un alumno deja una silla que no estaba.
 
-⏳ **LA CASILLA QUE FALTA, Y ES LA IMPORTANTE PARA EL AULA: AMCL sobre un mapa que
+✅ **CASILLA CERRADA (evidencia 97): AMCL sobre un mapa que SÍ contiene los
+   objetos da plan RECTO al 102 %.** Lo que hacía rodear era un mapa de cuatro
+   nodos, no el mapa ni SLAM contra AMCL.
+
+   Lo que se preguntaba entonces: AMCL sobre un mapa que
    SÍ contiene los objetos.** Los mapas del aula se hacen **con slam_toolbox y se
    guardan**, así que todo lo que estuviera puesto al mapear entra ya engordado en
    el fichero. **Predicción, NO VERIFICADA: se comportará como SLAM, no como el

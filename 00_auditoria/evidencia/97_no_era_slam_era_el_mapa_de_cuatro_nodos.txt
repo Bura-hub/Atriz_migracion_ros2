@@ -256,7 +256,9 @@ publicaba `map -> odom` porque **el barrido estaba apagado**:
 
 4 · LO QUE SIGUE ABIERTO ⏳
 ────────────────────────────────────────────────────────────────────────────
-  ⏳ Por qué dos consultas de cuatro dieron SIN CAMINO. NO VERIFICADO.
+  ✅ Por qué dos consultas de cuatro dieron SIN CAMINO: **CONTESTADO en 2bis** —
+     el paso tiene una celda de ancho y esa celda parpadea. No era el costmap
+     poblándose, que fue la primera suposición y era falsa.
   ⏳ Si F7 debe mapear antes de navegar, en vez de navegar sobre un mapa recién
      nacido. Es una decisión, no una medida.
   📌 Lo que la evidencia 91 llamó «el engorde del mapa» quedó retirado, y ahora

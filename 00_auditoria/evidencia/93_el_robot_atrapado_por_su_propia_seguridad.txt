@@ -224,7 +224,8 @@ Del **eje del LIDAR** al borde, con cinta y con las orugas:
    🔴 **La columna «para a» es un MODELO, no una medida.** La única cifra real es
       «para a 20,8 cm sin chocar» con 0,18, de la aceptación. Elegir el radio con
       esa columna sería repetir el error que esta misma evidencia documenta.
-   ⏳ **Falta medir la distancia de frenado real a cada radio candidato.**
+   ✅ **MEDIDA esa misma noche (evidencia 95): 9,3-9,4 cm a 0,25 m/s con 0.18, y
+      6,3 con 0.15 · 7,4/6,6 a 0,40 m/s.** Por eso se pudo decidir el valor.
 
 
 6 · CÓMO SE LLEGÓ, PORQUE EL CAMINO ES EL HALLAZGO
