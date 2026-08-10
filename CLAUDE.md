@@ -1118,6 +1118,24 @@ ros2 lifecycle get /global_costmap/global_costmap  # active [3]
 → 📌 La señal estaba a la vista: el suscriptor al costmap recibía **0 mensajes**. Se leyó como «fallo
   de mi suscriptor» y se reintentó dos veces antes de mirar el log.
 
+**🔴🔴 UN PASO DE UNA SOLA CELDA PARPADEA, Y NAV2 PLANIFICA A VECES SÍ Y A VECES NO.** Medido el
+2026-08-09 (evidencia 97) con el robot **quieto**, el costmap poblado y todo en `active`: ocho
+consultas idénticas dieron **3 planes y 5 `SIN CAMINO`**. Muestreando el costmap 49 veces en 75 s:
+
+```
+x= 90 y= +0   84..99   >=99 en 19/49   <- LA ÚNICA celda abierta de esa fila
+x= 95 y= +5   96..99   >=99 en 24/49
+resto de la banda -15..+15 cm: 99/100 en las 49 muestras
+```
+
+→ 🔴 **El paso tiene UNA celda de ancho (5 cm) y esa celda cruza el umbral de 99 sola**, por el ruido
+  del LIDAR (±0,3 cm medido). NavFn es determinista: lo que cambia es el costmap.
+→ ✅ **Y explica los 60 cm de hueco de forma MECÁNICA:** con 47 cm queda 1 celda; para 2-3 celdas
+  —las que aguantan el parpadeo— hacen falta ~10-13 cm más. El número que la aceptación ya exigía
+  cae justo ahí, y hasta ahora era empírico.
+→ 🔴 **Para el aula es peor que un fallo limpio:** «a veces funciona» es lo más difícil de depurar.
+→ 📌 **Y para cualquier medida futura: UNA consulta de plan NO es un dato.** Repite y da la tasa.
+
 **🔴 LO QUE HACÍA RODEAR A NAV2 ERA UN MAPA DE CUATRO NODOS, NO «SLAM CONTRA AMCL».** Cerrada la
 casilla que faltaba (evidencia 97), con el mismo escenario y el mismo hueco:
 

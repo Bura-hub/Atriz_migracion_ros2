@@ -44,9 +44,44 @@ el aula: **AMCL sobre un mapa que SÍ contiene los objetos.** Se cerró así:
    ⏳ Si conviene que F7 dé una vuelta de mapeo antes de navegar: **sin decidir**.
 
 ⚠️ **Dos de las cuatro consultas dieron SIN CAMINO** antes de las dos que
-   salieron rectas. La explicación más probable es que el costmap todavía se
-   estaba poblando tras activarse, pero **no está comprobado**, y con un hueco de
-   47 cm el planificador puede negarse legítimamente. **NO VERIFICADO.**
+   salieron rectas. Se supuso que el costmap todavía se estaba poblando.
+
+🔴 **ESA SUPOSICIÓN ERA FALSA, y lo dice el apartado 2bis.**
+
+
+2bis · EL PASO TIENE UNA CELDA DE ANCHO, Y ESA CELDA PARPADEA
+────────────────────────────────────────────────────────────────────────────
+Repetido con todo activo, el costmap poblado desde hacía minutos y **el robot sin
+moverse**, ocho consultas seguidas:
+
+    1 ✅   2 🔴   3 🔴   4 🔴   5 ✅   6 🔴   7 🔴   8 ✅      -> 3 de 8
+
+**Intermitente.** Misma pose, misma petición — y cuando acierta el plan es
+**idéntico** (144 cm, 8,4 cm de lateral). O encuentra *el* camino o ninguno.
+
+NavFn es determinista, así que lo que cambia tiene que ser el costmap. Muestreado
+49 veces en 75 s, con el robot quieto:
+
+    celda        rango     veces >= 99
+    x= 90 y= +0   84..99      19/49     <- LA ÚNICA celda abierta de esa fila
+    x= 95 y= +0   84..99       6/49
+    x= 95 y= +5   96..99      24/49
+    x=100 y= +0   84..96       0/49
+    resto de la banda (-15..+15 cm): 99/100 en las 49 muestras
+
+🔴 **EL PASO TIENE UNA CELDA DE ANCHO —5 cm— Y ESA CELDA PARPADEA.** Un hueco
+   físico de 47 cm se reduce a **una sola celda transitable**, y el ruido del
+   LIDAR (±0,3 cm, medido en el barrido de pared) la hace cruzar el umbral de 99.
+   Cuando se cierra, NavFn no tiene por dónde.
+
+✅ **Y esto explica los 60 cm de forma MECÁNICA, no empírica.** Con 47 cm queda
+   1 celda; para tener 2-3 celdas —lo que aguanta el parpadeo— hacen falta ~10-13
+   cm más de hueco físico. **Los 60 cm que la aceptación ya exigía caen justo
+   ahí**, y hasta hoy eran un número medido sin mecanismo detrás.
+
+🔴 **Para el aula esto es PEOR que un fallo limpio:** el robot llega unas veces sí
+   y otras no, sin que cambie nada del escenario. Un alumno lo lee como
+   «a veces funciona», que es lo más difícil de depurar.
 
 
 3 · 🔴 Y NAV2 ARRANCÓ MAL SIN DECIRLO — CASI SE DA POR BUENO UN RESULTADO FALSO
