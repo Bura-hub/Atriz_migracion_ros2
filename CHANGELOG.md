@@ -4,6 +4,68 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (PC) — **«No se puede verificar» también es una afirmación, y la mía era falsa**
+
+Salió de una pregunta del usuario: *«¿qué falta aquí por probar?»*. Al ir a contestarla con la
+lista en la mano en vez de de memoria, la lista se cayó.
+
+Yo había escrito ese mismo día —en el CHANGELOG, en el README y en el canal del robot— que las
+tarjetas de `APROXIMACION` y del mapa **no se podían verificar aquí**: *«son de cliente, no están
+en el HTML del servidor, y ninguna prueba las mira»*.
+
+🔴 **Lo segundo era cierto. Lo primero, falso.** `pantallas_reales.test.ts` no hace `fetch`: trae
+un **cliente CDP completo, sin dependencias**, que arranca Chromium headless y lee el DOM ya
+hidratado. Estaba a un fichero de distancia y **lo había ejecutado esa misma noche** sin reparar
+en lo que permitía.
+
+📝 **La lección, que es la de este proyecto con otra cara:** *«no se puede medir» necesita la misma
+comprobación que «se puede». La mía se apoyaba en no haber mirado* — la versión de esta sesión del
+error del `grep` que no podía casar lo que buscaba.
+
+### Lo hecho
+
+- **`navegador_cdp.ts`**, extraído de la prueba donde vivía privado. `pantallas_reales.test.ts`
+  ahora lo importa: sigue dando **42 en verde**, así que la extracción no cambió nada.
+- **`tarjetas_vivas.test.ts`**, nueva: levanta el doble **ella misma** —uno por caso, porque las
+  banderas se leen al arrancar— y comprueba lo que el navegador **acaba pintando**. **5 de 5**, y
+  **sin robot**.
+- **`rosbridge_de_mentira.mjs --aproximacion`** y su control `--moviendose`, añadidos para esto.
+
+📌 **El control es lo que la hace una prueba y no una foto:** mismo `action_type` en los dos casos,
+`/odom` distinto, y el mensaje **tiene que cambiar**. Si no cambiara, la pantalla estaría
+*afirmando* un congelamiento que no ha visto — el error simétrico del que se corrigió.
+
+### 🔴 Y dos errores más, los dos míos, que la propia prueba destapó
+
+**1 · Mi instrucción de validación no hablaba con el doble.** El documento decía «abre
+`/robot/1/conducir`», y ese segmento hace que la app conecte a **`rvr-01.local`**. Con el robot
+apagado la página sale vacía y **las comprobaciones de ausencia pasan todas** — que es exactamente
+el fallo que `pantallas_reales.test.ts` ya tenía documentado («18 de 19 pasaron sobre seis páginas
+404») y que volví a cometer. Lo correcto es `/robot/127.0.0.1/...`, que la ruta acepta como IPv4
+literal.
+
+**2 · Dos falsos positivos en mi propia prueba**, la tercera vez que un detector mío acusa a código
+sano por mirar de más:
+
+```
+«la tarjeta no dice 40 %»   -> sobre la PAGINA entera, cazaba el bloque permanente
+                               que explica el 40 % de `Precaucion`, y es correcto
+«no digas mapa viejo»       -> cazaba «copiar un mapa viejo lo rejuvenece», que
+                               OTRA prueba del mismo fichero EXIGE
+```
+
+→ **Se busca el veredicto, no la palabra; y se mira la tarjeta, no lo que hay alrededor.** El
+informe del navegador devuelve ahora los `[role="status"]` por separado para poder hacerlo.
+
+**Verificación:** 615 en la suite normal · 42 + 5 con navegador, **sin robot** · `tsc` y `eslint`
+limpios · contrato `LEER 14 · ESCRIBIR 3 · SERVICIOS 12 · TIPOS 5/5 · CAMPOS 36`.
+
+**Lo que queda sin poder probarse aquí, y ahora son sólo 4 pruebas:** barrido real, dos de
+acciones y la parada de emergencia en marcha. Todas necesitan el robot. Y que la tarjeta roja *se
+vea* como urgente sigue exigiendo una persona: esto lee texto, no diseño.
+
+---
+
 ## 2026-08-09 (PC, madrugada) — **El robot revisó mi código y corrigió un texto que él me dictó**
 
 Sesión corta de integración. El robot clonó `atriz-lab` para revisar `37aa119`, dio tres cosas

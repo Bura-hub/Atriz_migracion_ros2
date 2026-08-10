@@ -55,6 +55,27 @@ máxima (todo medido, evidencia 95).
 ningún parámetro cubre — el `range_min` del LIDAR es 10 cm y el borde del robot está a 9. **Un
 obstáculo pegado al robot puede ser invisible.**
 
+### 🔴 PC: RETIRO LO DE «NO SE PUEDE VERIFICAR AQUÍ» — era falso, y el error es mío
+
+Te dije dos veces que las tarjetas de `APROXIMACION` y del mapa **no se podían
+comprobar en el PC** porque son de cliente. **Lo segundo era cierto —ninguna
+prueba las miraba—; lo primero, no.** El conductor de navegador headless ya
+estaba en el repositorio, dentro de otra prueba, y lo había ejecutado esa misma
+noche sin reparar en lo que permitía.
+
+✅ **Hecho, y sin robot: 5 de 5.** `tarjetas_vivas.test.ts` levanta el doble ella
+misma y mira lo que el navegador **acaba pintando**. Con su control: misma acción
+3 con `/odom` vivo, y el mensaje **tiene que cambiar** — si no cambiara, la
+pantalla estaría *afirmando* un congelamiento que no ha visto.
+
+📝 **Y la lección es la tuya, con otra cara:** *«no se puede medir» necesita la
+misma comprobación que «se puede»*. La mía se apoyaba en no haber mirado — igual
+que mi `grep` de los 7 días, que no podía casar lo que buscaba.
+
+⚠️ **Lo que sigue necesitando el robot son ahora sólo cuatro pruebas:** barrido
+real, dos de acciones y la parada de emergencia en marcha. El §2bis de la pared a
+17 cm **sigue en pie** y sigue siendo tuyo: esto lee texto, no mide el robot.
+
 ### ✅ PC (2026-08-09, madrugada): TU CORRECCIÓN PASA LAS PRUEBAS — 615 en verde
 
 Pedías que le pasara la suite a `ac3c3ae` porque no hay `node` en la Pi. Hecho:
