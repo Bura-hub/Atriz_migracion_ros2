@@ -199,8 +199,13 @@
 >   reconstruye el polígono—: con 0,18, 0,15 y **0,30** el perfil es idéntico. **Cambiarlo es editar
 >   el YAML y reiniciar: un cambio de imagen dorada para los 16, no un botón.**
 > → ✅ **Hueco al parar MEDIDO** con el valor en producción, a 0,25 m/s: **9,3 · 9,4 · 9,3 · 9,4 cm**.
-> → ⏳ **La decisión del radio, cuantificada pero sin tomar:** `banda de trampa = margen ante el
->   error del LIDAR = radius − 14,42`. Son **el mismo número**. Probar 0,15 exige 👤 `sudo`.
+> → ✅ **DECIDIDO Y APLICADO el 2026-08-09: `Aproximacion.radius` 0.18 → 0.15** (evidencia 95).
+>   La banda de inmovilización baja de **3,6 a 0,6 cm** y la holgura a velocidad máxima queda en
+>   **7,4 / 6,6 cm** (medida). Control decisivo: a 15,8 cm de la pared, con 0.18 congelado y con
+>   0.15 girando 34,9°. La F6 se reajustó a **[14,0 · 19,0]**, cuyo techo detecta a un robot al que
+>   **no le llegó el fichero**; `verificar_robot.sh` da **FALLO** si encuentra 0.18.
+>   ⚠️ No arregla los 0,6 cm restantes, ni el centímetro ciego, ni que `approach` no distinga
+>   acercarse de alejarse.
 >
 > 🆕 **2026-08-09 · LA GEOMETRÍA DEL ROBOT, MEDIDA DESDE EL EJE DEL LIDAR**
 >
@@ -943,13 +948,17 @@ una carrera contra el `map_update_interval: 5.0`.
 
 ### ✅ Hecho: el paso de 40 cm, y las cotas corregidas
 
-Con `radius: 0.18` **no cruza**. Y el compromiso queda cuantificado:
+Con `radius: 0.18` **no cruzaba**. Y el compromiso queda cuantificado:
 
-| `radius` | para a | pasillo mínimo |
-|---|---|---|
-| 0.14 | 5 cm | 28 cm |
-| **0.18** | **9 cm** | **36 cm** ← el actual |
-| 0.20 | 11 cm | 40 cm |
+| `radius` | para a | pasillo mínimo | banda de inmovilización |
+|---|---|---|---|
+| 0.14 | 5 cm | 28 cm | 0 — pero por debajo del ruido del LIDAR |
+| **0.15** | **6.3 cm medido** | **30 cm** | **0.6 cm** ← el actual desde 2026-08-09 |
+| 0.18 | 9.3 cm medido | 36 cm | 3.6 cm ← el anterior |
+| 0.20 | 11 cm | 40 cm | 5.6 cm |
+
+🔄 **Cambiado a `0.15` el 2026-08-09** (evidencia 94), con el hueco al parar medido a las dos
+velocidades y la aceptación F6 verificada. El pasillo mínimo baja de 36 a **30 cm**.
 
 Para 16 robots en un laboratorio remoto **donde nadie puede levantarlos**, parar a 9–11 cm de
 las paredes vale más que cruzar huecos de 40 cm — pero es una **decisión de laboratorio**.

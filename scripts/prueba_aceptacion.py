@@ -966,10 +966,13 @@ def f6(a: Aceptacion) -> None:
         #    las lineas 1929/1939/2112, seccion «2026-07-31 — ✅ Paradas contra
         #    pared re-medidas»), y salio REVISAR dos veces con 19.0 y 18.9 cm.
         #    **El robot tenia razon.** `collision_monitor.yaml` usa `circle` de
-        #    **radius 0.18** con `action_type: approach`, que frena
+        #    `circle` con `action_type: approach`, que frena
         #    ASINTOTICAMENTE hasta que un punto del barrido entra en ese
-        #    circulo: debe parar con /scan leyendo ~0.18 m. Medido 19.0 y 18.9
-        #    -> el radio mas ~1 cm. Funciona como esta escrito.
+        #    circulo: debe parar con /scan leyendo ~radius. Medido 19.0 y 18.9
+        #    con el radius de entonces (0.18) -> el radio mas ~1 cm. Funciona como
+        #    esta escrito.
+        #    🔄 DESDE EL 2026-08-09 EL RADIUS ES 0.15, asi que lo esperable son
+        #       ~16 cm: medido 16.3 y 16.3 a 0.25 m/s, 17.4 y 16.6 a 0.40.
         #    📝 Los 9.9 cm son de ANTES de que el radio fuera 0.18: el propio
         #       YAML documenta que con `radius 0.11` paraba a 3.0 cm de la
         #       pared. Una base medida sobre otra configuracion no es una base.
@@ -993,10 +996,23 @@ def f6(a: Aceptacion) -> None:
             f'{"sin lectura" if frontal is None else round(frontal, 1)} cm desde '
             'el LIDAR. Por debajo de 11 el chasis esta tocando: el robot NO paro, '
             'se estrello — y /odom se queda quieto igual que si hubiera parado'))
+        # 🔴 BANDA REAJUSTADA EL 2026-08-09 AL PASAR `radius` DE 0.18 A 0.15.
+        #    Medido contra una pared con el valor nuevo ya cargado:
+        #        a 0.25 m/s -> 16.3 · 16.3 cm desde el LIDAR
+        #        a 0.40 m/s -> 17.4 · 16.6 cm   (la maxima del robot)
+        #    Suelo 14.0: por debajo se acerca al umbral de contacto (11 cm) que
+        #    comprueba el categorico de arriba, y deja 2.3 cm bajo lo medido.
+        #    🔎 TECHO 19.0, Y NO ES DECORATIVO: un robot que pare a ~19.4 es
+        #       exactamente lo que hacia con `radius: 0.18`, o sea **un robot al
+        #       que NO le llego el fichero nuevo**. Con la imagen dorada
+        #       repartiendose a 16 robots, esta banda es lo que lo detecta.
+        #    ⚠️ n=4. Si un robot sano se sale del techo, se ensancha CON la medida
+        #       delante, no borrando el limite.
         a.add(juzgar_banda('distancia frontal a la que quedo parado',
                            None if frontal is None else round(frontal, 1),
-                           15.0, 24.0,
-                           'collision_monitor.yaml: circle radius 0.18 + approach',
+                           14.0, 19.0,
+                           'collision_monitor.yaml: circle radius 0.15 + approach '
+                           '(medido 16.3-17.4 cm; con 0.18 daba 19.3-19.4)',
                            'F6', 'cm'))
         p1 = a.pos_yaw()
         a.add(juzgar_categorico('el robot avanzo y se detuvo solo',

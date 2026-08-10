@@ -4,6 +4,54 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (robot, noche 3) — **`Aproximacion.radius` bajado de 0.18 a 0.15**
+
+Decisión del usuario, con toda la tabla medida delante. **Es un cambio de imagen dorada** y toca la
+capa de seguridad, así que se documenta con lo que se gana, lo que se pierde y lo que no arregla.
+
+**La clave es una simetría:**
+
+```
+banda de inmovilización  =  margen ante el error del LIDAR  =  radius − 0,1442
+```
+
+**Son el mismo número.** Por debajo del radio circunscrito el bloqueo es correcto —la esquina
+barrería el obstáculo—; por encima es un robot congelado sin motivo. Por eso el **0.145** que
+coincidiría con el `robot_radius` de Nav2 **no vale**: 0,1 cm de margen contra un ruido de LIDAR
+**medido** de ±0,3 cm autorizaría a girar cuando el robot no cabe.
+
+```
+                          0.18            0.15
+cero del mando            18 cm           15 cm
+hueco al parar 0,25 m/s   9,3 9,4 9,3 9,4  6,3 6,3
+hueco al parar 0,40 m/s   10,9 (fich. 17)  7,4 6,6     <- velocidad MÁXIMA
+banda de inmovilización   3,6 cm          0,6 cm
+pasillo mínimo (2×r)      36 cm           30 cm
+aceptación F6             pasa            pasa
+```
+
+✅ **El control decisivo, a la misma distancia con los dos valores:** pared a 15,8 cm de
+`base_footprint` — con 0.18 **congelado**, con 0.15 **gira 34,9° y se aleja 5,7 cm**.
+
+✅ **Y se comprobó que no rompe la aceptación ANTES de adoptarlo.** La banda de F6 se reajustó a
+**[14,0 · 19,0]**, y su techo no es cosmético: **un robot que pare a ~19,4 es exactamente lo que
+hacía con 0.18, o sea uno al que no le llegó el fichero nuevo.** Con la imagen dorada
+repartiéndose a 16 robots, esa banda es lo que lo detecta. `verificar_robot.sh` hace lo mismo: da
+**FALLO**, no aviso, si encuentra 0.18.
+
+⚠️ **Lo que NO arregla, escrito para que nadie lo lea como resuelto:** quedan **0,6 cm** de banda
+donde el robot sigue congelado sin tocar nada; el **centímetro ciego** de `range_min` sigue igual
+porque no depende de este parámetro; y `approach` sigue sin distinguir acercarse de alejarse.
+
+🔴 **No es un botón:** el parámetro **no se puede cambiar en caliente** (evidencia 94), así que
+aplicarlo exige editar el YAML y reiniciar `atriz-robot` con 👤 `sudo`.
+
+Alineado en los dos repositorios: `collision_monitor.yaml` (imagen dorada), `prueba_aceptacion.py`
+(banda y justificación), `verificar_robot.sh` (FALLO ante 0.18), manual cap. 12, `CLAUDE.md` con su
+tabla de valores de referencia, `TRASPASO.md` e `INSTALACION.md`.
+
+Evidencia 95.
+
 ## 2026-08-09 (robot, noche 2) — **El barrido de pared, y un parámetro que no hacía nada**
 
 Lo propuso el usuario: el robot pegado a la pared y separándolo **de 2 en 2 cm en las cuatro

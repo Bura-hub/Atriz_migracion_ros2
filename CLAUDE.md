@@ -1009,8 +1009,8 @@ línea de la puerta (x=85 cm), lateral -40..+40, misma escena, mismos 45 cm
 → ⏳ **De dónde salen esos 5 cm: NO VERIFICADO.** Candidatos sin medir: celdas de 5 cm, el modelo de
   ocupación de slam_toolbox, error residual de pose.
 
-**🔴🔴 UN OBSTÁCULO A MENOS DE 18 cm INMOVILIZA AL ROBOT POR COMPLETO — NI SIQUIERA PUEDE
-ALEJARSE.** Medido el 2026-08-09 (evidencia 93) con la pared **detrás** a 16,8 cm y 188 cm libres
+**🔴🔴 UN OBSTÁCULO DENTRO DE `Aproximacion.radius` INMOVILIZA AL ROBOT POR COMPLETO — NI SIQUIERA
+PUEDE ALEJARSE.** (Eran 18 cm hasta el 2026-08-09; desde entonces **15**, ver más abajo.) Medido el 2026-08-09 (evidencia 93) con la pared **detrás** a 16,8 cm y 188 cm libres
 delante, mandando por `/cmd_vel_raw`:
 
 ```
@@ -1020,7 +1020,7 @@ RETROCEDER hacia la pared       ->  0.0 cm    monitor: APROXIMACION
 ```
 
 → 🔴 `approach` escala el mando ENTERO —lineal y angular— por el tiempo hasta colisión, y con un
-  punto **ya dentro** del círculo (`Aproximacion.radius: 0.18`) ese factor es 0, **sin mirar si el
+  punto **ya dentro** del círculo (`Aproximacion.radius`) ese factor es 0, **sin mirar si el
   movimiento acerca o aleja**. Sólo sale a mano.
 → ✅ **Y girando NO rozaría nada**: con el monitor puenteado dio **359,6° y 358,8° de 360**, 12,6 s
   (igual que en campo abierto), y el usuario mirando: «no ha tocado la pared en ningún momento».
@@ -1059,6 +1059,27 @@ basta para que el `collision_monitor` siga congelando al robot.
   media anchura **0,108**. Los `0.109` que aparecen por el proyecto son del URDF **cruzado de eje**;
   el fichero 19 ya lo avisaba en 2026-07-31 y aun así se volvieron a usar el 2026-08-09.
 → ⏳ Borde DELANTERO en conflicto: cinta 9,0 vs URDF 10,0. **NO VERIFICADO.**
+
+**✅ `Aproximacion.radius` BAJADO DE 0.18 A 0.15 EL 2026-08-09, CON TODO MEDIDO (evidencia 94).**
+La clave es una simetría: **`banda de inmovilización` = `margen ante el error del LIDAR` =
+`radius − 0.1442`** — son el mismo número, así que no se puede encoger uno sin el otro.
+
+```
+radius   banda de trampa   hueco al parar 0.40 m/s   aceptación F6
+ 0.18         3.6 cm            10.9 cm               pasa
+ 0.15         0.6 cm             7.4 / 6.6 cm         pasa      <- el actual
+ 0.145        0.1 cm             (sin medir)          — margen < ruido del LIDAR
+```
+
+→ ✅ Verificado a la MISMA distancia con los dos valores: pared a 15,8 cm de `base_footprint`,
+  con 0.18 **congelado**, con 0.15 **gira 34,9° y se aleja 5,7 cm**.
+→ 🔴 **No se baja más:** con 0.145 el margen (0,1 cm) queda por debajo del ruido de LIDAR **medido**
+  (±0,3 cm): autorizaría a girar cuando el robot no cabe.
+→ ⚠️ **No arregla el centímetro CIEGO** de `range_min`, que no depende de este parámetro, ni los
+  0,6 cm de banda que quedan.
+→ 🔴 **NO SE PUEDE PROBAR EN CALIENTE**: hay que editar el YAML y reiniciar `atriz-robot` (👤 `sudo`).
+  `verificar_robot.sh` da **FALLO** si encuentra 0.18 en un robot: significa que no le llegó el
+  fichero nuevo.
 
 **🔴 UNA MÉTRICA QUE DA EL MISMO NÚMERO PARA EL ÉXITO Y PARA EL FRACASO NO ES UNA MÉTRICA.**
 El 2026-08-09 se midió el error de un giro de 360° como `wrap(yaw_final − yaw_inicial)` contra un
@@ -2133,7 +2154,8 @@ de verdad. Dos consecuencias que cambian el día a día:
 | **Plano de barrido del LIDAR** | **15.5 cm** del suelo ✅ MEDIDO (antes 17.45, derivado) | 2026-07-31 |
 | Alto del RVR (suelo → tapa) | **7.0 cm** — la ficha decía 11.4 | 2026-07-31 |
 | Radio circunscrito | **0.142 m** → `robot_radius: 0.145` | derivado de lo anterior |
-| Paso mínimo con `radius: 0.18` | **no cruza 40 cm** — necesita ~36 cm + margen | 2026-07-31 |
+| Paso mínimo con `radius: 0.15` | ~**30 cm** + margen (`2 × radius`) — con el 0.18 anterior eran 36 y no cruzaba 40 | 2026-08-09 |
+| Hueco al parar, `radius: 0.15` | **6.3 cm** a 0.25 m/s · **7.4 / 6.6 cm** a 0.40 (máxima) | 2026-08-09 |
 | ✅ **Deriva de SLAM (referenciando)** | mediana **1.55 cm** (1.6 m) y **0.90 cm** (2.3 m) · peor **4.4 cm** · **0 fallos de 12**. NO crece con la distancia | 2026-07-31, n=12 |
 | 🔴 Deriva de SLAM **sin** referenciar | **~21 %** de las corridas se iban a 6–56 cm | 2026-07-31, n=24 |
 | ✅ **Referenciado de posición** | dispersión **±3 cm** (era ±47 cm) y **±0.2°**. `referenciar_posicion.py` | 2026-07-31 |

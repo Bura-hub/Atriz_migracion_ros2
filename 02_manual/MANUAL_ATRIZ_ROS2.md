@@ -3345,9 +3345,14 @@ Con `radius` 0.11 y media longitud de chasis **0.091** ✅ medida, la asíntota 
 **La holgura se consigue inflando el círculo:**
 
 ```
-hueco ≈ radius − 0.091 + ~1 cm
-radius: 0.18  →  asíntota 9 cm
+hueco ≈ radius − 0.095 + ~1 cm
+
+radius: 0.18  →  asíntota 8.5 cm   ·  MEDIDO 9.3-9.4 a 0.25 m/s · 10.9 a 0.40
+radius: 0.15  →  asíntota 5.5 cm   ·  MEDIDO 6.3 a 0.25 m/s · 7.4 y 6.6 a 0.40   ← EL ACTUAL
 ```
+
+🔄 **Desde el 2026-08-09 el valor es `0.15`** (evidencia 94). Los dos están medidos contra pared, y
+el perfil del recorte es lineal en la distancia al círculo: `mando ≈ 0,0125 × (d_LIDAR − radius)`.
 
 📝 La holgura **depende de la dirección**, porque el robot no es un círculo: de frente
 `0.18 − 0.091 = 8.9 cm`, de costado `0.18 − 0.1085 = 7.2 cm`, y en esquina

@@ -1,0 +1,98 @@
+════════════════════════════════════════════════════════════════════════════
+ 95 · `Aproximacion.radius` BAJADO DE 0.18 A 0.15
+      La banda de inmovilización pasa de 3,6 a 0,6 cm conservando ~7 cm de
+      holgura a velocidad máxima. Decidido por el usuario con todo medido.
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-09 (noche)
+Robot:  rvr-01 · batería 73 % -> 69 %
+Testigo físico: el usuario, mirando el robot en todas las tandas
+Reinicio del servicio: 👤 el usuario (`sudo systemctl restart atriz-robot`)
+
+
+1 · POR QUÉ SE TOCA UN PARÁMETRO DE SEGURIDAD
+────────────────────────────────────────────────────────────────────────────
+El barrido de pared (evidencia 94, 24 estaciones a mano en las cuatro
+direcciones) midió que el círculo de aproximación **inmoviliza por completo** al
+robot —no gira, no avanza y ni siquiera puede ALEJARSE— cuando hay algo dentro,
+porque `approach` escala el mando entero por el tiempo hasta colisión y con un
+punto ya dentro ese factor es 0.
+
+Con 0.18 esa banda era de **3,6 cm** en las cuatro direcciones: obstáculos entre
+14,4 y 18 cm dejaban muerto a un robot que podía girar sin rozar nada.
+
+
+2 · LA SIMETRÍA QUE DECIDE EL VALOR
+────────────────────────────────────────────────────────────────────────────
+    banda de inmovilización  =  margen ante el error del LIDAR  =  radius − 0,1442
+
+**Son el mismo número.** Por debajo del radio circunscrito (0,1442 desde
+`base_footprint`) el bloqueo es CORRECTO: la esquina barrería el obstáculo. Por
+encima es un robot congelado sin motivo. No se puede encoger uno sin el otro.
+
+🔴 Por eso **0.145 —que coincidiría con el `robot_radius` de Nav2— NO vale**:
+   dejaría 0,1 cm de margen contra un ruido de LIDAR **medido** de ±0,3 cm en ese
+   mismo barrido. Autorizaría a girar cuando el robot no cabe.
+
+
+3 · LO MEDIDO CON LOS DOS VALORES
+────────────────────────────────────────────────────────────────────────────
+                              0.18            0.15
+    cero del mando            18 cm           15 cm
+    hueco al parar 0,25 m/s   9,3 9,4 9,3 9,4  6,3 6,3
+    hueco al parar 0,40 m/s   10,9 (fich. 17)  7,4 6,6      <- velocidad MÁXIMA
+    banda de inmovilización   3,6 cm          0,6 cm
+    aceptación F6             pasa            pasa
+    pasillo mínimo (2×r)      36 cm           30 cm
+
+✅ **El control decisivo, a la MISMA distancia con los dos valores:**
+   pared a 15,8 cm de `base_footprint`
+     con 0.18 -> CONGELADO   (barrido: DELANTE 16,1 bloqueado)
+     con 0.15 -> gira 34,9° · retrocede 5,7 cm · avanza 2,5 · monitor FRENADO
+
+📌 El perfil del recorte se desplazó exactamente 3 cm y sigue siendo lineal:
+   `mando ≈ 0,0125 × (distancia_LIDAR − radius)`. Predicción del hueco a 0,25 m/s
+   antes de medir: ~6,5 cm. Medido: 6,3. **A 2 mm.**
+
+
+4 · Y NO ROMPE LA PRUEBA DE ACEPTACIÓN — COMPROBADO ANTES DE ADOPTARLO
+────────────────────────────────────────────────────────────────────────────
+La F6 comprueba dos cosas sobre esa distancia:
+
+    categórico:  frontal > 11 cm      (por debajo, el chasis está tocando)
+    banda:       frontal ∈ [15, 24]   justificada con «radius 0.18»
+
+Las cuatro paradas con 0.15 —16,3 · 16,3 · 17,4 · 16,6— pasan las dos.
+
+✅ **Y la banda se reajustó a [14,0 · 19,0]**, que no es cosmético:
+   · suelo 14,0: deja 2,3 cm bajo lo medido y por encima del umbral de contacto.
+   · **techo 19,0: un robot que pare a ~19,4 es exactamente lo que hacía con
+     `radius: 0.18`, o sea UN ROBOT AL QUE NO LE LLEGÓ EL FICHERO NUEVO.** Con la
+     imagen dorada repartiéndose a 16 robots, esa banda es lo que lo detecta.
+   ⚠️ n=4. Si un robot sano se sale del techo, se ensancha CON la medida delante,
+      no borrando el límite.
+
+
+5 · ⚠️ LO QUE ESTE CAMBIO NO ARREGLA
+────────────────────────────────────────────────────────────────────────────
+  · **Quedan 0,6 cm de banda** donde el robot sigue congelado sin tocar nada.
+    Eliminarla del todo exige bajar a 0,1442 y ahí el margen cae por debajo del
+    ruido del sensor: peor remedio que la enfermedad.
+  · **El centímetro CIEGO** de `range_min` por delante y por detrás sigue igual:
+    no depende de este parámetro, es que el sensor no da el dato.
+  · **`approach` sigue sin distinguir acercarse de alejarse.** Dentro de los
+    0,6 cm restantes, el robot sigue sin poder huir.
+
+
+6 · 🔴 CÓMO SE APLICA, Y POR QUÉ NO ES UN BOTÓN
+────────────────────────────────────────────────────────────────────────────
+**`Aproximacion.radius` NO se puede cambiar en caliente.** `ros2 param set` lo
+guarda y `ros2 param get` lo devuelve, pero el nodo **no reconstruye el
+polígono**: con 0.18, 0.15 y **0.30** en caliente el perfil sale IDÉNTICO
+(evidencia 94). Hay que editar el YAML y **reiniciar `atriz-robot`** (👤 `sudo`).
+
+📌 Para la flota: es un **cambio de imagen dorada**, y `verificar_robot.sh` da
+   **FALLO** —no aviso— si encuentra 0.18 en un robot, porque significa que no le
+   llegó el fichero.
+
+👤 **La decisión la tomó el usuario** con esta tabla delante, incluidos los tres
+   límites del apartado 5.

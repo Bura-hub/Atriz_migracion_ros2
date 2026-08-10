@@ -712,12 +712,15 @@ if command -v ros2 >/dev/null && [[ -n "${ROS_DISTRO:-}" ]]; then
                    | awk '{print $NF}')"
         if [[ -z "$R_APROX" ]]; then
             _avi "no se pudo leer Aproximacion.radius del collision_monitor" ""
+        elif [[ "$R_APROX" == "0.15" ]]; then
+            _ok "Aproximacion.radius = 0.15 (el valor decidido el 2026-08-09)"
+            _nota "franja de INMOVILIZACION 14.4-15.0 cm: mas cerca, el robot no gira ni se aleja (ev. 94)"
         elif [[ "$R_APROX" == "0.18" ]]; then
-            _ok "Aproximacion.radius = 0.18 (el valor decidido)"
-            _nota "franja de INMOVILIZACION 14.2-18 cm: con algo mas cerca el robot no gira ni se aleja (ev. 93)"
+            _mal "Aproximacion.radius = 0.18: es el valor ANTIGUO" \
+                 "a este robot NO le llego el collision_monitor.yaml del 2026-08-09. Con 0.18 la franja de inmovilizacion es de 3.6 cm en vez de 0.6: cualquier obstaculo entre 14.4 y 18 cm lo deja muerto, sin poder ni girar ni alejarse. Actualiza el fichero y reinicia atriz-robot (el parametro NO se puede cambiar en caliente). Evidencia 94"
         else
-            _avi "Aproximacion.radius = $R_APROX, no el 0.18 decidido" \
-                 "fija a la vez el hueco al parar (~radius-0.09) y el pasillo minimo (~2xradius). Bajarlo desatasca al robot pero acorta el frenado: hay que repetir la medida de 20,8 cm de la aceptacion. Evidencia 93"
+            _avi "Aproximacion.radius = $R_APROX, no el 0.15 decidido" \
+                 "fija A LA VEZ la banda de inmovilizacion y el margen ante el error del LIDAR: los dos son (radius - 0.1442). Y el hueco al parar (~radius-0.095), medido 7.4/6.6 cm a 0.40 m/s con 0.15. No se cambia sin repetir esa medida. Evidencia 94"
         fi
     fi
 fi
