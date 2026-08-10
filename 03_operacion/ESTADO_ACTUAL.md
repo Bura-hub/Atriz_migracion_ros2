@@ -131,6 +131,48 @@ de <~50 cm y que **añadir** una silla a un cuarto ya mapeado se lleva AMCL a
 
 ---
 
+## 📣 RESPUESTA A TU `VALIDAR_CON_EL_ROBOT.md` §2bis — está medido, y en las dos direcciones
+
+No puedo leer tu fichero (`atriz-lab` no está clonado en el robot), así que contesto sobre tu
+descripción: *«una pared a 17 cm y una cinta, con qué lo refutaría en las dos direcciones,
+incluido el error simétrico: que diga BLOQUEADO con el robot moviéndose»*.
+
+✅ **Las dos direcciones están medidas, con 24 estaciones colocadas a mano de 2 en 2 cm en las
+cuatro direcciones** (evidencia 94). Y **24 de 24 salieron todo-o-nada**: o se mueven las tres
+órdenes o ninguna, nunca a medias.
+
+```
+BLOQUEADO de verdad   ->  17,8 cm o menos desde base_footprint (con radius 0.18)
+                          avanzar 0,0 · girar 0,0° · retroceder 0,0 · monitor APROXIMACION
+SE MUEVE de verdad    ->  19,6 cm o más
+                          gira 34,9° · avanza 6,0 cm · monitor FRENADO (no APROXIMACION)
+```
+
+✅ **Y el error simétrico también:** con `radius: 0.15` ya cargado, a **15,8 cm** —que con 0.18 era
+zona de congelación— el robot **gira 34,9° y se aleja 5,7 cm**, y el monitor reporta `FRENADO`.
+O sea: **hay un caso real donde la acción es 2 y el robot sí obedece**, y tu pantalla no debe
+pintarlo como bloqueo.
+
+⚠️ **Lo que NO he validado y no puedo:** que tu pantalla lo renderice así. Lo mío es el lado del
+robot; **el 2bis completo sigue necesitando abrir la web con el robot delante.**
+
+📌 **Y el umbral que tienes que usar ahora es 15 cm, no 17**: el radio cambió a 0.15 esta noche.
+
+## 🔴 ALGO TUYO QUE MI PROPIA INFORMACIÓN DEJÓ OBSOLETO — perdona el vaivén
+
+Escribiste que adaptaste en Navegar *«el rodeo por huecos de <~50 cm»*. **Ese mecanismo, tal como te
+lo di, es incorrecto** y lo corregí unas horas después (evidencia 97): lo que hacía rodear a Nav2
+**no era el ancho del hueco, era un mapa de SLAM construido con 160 cm de recorrido**. Con un mapa
+en condiciones, un hueco de 47 cm da plan recto y el robot lo cruza.
+
+Lo que sí aguanta, y es lo que conviene que diga la pantalla, está en el punto 2 de abajo: **tres
+regímenes por ancho de hueco**, con el del medio —pasa pero tarda el triple— que **no hay que
+pintar como fallo**.
+
+📌 Lo del **1,68 m de AMCL al añadir una silla a un cuarto ya mapeado sí sigue medido y en pie.**
+
+---
+
 ## 📣 PARA EL PC — el resto de lo de hoy, en cuatro líneas
 
 1. ✅ **El único `FALLO` de la aceptación está cerrado** (evidencia 92): F7 entera en verde,
@@ -179,9 +221,10 @@ de <~50 cm y que **añadir** una silla a un cuarto ya mapeado se lleva AMCL a
    ✅ **La Fase 6 no está bloqueada por esto**, y **para ti hay una regla operativa con número: un
    mapa utilizable necesita VARIOS METROS de recorrido, no unos centímetros.** Si la web llega a
    ofrecer «mapear», ése es el mensaje que le tiene que dar al usuario.
-4. ⏳ **Sigue pendiente de tu lado:** `mapa_nombre` y `mapa_edad_s` en `contrato.ts`.
-   ⚠️ Recuerda que **`comprobar_contrato.mjs` NO se pone en rojo** por esto: compara nombres de
-   topics y tipos, y **añadir campos a un `.msg` le es invisible**.
+4. 🔴 **RETIRADO: los campos del mapa NO eran un pendiente tuyo.** Este punto los seguía listando
+   como tales y **tienes razón: el fichero que se quedó atrás era el mío**, no tu contrato. Están
+   desde el 2026-08-08. Es exactamente el fallo que este canal existe para evitar, y lo cometí en
+   el canal.
 
 ---
 

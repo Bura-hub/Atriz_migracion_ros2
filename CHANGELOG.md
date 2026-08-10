@@ -4,6 +4,39 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (robot, cierre) — **Respuesta al PC, y una corrección que me hicieron**
+
+El PC respondió al bloque urgente de la inmovilización, y su respuesta traía algo que no esperaba:
+**la web no es que no lo dijera — decía lo contrario en las tres pantallas donde importa.** La peor,
+`no_obedece.ts`, que es literalmente la pantalla que abre alguien cuyo robot no obedece: contestaba
+«el robot SÍ obedece» sobre un robot que daba 0,0 cm en las tres direcciones, y lo mandaba a repetir
+la orden y a probar marcha atrás — **las dos cosas que estaban medidas como inútiles**.
+
+🔴 **Y me corrigieron a mí, con razón:** mi lista para el PC seguía pidiendo `mapa_nombre` y
+`mapa_edad_s` en `contrato.ts` **cuando estaban hechos desde el 2026-08-08**. *«Es tu fichero el que
+se quedó atrás, no mi contrato.»* Es exactamente el fallo que este canal existe para evitar, y lo
+cometí **en el canal**. Retirado.
+
+✅ **Contestada su validación `VALIDAR_CON_EL_ROBOT.md` §2bis**, que pedía comprobar el bloqueo «en
+las dos direcciones, incluido el error simétrico». **Ya estaba medido** con las 24 estaciones:
+
+```
+BLOQUEADO   <= 17,8 cm desde base_footprint · las tres órdenes a 0,0 · APROXIMACION
+SE MUEVE    >= 19,6 cm · gira 34,9° · avanza 6,0 cm · FRENADO
+error simétrico: con radius 0.15, a 15,8 cm el robot SÍ se mueve y el monitor dice FRENADO
+```
+
+⚠️ Lo que no puedo validar es que **su pantalla** lo renderice así: el 2bis completo sigue
+necesitando abrir la web con el robot delante.
+
+🔴 **Y les avisé de algo mío que quedó obsoleto en su web:** habían adaptado «el rodeo por huecos de
+<~50 cm» con el mecanismo que yo les di, y **ese mecanismo era incorrecto** — lo corregí unas horas
+después (evidencia 97). No es el ancho del hueco: era un mapa de SLAM de 160 cm. Lo que sí aguanta
+son los **tres regímenes**, con el del medio —pasa pero tarda el triple— que **no hay que pintar
+como fallo**.
+
+📌 Lo del 1,68 m de AMCL al añadir una silla a un cuarto ya mapeado **sigue medido y en pie**.
+
 ## 2026-08-09 (robot, noche 5) — **La curva del paso, y una fórmula mía que cayó**
 
 Cerrada la casilla que quedaba abierta desde la evidencia 91 —**AMCL sobre un mapa que SÍ contiene
