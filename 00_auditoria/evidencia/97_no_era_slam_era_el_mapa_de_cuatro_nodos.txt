@@ -84,6 +84,39 @@ NavFn es determinista, así que lo que cambia tiene que ser el costmap. Muestrea
    «a veces funciona», que es lo más difícil de depurar.
 
 
+2ter · LA PREDICCIÓN, ESCRITA ANTES DE MEDIR, Y CONFIRMADA
+────────────────────────────────────────────────────────────────────────────
+Si el paso falla por tener **una** celda, ensanchar el hueco tiene que darle
+celdas y quitar el parpadeo. Se escribió esto **antes** de tocar nada:
+
+    a 60 cm -> 3 celdas en la fila de pinza · 8 de 8 consultas con plan
+    lo que me desmentiría: que a 60 cm siga fallando alguna
+
+El usuario ensanchó a **61,1 cm** (medido con LIDAR, centro -9,9). Resultado:
+
+                            47,4 cm            61,1 cm
+    fila x=90       1 celda abierta       2-3 (mediana 3)
+                    cerrada 19/49          cerrada 0/50
+    consultas       3 de 8                 8 de 8, idénticas
+    plan            144 cm · 8,4 lateral   142 cm · 3,4 lateral
+
+    celdas abiertas por fila, 50 muestreos en 75 s, con 61,1 cm:
+      x= 80 -> 5-6    x= 85 -> 3-4    x= 90 -> 2-3    x= 95 -> 2-3    x=100 -> 2
+      **ninguna fila se quedó sin celdas en ninguna muestra**
+
+✅ **Las dos mitades de la predicción se cumplen: la tasa (8/8) y el mecanismo
+   (3 celdas en vez de 1, sin cierres).** Y explica los 60 cm del guion de
+   aceptación, que hasta hoy eran un número medido sin porqué:
+
+       hueco 47 cm -> 1 celda transitable -> parpadea -> 3/8
+       hueco 61 cm -> 3 celdas            -> estable  -> 8/8
+
+📌 **Y da la regla para dimensionar cualquier paso, no sólo éste:** lo que hay que
+   contar no son centímetros de hueco sino **celdas transitables en la fila más
+   estrecha**, y hacen falta **al menos 2-3** para aguantar el ruido del LIDAR.
+   Con `resolution: 0.05` eso son ~10-15 cm de holgura sobre el mínimo geométrico.
+
+
 3 · 🔴 Y NAV2 ARRANCÓ MAL SIN DECIRLO — CASI SE DA POR BUENO UN RESULTADO FALSO
 ────────────────────────────────────────────────────────────────────────────
 La primera tanda de consultas dio **plan recto al 99 % con 3,5 cm de lateral, las

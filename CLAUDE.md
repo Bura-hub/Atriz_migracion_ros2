@@ -1130,9 +1130,20 @@ resto de la banda -15..+15 cm: 99/100 en las 49 muestras
 
 → 🔴 **El paso tiene UNA celda de ancho (5 cm) y esa celda cruza el umbral de 99 sola**, por el ruido
   del LIDAR (±0,3 cm medido). NavFn es determinista: lo que cambia es el costmap.
-→ ✅ **Y explica los 60 cm de hueco de forma MECÁNICA:** con 47 cm queda 1 celda; para 2-3 celdas
-  —las que aguantan el parpadeo— hacen falta ~10-13 cm más. El número que la aceptación ya exigía
-  cae justo ahí, y hasta ahora era empírico.
+→ ✅ **PREDICHO Y CONFIRMADO el mismo día**, que es lo que le da valor: se escribió «a 60 cm habrá
+  3 celdas y 8 de 8 consultas» **antes** de tocar nada, el usuario ensanchó a 61,1 cm y salió
+  exactamente eso — mediana de **3 celdas** en la fila de pinza, **0 cierres en 50 muestras**, y
+  **8 de 8** planes idénticos.
+
+```
+              47,4 cm                61,1 cm
+fila x=90     1 celda · cerrada 19/49    2-3 celdas · cerrada 0/50
+consultas     3 de 8                     8 de 8
+```
+
+→ ✅ **Y da la regla general para dimensionar un paso: no cuentes centímetros, cuenta CELDAS
+  TRANSITABLES en la fila más estrecha, y ten al menos 2-3.** Con `resolution: 0.05` eso son ~10-15 cm
+  de holgura sobre el mínimo geométrico. Explica los 60 cm del guion, que eran empíricos.
 → 🔴 **Para el aula es peor que un fallo limpio:** «a veces funciona» es lo más difícil de depurar.
 → 📌 **Y para cualquier medida futura: UNA consulta de plan NO es un dato.** Repite y da la tasa.
 
