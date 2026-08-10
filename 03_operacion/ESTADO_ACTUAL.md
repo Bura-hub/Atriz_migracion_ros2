@@ -11,7 +11,69 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-08
+**Última actualización:** 2026-08-09 (noche)
+
+---
+
+## 📣 🔴 URGENTE PARA TU PANTALLA: EL ROBOT PUEDE QUEDARSE MUERTO SIN QUE NADA FALLE
+
+Medido el 2026-08-09 con 24 estaciones en las cuatro direcciones (evidencias 93, 94 y 95).
+
+**Si hay un obstáculo dentro del círculo del `collision_monitor`, el robot NO SE MUEVE. Nada.**
+Ni gira, ni avanza, **ni puede alejarse del obstáculo**:
+
+```
+pared DETRÁS a 16,8 cm, 188 cm libres delante, mandando por /cmd_vel_raw
+  AVANZAR alejándose  ->  0,0 cm     GIRAR  ->  0,0°     RETROCEDER  ->  0,0 cm
+```
+
+`approach` escala el mando **entero** —lineal y angular— por el tiempo hasta colisión, y con un
+punto ya dentro ese factor es **0**, sin mirar si el movimiento acerca o aleja. **Sólo sale a mano.**
+
+🔴 **Y para el alumno esto se ve como un robot colgado**: `girar(360)` tarda 40 s —su plazo
+interno— y devuelve −0,1° **sin un solo mensaje**. Va a pensar que se rompió, o que la web no
+manda.
+
+✅ **LO QUE TE PIDE ESTO, y es la razón de que esté aquí arriba:** cuando
+`/collision_monitor_state` traiga `action_type = 3` (APROXIMACION) y el robot no se mueva, **la
+pantalla tiene que decirlo con todas las letras**. Algo como:
+
+> **El robot está bloqueado por la capa de seguridad.** Tiene un obstáculo a menos de 15 cm.
+> **No puede salir solo, ni siquiera alejándose** — hay que retirar el obstáculo o mover el robot
+> a mano.
+
+📌 Encaja con lo que la especificación ya exige (`interpretarSeguridad()`, el silencio no es verde),
+pero **añade el caso peor, que antes no se conocía**: no es «va despacio», es «no se mueve y no
+puede».
+
+🔄 **Y el umbral cambió: `Aproximacion.radius` pasó de 0.18 a 0.15 el 2026-08-09.** Si tu pantalla
+cita alguna distancia de seguridad, ahora son **15 cm** desde `base_footprint`. El cambio reduce la
+franja de inmovilización de 3,6 a 0,6 cm conservando 7,4/6,6 cm de holgura al parar a velocidad
+máxima (todo medido, evidencia 95).
+
+⚠️ **Lo que NO arregla:** quedan 0,6 cm de franja, y hay **1 cm CIEGO** por delante y por detrás que
+ningún parámetro cubre — el `range_min` del LIDAR es 10 cm y el borde del robot está a 9. **Un
+obstáculo pegado al robot puede ser invisible.**
+
+---
+
+## 📣 PARA EL PC — el resto de lo de hoy, en cuatro líneas
+
+1. ✅ **El único `FALLO` de la aceptación está cerrado** (evidencia 92): F7 entera en verde,
+   12 PASA · 0 REVISAR · 0 FALLO. Era **el montaje demasiado justo**, no un defecto: el guion ahora
+   exige **60 cm de hueco medidos con cinta** y explica por qué.
+2. 🔴 **Nav2 no se cuela por huecos estrechos: los RODEA.** Con menos de ~50 cm traza un rodeo del
+   168-233 % de la recta, y en un cuarto pequeño ese rodeo no cabe y aborta. Si la web deja poner
+   objetivos o el alumno mueve muebles, **es la explicación de la mayoría de los «no llegó»**.
+   Se puede saber **antes de mover el robot** preguntándole la ruta a Nav2 con
+   `compute_path_to_pose` (herramienta `mediciones_banco/consultar_plan.py`).
+3. 🔴 **El mapa de slam_toolbox se quedó congelado y casi vacío** —49 celdas ocupadas para un cuarto
+   entero, idéntico tras 360° de giro y 160 cm de recorrido, con el LIDAR sano—. **Es la ruta con la
+   que se harán los mapas del aula**, así que bloquea más que ningún otro pendiente de navegación.
+   ⏳ Causa **NO VERIFICADA**.
+4. ⏳ **Sigue pendiente de tu lado:** `mapa_nombre` y `mapa_edad_s` en `contrato.ts`.
+   ⚠️ Recuerda que **`comprobar_contrato.mjs` NO se pone en rojo** por esto: compara nombres de
+   topics y tipos, y **añadir campos a un `.msg` le es invisible**.
 
 ---
 

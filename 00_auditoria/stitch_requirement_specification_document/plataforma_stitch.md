@@ -1482,7 +1482,42 @@ da de baja al confirmarlo**.
 |---|---|---|---|
 | **Enlace** | WebSocket + llegadas de `/odom` | insignia de tres estados con «WebSocket abierto\|cerrado» en mono al lado | pasados 3 s sin `/odom` cae a ámbar y **lista las tres causas sin elegir**. **Nunca verde por ausencia, y nunca rojo** |
 | **Parada — bandera del robot** | `/estado_robot.parada_emergencia` | franja «parada ACTIVA» sobre el botón, **solo cuando el campo llega y vale true** | **no se pinta nada afirmativo**. El texto dice «no está llegando /estado_robot, así que desde aquí no se sabe si la parada se aplicó — mira el robot» |
-| **Capa de seguridad** | `/collision_monitor_state` → `interpretarSeguridad()` | insignia + frase entera + **«qué hacer» en negrita**. Polígonos reales: «Aproximacion» y «Precaucion»; también puede traer «invalid source» | efecto **DESCONOCIDO, visible y con su frase completa**: solo publica cuando el robot procesa un `cmd_vel_raw`. **La tarjeta no se oculta ni se pinta verde** |
+| **Capa de seguridad** | `/collision_monitor_state` → `interpretarSeguridad()` | insignia + frase entera + **«qué hacer» en negrita**. Polígonos reales: «Aproximacion» y «Precaucion»; también puede traer «invalid source». 🔴 **Con `action_type = 3` (APROXIMACION) el texto tiene que decir que el robot NO PUEDE SALIR SOLO** — ver el bloque de abajo | efecto **DESCONOCIDO, visible y con su frase completa**: solo publica cuando el robot procesa un `cmd_vel_raw`. **La tarjeta no se oculta ni se pinta verde** |
+
+### 🔴 `APROXIMACION` no es «va despacio»: es que el robot NO SE MUEVE, y no puede salir
+
+Medido el 2026-08-09 con 24 estaciones en las cuatro direcciones (evidencias 93, 94 y 95). Con un
+obstáculo dentro del círculo del `collision_monitor`:
+
+```
+pared DETRÁS a 16,8 cm, 188 cm libres delante, mandando por /cmd_vel_raw
+  AVANZAR alejándose  ->  0,0 cm     GIRAR  ->  0,0°     RETROCEDER  ->  0,0 cm
+```
+
+`approach` escala el mando **entero** —lineal y angular— por el tiempo hasta colisión, y con un
+punto ya dentro ese factor es **0**, **sin mirar si el movimiento acerca o aleja**.
+
+⚠️ **Y el alumno no recibe nada.** `girar(360)` tarda 40 s —su plazo interno— y devuelve −0,1° sin
+un solo mensaje: se lee como un robot colgado o como una web que no manda.
+
+✅ **Requisito, y es la razón de que esto esté en la especificación:** cuando llegue
+`action_type = 3` la tarjeta debe decir, con todas las letras, que **no se puede desbloquear desde
+la web**:
+
+> **El robot está bloqueado por la capa de seguridad.** Tiene un obstáculo a menos de 15 cm.
+> **No puede salir solo, ni siquiera alejándose** — hay que retirar el obstáculo o mover el robot
+> a mano.
+
+🔴 **No ofrezcas un botón de «liberar» ni sugieras mandar marcha atrás**: está medido que no
+funciona. Lo único que lo saca es una mano.
+
+📌 **El umbral son 15 cm desde `base_footprint`** (`Aproximacion.radius: 0.15` desde el 2026-08-09;
+antes 0.18). Si el texto cita una distancia, ésa es.
+
+⚠️ **Y hay ~1 cm CIEGO** por delante y por detrás que ningún parámetro cubre: el `range_min` del
+LIDAR son 10 cm y el borde del robot está a 9. **Un obstáculo pegado al robot puede no verse.** No
+prometas en pantalla que la capa de seguridad ve todo lo que hay alrededor.
+
 | **Velocidad lineal medida** | `/odom.twist.twist.linear.x` | mono, 3 decimales, «m/s» al 62 % debajo; antigüedad abajo; referencia «meseta real 0,199 m/s pidiendo 0,20» | raya `—` atenuada, **sin elemento `<data>`**. **Nunca 0,000** |
 | **Velocidad angular medida** | `/odom.twist.twist.angular.z` | mono, 3 decimales, «rad/s»; antigüedad debajo | raya `—`, sin `<data>` |
 | **Velocidad mandada** | **LOCAL**: el Twist que se republica a 10 Hz. **No viene del robot y el rótulo lo dice** | bajo el rótulo «Mandado (esta pestaña, 10 Hz)», **separado** del bloque «Medido» | con el bucle parado dice **«nada: el bucle está parado»**, no «0,000 m/s». **Mandar cero y no mandar nada son cosas distintas** |
