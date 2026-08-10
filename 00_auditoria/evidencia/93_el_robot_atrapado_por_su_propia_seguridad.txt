@@ -125,9 +125,13 @@ con `radius: 0.18` el robot no cruza un paso de 40 cm, y anotó:
    lado** (borde izquierdo a 17 cm, ángulos +72°..+87°); hoy está **detrás**, a
    16,8 cm.
 
-⏳ **Sin explicar, y NO VERIFICADO:** por qué una geometría deja salir y la otra
-   no. Se comprueba repitiendo las tres órdenes con el obstáculo al lado. Hasta
-   entonces, lo seguro es lo medido hoy: **con la pared detrás, no hay salida.**
+✅ **CERRADO esa misma noche (evidencia 94): NO hay dependencia de la dirección.**
+   Se barrieron las cuatro con 24 estaciones y el umbral es el mismo —intersección
+   (17,9 · 19,6), que contiene los 18,0 del círculo—. A la izquierda y a 17,9 cm el
+   robot está **bloqueado**, así que la observación de la evidencia 19 no se
+   reproduce. Lo que explica la discrepancia es probablemente **desde dónde se
+   midieron aquellas distancias** (borde o LIDAR, con el LIDAR 5 mm por detrás),
+   y eso ya no se puede reconstruir.
 
 📌 Lo que sí aporta esta evidencia sobre la 19: allí el hallazgo se enunció como
    **«no cruza un pasillo estrecho»**, un problema de navegación. Es más grave:
@@ -143,14 +147,19 @@ Porque `radius` fija **dos cosas a la vez y en sentidos opuestos**, y la evidenc
         pasillo mínimo ≈ 2 × radius
 
         radius   para a    pasillo mínimo
-         0.18     9 cm        36 cm      <- el actual
+         0.18     9 cm        36 cm
+         0.15     5,5 cm      30 cm      <- ADOPTADO el 2026-08-09 (evidencia 95)
          0.141    5,1 cm      28 cm      <- justo el radio circunscrito
-         0.12     3 cm        24 cm
 
 🔴 **Bajarlo desatasca al robot y acorta la distancia de frenado.** El valor
    actual está respaldado por una medida de la aceptación: *«el collision_monitor
    para a 20,8 cm sin chocar»*. Cambiarlo sin repetir esa medida sería
    exactamente el error que este proyecto persigue.
+
+✅ **HECHO ESA MISMA NOCHE, y por eso se cambió: evidencia 95.** Se midió el hueco
+   al parar con los dos radios y a dos velocidades —9,3/10,9 con 0.18 contra
+   6,3/7,4 con 0.15— y se comprobó que la aceptación F6 sigue pasando **antes** de
+   adoptarlo. `Aproximacion.radius` es **0.15** desde el 2026-08-09.
 
 💡 **La idea que resolvería el conflicto sin tocar el frenado, anotada y NO
    implementada:** el problema no es el radio, es que la acción `approach` no
