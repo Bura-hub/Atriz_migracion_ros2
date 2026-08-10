@@ -1307,9 +1307,19 @@ def f7(a: Aceptacion) -> None:
         #    inflacion, el controlador ve colision y `failure_tolerance: 0.3` mata
         #    el objetivo en tres decimas.
         #
-        #        hueco minimo ~ 2 x (14,5 inscrito + 5 engorde + 5 celda) ~ 49 cm
-        #        con 60 cm el plan sale RECTO (unica tanda que lo hizo: 14 cm de
-        #        desvio). Con 45 y con 34 rodea SIEMPRE.
+        #    ✅ Y EL 2026-08-09 SE MIDIO LA CURVA ENTERA, con cinco anchos y el
+        #       robot pasando de verdad (evidencia 97):
+        #
+        #         hueco    consultas con plan   travesia real
+        #         38,6 cm      0 de 6           - (no hay paso)
+        #         38,9 cm      0 de 8           -
+        #         41,1 cm      0 de 8           -
+        #         47,1 cm      3 de 8           3 de 3, DEGRADADA
+        #         61,1 cm      8 de 8           1 de 1, limpia en 7,8 s
+        #
+        #       TRES REGIMENES:  < ~45 cm no pasa · ~47-55 pasa y cuesta (hasta 5x
+        #       de desvio lateral y 2,7x de tiempo) · > 55 estable.
+        #       Por eso 60, y no 50: es el unico tramo sin degradacion.
         #
         #    ⚠️ ALCANCE: esto vale CON SLAM, y F7 lanza SLAM, asi que aqui aplica.
         #       Con AMCL sobre un mapa que NO contiene los objetos, 45 cm SI pasan

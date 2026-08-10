@@ -4,6 +4,45 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (robot, noche 5) — **La curva del paso, y una fórmula mía que cayó**
+
+Cerrada la casilla que quedaba abierta desde la evidencia 91 —**AMCL sobre un mapa que SÍ contiene
+los objetos**— y de paso medida la curva entera del paso con **cinco anchos**.
+
+**La casilla:** con un mapa nuevo hecho conduciendo 781 cm y con la puerta puesta, AMCL da plan
+**RECTO al 102 %**, igual que sin objetos. **Lo que hacía rodear a Nav2 no era el mapa, ni SLAM
+contra AMCL: era un mapa de cuatro nodos.**
+
+**La curva**, con el robot cruzando de verdad y no sólo consultando:
+
+```
+hueco     celdas en la pinza      consultas    travesía real
+38,6 cm   0 · cerrada 37/37        0 de 6      — (no hay paso)
+38,9 cm   —                        0 de 8      —
+41,1 cm   —                        0 de 8      —
+47,1 cm   1 · cerrada 19/49        3 de 8      3 de 3, DEGRADADA
+61,1 cm   2-3 · cerrada 0/50       8 de 8      1 de 1, limpia en 7,8 s
+```
+
+**Tres regímenes: `< ~45` no pasa · `~47-55` pasa y cuesta —hasta 5× de desvío lateral y 2,7× de
+tiempo— · `> 55` estable.** Justifica los **60 cm** del guion de aceptación, que hasta hoy eran un
+número empírico sin mecanismo detrás.
+
+🔴 **Y dos correcciones a conclusiones propias del mismo día:**
+
+1. **«El robot no había pasado ni una vez: todo eran planes.»** Lo vio el usuario. Ocho consultas,
+   dos anchos y una regla general, y **cero travesías**. `compute_path_to_pose` devuelve una
+   promesa. Al medir travesías reales resultó que **la tasa de consulta no predice fallo, predice
+   coste**: con 3 de 8 planes el robot cruzó **3 de 3**, porque Nav2 replanifica hasta 35 veces por
+   trayecto y le basta con que el hueco esté abierto en algún instante.
+2. **Cayó la fórmula.** Se escribió que la primera celda aparece en `2 × (14,5 + 5) = 39 cm`, y con
+   38,6 cerrado el ajuste parecía perfecto — llegué a llamarlo «casi incómodo de lo bueno».
+   **Casualidad**: a 38,9 y a 41,1 sigue cerrado. **Un punto que casa no valida un modelo.**
+   ⏳ Si el umbral depende de la **alineación de la rejilla** —y entonces dependería de dónde está
+   la puerta y no sólo de su ancho— o de un radio efectivo mayor: **NO VERIFICADO**.
+
+Evidencia 97.
+
 ## 2026-08-09 (robot, noche 4) — **El mapa de SLAM no estaba congelado: era submuestreo**
 
 Retractación, y de las que duelen porque **el falso defecto ya había llegado al canal del PC**

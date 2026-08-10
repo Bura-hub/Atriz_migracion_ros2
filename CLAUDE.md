@@ -1149,13 +1149,21 @@ consultas     3 de 8                     8 de 8
 ```
 hueco     celdas en la pinza      consultas    travesía real
 38,6 cm   0 · cerrada 37/37        0 de 6      no intentada (no hay paso)
+38,9 cm   —                        0 de 8      —
+41,1 cm   —                        0 de 8      —
 47,1 cm   1 · cerrada 19/49        3 de 8      3 de 3, DEGRADADA (5x desvío, 2,7x tiempo)
 61,1 cm   2-3 · cerrada 0/50       8 de 8      1 de 1, limpia en 7,8 s
 ```
 
-  🔎 **Y el umbral cae donde lo pone la fórmula:** `2 × (14,5 + 5) = 39 cm` para tener UNA celda, y
-  con **38,6** —4 mm por debajo— está cerrado en las 37 muestras. **Tres regímenes: <39 no pasa ·
-  39-55 pasa y cuesta · >55 estable.**
+  ✅ **TRES REGÍMENES, y es lo operativo: `< ~45 cm` no pasa · `~47-55` pasa y cuesta · `> 55`
+  estable.** Para el aula: **60 cm**, que es lo que ya exige el guion de aceptación.
+  🔴 **Y AQUÍ CAYÓ UNA FÓRMULA MÍA, que es lo que hay que recordar:** se escribió que la primera
+  celda aparecía en `2 × (14,5 + 5) = 39 cm`, y con 38,6 cerrado el ajuste parecía perfecto — llegué
+  a escribir que era «casi incómodo de lo bueno». **Casualidad.** A 38,9 y a 41,1 sigue cerrado: el
+  umbral está **entre 41,1 y 47,1**. **Un punto que casa no valida un modelo.**
+  ⏳ Sin distinguir: si es que **la rejilla no se alinea con el hueco** —las celdas son fijas en el
+  marco del mapa, así que el umbral dependería de DÓNDE está la puerta y no sólo de su ancho— o si
+  el radio efectivo es mayor de 0,145. **NO VERIFICADO.**
 → 🔴🔴 **PERO LA TASA DE CONSULTA NO PREDICE FALLO: PREDICE COSTE**, y esto corrigió una conclusión
   precipitada del mismo día. Con el robot **pasando de verdad** por ese hueco de 47 cm: **3 de 3 con
   éxito**, porque Nav2 **replanifica continuamente** —16, 15 y hasta **35 planes** en un solo

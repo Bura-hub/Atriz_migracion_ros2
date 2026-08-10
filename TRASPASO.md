@@ -242,8 +242,26 @@
 > → 🔴 Y obliga a **matizar la evidencia 91**: su «el mapa engorda los objetos ~5 cm por lado» se
 >   dedujo de **tres celdas** sobre un mapa así. El efecto en el costmap sigue medido; el mecanismo
 >   se ha retirado.
-> → ⏳ Bloquea también la casilla que quedaba abierta: **AMCL sobre un mapa que SÍ contiene los
->   objetos**, que es el caso real del aula.
+> → ✅ **CERRADA la casilla el 2026-08-09 (evidencia 97): AMCL sobre un mapa que SÍ contiene los
+>   objetos da plan RECTO (102 %), igual que sin ellos.** Lo que hacía rodear a Nav2 no era el mapa
+>   ni SLAM contra AMCL: era **un mapa de cuatro nodos**.
+> → ✅ **Y de ahí salió la curva del paso, con cinco anchos y el robot cruzando de verdad:**
+>
+> ```
+> hueco     consultas con plan   travesía real
+> 38,6 cm       0 de 6           — (no hay paso)
+> 38,9 cm       0 de 8           —
+> 41,1 cm       0 de 8           —
+> 47,1 cm       3 de 8           3 de 3, DEGRADADA (5× desvío, 2,7× tiempo)
+> 61,1 cm       8 de 8           1 de 1, limpia en 7,8 s
+> ```
+>
+>   **Tres regímenes: `< ~45` no pasa · `~47-55` pasa y cuesta · `> 55` estable.** Justifica los
+>   60 cm del guion de aceptación, que hasta hoy eran empíricos.
+> → 🔴 **Y cayó una fórmula:** «la primera celda aparece en `2 × (14,5 + 5) = 39 cm`» encajaba con
+>   38,6 cerrado, pero a **38,9 y 41,1 sigue cerrado**. El umbral está entre 41,1 y 47,1.
+>   ⏳ Si es por **alineación de la rejilla** —y entonces dependería de dónde está la puerta, no
+>   sólo de su ancho— o por un radio efectivo mayor: **NO VERIFICADO**.
 
 > 🆕 **2026-08-08 · LAS PRÁCTICAS SE EJECUTARON POR FIN, Y SALIERON CUATRO FALLOS**
 > ═══════════════════════════════════════════════════════════════════════════════

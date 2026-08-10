@@ -158,23 +158,58 @@ Se mandaron objetivos de verdad. **Con 61,1 cm:**
 ────────────────────────────────────────────────────────────────────────────
     hueco     celdas en la fila de pinza      consultas    travesía real
     38,6 cm   0 · cerrada 37 de 37             0 de 6      no intentada
+    38,9 cm   —                                0 de 8      —
+    41,1 cm   —                                0 de 8      —
     47,1 cm   1 · cerrada 19 de 49             3 de 8      3 de 3, degradada
     61,1 cm   2-3 · cerrada 0 de 50            8 de 8      1 de 1, limpia
 
-✅ **Monótona en las tres columnas, y el umbral cae donde lo pone el modelo.** Para
-   tener UNA celda hacen falta
-
-       2 × (radio inscrito 14,5 + resolución 5) = 39 cm
-
-   y con **38,6** —cuatro milímetros por debajo— el paso está cerrado **en las 37
-   muestras**, no parpadeando: cerrado. La predicción se escribió antes de medir.
+✅ **Monótona en las tres columnas.** ⚠️ Pero el modelo aritmético que pretendía
+   dar el borde exacto **NO se sostiene**: ver el apartado 2sexies. El umbral está
+   entre 41,1 y 47,1 cm.
 
 📌 **Los tres regímenes, que es lo que hay que llevarse al aula:**
 
-     < 39 cm    NO HAY PASO. El planificador se niega y el robot no cruza.
-     39-55 cm   HAY PASO PERO PARPADEA. Cruza, y cuesta: hasta 5x más de desvío
+     < ~45 cm   NO HAY PASO. El planificador se niega y el robot no cruza.
+     ~47-55 cm  HAY PASO PERO PARPADEA. Cruza, y cuesta: hasta 5x más de desvío
                 lateral y 2,7x más de tiempo.
      > 55 cm    PASO ESTABLE. 8 de 8 consultas y travesía limpia en 7,8 s.
+
+
+2sexies · 🔴 Y LA FÓRMULA CAYÓ: EL UMBRAL NO ESTÁ EN 39 cm
+────────────────────────────────────────────────────────────────────────────
+Se escribió que para tener la primera celda transitable hacían falta
+
+    2 × (radio inscrito 14,5 + resolución 5) = 39 cm
+
+y con 38,6 cerrado parecía clavado. **Se midieron dos anchos más y el modelo se
+cae:**
+
+    hueco     consultas con plan
+    38,6 cm       0 de 6
+    38,9 cm       0 de 8      <- la fórmula ya decía «aquí debería abrirse»
+    41,1 cm       0 de 8      <- y aquí con más razón
+    47,1 cm       3 de 8      <- la primera celda está EN ALGÚN PUNTO ENTRE 41 Y 47
+
+🔴 **La coincidencia con 38,6 era CASUALIDAD**, y se llegó a escribir que el ajuste
+   era «casi incómodo de lo bueno». Un punto que casa no valida un modelo: el
+   siguiente lo tumbó. **El umbral real está entre 41,1 y 47,1 cm, no en 39.**
+
+⏳ **DOS CAUSAS POSIBLES, sin distinguir — NO VERIFICADO:**
+
+  1. **La rejilla no está alineada con el hueco.** Las celdas son fijas en el marco
+     del mapa, así que un hueco de 41 cm que caiga a caballo entre dos celdas
+     puede dar 0 abiertas mientras el mismo ancho bien alineado daría 1.
+     👉 Si es esto, **el umbral depende de DÓNDE esté la puerta, no sólo de su
+     ancho**, y eso sería un hallazgo mejor que la fórmula.
+  2. **El radio efectivo es mayor de 0,145**, o el marcado del obstáculo engorda
+     más de una celda.
+
+  🔎 Se distinguen abriendo a ~44 cm: si aparece la celda, apunta a alineación; si
+     sigue cerrado casi hasta 47, apunta al radio.
+
+📌 **Lo que NO cambia con esto:** los tres regímenes de arriba, que están medidos
+   punto por punto, y la regla operativa. Lo que cae es el **modelo aritmético**
+   que pretendía predecir el borde exacto.
 
 🔴 **NO se intentó la travesía a 38,6 cm, y es una decisión, no un olvido.** Se
    había acordado antes de empezar intentarla sólo si las consultas decían que hay

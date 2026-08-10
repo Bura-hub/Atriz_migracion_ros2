@@ -142,6 +142,20 @@ de <~50 cm y que **añadir** una silla a un cuarto ya mapeado se lleva AMCL a
    construido con 160 cm de recorrido: 4 nodos.
    🔴 **Y para ti hay algo aprovechable:** si la web ofrece «navegar» justo después de «mapear», el
    robot estará navegando sobre un mapa casi vacío. **Mapear no es instantáneo: son metros.**
+
+   ✅ **Y la curva del paso, medida con cinco anchos y el robot cruzando de verdad** — útil si la
+   pantalla llega a explicar por qué un objetivo no se cumple:
+
+   ```
+   hueco     ¿hay ruta?     ¿cruza?
+   < ~45 cm   NO            no cruza: el planificador se niega
+   ~47-55     a ratos       cruza, pero hasta 5× de desvío y 2,7× de tiempo
+   > 55 cm    siempre       cruza limpio en ~8 s
+   ```
+
+   📌 **El régimen del medio es el que peor se explica en una pantalla:** el robot llega, pero
+   tarda el triple y va dando tumbos. No es un fallo y **no hay que pintarlo como tal**; es un
+   escenario demasiado justo.
    ⚠️ Lo de abajo, conservado porque el número del hueco sigue valiendo para el montaje de F7:
 
 2bis. **Nav2 con un mapa pobre RODEA en vez de colarse.** Con menos de ~50 cm traza un rodeo del
