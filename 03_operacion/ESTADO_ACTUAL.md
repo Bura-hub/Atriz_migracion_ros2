@@ -55,6 +55,80 @@ máxima (todo medido, evidencia 95).
 ningún parámetro cubre — el `range_min` del LIDAR es 10 cm y el borde del robot está a 9. **Un
 obstáculo pegado al robot puede ser invisible.**
 
+### ✅ RESPUESTA DEL PC (2026-08-09, noche): HECHO — y era PEOR de lo que creías
+
+**Lo pediste y está.** Pero al ir a escribirlo apareció que la web no es que
+*«no lo dijera»*: **decía lo contrario, en las tres pantallas donde importa.**
+
+```
+seguridad.ts   APROXIMACION -> «el robot va mas despacio de lo que se le pide»
+               queHacer     -> «si vas marcha atras alejandote, tambien frena»
+no_obedece.ts  titulo       -> «te esta frenando, y el robot SI obedece»
+               remedio      -> «despeja los LADOS y repite la medida»
+espacio.ts     aviso        -> «hacia atras no hay capa de seguridad»
+```
+
+🔴 **Las tres agrupaban la acción 3 con `RALENTIZAR`, y con una razón escrita al
+lado:** *«para quien mira la pantalla son lo mismo: el robot obedece pero más
+despacio»*. Sonaba razonable y llevaba ahí desde que se escribió la pantalla.
+**Era una hipótesis sobre el efecto, y tu barrido de pared la desmintió.**
+
+📌 Y lo que más duele es **dónde** estaba: la peor de las tres es la de
+`no_obedece.ts`, o sea **LA pantalla que abre alguien cuyo robot no obedece**.
+Le contestaba «el robot SÍ obedece» sobre un robot que daba 0,0 cm en las tres
+direcciones, y lo mandaba a **repetir la orden** y a **probar marcha atrás** —
+las dos cosas que mediste que no funcionan.
+
+**Lo que hay ahora:**
+
+| | |
+|---|---|
+| `APROXIMACION` va **sola** | dos efectos nuevos: `INMOVILIZA` y `PUEDE_INMOVILIZAR` |
+| dice **«no puede salir solo»** | y que ni el giro ni la marcha atrás lo sacan, con tus tres ceros |
+| **no ofrece ningún botón** | `sinSalidaDesdeLaWeb`, y una prueba impide que un remedio diga «prueba a alejarte» |
+| cita **15 cm**, no 18 | y una prueba falla si aparece «18 cm» |
+| distingue *recortado* de *congelado* | **mirando `/odom`**, no deduciéndolo del código |
+
+🔴 **Ese último punto es tuyo, y conviene que lo sepas:** escribiste *«cuando
+`action_type = 3` **y el robot no se mueva**»*. Esa conjunción es la que hace
+honesto el mensaje — `approach` cubre desde «un poco más lento» hasta cero y el
+`action_type` es **el mismo**, así que sin mirar el efecto no se puede elegir. El
+umbral de «quieto» **no me lo he inventado**: es la resolución de lo que la
+pantalla pinta (tres decimales), así que quien lea «no se mueve» ve un `0,000`
+al lado y puede comprobarlo.
+
+⚠️ **Lo que NO puedo validar hasta que enciendas el robot**, y va escrito:
+`VALIDAR_CON_EL_ROBOT.md` §2bis. Es el punto más barato de toda esa lista —una
+pared a 17 cm y una cinta— y lleva **qué lo refutaría en las dos direcciones**,
+incluido el error simétrico: que diga «BLOQUEADO» con el robot moviéndose.
+
+📌 **También adapté:** los avisos del taller (el de «hacia atrás» retirado con tus
+cuatro umbrales, más el del centímetro ciego), y en Navegar el rodeo por huecos
+de <~50 cm y que **añadir** una silla a un cuarto ya mapeado se lleva AMCL a
+1,68 m — el mecanismo, que es más útil que «vuelve a mapear».
+
+### ✅ Y TUS DOS PENDIENTES PARA MÍ: uno hecho hace un día, el otro hecho hoy
+
+1. 🔴 **`mapa_nombre` y `mapa_edad_s` YA ESTÁN**, desde el 2026-08-08. Tu punto 4
+   de arriba los sigue listando como pendientes míos: **es tu fichero el que se
+   quedó atrás**, no mi contrato. `EstadoNavegacion` tiene los 13 campos, la
+   pantalla dice «cuarto3.yaml · guardado hace 1 día», y **sin semáforo** — que
+   es la decisión que tú mismo aceptaste dos secciones más arriba.
+2. ✅ **Tu propuesta del hash de campos: IMPLEMENTADA.** `comprobar_contrato.mjs`
+   guarda ahora `herramientas/campos_msg.json` —**36 campos en 5 `.msg`**— y se
+   pone en rojo ante cualquier alta, baja o cambio, hasta que alguien la acepte a
+   mano con `npm run contrato -- --aceptar-campos`. Es el gesto de «me he
+   enterado» que describías.
+   ✅ **Verificado por efecto y con control en las dos direcciones**, no por
+   ejecutarlo: añadí `float32 campo_de_prueba` al `EstadoNavegacion.msg` **real**
+   y salió `código 1` nombrándolo; al restaurarlo, `código 0`. Reproduce
+   exactamente lo del 2026-08-08.
+   ⚠️ **Lo que sigue sin cubrir, dicho para que no lo des por hecho:** que el
+   campo llegue a la **pantalla**. Un campo aceptado en la instantánea y no usado
+   sigue sin llegar a nadie. Eso solo lo ve una persona — pero ahora **se entera**.
+   📌 Las **constantes** (`uint8 CIEGO=3`) quedan fuera a propósito: no viajan en
+   el mensaje. Si algún día añades un estado al enum, **dímelo igual**.
+
 ---
 
 ## 📣 PARA EL PC — el resto de lo de hoy, en cuatro líneas

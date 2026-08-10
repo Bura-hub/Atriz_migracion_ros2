@@ -51,6 +51,102 @@ exploración un poco más adaptativa»*. Ahora **gira hasta que el frente se abr
 más sitio: 1346 cm en 4 minutos sin atascarse.
 
 Evidencia 96.
+## 2026-08-09 (PC, noche) — **La web llamaba «va más despacio» a un robot muerto**
+
+Al integrar los 17 commits del robot, el bloque urgente de `ESTADO_ACTUAL.md` pedía que la
+pantalla dijera con todas las letras que un obstáculo dentro del círculo de seguridad
+**inmoviliza al robot**. Al ir a escribirlo apareció que la web no es que no lo dijera:
+**decía lo contrario, en los tres sitios donde importa.**
+
+```
+seguridad.ts   APROXIMACION -> «el robot va mas despacio de lo que se le pide»
+               queHacer     -> «si vas marcha atras alejandote, tambien frena»
+no_obedece.ts  titulo       -> «te esta frenando, y el robot SI obedece»
+               remedio      -> «despeja los LADOS y repite la medida»
+espacio.ts     aviso        -> «hacia atras no hay capa de seguridad»
+```
+
+Lo medido por el robot (evidencias 93, 94 y 95; 24 estaciones a mano en las cuatro
+direcciones): con un punto dentro del círculo, `approach` multiplica el mando **entero**
+—lineal y angular— por el tiempo hasta colisión, y ese factor es **cero**.
+
+```
+pared DETRAS a 16,8 cm, 188 cm libres delante, por /cmd_vel_raw
+  AVANZAR alejandose -> 0,0 cm    GIRAR -> 0,0°    RETROCEDER -> 0,0 cm
+```
+
+🔴 **Las tres agrupaban la acción 3 con `RALENTIZAR`, y con una razón escrita al lado:**
+*«para quien mira la pantalla son lo mismo: el robot obedece pero más despacio»*. Sonaba
+razonable y llevaba ahí desde que se escribió la pantalla. **Era una hipótesis sobre el
+efecto, y hay que medirla como cualquier otra** — es la lección de esta entrada.
+
+🔴 **Y dónde estaba la peor:** en `no_obedece.ts`, o sea **LA pantalla que abre alguien
+cuyo robot no obedece**. Le contestaba «y el robot SÍ obedece» a quien tenía delante un
+robot con tres ceros, y lo mandaba a **repetir la orden** y a **probar marcha atrás** — las
+dos cosas que están medidas y no funcionan.
+
+**Lo hecho:**
+
+| | |
+|---|---|
+| `APROXIMACION` va **sola** | efectos nuevos `INMOVILIZA` y `PUEDE_INMOVILIZAR` |
+| dice **«no puede salir solo»** | con los tres ceros, y que el giro tampoco lo saca |
+| `sinSalidaDesdeLaWeb` | ningún botón, y una prueba impide que un remedio sugiera alejarse |
+| **15 cm**, no 18 | una prueba falla si aparece «18 cm»: sería un robot sin el fichero nuevo |
+| *recortado* ≠ *congelado* | se decide **mirando `/odom`**, no deduciéndolo del `action_type` |
+
+📌 **La conjunción es del robot, y es lo que hace honesto el mensaje.** Escribió *«cuando
+`action_type = 3` **y el robot no se mueva**»*: `approach` cubre desde «un poco más lento»
+hasta cero con **el mismo** `action_type`, así que sin mirar el efecto no se puede elegir.
+El umbral de «quieto» **no se inventa**: es la resolución de lo que la pantalla pinta (tres
+decimales), así que quien lea «no se mueve» ve un `0,000` al lado y puede comprobarlo.
+
+**Y una tercera afirmación falsa, en el taller.** `AVISOS_ESPACIO` le decía al alumno que
+*«hacia atrás no hay capa de seguridad: un retroceso no está protegido por nada»*. Falso por
+dos vías, las dos ya medidas en este repositorio: el círculo es un **círculo** (17,8 detrás ·
+16,1 delante · 17,9 y 17,9 a los lados) y `Precaucion` llega a **−0,24 m**, o sea 24 cm por
+detrás. **No era prudencia de más: enseñaba a desconfiar de una protección que existe**, y de
+paso callaba la que de verdad muerde. Sustituido por los dos hechos medidos, incluido el
+**~1 cm ciego** (`range_min` 10 cm contra un borde a 9) que ningún parámetro cubre.
+
+**Tres pruebas defendían lo retirado. Se reescriben con el invariante contrario, no se
+borran**, para que el diff enseñe qué se retiró y por qué: `espacio.test.ts` exigía la frase
+del «hacia atrás»; `seguridad.test.ts` afirmaba que la acción 3 «se presenta como va más
+despacio, no como avería».
+
+### ✅ Y el punto ciego de `comprobar_contrato.mjs`, cerrado — lo propuso el robot
+
+Comparaba que el `.msg` **existiera** y nunca lo que hay dentro. El 2026-08-08 el robot
+añadió dos campos y avisó de que *«el contrato estará en rojo hasta que alinees»*: **no lo
+estuvo**, y fiarse de ese rojo habría dejado los dos campos sin llegar a la pantalla **con
+todo en verde** — justo los campos que avisan del fallo de los 41,3 cm.
+
+Ahora guarda `herramientas/campos_msg.json` (**36 campos en 5 `.msg`**) y se pone en rojo
+ante cualquier alta, baja o cambio, hasta que alguien lo acepte con
+`npm run contrato -- --aceptar-campos`.
+
+✅ **Verificado por efecto y con control en las dos direcciones**, no por ejecutarlo:
+añadido `float32 campo_de_prueba` al `EstadoNavegacion.msg` **real** → `código 1`
+nombrándolo; restaurado → `código 0`. Reproduce exactamente el caso del 08.
+
+⚠️ **Lo que sigue sin cubrir:** que el campo llegue a la **pantalla**. Un campo aceptado en
+la instantánea y no usado sigue sin llegar a nadie. Y las **constantes** del `.msg` quedan
+fuera a propósito (no viajan en el mensaje), así que un estado nuevo en un enum **hay que
+avisarlo por este canal**.
+
+**También adaptado:** en Navegar, el rodeo de Nav2 por huecos de <~50 cm —168-233 % de la
+recta, y si no cabe aborta— como causa a mirar cuando el robot de verdad no llegó; y que
+**añadir** una silla a un cuarto ya mapeado lleva AMCL a **1,68 m** de error, que es un
+mecanismo más útil que «vuelve a mapear».
+
+**Verificación:** 614 pruebas (eran 590), 46 saltadas · `tsc` y `eslint` limpios ·
+contrato `LEER 14 · ESCRIBIR 3 · SERVICIOS 12 · TIPOS 5/5 · CAMPOS 36`.
+
+**Pendiente:** `VALIDAR_CON_EL_ROBOT.md` §2bis — el robot está cargando. Es el punto más
+barato de esa lista (una pared a 17 cm y una cinta) y lleva **qué lo refutaría en las dos
+direcciones**, incluido el error simétrico: decir «BLOQUEADO» con el robot moviéndose.
+
+---
 
 ## 2026-08-09 (robot, noche 3) — **`Aproximacion.radius` bajado de 0.18 a 0.15**
 
