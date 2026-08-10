@@ -1094,7 +1094,7 @@ Añadido, comprobando además que los binarios existan y que no entre el simulad
 
 **`verificar_robot.sh` pasa de 50 a 84 comprobaciones** (con `--hardware`, y esa misma tarde a **91**): los binarios de
 Nav2, los 9 ficheros de config y launch, los **valores medidos** (`robot_radius` 0.145, URDF
-0.182 × 0.217, `laser_z` 0.155), los valores **por defecto que son decisiones**
+0.182 × 0.217 —hoy **0.190 × 0.217**, cerrado el 2026-08-09 con el LIDAR—, `laser_z` 0.155), los valores **por defecto que son decisiones**
 (`publicar_inclinacion` y `color_detection` en `false`, la parada en VOLATILE), y los **18
 servicios preguntando a un cliente** — no a `ros2 service list`, que miente por omisión.
 
@@ -1229,6 +1229,11 @@ por robot.
 
 El modelo afinado: asíntota `0.18 − 0.091 = 8.9 cm`, y el margen sobre ella **crece con la
 velocidad** (+1.0 cm a 0.25, +1.8 a 0.40). La holgura **no se degrada al acelerar: mejora**.
+
+🔄 **Actualizado el 2026-08-09** (evidencias 94 y 95): la media longitud real es **0.095** —no
+0.091— y el `radius` pasó a **0.15**, así que la asíntota vigente es `0.15 − 0.095 = 5.5 cm`.
+Medido con el valor nuevo: **6.3 cm a 0.25 m/s y 7.4 / 6.6 a 0.40**. La conclusión de que el margen
+crece con la velocidad **se conserva**: +0.8 cm a 0.25 y +1.5 a 0.40.
 
 📝 Cambiar `laser_z` y `wheel_radius` **no alteró el comportamiento**, como se preveía: son
 traslaciones en Z y el monitor trabaja en el plano.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """¿A cuántos cm de la pared para el robot, y cómo cambia con `Aproximacion.radius`?
 
-    python3 medir_hueco_al_parar.py [--radios 0.18,0.15] [--vel 0.25] [--repes 2]
+    python3 medir_hueco_al_parar.py [--radios 0.15] [--vel 0.25] [--repes 2]
 
 🔴 EL ROBOT AVANZA CONTRA UNA PARED a velocidad de trabajo. Exige a alguien
    mirando y ~1,2 m de carrerilla despejada por delante.
@@ -11,25 +11,26 @@ POR QUÉ HACE FALTA
 ═══════════════════════════════════════════════════════════════════════════════
 El barrido de pared del 2026-08-09 (24 estaciones, cuatro direcciones) dejó el
 umbral del `collision_monitor` medido y con él la BANDA DE TRAMPA: entre el radio
-circunscrito del robot (14,42 cm desde `base_footprint`) y `Aproximacion.radius`
-(18 cm), el robot está **congelado pudiendo girar sin rozar nada**. Son 3,6 cm.
+circunscrito del robot (14,42 cm desde `base_footprint`) y `Aproximacion.radius`,
+el robot está **congelado pudiendo girar sin rozar nada**. Con el 0.18 de entonces
+eran 3,6 cm; con el 0.15 adoptado después, 0,6.
 
 🔎 **Y el hallazgo que decide el ajuste: la banda de trampa y el margen de
    seguridad contra el error del LIDAR SON EL MISMO NÚMERO**, `radius − 14,42`.
    No se puede encoger uno sin encoger el otro.
 
-        radius   banda de trampa   margen ante error   hueco al parar (MODELO)
-         0.18         3,6 cm            3,6 cm               8,5 cm
-         0.15         0,6 cm            0,6 cm               5,5 cm
-         0.145        0,1 cm            0,1 cm               5,0 cm   <- por debajo
-                                                                        del ruido
-                                                                        medido (±0,3)
+        radius   banda de trampa   margen ante error   hueco al parar (MEDIDO)
+         0.18         3,6 cm            3,6 cm       9,3 a 0,25 · 10,9 a 0,40
+         0.15         0,6 cm            0,6 cm       6,3 a 0,25 · 7,4/6,6 a 0,40
+         0.145        0,1 cm            0,1 cm       <- margen por debajo del
+                                                        ruido medido (±0,3)
 
-🔴 **La última columna es un MODELO** (`radius − media longitud`), no una medida.
-   La única cifra real es «para a 20,8 cm sin chocar» de la aceptación, y los
-   9,9 cm a 0,25 m/s del fichero 17 — las dos con `radius: 0.18`.
-   **Este banco mide esa columna**, que es lo único que falta para elegir el radio
-   con datos en vez de con una fórmula.
+✅ **RESUELTO el 2026-08-09: se adoptó 0.15** (evidencia 95). Este banco queda como
+   el instrumento con el que se midió y con el que habría que re-medir si alguien
+   vuelve a tocar el valor.
+
+📌 La última columna **era un modelo** cuando se escribió este banco; ahora está
+   medida con los dos valores, que es justo para lo que se hizo.
 
 ═══════════════════════════════════════════════════════════════════════════════
 CÓMO
@@ -50,7 +51,12 @@ Por eso se espera a que la velocidad real caiga, no a un evento de parada.
    —no puede ni alejarse— como se midió en la evidencia 93. El retroceso va por
    `/cmd_vel` y **se comprueba que la distancia CRECE**: si no crece, se aborta.
 
-🔴 SE RESTAURA `Aproximacion.radius` A 0.18 AL TERMINAR, pase lo que pase.
+🔴 SE RESTAURA `Aproximacion.radius` A 0.15 —el de PRODUCCIÓN desde el 2026-08-09—
+   AL TERMINAR, pase lo que pase.
+
+⚠️ Y OJO: cambiarlo en caliente NO HACE NADA (evidencia 94). Este banco lo deja
+   como estaba por higiene, pero para probar otro valor de verdad hay que editar
+   el YAML y reiniciar `atriz-robot`.
 """
 import argparse
 import math
@@ -66,10 +72,10 @@ from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 
 BORDE_DELANTERO = 0.100          # eje del LIDAR -> borde delantero, medido
-RADIO_NORMAL = 0.18
+RADIO_NORMAL = 0.15   # el de produccion desde el 2026-08-09 (ev. 95)
 
 p = argparse.ArgumentParser()
-p.add_argument('--radios', default='0.18,0.15')
+p.add_argument('--radios', default='0.15')   # ⚠️ ver el aviso: en caliente es inerte
 p.add_argument('--vel', type=float, default=0.25)
 p.add_argument('--repes', type=int, default=2)
 p.add_argument('--carrerilla', type=float, default=0.60,

@@ -141,7 +141,7 @@ afecta a nada**: la IMU no se fusiona con la odometría. Se deja como está y se
 
 | Cota | Valor | Cuándo |
 |---|---|---|
-| `base_length` (frente-atrás) | ⚠️ **NO CERRADA — ver el conflicto de más abajo.** El URDF usa **0.190 m** desde el 2026-08-02; esta fila conserva **0.182** porque **las dos se tomaron con cinta y con orugas**, y nadie ha arbitrado | 2026-07-31 / 2026-08-02 |
+| `base_length` (frente-atrás) | ✅ **CERRADA el 2026-08-09 a favor del URDF: 0.190 m.** Arbitrado con el LIDAR, que es un tercer instrumento: con el robot **tocando** la pared de frente el perfil perpendicular sale plano en ±24° con mediana **10.03 cm** (n=3478) y los rayos centrales recortados en `range_min`; y tocando por detrás, **9.00 cm**. Eso es exactamente `0.190/2 ∓ laser_x(−0.005)`. La cinta que daba 0.182 medía **al chasis**; el LIDAR ve algo que sobresale 1 cm por delante | 2026-08-09 |
 | `base_width` (lado-lado) | **0.217 m** | 2026-07-31, con orugas |
 | `base_height` (suelo → tapa) | **0.070 m** | 2026-07-31 |
 | `laser_z` (suelo → centro del disco) | **0.155 m** | 2026-07-31 |
@@ -159,11 +159,20 @@ afecta a nada**: la IMU no se fusiona con la odometría. Se deja como está y se
 **Derivados de lo anterior:**
 
 ```
-media longitud      0.091 m     -> hueco al parar ≈ radius − 0.091
+media longitud      0.095 m     -> hueco al parar ≈ radius − 0.095
 media anchura       0.1085 m
-radio inscrito      0.091 m
-radio circunscrito  0.142 m     -> robot_radius: 0.145   ✅ ya puesto
+radio inscrito      0.095 m
+radio circunscrito  0.1442 m    -> robot_radius: 0.145   ✅ ya puesto
 ```
+
+🔴 **Y el circunscrito NO es sólo un número de Nav2: es el suelo del `Aproximacion.radius` del
+`collision_monitor`.** Por debajo de 0.1442 el monitor autorizaría giros que la esquina no puede
+hacer; por encima, cada centímetro es banda donde el robot queda **inmovilizado sin tocar nada**.
+Son la misma cantidad (`radius − 0.1442`). Evidencias 94 y 95.
+
+⚠️ **Referencia:** estas medias son desde `base_footprint` (el centro del chasis). El LIDAR va
+**5 mm por detrás** (`laser_x: −0.005`), así que sus lecturas **no** son directamente comparables:
+al borde delantero hay 10.0 cm y al trasero 9.0.
 
 ✅ **El modelo cierra por dos caminos independientes:**
 
@@ -198,9 +207,22 @@ fusiona con la odometría. **El modelo geométrico del robot está completo y ve
 1. ✅ ~~**Las paradas contra pared**~~ — **hechas** el 2026-07-31 con las cotas buenas:
    **9.9 cm** a 0.25 m/s y **10.6 / 10.7 cm** a 0.40 (dos corridas). A 1–2 mm del recálculo, así
    que el recálculo era correcto. Manual, cap. 12.4.
-2. **El barrido de `radius`** (0.14 / 0.16 / 0.18) contra un mismo paso estrecho, fijando el
-   hueco para que el buscador no elija otro — daría la curva completa del compromiso entre
-   «parar lejos de las paredes» y «cruzar huecos estrechos».
+2. ✅ ~~**El barrido de `radius`**~~ — **hecho el 2026-08-09 de otra forma y más completa**
+   (evidencias 94 y 95): en vez de un paso estrecho, **24 estaciones de 2 en 2 cm en las cuatro
+   direcciones** más el hueco al parar medido con los dos radios a dos velocidades.
+   **Resultado: `radius` bajado de 0.18 a 0.15.**
+
+   ```
+                             0.18            0.15
+   hueco al parar 0.25 m/s   9.3 9.4 9.3 9.4  6.3 6.3
+   hueco al parar 0.40 m/s   10.9             7.4 6.6
+   banda de inmovilización   3.6 cm           0.6 cm
+   pasillo mínimo (2×r)      36 cm            30 cm
+   ```
+
+   🔴 Y una trampa que costó una conclusión falsa: **`radius` NO se puede cambiar en caliente.**
+   `ros2 param set` lo guarda y `get` lo devuelve, pero el nodo no reconstruye el polígono —con
+   0.18, 0.15 y **0.30** el perfil sale idéntico—. Hay que editar el YAML y reiniciar.
 3. ✅ **La deriva de SLAM con y sin la inclinación — CERRADO, y el enunciado estaba mal.**
 
    🔴 **No son «~8° de ROLL».** Son **6.9°** y están casi todos en el **PITCH**; el roll es de

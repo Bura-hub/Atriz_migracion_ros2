@@ -40,7 +40,12 @@ centímetro a centímetro.
    detrás, −10,8 de costado) porque es lo que ve una persona con una cinta, y
    confundir las dos es justo lo que dejó el manual en contradicción.
 
-🔴 SE RESTAURA `Aproximacion.radius` A 0.18 AL TERMINAR, pase lo que pase.
+🔴 SE RESTAURA `Aproximacion.radius` A 0.15 —el de PRODUCCIÓN desde el 2026-08-09—
+   AL TERMINAR, pase lo que pase.
+
+⚠️ Y OJO: cambiarlo en caliente NO HACE NADA (evidencia 94). Este banco lo deja
+   como estaba por higiene, pero para probar otro valor de verdad hay que editar
+   el YAML y reiniciar `atriz-robot`.
 """
 import argparse
 import math
@@ -63,7 +68,7 @@ p.add_argument('--minimo-seguro', type=float, default=0.09,
                help='m: si el LIDAR ve algo más cerca, se aborta la orden')
 a = p.parse_args()
 
-RADIO_NORMAL = 0.18
+RADIO_NORMAL = 0.15   # el de produccion desde el 2026-08-09 (ev. 95)
 QT = QoSProfile(depth=10, reliability=QoSReliabilityPolicy.BEST_EFFORT,
                 durability=QoSDurabilityPolicy.VOLATILE)
 ACC = {0: '-', 1: 'PARADA', 2: 'FRENADO', 3: 'APROX', 4: 'LIMITE'}
