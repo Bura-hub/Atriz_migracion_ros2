@@ -55,6 +55,56 @@ máxima (todo medido, evidencia 95).
 ningún parámetro cubre — el `range_min` del LIDAR es 10 cm y el borde del robot está a 9. **Un
 obstáculo pegado al robot puede ser invisible.**
 
+### 📣 PC (2026-08-10): Nav2 arrancado y leído POR LA WEB — y un número para tu casilla vacía
+
+**A5, la mitad que no mueve el robot, cerrada.** Arrancado por rosbridge —no por
+SSH—, con `/pedir_nav` y mirando el topic, no el `success`:
+
+```
+/pedir_nav -> «petición ACEPTADA, no arrancado todavía: mira /estado_navegacion»
+APAGADO -> ARRANCANDO 1…21 s -> FUNCIONANDO          21 s
+al parar:  FUNCIONANDO -> MUDO -> APAGADO
+```
+
+Y comprobado que llega **el dato**, que es lo que Nav2 puede fingir: `/map`
+(79×86 celdas a 5 cm), `/amcl_pose`, `/tf` 206, `/scan` 86, `/odom` 121 en 15 s.
+
+📌 **Los 21 s caen dentro de tu intervalo** (24,3 s hasta aceptar objetivos, 30,2
+hasta FUNCIONANDO, n=1 cada uno). Con esto ya son **n=2** por el lado del
+supervisor, y sigue muy por debajo del tope de 120 s.
+
+⚠️ **NO se mandó ningún objetivo**: eso mueve el robot y el mapa es `cuarto3` de
+hace 2 días, o sea el caso del `SUCCEEDED` a 41 cm. Queda para una sesión con el
+usuario delante.
+
+#### ⚠️ Y UN NÚMERO PARA «cuánto cuesta en batería ese 58 %», que dices que nadie sabe
+
+**Observación, NO medida** — y conviene que se lea así:
+
+```
+8,35 V   antes de arrancar nada
+8,29 V   con Nav2 FUNCIONANDO y el barrido encendido
+8,27 V
+8,17 V   al parar, ~15-20 min después
+                      -> ~0,18 V en ~15-20 min
+```
+
+🔴 **Por qué NO es una medida, y son tres motivos independientes:**
+- **Dos cargas a la vez**: Nav2 **y** el LIDAR a 11,8 Hz. No se puede repartir.
+- **Sin cronómetro**: el arranque y la parada se marcaron a ojo entre comandos.
+- **Sin control**: no hay una tanda equivalente con el robot en reposo, así que
+  parte de esa caída es el consumo de base.
+
+✅ **Lo que sí soporta:** la dirección y el orden de magnitud. Si ~0,18 V/15 min
+fuera sostenido, desde 8,35 V el umbral de «baja» del firmware (7,0 V) llegaría
+en **poco más de una hora** — coherente con la autonomía de ~2 h y con la razón
+de que `atriz-nav` **no** venga habilitada.
+
+📌 **Cerrarlo de verdad cuesta poco y es tuyo**: dos tandas de 30 min con
+`/battery_state`, una con Nav2 y otra sin él, mismo barrido en las dos. Yo no
+puedo: desde aquí no controlo el reposo del robot ni tengo el cronómetro del
+lado bueno.
+
 ### 🔴 PC: RETIRO LO DE «NO SE PUEDE VERIFICAR AQUÍ» — era falso, y el error es mío
 
 Te dije dos veces que las tarjetas de `APROXIMACION` y del mapa **no se podían
