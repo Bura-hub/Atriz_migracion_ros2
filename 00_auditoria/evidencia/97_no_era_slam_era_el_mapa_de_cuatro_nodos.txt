@@ -117,6 +117,43 @@ El usuario ensanchó a **61,1 cm** (medido con LIDAR, centro -9,9). Resultado:
    Con `resolution: 0.05` eso son ~10-15 cm de holgura sobre el mínimo geométrico.
 
 
+2quater · 🔴 Y EL ROBOT NO HABÍA PASADO NI UNA VEZ: TODO ERAN PLANES
+────────────────────────────────────────────────────────────────────────────
+Lo señaló el usuario: *«además, ¿por qué lo mandas a que pase? No lo hemos visto»*.
+
+**Tenía razón, y es un fallo de método.** Ocho consultas, dos anchos y una regla
+general, y **ni una sola travesía física con esta puerta**. `compute_path_to_pose`
+devuelve una PROMESA: dice que existe una ruta, no que el controlador la ejecute,
+ni que el `collision_monitor` la permita, ni que el robot quepa. **Las tres cosas
+pueden fallar por separado, y las tres han fallado hoy en otros contextos.**
+
+Se mandaron objetivos de verdad. **Con 61,1 cm:**
+
+    ✅ CON ÉXITO · 7,8 s · desvío real 5,9 cm (plan 8,3) · 0 recuperaciones
+
+**Con 47,1 cm, tres travesías, alternando sentido:**
+
+    intento  desvío lateral  duración   largo del plan   planes trazados
+       1         6,4 cm       19,6 s       144 cm             16
+       2        28,5 cm       17,6 s       188 cm             15
+       3        29,6 cm       52,3 s       158 cm             35
+
+    3 de 3 CON ÉXITO · planificador abortó 0 veces · 0 recuperaciones
+
+🔴 **ESTO CORRIGE LA LECTURA DE LA TASA 3/8.** Se escribió que el alumno vería el
+   robot llegar «unas veces sí y otras no». **Falso.** Nav2 **replanifica
+   continuamente** —16, 15 y hasta 35 planes en un solo trayecto—, así que le
+   basta con que el hueco esté abierto **en algún instante**.
+
+✅ **La tasa de consulta NO predice fallo: predice COSTE.** A 47 cm el robot pasa,
+   pero con hasta **5× más de desvío lateral y 2,7× más de tiempo** que a 61 cm.
+   El parpadeo no le cierra el paso; le hace dar tumbos buscándolo.
+
+📌 **Y por eso una consulta suelta no basta ni siquiera repetida: hay que ver
+   pasar al robot.** La consulta mide si el paso EXISTE; sólo la travesía mide lo
+   que cuesta cruzarlo.
+
+
 3 · 🔴 Y NAV2 ARRANCÓ MAL SIN DECIRLO — CASI SE DA POR BUENO UN RESULTADO FALSO
 ────────────────────────────────────────────────────────────────────────────
 La primera tanda de consultas dio **plan recto al 99 % con 3,5 cm de lateral, las

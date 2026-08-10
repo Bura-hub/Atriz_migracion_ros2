@@ -1144,8 +1144,18 @@ consultas     3 de 8                     8 de 8
 → ✅ **Y da la regla general para dimensionar un paso: no cuentes centímetros, cuenta CELDAS
   TRANSITABLES en la fila más estrecha, y ten al menos 2-3.** Con `resolution: 0.05` eso son ~10-15 cm
   de holgura sobre el mínimo geométrico. Explica los 60 cm del guion, que eran empíricos.
-→ 🔴 **Para el aula es peor que un fallo limpio:** «a veces funciona» es lo más difícil de depurar.
-→ 📌 **Y para cualquier medida futura: UNA consulta de plan NO es un dato.** Repite y da la tasa.
+→ 🔴🔴 **PERO LA TASA DE CONSULTA NO PREDICE FALLO: PREDICE COSTE**, y esto corrigió una conclusión
+  precipitada del mismo día. Con el robot **pasando de verdad** por ese hueco de 47 cm: **3 de 3 con
+  éxito**, porque Nav2 **replanifica continuamente** —16, 15 y hasta **35 planes** en un solo
+  trayecto— y le basta con que el hueco esté abierto en ALGÚN instante. Lo que se degrada es el
+  coste: **hasta 5× más desvío lateral y 2,7× más tiempo** que con 61 cm (29,6 cm y 52,3 s contra
+  5,9 cm y 7,8 s).
+→ 🔴🔴 **Y EL FALLO DE MÉTODO QUE LO DESTAPÓ, que es el que hay que no repetir: se midieron ocho
+  consultas y CERO travesías.** Lo vio el usuario: «¿por qué lo mandas a que pase? No lo hemos
+  visto». `compute_path_to_pose` devuelve una **promesa**: que exista ruta no dice que el
+  controlador la ejecute, ni que el `collision_monitor` la permita, ni que el robot quepa — y las
+  tres pueden fallar por separado. **La consulta mide si el paso EXISTE; sólo la travesía mide lo
+  que cuesta cruzarlo.**
 
 **🔴 LO QUE HACÍA RODEAR A NAV2 ERA UN MAPA DE CUATRO NODOS, NO «SLAM CONTRA AMCL».** Cerrada la
 casilla que faltaba (evidencia 97), con el mismo escenario y el mismo hueco:
