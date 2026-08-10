@@ -4,6 +4,54 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-09 (robot, noche 4) — **El mapa de SLAM no estaba congelado: era submuestreo**
+
+Retractación, y de las que duelen porque **el falso defecto ya había llegado al canal del PC**
+presentado como el bloqueo principal de la Fase 6.
+
+Se había escrito que «el mapa de slam_toolbox está congelado y casi vacío: 49 celdas ocupadas para
+un cuarto entero, idéntico tras 360° de giro y 160 cm de recorrido». **Falso.** Conduciendo de
+verdad, con el cuarto despejado y muestreando **grafo y rejilla a la vez** contra la distancia:
+
+```
+recorrido    nodos   ocupadas   libres   desconocido
+     0 cm        4         54      549       89,3 %
+   276 cm       10        406     2822       45,9 %
+   650 cm       17        506     2949       42,9 %
+  1346 cm       30        606     3029       41,4 %      20 hashes distintos de 23
+```
+
+**Crece monótonamente:** ×11 en ocupadas, ×5,5 en libres, el desconocido de 89 a 41 %. Y la forma de
+la curva es la de un SLAM sano — casi todo el relleno en los primeros ~3 m, luego se aplana según el
+robot repasa terreno visto.
+
+**Por qué el anterior era pobre, y era lo correcto:** `minimum_travel_distance: 0.3` → 160 cm son
+4 nodos, y el grafo tenía exactamente 4. Con `min_pass_through: 2`, una celda cruzada por un solo
+rayo se descarta. **Un mapa 91,8 % vacío es la salida correcta de ese recorrido.**
+
+🔴 **El error de método, que es lo que hay que no repetir: se midió un sistema que ACUMULA con una
+muestra que no acumulaba.** Un giro de 360° no aporta nada con un LIDAR de 360°, y un vaivén vuelve
+al mismo sitio. **Hacía falta la CURVA, no otro punto.** Y el precedente estaba delante desde el
+principio: **`cuarto3` existe y es un mapa de verdad.**
+
+⚠️ **El coste no fue la conclusión, fue el canal.** Llegó a `ESTADO_ACTUAL.md` como bloqueo de la
+Fase 6. Un falso bloqueo en el canal del otro equipo es peor que no escribir nada. Corregido ahí
+primero.
+
+✅ **Lo que desbloquea:** la Fase 6 no está parada por esto, y se puede construir por fin el mapa
+**con los objetos dentro** que hacía falta para la casilla pendiente de la evidencia 91.
+
+📌 **Regla operativa con número:** un mapa utilizable necesita **varios metros** de recorrido, no
+unos centímetros. Con ~3 m el desconocido ya baja del 90 al 46 %.
+
+Y un fallo del banco que vio el usuario: la primera versión conducía «gira 40° a ciegas, avanza si
+puedes», y con la pared a 29-36 cm y la guardia en 35 **avanzar devolvía False siempre** — el robot
+se quedó dando tumbos sin acumular un nodo. *«Está atrapado frente a la pared, deberías darle una
+exploración un poco más adaptativa»*. Ahora **gira hasta que el frente se abre**, hacia el lado con
+más sitio: 1346 cm en 4 minutos sin atascarse.
+
+Evidencia 96.
+
 ## 2026-08-09 (robot, noche 3) — **`Aproximacion.radius` bajado de 0.18 a 0.15**
 
 Decisión del usuario, con toda la tabla medida delante. **Es un cambio de imagen dorada** y toca la

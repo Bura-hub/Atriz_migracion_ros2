@@ -1092,7 +1092,27 @@ ni siquiera giró».
 → 📌 Los «40,5 s» que parecían un giro lento eran el plazo de `girar()` agotándose:
   `|objetivo|/0.20 + 5.0` = **36,4 s** para 360°.
 
-**⚠️ EL MAPA DE slam_toolbox PUEDE QUEDARSE CONGELADO Y CASI VACÍO.** Medido el 2026-08-09:
+**🔴 UN SISTEMA QUE ACUMULA NO SE JUZGA CON UNA FOTO: HACE FALTA LA CURVA.** El 2026-08-09 se
+concluyó que «el mapa de slam_toolbox está congelado» a partir de **160 cm de vaivén y un giro de
+360°** — y era **falso**: con `minimum_travel_distance: 0.3` eso son 4 nodos, y un giro de 360° con
+un LIDAR de 360° **no aporta información nueva**. Conduciendo de verdad el mapa crece monótonamente:
+
+```
+recorrido    nodos   ocupadas   libres   desconocido
+     0 cm        4         54      549       89,3 %
+   276 cm       10        406     2822       45,9 %
+  1346 cm       30        606     3029       41,4 %
+```
+
+→ ✅ **Regla operativa con número: un mapa utilizable necesita VARIOS METROS de recorrido.** Con ~3 m
+  el desconocido baja del 90 al 46 %. `min_pass_through: 2` descarta las celdas cruzadas por un solo
+  rayo, así que pocos nodos = mapa vacío, y es lo correcto.
+→ 🔴 **Y el precedente estaba delante todo el rato: `cuarto3` existe y es un mapa de verdad.** Si
+  slam_toolbox estuviera roto, no existiría. Evidencia 96.
+→ ⚠️ **El coste no fue la conclusión, fue el canal:** el falso defecto llegó a `ESTADO_ACTUAL.md`,
+  que es lo que lee el PC, presentado como el bloqueo principal de la Fase 6.
+
+**⚠️ Lo que se afirmó y queda RETIRADO (se conserva porque la forma del fallo vuelve):** Medido el 2026-08-09:
 **49 celdas ocupadas** para un cuarto entero (una pared de 15 m a 5 cm serían ~300), contenido
 **idéntico celda por celda** tras 360° de giro y 160 cm de vaivén, republicando cada 5 s con sello
 fresco y con 4 nodos en el grafo. El LIDAR estaba sano (227/270 rayos, 11,7 Hz, 360°).

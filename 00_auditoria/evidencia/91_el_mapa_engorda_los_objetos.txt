@@ -106,9 +106,13 @@ En la línea de la puerta, con hueco físico de 45 cm:
       canal de la puerta se cierra, con AMCL queda abierto a coste 84—, los planes
       que rodean, y todos los números de las tandas.
    🔴 **LO QUE SE RETIRA:** que la causa sea un engorde sistemático del mapa.
-   ⏳ **Y aparece un defecto mayor, sin explicar: por qué el mapa de SLAM no
-      crece.** NO VERIFICADO. Afecta a la ruta con la que se hacen los mapas del
-      aula, así que es prioritario.
+   ✅ **CERRADO esa misma noche (evidencia 96): el mapa NO estaba roto, era
+      SUBMUESTREO.** Conduciendo 1346 cm crece de 4 a 30 nodos y de 89,3 % a
+      41,4 % de desconocido. Aquellas 49 celdas salían de 160 cm de vaivén = 4
+      nodos, y con `min_pass_through: 2` la mayoría de celdas se cruzan por un
+      solo rayo y se descartan.
+      📌 Lo cual **NO devuelve validez al «engorde de 5 cm»**: ese seguía saliendo
+         de tres celdas, y tres celdas no miden un engorde con o sin defecto.
 
 Lo que decía este apartado, conservado porque la forma del fallo vuelve:
 

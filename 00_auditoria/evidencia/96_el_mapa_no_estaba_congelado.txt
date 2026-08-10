@@ -1,0 +1,104 @@
+════════════════════════════════════════════════════════════════════════════
+ 96 · EL MAPA DE SLAM NO ESTABA CONGELADO: ERA SUBMUESTREO
+      Y RETRACTA UN «DEFECTO» QUE YA SE HABÍA COMUNICADO AL PC
+════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-09 (noche)
+Robot:  rvr-01 · batería 55 % · cuarto despejado por el usuario
+Datos:  `mediciones_banco/crecimiento_mapa.csv`
+Herramienta: `mediciones_banco/medir_crecimiento_del_mapa.py` (nueva)
+
+
+1 · LO QUE SE AFIRMÓ, Y ERA FALSO
+────────────────────────────────────────────────────────────────────────────
+El mismo día se escribió, en la evidencia 91 y escalado a `CLAUDE.md`,
+`TRASPASO.md` y **al canal del PC**:
+
+    «El mapa de slam_toolbox está CONGELADO y casi vacío: 49 celdas ocupadas
+     para un cuarto entero, idéntico celda por celda tras 360° de giro y 160 cm
+     de vaivén, con el LIDAR sano. Es la ruta con la que se hacen los mapas del
+     aula, así que bloquea la Fase 6 más que ningún otro pendiente.»
+
+🔴 **NO ES UN DEFECTO. ES SUBMUESTREO.**
+
+
+2 · LA MEDIDA QUE LO DESMONTA
+────────────────────────────────────────────────────────────────────────────
+Cuarto despejado, SLAM recién arrancado, el robot conduciendo solo con
+exploración reactiva mientras se muestrean **a la vez** el grafo y la rejilla:
+
+    recorrido    nodos   ocupadas   libres   desconocido
+         0 cm        4         54      549       89,3 %
+       276 cm       10        406     2822       45,9 %
+       650 cm       17        506     2949       42,9 %
+      1346 cm       30        606     3029       41,4 %
+
+    20 hashes distintos de 23 muestras
+
+✅ **El mapa crece de forma monótona con los metros:** ×11 en celdas ocupadas,
+   ×5,5 en libres, y el desconocido cae de 89,3 a 41,4 %.
+
+📌 **Y la forma de la curva es la de un SLAM sano:** casi todo el relleno ocurre
+   en los primeros ~3 m y luego se aplana, porque el robot empieza a repasar
+   terreno ya visto.
+
+
+3 · POR QUÉ EL MAPA ANTERIOR ERA POBRE — Y ERA LO ESPERABLE
+────────────────────────────────────────────────────────────────────────────
+    minimum_travel_distance: 0.3   -> un nodo del grafo cada 30 cm
+    min_pass_through: 2            -> una celda necesita DOS rayos que la crucen
+
+160 cm de recorrido son ~4 nodos, y el grafo tenía **exactamente 4**. Con cuatro
+barridos desde casi el mismo sitio, la mayoría de celdas reciben **un solo rayo**
+y se descartan: quedan desconocidas. **Un mapa 91,8 % vacío es la salida correcta
+de ese recorrido.**
+
+🔎 **Y había un precedente que ya lo decía y no se supo leer: `cuarto3` existe y
+   es un mapa de verdad**, hecho conduciendo por el cuarto. Si slam_toolbox
+   estuviera roto no existiría. Se tenía delante desde el principio.
+
+
+4 · CÓMO SE LLEGÓ AL ERROR, QUE ES LO QUE HAY QUE NO REPETIR
+────────────────────────────────────────────────────────────────────────────
+🔴 **Se midió un sistema con acumulación usando una muestra que no acumulaba.**
+   360° de giro **no aportan información nueva** —el X2 es de 360°, ya lo veía
+   todo— y 160 cm dan 4 nodos. Con eso se concluyó «congelado».
+
+🔴 **Y el «idéntico celda por celda» era cierto y aun así engañoso.** Entre las
+   dos lecturas el robot había recorrido 160 cm... en vaivén, volviendo al mismo
+   sitio. Los nodos nuevos no veían nada nuevo.
+
+📌 **Lo que faltaba era la CURVA, no otro punto.** Un sistema que acumula sólo se
+   juzga con su pendiente: por eso este banco muestrea grafo y rejilla a la vez
+   contra la distancia recorrida, y no una foto antes y otra después.
+
+⚠️ **Y el coste real fue de comunicación:** el «defecto» llegó a
+   `ESTADO_ACTUAL.md`, que es el canal del PC, presentado como el bloqueo
+   principal de la Fase 6. Un falso bloqueo en el canal del otro equipo es peor
+   que no escribir nada.
+
+
+5 · UN FALLO DEL BANCO, VISTO POR EL USUARIO
+────────────────────────────────────────────────────────────────────────────
+🔴 La primera versión conducía «gira 40° a ciegas, avanza si puedes». Con la
+   pared a 29-36 cm y la guardia en 35, **avanzar devolvía False siempre** y el
+   robot se quedó dando tumbos contra la pared sin acumular un solo nodo.
+   👤 *«está atrapado frente a la pared, deberías darle una exploración un poco
+      más adaptativa»*.
+✅ Ahora **no elige un ángulo: gira HASTA QUE EL FRENTE SE ABRE**, hacia el lado
+   con más sitio. Es reactivo, no necesita control de ángulo —que además tiene
+   sobregiro— y sale solo de los rincones. 1346 cm en 4 minutos sin atascarse.
+
+
+6 · LO QUE ESTO DESBLOQUEA
+────────────────────────────────────────────────────────────────────────────
+✅ **La Fase 6 no está bloqueada por esto.** Los mapas del aula se hacen
+   conduciendo, que es lo que se iba a hacer igualmente.
+
+✅ **Y se desbloquea la casilla pendiente desde la evidencia 91:** «AMCL sobre un
+   mapa que SÍ contiene los objetos». Ahora se puede construir ese mapa: poner la
+   puerta, conducir una sesión como ésta, guardar con `map_saver_cli` y arrancar
+   AMCL sobre él. ⏳ **NO VERIFICADO todavía.**
+
+📌 **Regla operativa para el aula, con número:** un mapa utilizable necesita
+   **varios metros de recorrido**, no unos centímetros. En este cuarto, con ~3 m
+   el desconocido ya baja del 90 al 46 %.

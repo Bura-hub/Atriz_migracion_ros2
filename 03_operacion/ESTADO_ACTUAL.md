@@ -67,10 +67,22 @@ obstáculo pegado al robot puede ser invisible.**
    objetivos o el alumno mueve muebles, **es la explicación de la mayoría de los «no llegó»**.
    Se puede saber **antes de mover el robot** preguntándole la ruta a Nav2 con
    `compute_path_to_pose` (herramienta `mediciones_banco/consultar_plan.py`).
-3. 🔴 **El mapa de slam_toolbox se quedó congelado y casi vacío** —49 celdas ocupadas para un cuarto
-   entero, idéntico tras 360° de giro y 160 cm de recorrido, con el LIDAR sano—. **Es la ruta con la
-   que se harán los mapas del aula**, así que bloquea más que ningún otro pendiente de navegación.
-   ⏳ Causa **NO VERIFICADA**.
+3. 🔴🔴 **RETIRADO ESA MISMA NOCHE: el mapa de slam_toolbox NO estaba congelado, era SUBMUESTREO**
+   (evidencia 96). Te lo conté hace un rato como el bloqueo principal de la Fase 6 y **era falso**.
+   Conduciendo de verdad el mapa crece de forma monótona:
+
+   ```
+   recorrido    nodos   ocupadas   libres   desconocido
+        0 cm        4         54      549       89,3 %
+      276 cm       10        406     2822       45,9 %
+     1346 cm       30        606     3029       41,4 %
+   ```
+
+   Lo anterior salía de **160 cm de vaivén**, que con `minimum_travel_distance: 0.3` son 4 nodos, y
+   con `min_pass_through: 2` la mayoría de celdas se cruzan por un solo rayo y se descartan.
+   ✅ **La Fase 6 no está bloqueada por esto**, y **para ti hay una regla operativa con número: un
+   mapa utilizable necesita VARIOS METROS de recorrido, no unos centímetros.** Si la web llega a
+   ofrecer «mapear», ése es el mensaje que le tiene que dar al usuario.
 4. ⏳ **Sigue pendiente de tu lado:** `mapa_nombre` y `mapa_edad_s` en `contrato.ts`.
    ⚠️ Recuerda que **`comprobar_contrato.mjs` NO se pone en rojo** por esto: compara nombres de
    topics y tipos, y **añadir campos a un `.msg` le es invisible**.

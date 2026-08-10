@@ -221,7 +221,18 @@
 >   0.190` + `laser_x −0.005` da 9,0 detrás y 10,0 delante: **el URDF acierta en los tres ejes** y
 >   el LIDAR **no está centrado**. Radio circunscrito desde `base_footprint`: **0,1442**.
 >
-> 🆕🔴 **2026-08-09 · EL MAPA DE slam_toolbox SE QUEDA CONGELADO Y CASI VACÍO**
+> 🆕🔴🔴 **2026-08-09 · RETIRADO: EL MAPA DE slam_toolbox NO ESTABA CONGELADO, ERA SUBMUESTREO**
+> (evidencia 96). Conduciendo de verdad crece monótonamente: 4→30 nodos, 54→606 celdas ocupadas,
+> desconocido 89,3 %→41,4 % en 1346 cm. Lo anterior salía de **160 cm de vaivén** = 4 nodos, y con
+> `min_pass_through: 2` la mayoría de celdas se cruzan por un solo rayo y se descartan.
+> → ✅ **La Fase 6 NO está bloqueada por esto**, y se desbloquea la casilla «AMCL sobre un mapa que
+>   SÍ contiene los objetos»: ya se puede construir ese mapa.
+> → 📌 Regla con número: **un mapa utilizable necesita varios metros**; con ~3 m el desconocido ya
+>   baja del 90 al 46 %.
+> → 🔴 El error de método: **se midió un sistema que ACUMULA con una muestra que no acumulaba.** Un
+>   giro de 360° no aporta nada nuevo con un LIDAR de 360°. Hacía falta la CURVA, no otro punto.
+>
+> 📌 **Lo que se afirmó y queda retirado:**
 >
 > 49 celdas ocupadas para un cuarto entero (una pared de 15 m a 5 cm serían ~300), **idéntico celda
 > por celda** tras 360° de giro y 160 cm de vaivén, republicando cada 5 s con sello fresco y con 4
