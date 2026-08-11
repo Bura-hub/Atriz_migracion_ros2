@@ -1,0 +1,268 @@
+================================================================================
+98 · rvr-02, DE LA TARJETA EN BLANCO — el paso a paso tal como ocurrió
+================================================================================
+Fecha:    2026-08-11
+Robot:    rvr-02 (segunda unidad; rvr-01 sigue montado y sin tocar)
+PC:       Windows + WSL2 (Ubuntu 26.04)
+Estado:   🟢 tarjeta preparada y verificada · ⏳ primer arranque pendiente
+
+POR QUÉ EXISTE ESTE FICHERO
+--------------------------------------------------------------------------------
+El 2026-08-10 rvr-02 ya se había aprovisionado a medias y se quedó parado en un
+`Permission denied: 'log'`. 👤 El usuario formateó la microSD entera para
+rehacerlo desde cero **documentando el proceso**, en vez de arrastrar un estado
+a medias que nadie sabría reproducir.
+
+La regla que gobierna esta pasada, escrita por el PC el 2026-08-10:
+
+    «Cada cosa que frene a rvr-02 es una que no frenará a los catorce
+     siguientes — si acaba en el guion en vez de arreglarse a mano.»
+
+Por eso abajo no está solo lo que funcionó: está lo que falló, y dónde acabó
+arreglado.
+
+================================================================================
+LO QUE SE HIZO, EN ORDEN
+================================================================================
+
+PASO 1 · Grabar Ubuntu Server 24.04.4 LTS arm64 con Raspberry Pi Imager    👤 PC
+--------------------------------------------------------------------------------
+Ajustes: hostname `rvr-02`, usuario `sphero`, WiFi (SSID + PSK), y SSH.
+
+🔴 AGUJERO ENCONTRADO AQUÍ, y lo encontró el usuario, no el repositorio:
+
+    «quiero que aclares que la autenticacion de ssh sea por password no por
+     public key eso falto»
+
+Tenía razón. Los CUATRO sitios que describen el Imager —`FLOTA.md`,
+`MANUAL_ATRIZ_ROS2.md` §3.2, `INSTALACION.md` B1 y `PLAN_MIGRACION_ROS2.md`—
+decían «activar SSH» y nada más.
+
+No es un matiz. El Pi va headless y `preparar_tarjeta.sh` le quita además la
+consola serie (paso 1/5). Con «solo clave pública» y una clave que no sea la del
+PC de acceso: sin teclado, sin pantalla, sin consola y sin SSH. Se regraba.
+
+Medido en rvr-01 ese mismo día, que es lo que fija el criterio de la flota:
+
+    /etc/ssh/sshd_config:   #PasswordAuthentication yes   ← comentado = yes
+    ~/.ssh/authorized_keys: existe, 0 bytes, 0 claves
+
+→ a rvr-01 SOLO se entra por contraseña, porque no tiene ninguna clave.
+
+Arreglado en: los cuatro documentos + `preparar_tarjeta.sh` (paso 4/5 nuevo, que
+aborta) + `verificar_robot.sh` (falla si `PasswordAuthentication no`).
+
+📌 Y para la imagen dorada: las claves de HOST se regeneran en el primer
+   arranque; `~/.ssh/authorized_keys` NO — se clona tal cual. Una clave en el
+   robot de referencia abriría los 16.
+
+
+PASO 1-bis · WSL, porque el PC del laboratorio es Windows                  👤 PC
+--------------------------------------------------------------------------------
+`preparar_tarjeta.sh` es un guion de Linux y `FLOTA.md` solo contemplaba Linux.
+Dos zancadillas reales, las dos ya en `FLOTA.md` §«Windows: preparar la tarjeta
+desde WSL»:
+
+🔴 1 · Docker Desktop secuestra `wsl`. Su distro `docker-desktop` era la
+       predeterminada. Se reconoce en el acto:
+
+           LAPTOP-XXXX:/mnt/host/c/Users/burav# sudo apt update
+           -sh: sudo: not found
+
+       prompt `#` (ya eres root), `-sh` en vez de bash, `sudo` inexistente y
+       `/mnt/host/c/` en vez de `/mnt/c/`. No se trabaja ahí: Docker la recrea
+       en cada actualización. Se arregla con `wsl --set-default Ubuntu`.
+
+🔴 2 · `wsl --install -d Ubuntu` falla con ERROR_ALREADY_EXISTS si Ubuntu ya
+       está instalado aunque figure `Stopped`. No hay que instalarlo: hay que
+       arrancarlo. Por eso `wsl --list --verbose` va ANTES.
+
+Salió Ubuntu 26.04 en WSL. Da igual: es el WSL del PC, no el robot.
+
+
+PASO 1-ter · El PAT que no hacía falta                                    👤 PC
+--------------------------------------------------------------------------------
+`git clone` del repositorio funcionó SIN pedir credenciales. Comprobado:
+
+    Atriz_migracion_ros2 → PÚBLICO (clona sin credencial)
+    Atriz_rvr            → PÚBLICO
+    atriz-lab            → privado
+
+👤 El usuario los puso en público a propósito: «lo he vuelto publico para evitar
+problemas de credentials». Consecuencias, las dos:
+
+  ✅ DECAE el bloqueante nº 1 de la Fase 6 — `~/.git-credentials` con un token
+     personal ya no tiene que viajar en 16 microSD. Retirado del paso 5 de
+     `FLOTA.md`, que lo pedía explícitamente.
+
+  🔴 NO arregla, y sigue abierto (👤 usuario): las credenciales que YA están en
+     el historial de `Atriz_rvr` — PSK del WiFi y contraseña de `sphero`,
+     documentado desde el 2026-08-02 en `API_LABORATORIO.md` §«en público».
+     Al ser público el repositorio, ese historial lo lee cualquiera.
+
+⚠️ Clonar DENTRO de WSL, no usar la copia de Windows por `/mnt/c`: git en
+   Windows convierte a CRLF y bash muere con `$'\r': command not found`.
+   Control: `bash -n scripts/preparar_tarjeta.sh` → «SCRIPT OK, sin CRLF».
+
+
+PASO 2 · preparar_tarjeta.sh, con la tarjeta en el PC                     👤 PC
+--------------------------------------------------------------------------------
+WSL2 NO automonta las unidades extraíbles:
+
+    sudo mkdir -p /mnt/e && sudo mount -t drvfs E: /mnt/e
+
+Comprobación del SSH antes de nada (⚠️ `user-data` lleva el hash de la
+contraseña y la PSK: se mira la clave, no se vuelca el fichero):
+
+    $ grep -o 'ssh_pwauth: [a-zA-Z]' /mnt/e/user-data
+    ssh_pwauth: t                                   ← true
+
+--------------------------------------------------------------------------------
+🔴 FALLO ENCONTRADO EN LA PRIMERA PASADA EN SECO — el informe mentía
+--------------------------------------------------------------------------------
+    ▶ 1/5 · cmdline.txt — liberar el puerto serie
+      ✓ quitado console=serial* (reservaba el UART para la consola del kernel)
+      contenido: console=serial0,115200 multipath=off ... console=tty1 ...
+                 ^^^^^^^^^^^^^^^^^^^^^ SIGUE AHÍ
+
+Dice que lo quitó y lo enseña puesto. Causa, en el código:
+
+    línea 148   con --simular se salta la edición ......... correcto
+    línea 154   pero el ✓ se imprime IGUAL, y en pasado ... incorrecto
+    línea 188   y el `contenido:` hace cat del fichero real (el de antes)
+
+O sea que el único modo cuyo propósito es VER EL EFECTO por adelantado
+afirmaba una acción no ejecutada y enseñaba el estado anterior. Los pasos 2/5 y
+3/5 tenían el mismo patrón.
+
+La tarjeta estaba bien. El que mentía era el instrumento — que es exactamente
+lo que la regla del proyecto «comprueba el efecto, no el código de salida»
+existe para cazar, aplicada esta vez al propio guion.
+
+ARREGLADO (commit 97b94a3):
+  · ayudante `hecho()`: «SE HARÍA → quitar console=serial*» en simulación,
+    «HECHO → quitar console=serial*» en pasada real. Mismo texto, prefijos que
+    no se pueden confundir.
+  · la línea resultante se calcula SIEMPRE y se escribe UNA sola vez al final
+    del paso, así el ensayo puede enseñar «contenido que QUEDARÍA».
+  · DOS controles del efecto que no existían:
+      - aborta si `console=serial` sobrevive a la edición
+      - aborta si una clave queda escrita en config.txt pero NO activa para
+        [pi4] (la trampa de la cabecera [all], que no da error al faltar)
+
+Verificado contra una RÉPLICA EXACTA de esta tarjeta (su cmdline.txt con el
+`ds=nocloud;i=rpi-imager-` y el `regdom=CO`, y un config.txt terminado en [cm4]):
+  · --simular  → `diff -r` contra la copia: ficheros IDÉNTICOS, no escribe nada
+  · real       → 0 ocurrencias de console=serial, 0 saltos de línea,
+                 disable-bt ACTIVO en [all], ROBOT_ID=02, los dos .bak-* creados
+  · 2 pasadas  → 1 sola directiva y 1 solo bloque añadido
+
+⚠️ LECCIÓN DE MEDICIÓN: la idempotencia PARECIÓ rota porque
+   `grep -c 'disable-bt'` dio 2. Contaba también la línea de COMENTARIO que
+   explica qué hace disable-bt. El guion estaba bien; el instrumento, no.
+   Cuéntese `^[[:space:]]*dtoverlay=disable-bt`. Segunda vez en la misma sesión
+   que el medidor falla y no lo medido.
+
+--------------------------------------------------------------------------------
+🔴 Y una afirmación FALSA del propio guion, refutada por esta tarjeta
+--------------------------------------------------------------------------------
+El comentario del bloque `regdom` decía que el `cfg80211.ieee80211_regdom=CO` de
+rvr-01 «se puso a mano y no quedó registrado» porque «NINGÚN script lo escribía».
+
+La tarjeta de rvr-02, recién grabada y sin arrancar nunca, YA lo traía, junto al
+marcador `ds=nocloud;i=rpi-imager-1786472033701`. **Lo escribe el Raspberry Pi
+Imager** al fijar el país del WiFi. El bloque del guion es una red de seguridad
+para quien grabe sin poner el país, no el origen del valor.
+
+--------------------------------------------------------------------------------
+PASADA DEFINITIVA — el resultado, medido sobre la tarjeta
+--------------------------------------------------------------------------------
+    ▶ 1/5   ✓ respaldo: cmdline.txt.bak-20260811-135546
+            ✓ HECHO → quitar console=serial*
+            ✓ cmdline.txt ya pide regdom=CO
+    ▶ 2/5   ✓ enable_uart=1 ya está activo (24.04 lo trae por defecto)
+            ✓ respaldo: config.txt.bak-20260811-135546
+            ✓ HECHO → añadir bajo [all]: dtoverlay=disable-bt
+    ▶ 3/5   ✓ HECHO → escribir ROBOT_ID=02 → rvr-02 · ROS_DOMAIN_ID=2 · /rvr_02
+    ▶ 4/5   ✓ ssh_pwauth activo
+    ▶ 5/5   ✓ sync completado
+
+    $ grep -c 'console=serial' /mnt/e/cmdline.txt     → 0
+    $ wc -l < /mnt/e/cmdline.txt                      → 0
+
+✅ CIERRA UNA DUDA QUE ESTABA ABIERTA: los respaldos `cp -a` SÍ funcionan sobre
+   `drvfs`. El guion solo imprime «✓ respaldo:» si el `cp -a` devolvió 0, y los
+   imprimió los dos. Importaba porque el guion no lleva `set -e`: si `cp -a`
+   hubiera fallado, no habría parado y nos habríamos quedado sin respaldo sin
+   enterarnos.
+
+📌 `preparar_tarjeta.sh` pasa de «hace tres cosas» a CUATRO (se le añadió la
+   comprobación del SSH), y su mensaje final ahora recuerda `red.txt`, que es el
+   paso 3 de FLOTA.md y que el guion no escribe.
+
+
+PASO 3 · red.txt — APLAZADO A PROPÓSITO                                   ⏳ 👤
+--------------------------------------------------------------------------------
+👤 Decisión del usuario, tomada con la tarjeta aún montada.
+
+Motivo: la tabla de asignación de `FLOTA.md` tiene la IP de laboratorio de
+rvr-02 **en blanco** —el administrador de red las asigna una a una— y la propia
+plantilla avisa de que una IP estática equivocada te deja fuera del robot.
+
+Es legítimo aplazarlo: sin `red.txt`, `atriz-first-boot` NO adivina. Deja la red
+como esté (el DHCP que configuró el Imager), lo registra en
+`/var/log/atriz-first-boot.log` y lo reintenta al siguiente arranque. El robot
+arranca y se llega por `rvr-02.local`.
+
+🔴 PERO deja de poder aplazarse en el paso 6-bis (`first-boot.sh --solo-red`),
+   que no tendría de dónde leer la IP. Añadido ahí cómo crearlo desde el propio
+   robot. Sin ese paso, rvr-02 se queda en DHCP puro y NO está desplegado.
+
+================================================================================
+LO QUE QUEDA, Y LO QUE HAY QUE VIGILAR
+================================================================================
+
+⏳ PASO 4 · Primer arranque y SSH. Control obligatorio nada más entrar:
+
+       cat /proc/device-tree/soc/serial@7e215040/status   # debe: disabled
+       cat /proc/device-tree/aliases/serial0              # /soc/serial@7e201000
+
+   🔴 Si el mini-UART no dice `disabled`, el paso 2 no se aplicó: PARAR.
+   ⚠️ Es la comprobación CORREGIDA. La primera versión miraba `aliases/uart0`
+      —que da lo mismo siempre, no podía fallar nunca— y `ls /dev/serial0`, que
+      no existe en Ubuntu (es de Raspberry Pi OS).
+
+⏳ PASO 5 · Clonar. Ya SIN credenciales (ver paso 1-ter).
+
+⏳ PASO 6 · `sudo bash provision.sh` (~40 min). **Nunca se ha ejecutado entero.**
+   Solo con `--simular`, que convierte en no-operación justo lo que instala.
+   Es la suposición más peligrosa que le queda al proyecto. ANOTAR CADA FALLO.
+
+   📌 Referencia de cómo debe quedar, medida en rvr-01 el 2026-08-11:
+      `~/atriz_ws` y sus `build/install/log/src` TODOS `sphero:sphero`,
+      0 ficheros de root, y NINGÚN workspace parásito. El fallo del 2026-08-10
+      (`Permission denied: 'log'`) apunta justo ahí.
+
+⏳ PASO 6-bis · `red.txt` + `first-boot.sh --solo-red` (ver paso 3).
+
+⏳ PASO 6-ter · 🔴 EL LIDAR. La regla udev lleva el `ID_PATH` de rvr-01 a fuego.
+   Si el LIDAR no va en el MISMO puerto USB físico: no hay `/dev/ydlidar` → sin
+   `/scan` → el `collision_monitor` bloquea el movimiento → **el robot parecerá
+   averiado**. Es la primera vez que esto se puede comprobar en otro Pi: hasta
+   hoy era ⏳ NO VERIFICADO en `FLOTA.md`.
+
+⏳ PASO 7 · Reiniciar y `verificar_robot.sh --hardware`.
+
+📌 rvr-02.local NO resuelve desde rvr-01 — están en redes distintas. Todo el
+   diagnóstico del robot 2 pasa por el PC.
+
+================================================================================
+RECUENTO DE ESTA PASADA
+================================================================================
+Encontrados por el usuario ....... 2  (SSH por contraseña · el script de Windows)
+Fallos del guion arreglados ...... 1  (el informe en seco afirmaba lo no hecho)
+Afirmaciones falsas retiradas .... 3  (regdom «a mano» · repos privados/PAT ·
+                                       mi propia medición de la idempotencia)
+Trampas nuevas documentadas ...... 2  (Docker secuestra wsl · ALREADY_EXISTS)
+Dudas cerradas ................... 1  (cp -a sí funciona sobre drvfs)
+Bloqueantes que decaen ........... 1  (Fase 6 nº 1: el PAT en la imagen dorada)
