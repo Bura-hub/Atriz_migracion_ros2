@@ -254,6 +254,29 @@ Verificador: exige que `/estado_ir` ENTREGUE un mensaje, y de
 `/infrared_messages` dice explícitamente lo que NO se puede comprobar con un
 solo robot, en vez de fingirlo.
 
+✅ VERIFICADO SOBRE rvr-01, tras reiniciar el driver
+--------------------------------------------------------------------------------
+    $ ros2 topic echo /estado_ir --once
+    crudo: 4294967295            <- 0xFFFFFFFF: los 4 sensores vacíos, correcto
+    sensor_0..3: 255             <- sin nadie emitiendo
+    lecturas_validas: true       <- el sondeo RESPONDE
+    antiguedad_lectura_s: 5.2e-05
+    ultimo_codigo: 0
+    hay_mensaje: false           <- distingue «nunca» de «llegó el código 0»
+    antiguedad_mensaje_s: -1.0
+    modo: 'off' · conduciendo_por_ir: false
+
+✅ Y EL COSTE DEL SONDEO, MEDIDO — que es lo que la especificación exigía antes
+   de darlo por bueno, en vez de suponer que «uno por segundo no se nota»:
+
+    /estado_ir              1.002 · 1.001 · 0.997 Hz   -> 1 Hz exacto
+    /odom CON el sondeo     16.576 - 16.684 Hz
+    /odom de referencia     16.63 - 16.70 Hz  (antes de que el sondeo existiera)
+
+   **El coste no es medible.** Importaba comprobarlo porque el margen de este
+   enlace serie está medido y es estrecho: a 50 ms de intervalo el streaming ni
+   siquiera arranca.
+
 ⏳ LO QUE FALTA, Y ES FÍSICO
 --------------------------------------------------------------------------------
 La PRUEBA DE VIABILIDAD de la detección direccional, con los dos robots:
