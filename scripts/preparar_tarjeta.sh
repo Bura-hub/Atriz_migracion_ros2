@@ -158,7 +158,9 @@ fi
 #    escritura estuviera saltada, así que el ensayo en seco decía haber hecho lo
 #    que no hacía. Se vio preparando rvr-02: el ✓ decía «quitado console=serial*»
 #    y dos líneas más abajo el fichero lo seguía teniendo.
-hecho() { if [[ $SIMULAR -eq 1 ]]; then ok "SE HARÍA → $1"; else ok "$1"; fi; }
+#    Los dos modos usan el mismo texto en infinitivo y se distinguen por el
+#    prefijo, para que no haya forma de confundir un informe con el otro.
+hecho() { if [[ $SIMULAR -eq 1 ]]; then ok "SE HARÍA → $1"; else ok "HECHO → $1"; fi; }
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 respalda() {
@@ -365,6 +367,19 @@ cat <<EOF
 
 ────────────────────────────────────────────────────────────────────────────
   Tarjeta del robot $ID2 lista para el primer arranque.
+
+  ANTES DE EXPULSAR, ¿has puesto red.txt?
+    Este guion NO lo escribe: lleva la PSK del WiFi y por eso no vive en git,
+    solo su plantilla (scripts/red.txt.ejemplo). Con la tarjeta aún en el PC
+    es un copiar y pegar; despues hay que entrar al robot para ponerlo.
+
+      cp scripts/red.txt.ejemplo $PART/red.txt   # y rellenarlo a mano
+
+    Se puede dejar para luego: si falta, first-boot NO adivina — deja la red
+    como este (el DHCP de cloud-init) y lo reintenta en el siguiente arranque.
+    O sea que el robot arranca y se llega por rvr-$ID2.local igual. Pero
+    entonces NO tiene su IP fija, y eso hay que cerrarlo antes de darlo por
+    desplegado.
 
   AHORA:
     1. Expulsa la tarjeta con seguridad y ponla en el robot $ID2.
