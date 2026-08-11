@@ -277,6 +277,64 @@ solo robot, en vez de fingirlo.
    enlace serie está medido y es estrecho: a 50 ms de intervalo el streaming ni
    siquiera arranca.
 
+🔴 DÓNDE ESTÁN FÍSICAMENTE LOS IR: NO ESTÁ DOCUMENTADO EN NINGUNA PARTE
+--------------------------------------------------------------------------------
+👤 Pregunta del usuario: «no estoy seguro de saber dónde están los IR, ¿cuántos
+son?». Se barrieron los DOS árboles enteros para responderla. Resultado:
+
+  CUÁNTOS  4 emisores y 4 receptores — pero eso sale SOLO de los nombres de los
+           parámetros del protocolo (`FrontStrength`/`Left`/`Right`/`Rear`) y de
+           los cuatro bytes del uint32. No de una observación del robot.
+
+  DÓNDE    ▸ manual original de Sphero .............. NADA (describe la Pi)
+           ▸ MEDIDAS_ROBOT.md (cinta del usuario) ... NADA: ni IR, ni ventanas,
+                                                      ni aberturas del chasis
+           ▸ URDF (rvr.urdf.xacro) ................. NADA: seis links —chasis,
+                                                      LIDAR, IMU, dos ruedas—
+                                                      y ni un frame de IR
+           ▸ referencia_sdk/ ........................ solo los nombres, y la
+                                                      máscara «on BOLT»
+           ▸ fotos o diagramas del chasis ........... NINGUNA en el repositorio
+
+  Ni altura, ni cara, ni orientación, ni ángulo de visión, ni apertura del haz.
+  La ÚNICA magnitud espacial documentada en todo el material es RADIAL:
+  far_code para 3 m o más, near_code para menos de 1 m (sensor.md:69-74).
+
+📌 Y `Atriz_rvr/docs/hardware/README.md` NO es documentación de hardware: es el
+   README de la biblioteca de C++ `wjwwood/serial`, copiado tal cual. El nombre
+   engaña, y conviene saberlo antes de perder media hora ahí.
+
+🔴 TRAMPA NUEVA, Y ESTA VEZ EN EL PROPIO SDK
+   La máscara está etiquetada «on BOLT» en la documentación de protocolo… pero
+   el enum de Python PERDIÓ esa etiqueta:
+
+       sensor_enums.py:95-100  InfraredSensorLocationsBitmask
+           none=0 · front_left=0x000000FF · front_right=0x0000FF00
+           back_right=0x00FF0000 · back_left=0xFF000000
+
+   Presenta los cuatro nombres como si fueran del RVR. Quien lea el código —que
+   es lo normal— no tiene NINGUNA forma de saber que son de otro robot. Es el
+   mismo patrón que los encoders: documentados `Left`/`Right`, payload real
+   `LeftTicks`/`RightTicks`.
+
+✅ CONSECUENCIA PARA EL MÉTODO, y es una mejora que sale de la pregunta:
+   no hace falta saber dónde están para medirlo. El firmware enciende y apaga
+   CADA EMISOR POR SEPARADO, así que emitiendo por uno solo y mirando qué byte
+   deja de ser 255 en el otro robot, **el hardware dibuja el mapa él mismo**.
+
+       en el que emite:  medir_ir_dos_robots.py --emitir-solo frontal|izquierdo|
+                                                              derecho|trasero
+       en el que lee:    medir_ir_dos_robots.py --vigilar
+
+   Cada emisor lleva un código distinto (1,2,3,4) porque el registro del
+   receptor guarda el ID del mensaje: así el número identifica de qué emisor
+   vino y no hay que fiarse del cronometraje.
+
+   📌 Y los dos desenlaces valen. Si con los robots enfrentados el emisor
+      `trasero` NO ilumina nada, los emisores son direccionales y ya sabemos
+      cuál es el byte que mira al frente. Si SÍ ilumina, no lo son — y eso
+      cierra la pregunta igual de bien.
+
 ⏳ LO QUE FALTA, Y ES FÍSICO
 --------------------------------------------------------------------------------
 La PRUEBA DE VIABILIDAD de la detección direccional, con los dos robots:
