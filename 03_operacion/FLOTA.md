@@ -790,14 +790,18 @@ cat /proc/device-tree/aliases/serial0              # /soc/serial@7e201000 (PL011
 > `cmdline.txt` sin arreglar y te enterarías 40 minutos después, cuando el RVR no conteste.
 > Encontrado en auditoría el 2026-08-01, midiéndolo en rvr-01.
 
-**5. Credenciales de git** — el repositorio es privado y sin esto `provision.sh` no puede clonar:
+**5. Clonar el repositorio.** ✅ **Ya no hacen falta credenciales** — desde el 2026-08-11
+`Atriz_migracion_ros2` y `Atriz_rvr` son públicos (👤 decisión del usuario, justo para no repartir
+un PAT en 16 microSD). Medido ese día: los dos clonan sin credencial ninguna.
 
 ```bash
-git config --global credential.helper 'store --file ~/.git-credentials'
 git clone https://github.com/Bura-hub/Atriz_migracion_ros2.git ~/atriz_migracion
-#   Username: Bura-hub · Password: el PAT
-chmod 600 ~/.git-credentials
 ```
+
+> Texto anterior, que ya no aplica: *«el repositorio es privado y sin esto `provision.sh` no puede
+> clonar»*, seguido de `credential.helper store` y `chmod 600 ~/.git-credentials`. **No lo hagas:**
+> guardar un PAT que no hace falta es justo lo que convertía `~/.git-credentials` en el bloqueante
+> nº 1 de la Fase 6.
 
 **6. Aprovisionar.** Son ~40 min, la mayoría compilando:
 
@@ -813,6 +817,17 @@ instala. **Anota cualquier fallo**: es la suposición más peligrosa que le qued
 `atriz-first-boot`, y ese servicio **solo lo instala `fase_6_preparar_imagen_dorada.sh`** — que en
 una instalación limpia todavía no se ha ejecutado. Sin este paso el robot se queda en **DHCP puro**,
 sin su IP de laboratorio:
+
+🔴 **Y aquí es donde `red.txt` deja de poder aplazarse.** Si en el paso 3 se dejó para luego —es
+legítimo: sin él `first-boot` no adivina, deja el DHCP de cloud-init y el robot arranca igual—,
+**este paso no tiene de dónde leer la IP**. Créalo ahora, en el propio robot, antes de seguir:
+
+```bash
+sudo cp ~/atriz_migracion/scripts/red.txt.ejemplo /boot/firmware/red.txt
+sudo nano /boot/firmware/red.txt     # LAB_SSID, LAB_PASS y LAB_IP como mínimo
+```
+
+⚠️ Lleva la PSK: **no va a git**, y `chmod 600` sobre la FAT **no hace nada** (ver la plantilla).
 
 ```bash
 sudo bash ~/atriz_migracion/scripts/first-boot.sh --solo-red
