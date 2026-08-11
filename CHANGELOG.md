@@ -65,6 +65,32 @@ cuatro, y `apagar_ir` va **el primero**. Parar antes dejaría al robot arrancand
 siguiente detección — el mismo fallo que ya mordió a la parada de emergencia. Sin eso, **un Ctrl-C
 deja un robot conduciendo por el aula**. 77 tests en verde, tres nuevos que provocan el fallo.
 
+### ✅ Y la prueba de viabilidad, ejecutada: **la máscara del BOLT no describe al RVR**
+
+Medido con los **dos robots**, cada uno haciendo de vigilante por turnos, girándolos 360°:
+
+| dónde está el emisor | rvr-01 | rvr-02 |
+|---|---|---|
+| **delante** | `[2,3]` | `[2,3]` |
+| **a la izquierda** | `[1]` | `[1]` |
+| **detrás** | `[1,3]` | `[1,2,3]` |
+| **a la derecha** | `[2,3]` | `[2,3]` |
+| | 🔴 `sensor_0`: **nunca** | 🔴 `sensor_0`: **nunca** |
+
+✅ **Reproducible entre robots**, y el ciclo cierra al girar 360°: hay direccionalidad real, atada
+al cuerpo del robot. 🟡 **Pero son tres estados, no cuatro** — delante y derecha dan exactamente lo
+mismo. Y `sensor_0` no lleva datos jamás, lo que **retira una hipótesis que llegué a proponer**: que
+rvr-01 tuviera un sensor averiado. Con rvr-02 igual, es sistemático.
+
+**Se aplica el criterio tal como estaba escrito antes de medir**, en vez de estirarlo: los campos
+**no se renombran**, `quien_hay_cerca()` se queda **sin prometer las cuatro direcciones**, y el
+campo `crudo` se queda para poder reinterpretar la medición si algún día aparece documentación real
+del RVR. Evidencia 100.
+
+📌 Si hubiéramos creído a la máscara, `atriz.py` estaría prometiendo hoy «tienes un robot a tu
+izquierda-delantera» sobre unos bytes que no distinguen delante de derecha y uno que no existe. En
+dieciséis robots. **El coste de comprobarlo fue una tarde con dos robots.**
+
 📌 **Y una corrección que salió del usuario:** «el robot no es BOLT, es Sphero RVR». La máscara que
 asignaría cada sensor a una esquina está documentada **para el BOLT**. Por eso los campos se llaman
 `sensor_0..3` y por eso `EstadoIR` lleva el `uint32` **crudo**: si parto mal los bytes, la

@@ -116,6 +116,19 @@ seguridad, y rosbridge **no tiene identidad por usuario** (pendiente ya abierto 
 `SEGURIDAD_ROSBRIDGE.md`). Abrirlos hoy sería que cualquiera en el aula pueda poner a conducir
 cualquier robot. 👤 Se reabre cuando exista esa identidad — no antes, y no por comodidad.
 
+**⚠️ Y para tu interfaz, PC: NO pintes los cuatro sensores como cuatro direcciones.** Está medido
+con los dos robots (evidencia 100) y **no lo son**:
+
+```
+[1] solo          →  el otro robot está a la IZQUIERDA
+[1,3] / [1,2,3]   →  está DETRÁS
+[2,3]             →  está DELANTE o A LA DERECHA   ← no se separan
+sensor_0          →  NUNCA lleva datos, en ninguno de los dos robots
+```
+
+Y la lectura es **intermitente**: una sola muestra puede decir «no hay nadie» habiéndolo. Si la
+interfaz pinta una brújula de cuatro cuadrantes, mentirá — con datos reales, que es lo peor.
+
 📌 Diseño completo, con lo que se descartó y por qué:
 `docs/superpowers/specs/2026-08-11-sistema-ir-robot-a-robot-design.md`
 
