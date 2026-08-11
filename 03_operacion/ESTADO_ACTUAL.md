@@ -11,11 +11,65 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-09 (noche)
+**Última actualización:** 2026-08-11
 
 ---
 
-## 🆕🆕 2026-08-10 · **HAY UN SEGUNDO ROBOT, Y `provision.sh` SE ESTÁ EJECUTANDO DE VERDAD**
+## 🆕🔴 2026-08-11 · **LA TARJETA DE rvr-02 SE FORMATEÓ. EL BLOQUE DE ABAJO YA NO DESCRIBE NADA**
+
+👤 El usuario **formateó entera la microSD de rvr-02** para rehacer el despliegue desde cero y
+documentarlo paso a paso. Así que:
+
+🔴 **El `Permission denied: 'log'` y el `fase_7` que se niega —todo el bloque de 2026-08-10— ya no
+existen.** No los persigas: no hay a qué volver a mirar. **Se queda escrito a propósito**, porque
+si vuelven a salir en esta pasada limpia dejan de ser una anécdota y pasan a ser un fallo
+reproducible de `provision.sh`, que es justo lo que hace falta saber.
+
+**Ahora mismo rvr-02 es una tarjeta en blanco** y estamos en el paso 1 de `FLOTA.md`:
+grabar Ubuntu Server 24.04.4 con el Imager. Nada del robot 2 es consultable hasta que arranque.
+
+### ⚠️ Y con eso, un agujero de la documentación que se ha cerrado hoy: **SSH por contraseña**
+
+👤 Lo levantó el usuario al ir a grabar: *«quiero que aclares que la autenticación de ssh sea por
+password no por public key, eso faltó»*. Tenía razón — **en los cuatro sitios donde se describe el
+Imager sólo ponía «activar SSH»**, sin decir cuál de las dos.
+
+No es un matiz de estilo. El Pi va **headless**, y `preparar_tarjeta.sh` le quita además la consola
+serie en su paso 1. Si el Imager queda en «permitir sólo autenticación por clave pública» y la
+clave no es la del PC desde el que entras, **no hay teclado, ni pantalla, ni consola, ni SSH**: la
+única salida es sacar la tarjeta y volver a grabarla.
+
+Medido en rvr-01 el 2026-08-11, que es lo que fija el criterio para la flota:
+
+```
+/etc/ssh/sshd_config:   #PasswordAuthentication yes    ← comentado = el "yes" por defecto
+~/.ssh/authorized_keys: existe, 0 bytes, 0 claves
+```
+
+o sea que **a rvr-01 sólo se entra por contraseña**, porque no tiene ninguna clave instalada. Los
+16 van igual.
+
+**Qué se cambió** (📌 nada de esto toca `atriz-lab`; lo miré y no menciona el Imager):
+
+| dónde | qué |
+|---|---|
+| `FLOTA.md`, `MANUAL_ATRIZ_ROS2.md` §3.2, `INSTALACION.md` B1, `PLAN_MIGRACION_ROS2.md` | «activar SSH» → **«activar SSH con contraseña, NO sólo clave pública»**, con el porqué |
+| `preparar_tarjeta.sh` | **paso 4/5 nuevo**: lee `ssh_pwauth` de `user-data` y **aborta** (salida 1) si está en `false`. Ya no son tres cosas, son cuatro |
+| `verificar_robot.sh` | comprueba `PasswordAuthentication` efectivo; **falla** si está en `no` |
+
+📌 **Y una para tu lista de la imagen dorada:** las claves **de host** se regeneran en el primer
+arranque, pero **`~/.ssh/authorized_keys` NO — se clona tal cual**. Si algún día se instala una
+clave en el robot de referencia antes de sacar la imagen, **esa clave abre los 16**. El aviso ya
+existía en `verificar_robot.sh` por otro motivo (un canal automático se cuelga esperando la
+contraseña); hoy se le ha añadido esta segunda consecuencia en vez de meter una comprobación
+duplicada que decía lo contrario.
+
+---
+
+## ~~🆕🆕 2026-08-10~~ · **HAY UN SEGUNDO ROBOT, Y `provision.sh` SE ESTÁ EJECUTANDO DE VERDAD**
+
+> 🔴 **SUPERADO el 2026-08-11: la tarjeta se formateó.** Se conserva como referencia de lo que
+> falló en la primera pasada, no como estado actual. Ver el bloque de arriba.
 
 👤 Lo trae el usuario, y **levanta la suposición más cara que tenía este proyecto abierta.**
 

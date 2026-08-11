@@ -793,10 +793,16 @@ En **«Editar ajustes»**:
   comprometida (aparece en un repositorio público)
 - Hostname: **`rvr-01`** (y `rvr-NN` para el resto de la flota)
 - WiFi: SSID y contraseña. **Preferir 5 GHz**
-- **Activar SSH**
+- **Activar SSH**, marcando 🔴 **«usar contraseña para autenticar»** — **NO** «permitir sólo
+  autenticación por clave pública»
 - Zona horaria y teclado
 
 > Dejar que el Imager configure el WiFi ahorra tener que escribir netplan a mano.
+
+> 🔴 **Contraseña, no clave pública.** El Pi va headless: si marcas sólo clave pública y esa
+> clave no es la del PC desde el que entras, no hay teclado ni pantalla con los que arreglarlo y
+> toca sacar la tarjeta. Toda la flota va por contraseña — **verificado en rvr-01 el 2026-08-11**:
+> `PasswordAuthentication` sin tocar (o sea `yes`) y `~/.ssh/authorized_keys` de **0 bytes**.
 
 ### 3.3 ✅ Antes del primer arranque, editar `cmdline.txt` — **verificado 2026-07-30**
 

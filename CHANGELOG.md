@@ -4,6 +4,51 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-11 (Pi) — La tarjeta de rvr-02 se formatea, y al ir a grabarla aparece un agujero de cuatro documentos
+
+Se reinicia el despliegue de rvr-02 desde una microSD en blanco, para documentar el proceso entero
+en vez de arrastrar el estado a medias del 2026-08-10.
+
+**Lo encontró el usuario, no el repositorio:** al ir a grabar preguntó por qué no se decía si el
+SSH del Imager va por contraseña o por clave pública. **No se decía en ninguno de los cuatro sitios
+donde se describe el Imager** — `FLOTA.md`, `MANUAL_ATRIZ_ROS2.md` §3.2, `INSTALACION.md` B1 y
+`PLAN_MIGRACION_ROS2.md` ponían «activar SSH» y nada más.
+
+Importa porque el Pi va headless y `preparar_tarjeta.sh` le quita la consola serie: con «sólo clave
+pública» y una clave que no sea la del PC de acceso, el robot arranca **inaccesible** y hay que
+regrabar la tarjeta.
+
+**Medido en rvr-01** (no deducido): `PasswordAuthentication` comentado —o sea `yes` por defecto— y
+`~/.ssh/authorized_keys` de **0 bytes**. A rvr-01 sólo se entra por contraseña. Ese es el criterio
+para los 16.
+
+### Qué se cambió
+
+- Los cuatro documentos, con el porqué y no sólo la instrucción.
+- **`preparar_tarjeta.sh`: paso 4/5 nuevo.** Lee `ssh_pwauth` de `user-data` con la tarjeta aún en
+  el PC y **aborta con salida 1** si está en `false` — que es cuando arreglarlo todavía es gratis.
+  Pasa de «hace tres cosas» a cuatro. Probado en seco contra cinco particiones falsas, verificando
+  el resultado: el caso `false` **para de verdad** (salida 1, el paso 5/5 no llega a imprimirse), y
+  un señuelo `password:` sembrado en las cinco **no aparece en la salida** — `user-data` lleva el
+  hash de la contraseña y la PSK, así que se comprueba la presencia de claves y no se imprime.
+- **`verificar_robot.sh`:** comprueba el `PasswordAuthentication` efectivo y **falla** si está en
+  `no`.
+
+### Y un duplicado que casi se cuela
+
+La primera versión añadía **una segunda** comprobación de `authorized_keys` en `verificar_robot.sh`
+**con la polaridad contraria** a la que ya existía desde el 2026-08-03: la vieja marca «vacío» como
+aviso (un canal automático se cuelga esperando la contraseña), la nueva lo marcaba como ✓. Se vio
+al ejecutar el verificador y ver salir las dos líneas. Las dos afirmaciones son ciertas —son dos
+consecuencias del mismo hecho—, así que se fundieron en una sola comprobación que dice ambas, en
+lugar de dejar dos que se contradicen. 📌 *Otra vez la regla de «busca TODAS las menciones, no la
+primera», y esta vez me la salté yo.*
+
+📌 Para la imagen dorada: las claves **de host** se regeneran en el primer arranque; `authorized_keys`
+**no**, se clona. Una clave en el robot de referencia abriría los 16.
+
+---
+
 ## 2026-08-10 (PC) — **Hay un segundo robot, y con él caen dos suposiciones grandes**
 
 Sesión de traspaso. Las dos cosas las trae el usuario, y las dos levantan bloqueos que llevaban

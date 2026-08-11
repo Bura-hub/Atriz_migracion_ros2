@@ -284,7 +284,10 @@ montarla con `losetup -Pf` y comprobar que se ven las dos particiones y que
 fue la causa nº1 de la lentitud del sistema anterior.
 
 En «Editar ajustes»: usuario `sphero` con **contraseña nueva** (la anterior está comprometida),
-hostname `rvr-01`, WiFi (preferir 5 GHz), y **activar SSH**.
+hostname `rvr-01`, WiFi (preferir 5 GHz), y **activar SSH con «usar contraseña para autenticar»**
+— 🔴 **no** «sólo clave pública»: el Pi va headless y una clave equivocada te deja fuera sin
+teclado ni pantalla. Toda la flota va por contraseña (verificado en rvr-01 el 2026-08-11:
+`authorized_keys` de 0 bytes).
 
 ### B2 👤 · Editar `cmdline.txt` ANTES del primer arranque — ⚠️ CRÍTICO
 

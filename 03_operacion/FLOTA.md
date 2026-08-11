@@ -670,11 +670,29 @@ robots, reflashear será rutina, no emergencia.
 ### Los pasos
 
 **1. Grabar Ubuntu Server 24.04 LTS arm64** con Raspberry Pi Imager. En sus opciones avanzadas:
-hostname `rvr-02`, usuario `sphero`, **habilitar SSH**, y 🔴 **CONFIGURAR LA WIFI** (SSID y
+hostname `rvr-02`, usuario `sphero`, **habilitar SSH con «usar contraseña para autenticar»**
+(🔴 **NO «permitir sólo autenticación por clave pública»**), y 🔴 **CONFIGURAR LA WIFI** (SSID y
 contraseña; preferir 5 GHz).
 
 ⚠️ **Sin WiFi aquí no hay forma de entrar.** El Pi 4 va headless: sin red no hay SSH, y sin SSH
 no hay pasos 5 a 8. La primera vez lo encuentras por `ping rvr-02.local` o mirando el router.
+
+🔴 **Y por contraseña, no por clave pública.** El Imager ofrece las dos, y la de clave pública
+deja fuera igual de bien que no configurar la WiFi: el robot arranca headless, sin teclado ni
+pantalla, y si la clave no es la del PC desde el que entras **la única salida es sacar la tarjeta
+y volver al PC**. Así está rvr-02 y así está **rvr-01, medido el 2026-08-11**:
+
+```
+/etc/ssh/sshd_config:  #PasswordAuthentication yes   ← comentado, o sea el "yes" por defecto
+~/.ssh/authorized_keys: existe, 0 bytes, 0 claves
+```
+
+o sea que **a rvr-01 sólo se entra por contraseña**, porque no tiene ninguna clave instalada.
+Deja los dos robots iguales; que uno vaya por clave y otro por contraseña es la clase de
+diferencia que aparece dentro de seis meses, con el robot montado y sin nadie que recuerde por
+qué. 📌 Y para la imagen dorada: las claves de **host** se regeneran en el primer arranque
+(§«qué se borra»), pero `~/.ssh/authorized_keys` **NO** — se clona tal cual. Si algún día se
+instala una clave en el robot de referencia antes de sacar la imagen, esa clave abre **los 16**.
 
 **2. 🔴 `preparar_tarjeta.sh`, CON LA TARJETA EN EL PC. NO ES OPCIONAL.**
 
@@ -682,10 +700,11 @@ no hay pasos 5 a 8. La primera vez lo encuentras por `ping rvr-02.local` o miran
 sudo bash ~/atriz_migracion/scripts/preparar_tarjeta.sh --id 02
 ```
 
-Hace tres cosas que **nada más hace**, y las tres fallan en silencio si faltan:
+Hace cuatro cosas que **nada más hace**, y las cuatro fallan en silencio si faltan:
 
 | | Si falta |
 |---|---|
+| **comprueba `ssh_pwauth` en `user-data`** y **aborta** si el Imager quedó en «solo clave pública» | el robot arranca headless, sin consola serie (se la quita este mismo script) y **sin forma de entrar**: hay que volver a grabar la tarjeta. Aquí todavía está en el PC, así que aquí es gratis |
 | quita `console=serial…` de `cmdline.txt` | el UART queda reservado para la consola del kernel y **el RVR no habla**. 🔴 `provision.sh` **no toca `cmdline.txt`**: `fase_0_1_fix_uart.sh` solo **avisa** de que hay que quitarlo a mano |
 | `dtoverlay=disable-bt` bajo `[all]` en `config.txt` | el PL011 no llega a los pines GPIO14/15 donde está cableado el RVR. ⚠️ Sin la cabecera `[all]` **no da error** y no hace nada |
 | crea `/boot/firmware/robot_id.txt` | 🔴 **`provision.sh` lo NECESITA**: su paso 8/9 falla al instalar el arranque automático, y sin él no hay hostname ni `ROS_DOMAIN_ID` |

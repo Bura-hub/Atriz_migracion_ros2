@@ -187,7 +187,7 @@ Además, antes de reflashear, copiar fuera de la SD:
 
 > Requiere la Fase 0.3 verificada. Este paso **borra** el sistema Noetic actual.
 
-1. Ubuntu **Server** 24.04.x LTS arm64 (no Desktop) con Raspberry Pi Imager; usuario `sphero`, SSH y WiFi preconfigurados en los ajustes del Imager.
+1. Ubuntu **Server** 24.04.x LTS arm64 (no Desktop) con Raspberry Pi Imager; usuario `sphero`, SSH y WiFi preconfigurados en los ajustes del Imager. 🔴 SSH **por contraseña**, no «sólo clave pública»: el Pi va headless y una clave equivocada obliga a sacar la tarjeta. Toda la flota igual (rvr-01 no tiene ninguna clave instalada, medido el 2026-08-11).
 2. **Antes del primer arranque completo**, editar `/boot/firmware/cmdline.txt`: quitar `console=serial0,115200` (la imagen de Ubuntu 24.04 lo trae por defecto y roba el UART — es exactamente lo que el manual acierta en corregir). Dejar `console=tty1`.
 3. Aplicar **toda la Fase 0**. ✅ **Resuelto el 2026-07-30:** en 24.04 la configuración de arranque vive en un único `/boot/firmware/config.txt`, `usercfg.txt` y `syscfg.txt` **no existen** (Ubuntu abandonó el esquema de `pibootctl`), y las líneas nuevas necesitan cabecera `[all]`. Detalle en el manual, cap. 3.4.
 4. Instalar `ros-jazzy-ros-base` + `ros-dev-tools`. **No** `desktop` (hoy hay `desktop-full` + `desktop` + `ros-base` instalados a la vez: 236 paquetes).

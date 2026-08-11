@@ -11,8 +11,8 @@
 #
 # QUÉ RESUELVE
 #
-#   Hay tres cosas que TIENEN que estar bien antes del primer arranque, porque
-#   después ya es tarde o mucho más incómodo:
+#   Hay CUATRO cosas que TIENEN que estar bien antes del primer arranque,
+#   porque después ya es tarde o mucho más incómodo:
 #
 #     1. cmdline.txt sin `console=serial0,115200`. La imagen de Ubuntu lo trae y
 #        reserva el UART para la consola del kernel, dejándolo inservible para el
@@ -21,6 +21,11 @@
 #        (el UART bueno) a los pines GPIO14/15 donde está cableado el RVR.
 #     3. robot_id.txt con el número del robot, que es lo que lee
 #        atriz-first-boot para fijar hostname y ROS_DOMAIN_ID.
+#     4. SSH por CONTRASEÑA (ssh_pwauth en user-data). El Pi va headless y sin
+#        consola serie —se la quita el paso 1—, así que si el Imager se dejó en
+#        «solo clave pública» y la clave no es la buena, no hay forma de entrar
+#        ni de arreglarlo: hay que volver a sacar la tarjeta. Esto último no se
+#        escribe, se COMPRUEBA y se aborta: regrabar es cosa del Imager.
 #
 #   Hasta ahora esto se hacía a mano con el Bloc de notas en Windows. Para un
 #   robot es tolerable; para 15 es una fuente de errores garantizada, y de los
@@ -58,6 +63,17 @@
 #               bajo [cm4], se detecta correctamente como INACTIVO
 #             - dos ejecuciones seguidas -> una sola ocurrencia de disable-bt
 #
+#      El 2026-08-11 se añadió el paso 4/5 (SSH) y se probó igual, en seco,
+#      contra cinco particiones falsas, verificando el RESULTADO:
+#
+#        · ssh_pwauth: true            -> ✓, sigue al 5/5
+#        · ssh_pwauth: false           -> ✗ y ABORTA de verdad: salida 1 y el
+#                                         paso 5/5 no llega a imprimirse
+#        · sin ssh_pwauth              -> aviso (cloud-init lo deja activo)
+#        · con ssh_authorized_keys     -> ✓ + aviso de la imagen dorada
+#        · sin user-data               -> aviso, no falla
+#        · señuelo `password:` en las cinco -> NO aparece en la salida
+#
 #      📝 Lo que NO se ha probado: una microSD física, con su automontaje y su
 #         sistema de ficheros FAT real. Al preparar el primer clon, comprobar
 #         cada paso y corregir FLOTA.md.
@@ -83,7 +99,7 @@ avi() { printf '  %s!%s %s\n' "$AMAR" "$FIN" "$1"; }
 morir(){ mal "$1"; exit 1; }
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "0/4 · Comprobaciones previas"
+say "0/5 · Comprobaciones previas"
 
 [[ -n "$ID" ]] || morir "falta --id NN. Ejemplo: sudo bash $0 --id 07"
 [[ "$ID" =~ ^[0-9]{1,2}$ ]] || morir "--id debe ser un número de 1 o 2 cifras, no '$ID'"
@@ -124,7 +140,7 @@ respalda() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "1/4 · cmdline.txt — liberar el puerto serie"
+say "1/5 · cmdline.txt — liberar el puerto serie"
 
 CMD="$PART/cmdline.txt"
 if grep -q 'console=serial' "$CMD"; then
@@ -175,7 +191,7 @@ LINEAS=$(wc -l < "$CMD")
 (( LINEAS <= 1 )) || mal "cmdline.txt tiene $LINEAS saltos de línea. DEBE ser una sola línea."
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "2/4 · config.txt — dar el PL011 al RVR"
+say "2/5 · config.txt — dar el PL011 al RVR"
 
 CFG="$PART/config.txt"
 
@@ -229,7 +245,7 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "3/4 · robot_id.txt — la identidad de este robot"
+say "3/5 · robot_id.txt — la identidad de este robot"
 
 RID="$PART/robot_id.txt"
 if [[ -f "$RID" ]]; then
@@ -253,7 +269,38 @@ fi
 ok "ROBOT_ID=$ID2  ->  rvr-$ID2 · ROS_DOMAIN_ID=$ID_NUM · /rvr_$ID2"
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "4/4 · Resumen y siguiente paso"
+say "4/5 · SSH — que se pueda entrar por contraseña"
+# 🔴 El Pi va headless: sin teclado, sin pantalla y sin consola serie (se la
+#    acabamos de quitar en el paso 1/5). Si el Imager se marcó con «permitir
+#    solo autenticación por clave pública» y esa clave no es la del PC desde el
+#    que se entra, NO HAY forma de arreglarlo desde el robot: hay que volver a
+#    sacar la tarjeta. Aquí todavía está puesta, así que aquí es gratis.
+#    Toda la flota va por contraseña; rvr-01 medido el 2026-08-11 no tiene
+#    ninguna clave instalada (~/.ssh/authorized_keys de 0 bytes).
+# ⚠️ user-data lleva el hash de la contraseña y la PSK del WiFi. Se comprueba
+#    la PRESENCIA de dos claves y no se imprime ni una línea de su contenido.
+UD="$PART/user-data"
+if [[ ! -f "$UD" ]]; then
+    avi "no hay user-data en la tarjeta: no puedo comprobar el SSH desde aquí"
+    avi "  compruébalo tú: el Imager debe quedar en «usar contraseña para autenticar»"
+else
+    _pw="$(grep -oiE '^[[:space:]]*ssh_pwauth[[:space:]]*:[[:space:]]*(true|false|yes|no|0|1)' "$UD" \
+           | grep -oiE '(true|false|yes|no|0|1)$' | tail -1 | tr 'A-Z' 'a-z')"
+    case "$_pw" in
+        true|yes|1) ok "ssh_pwauth activo: se podrá entrar con la contraseña de sphero" ;;
+        false|no|0) mal "ssh_pwauth DESACTIVADO en user-data: el robot arrancará sin acceso por contraseña"
+                    mal "  vuelve al Imager y regraba con «usar contraseña para autenticar»"
+                    morir "SSH por clave pública en un robot headless: se quedaría inaccesible" ;;
+        *)          avi "ssh_pwauth no aparece en user-data (cloud-init lo deja activo por defecto)" ;;
+    esac
+    if grep -qiE '^[[:space:]]*ssh_authorized_keys' "$UD"; then
+        avi "el Imager metió claves públicas en user-data. No estorban SI ssh_pwauth sigue activo,"
+        avi "  pero NO las heredes a la imagen dorada: authorized_keys se clona tal cual y abriría los 16"
+    fi
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+say "5/5 · Resumen y siguiente paso"
 
 if [[ $SIMULAR -eq 1 ]]; then
     avi "no se ha escrito nada (--simular). Repite sin --simular para aplicarlo."

@@ -1148,6 +1148,26 @@ fi
 # encuentre a 16 robots sin saberse ninguna IP. Manual, cap. 19.
 sec "12. Red de la flota — cómo la web encuentra a este robot"
 
+# --- El acceso por SSH: contraseña, y sin claves heredadas -------------------
+# 🔴 El Pi va headless. Si el Imager se marcó con «permitir sólo autenticación
+#    por clave pública» y esa clave no es la del PC desde el que se entra, no
+#    hay teclado ni pantalla con los que arreglarlo: hay que sacar la tarjeta.
+#    Toda la flota va por contraseña — rvr-01 medido el 2026-08-11.
+_pwauth=$(grep -rhiE '^[[:space:]]*PasswordAuthentication[[:space:]]+' \
+          /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null | tail -1 | awk '{print tolower($2)}')
+if [[ -z $_pwauth ]]; then
+    _ok "SSH por contraseña (PasswordAuthentication sin fijar = yes por defecto)"
+elif [[ $_pwauth == yes ]]; then
+    _ok "SSH por contraseña (PasswordAuthentication yes)"
+else
+    _mal "SSH por contraseña DESACTIVADO (PasswordAuthentication $_pwauth): headless, sin clave válida no se entra" \
+         "sudo sed -i 's/^[[:space:]]*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config && sudo systemctl restart ssh"
+fi
+
+# 📌 authorized_keys tiene su propia comprobación más abajo («El canal con el
+#    PC»), con las dos consecuencias que tiene: el canal automático y la imagen
+#    dorada. No se duplica aquí.
+
 # --- mDNS -------------------------------------------------------------------
 # 🔴 `fase_1_higiene_so.sh` DESHABILITABA avahi como parte de la higiene, mientras
 #    el manual decía «usa ping rvr-NN.local». Se corrigió; esto vigila que no
@@ -1859,11 +1879,20 @@ fi
 #    automatizado (`ssh rvr-01 …` desde un script o desde el Claude del PC) NO
 #    falla: se queda colgado esperando una contraseña que nadie va a escribir.
 #    Es aviso y no fallo porque un robot de la flota puede no necesitarlo.
-if [[ -s "$HOME/.ssh/authorized_keys" ]]; then
-    _ok "SSH por clave publica: $(grep -c '^ssh-' "$HOME/.ssh/authorized_keys" 2>/dev/null || echo 0) clave(s) autorizada(s)"
+#
+# 📌 Y tiene una SEGUNDA consecuencia, del lado de la flota (2026-08-11): las
+#    claves de HOST se regeneran en el primer arranque de la imagen dorada,
+#    pero authorized_keys NO — se clona tal cual. Una clave que esté aquí
+#    cuando se saque la imagen abre los 16 robots. Por eso ninguno de los dos
+#    estados es «correcto» a secas: cada uno tiene su pega y se dice cuál.
+_NAK=$(grep -cvE '^[[:space:]]*(#|$)' "$HOME/.ssh/authorized_keys" 2>/dev/null || echo 0)
+if [[ $_NAK -gt 0 ]]; then
+    _ok  "SSH por clave pública: $_NAK clave(s) autorizada(s) — el canal automático funciona"
+    _avi "…y esas $_NAK clave(s) se clonarían a la imagen dorada: abrirían los 16 robots" \
+         "comprueba que son tuyas, y vacía authorized_keys antes de sacar la imagen (fase_6)"
 else
     _avi "~/.ssh/authorized_keys vacío: el acceso es por contraseña" \
-         "un canal automático se colgaría esperándola · ssh-copy-id desde el PC"
+         "un canal automático se colgaría esperándola · ssh-copy-id desde el PC. Para la imagen dorada, vacío es LO CORRECTO"
 fi
 
 # 🔴 mDNS puede publicar una dirección INALCANZABLE, y devolverla la primera.
