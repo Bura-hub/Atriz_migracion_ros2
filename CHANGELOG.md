@@ -34,6 +34,42 @@ para los 16.
 - **`verificar_robot.sh`:** comprueba el `PasswordAuthentication` efectivo y **falla** si está en
   `no`.
 
+### 🆕 El sistema de infrarrojos, rehecho entero
+
+👤 «haz el rediseño completo ahora», después de probar el IR con dos robots por primera vez —
+hasta el 2026-08-10 solo había uno y esto no se podía ni intentar.
+
+**Lo que la prueba destapó, y por qué el rediseño no era pulir sino corregir una premisa:**
+
+- El firmware **sí** entrega la notificación IR. Payload real: `{'infrared_code': 3}`, **una sola
+  clave**. Los cuatro `*_strength` de `InfraredMessage.msg` **eran ficción** — son parámetros del
+  envío, no llegan nunca en la recepción.
+- **El IR de ROS 1 nunca recibió un solo mensaje.** Su handler leía
+  `datos['InfraredMessage']['Code']`: `KeyError` en la primera línea. Y su `/ir_messages` se
+  anunciaba y **nunca se publicaba**. Así que *«ROS 1 publicaba los dos topics con los mismos
+  datos»*, que está en el driver y en este mismo fichero, **es falso**.
+- Su `evading` llamaba a `infrared_control.start_infrared_evading()`, **un método que no existe**.
+- Y ROS 2 había **perdido** la validación de rangos que ROS 1 sí tenía.
+
+**Diseño** (`docs/superpowers/specs/2026-08-11-sistema-ir-robot-a-robot-design.md`): evento y
+estado separados, como ya hace `/estado_robot`. `/infrared_messages` para el evento, `/estado_ir`
+a 1 Hz para el estado.
+
+🔴 **Lo que más valor tiene: `conduciendo_por_ir`.** `get_active_control_system_id()` devuelve 8
+mientras el firmware conduce el robot por IR — y hasta ahora, con `following` activo, **nada en ROS
+sabía que el robot se estaba moviendo**: no pasa por `cmd_vel`, así que ni el watchdog ni el
+`collision_monitor` lo ven.
+
+🔴 **Y la garantía nº 8 de la biblioteca del alumno:** `secuencia_de_cierre` pasa de tres pasos a
+cuatro, y `apagar_ir` va **el primero**. Parar antes dejaría al robot arrancando otra vez en la
+siguiente detección — el mismo fallo que ya mordió a la parada de emergencia. Sin eso, **un Ctrl-C
+deja un robot conduciendo por el aula**. 77 tests en verde, tres nuevos que provocan el fallo.
+
+📌 **Y una corrección que salió del usuario:** «el robot no es BOLT, es Sphero RVR». La máscara que
+asignaría cada sensor a una esquina está documentada **para el BOLT**. Por eso los campos se llaman
+`sensor_0..3` y por eso `EstadoIR` lleva el `uint32` **crudo**: si parto mal los bytes, la
+evidencia sobrevive. ⏳ La prueba de viabilidad que los bautiza está escrita y es **física**.
+
 ### ✅ rvr-02 PASA el verificador: 151 ✓ · 6 avisos · 0 fallos
 
 El primer pase dio 4 fallos y **los cuatro eran el mismo hueco**: ningún guion del proyecto metía
