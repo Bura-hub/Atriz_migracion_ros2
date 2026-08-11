@@ -72,7 +72,12 @@ Antes de afirmar que X causa Y, aísla X.
 
 Ni contraseñas, ni claves, ni la PSK del WiFi. La credencial del usuario `sphero` **ya está
 expuesta** en `Atriz_web_server` público y debe rotarse. `MANUAL_SPHERO_original.docx` la
-contiene: por eso este repositorio es **privado**.
+contiene.
+
+🔴 **Aquí ponía «por eso este repositorio es privado». Ya NO lo es.** 👤 El 2026-08-11 el usuario
+puso `Atriz_migracion_ros2` y `Atriz_rvr` en público a propósito, para no repartir un PAT en 16
+microSD (medido ese día: los dos clonan sin credencial; `atriz-lab` sigue privado). El `.docx`
+sigue versionado en `02_manual/`. **No des por privado nada de este repositorio.**
 
 🔴 **Y el 2026-08-02 apareció un SEGUNDO caso, en `Atriz_rvr` (público, rama `ros2`), otro
 fichero y otras dos credenciales:** la PSK del WiFi del laboratorio y la contraseña del usuario
@@ -2505,12 +2510,23 @@ cat /proc/device-tree/aliases/uart0 # ¿está el PL011 en GPIO14/15?
 
 ### Antes de subir nada: comprueba que PUEDES subir
 
-En un sistema recién instalado no hay credenciales de git, y el repositorio es privado.
-`git fetch` falla con `could not read Username` y los commits se quedan solo en la tarjeta —
-exactamente el riesgo que este proyecto ya sufrió con un stash.
+En un sistema recién instalado no hay credenciales de git, y los commits se quedan solo en la
+tarjeta — exactamente el riesgo que este proyecto ya sufrió con un stash.
+
+🔴 **El control que había aquí dejó de servir el 2026-08-11.** Era:
 
 ```bash
-git -C ~/atriz_migracion fetch origin && echo "OK: hay credenciales"
+git -C ~/atriz_migracion fetch origin && echo "OK: hay credenciales"   # ← YA NO PRUEBA NADA
+```
+
+y se apoyaba en que el repositorio fuera privado. Desde que es **público**, `git fetch` funciona
+**anónimo**: el control pasa siempre, tengas credenciales o no. Es otra comprobación que no puede
+fallar, el patrón que este proyecto persigue en todas partes.
+
+**Lo que sí lo prueba es un `push`, porque escribir siempre exige autenticación:**
+
+```bash
+git -C ~/atriz_migracion push --dry-run origin HEAD && echo "OK: SÍ puedo subir"
 ```
 
 Si falla, es la persona quien lo arregla (el token es un secreto, no se pone en el repo ni se
@@ -2518,8 +2534,11 @@ teclea en un comando que quede en el historial):
 
 ```bash
 git config --global credential.helper 'store --file ~/.git-credentials'
-cd ~/atriz_migracion && git fetch origin   # Username: Bura-hub · Password: el PAT
+cd ~/atriz_migracion && git push --dry-run origin HEAD   # Username: Bura-hub · Password: el PAT
 chmod 600 ~/.git-credentials
 ```
+
+📌 Para **clonar** no hace falta nada: `Atriz_migracion_ros2` y `Atriz_rvr` son públicos. El PAT
+solo hace falta para **subir**, y solo en el robot desde el que se suba.
 
 `fase_0_3_respaldo.sh` respalda `~/.git-credentials` desde el 2026-07-30, para no repetirlo.

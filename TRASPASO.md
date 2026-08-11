@@ -1508,13 +1508,18 @@ for r in ~/atriz_ws/src/Atriz_rvr ~/atriz_migracion; do
 done
 ```
 
-🔴 **Y comprueba que PUEDES subir.** En un sistema recién instalado no hay credenciales y el
-repositorio es privado: `git fetch` falla con `could not read Username`, así que los commits se
-quedan solo en la tarjeta. Pasó el 2026-07-30 — ver `CLAUDE.md`, «Antes de subir nada».
+🔴 **Y comprueba que PUEDES subir.** En un sistema recién instalado no hay credenciales, así que
+los commits se quedan solo en la tarjeta. Pasó el 2026-07-30 — ver `CLAUDE.md`, «Antes de subir
+nada».
 
 ```bash
-git -C ~/atriz_migracion fetch origin && echo "OK: hay credenciales"
+git -C ~/atriz_migracion push --dry-run origin HEAD && echo "OK: SÍ puedo subir"
 ```
+
+⚠️ **Corregido el 2026-08-11.** Aquí ponía *«el repositorio es privado: `git fetch` falla con
+`could not read Username`»* y el comando era `git fetch origin`. Desde que el repositorio es
+**público**, `git fetch` va **anónimo** y ese control pasa siempre — daba una falsa confirmación
+de que podías subir. Solo escribir exige autenticación, de ahí el `push --dry-run`.
 
 ### Reinstalar con ayuda de un agente
 

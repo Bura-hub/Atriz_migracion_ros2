@@ -34,6 +34,43 @@ para los 16.
 - **`verificar_robot.sh`:** comprueba el `PasswordAuthentication` efectivo y **falla** si está en
   `no`.
 
+### Tarde: rvr-02 desde la tarjeta en blanco, y lo que arrastró el repositorio público
+
+Paso a paso completo en `00_auditoria/evidencia/98_rvr02_de_la_tarjeta_en_blanco.txt`.
+
+**`preparar_tarjeta.sh` deja de estar 🟡 «probado en seco»** —lo estaba desde el 2026-07-30— y pasa
+a ✅ verificado sobre hardware real. Lo que lo cierra no es la salida del guion, sino lo que dijo
+el robot ya arrancado: `soc/serial@7e215040/status → disabled` y `aliases/serial0 → PL011`. El
+`console=serial` quitado y el `dtoverlay=disable-bt` bajo `[all]` **surtieron efecto en la placa**,
+que es la única prueba posible de que la trampa de la cabecera `[all]` se esquivó. Actualizadas las
+tres menciones del estado, no solo la del guion.
+
+**Y un fallo del guion que salió en la primera pasada en seco:** imprimía `✓ quitado
+console=serial*` y dos líneas más abajo enseñaba el fichero con `console=serial0,115200` todavía
+puesto. En `--simular` se salta la escritura (correcto) pero el ✓ se imprimía igual y en pasado, y
+el `contenido:` hacía `cat` del fichero sin tocar. El único modo cuyo propósito es ver el efecto por
+adelantado afirmaba lo que no había hecho. Arreglado con prefijos `SE HARÍA →` / `HECHO →` y con dos
+controles del efecto que no existían.
+
+**Windows/WSL**, que `FLOTA.md` no contemplaba: Docker Desktop secuestra `wsl` (su distro es la
+predeterminada, se reconoce por `/mnt/host/c/` y `sudo: not found`), y `wsl --install -d Ubuntu`
+falla con `ERROR_ALREADY_EXISTS` si Ubuntu ya está aunque figure `Stopped`.
+
+**Los repositorios son públicos** —👤 decisión del usuario, para no repartir un PAT en 16 microSD—
+y eso arrastra tres cosas:
+
+- ✅ **Decae el bloqueante nº 1 de la Fase 6**: `~/.git-credentials` ya no tiene que viajar en la
+  imagen dorada. Retirado del paso 5 de `FLOTA.md`, que lo pedía explícitamente.
+- 🔴 **El control de «comprueba que PUEDES subir» dejó de servir.** Era `git fetch origin && echo
+  "OK: hay credenciales"`, en `CLAUDE.md`, `TRASPASO.md` e `INSTALACION.md`. Con el repositorio
+  público, `fetch` va anónimo y **pasa siempre**. Sustituido por `git push --dry-run origin HEAD`,
+  porque escribir sí exige autenticación. Clonar no necesita PAT; subir, sí.
+- 🔴 **`MANUAL_SPHERO_original.docx` sigue versionado con la contraseña en texto plano**, y se
+  conservaba justificándolo con «por eso este repositorio es privado» —frase que estaba en
+  `README.md` y `CLAUDE.md`, y que ya es falsa—. Corregidas las dos; el fichero sigue ahí,
+  👤 decisión del usuario. Esa contraseña ya se daba por comprometida (`Atriz_web_server`, público),
+  así que es una fuente más, no una fuga nueva.
+
 ### Y un duplicado que casi se cuela
 
 La primera versión añadía **una segunda** comprobación de `authorized_keys` en `verificar_robot.sh`

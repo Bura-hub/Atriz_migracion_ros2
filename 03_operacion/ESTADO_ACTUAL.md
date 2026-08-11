@@ -64,6 +64,44 @@ existía en `verificar_robot.sh` por otro motivo (un canal automático se cuelga
 contraseña); hoy se le ha añadido esta segunda consecuencia en vez de meter una comprobación
 duplicada que decía lo contrario.
 
+### ✅ Dónde va rvr-02 al cierre de la tarde (paso a paso completo en evidencia 98)
+
+| paso | estado |
+|---|---|
+| 1 · Grabar con el Imager | ✅ Ubuntu Server 24.04.4, SSH **por contraseña** |
+| 1-bis · WSL en el PC Windows | ✅ y con dos trampas nuevas documentadas en `FLOTA.md` |
+| 2 · `preparar_tarjeta.sh --id 02` | ✅ y **el guion deja de estar «probado en seco»** |
+| 3 · `red.txt` | ⏳ **aplazado a propósito** — se cierra en el paso 6-bis |
+| 4 · Arranque + SSH + UART | ✅ mini-UART `disabled`, `serial0 → PL011` |
+| 5 · Clonar | ✅ sin credenciales |
+| 6 · `provision.sh` | 🔄 **corriendo ahora**, en `tmux`, con `tee ~/provision-rvr02.log` |
+
+🔴 **`preparar_tarjeta.sh` ya NO es 🟡.** Verificado sobre hardware real, y lo que lo cierra no es
+la salida del guion sino lo que dijo el robot arrancado: `soc/serial@7e215040/status → disabled` y
+`aliases/serial0 → /soc/serial@7e201000`. O sea que el `console=serial` quitado y el
+`dtoverlay=disable-bt` bajo `[all]` **surtieron efecto en la placa** — la única prueba posible de
+que la trampa de la cabecera `[all]` se esquivó. Actualizado en las tres menciones.
+
+### 🔴 Y DOS COSAS QUE TE AFECTAN, PC, POR LO DE LOS REPOSITORIOS PÚBLICOS
+
+**1 · El control de «comprueba que PUEDES subir» dejó de funcionar.** Estaba en `CLAUDE.md`,
+`TRASPASO.md` e `INSTALACION.md`, y era:
+
+```bash
+git -C ~/atriz_migracion fetch origin && echo "OK: hay credenciales"    # ← YA NO PRUEBA NADA
+```
+
+Se apoyaba en que el repositorio fuera privado. Con el repositorio **público**, `git fetch` va
+**anónimo** y el control **pasa siempre, tengas credenciales o no**. Otra comprobación que no puede
+fallar. Sustituido en los tres por `git push --dry-run origin HEAD`, porque **escribir** sí exige
+autenticación. 📌 Resumen: **clonar no necesita PAT; subir, sí.**
+
+**2 · `MANUAL_SPHERO_original.docx` sigue versionado y lleva la contraseña en texto plano.** Se
+conservaba justificándolo con «por eso este repositorio es privado». Esa frase estaba en
+`README.md` y en `CLAUDE.md`, y ya es falsa: corregidas las dos. El fichero sigue ahí.
+👤 Decisión pendiente del usuario. 📌 Sin dramatizar: esa contraseña **ya se daba por comprometida**
+—está en `Atriz_web_server`, público, desde antes— así que hay una fuente más, no una fuga nueva.
+
 ---
 
 ## ~~🆕🆕 2026-08-10~~ · **HAY UN SEGUNDO ROBOT, Y `provision.sh` SE ESTÁ EJECUTANDO DE VERDAD**

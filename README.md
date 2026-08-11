@@ -178,9 +178,20 @@ Resumidos del [informe completo](00_auditoria/INFORME_AUDITORIA.md):
 
 - **Ninguna credencial en texto plano** en los ficheros de este repositorio.
   La contraseña del manual aparece redactada como `«CONTRASEÑA»`.
-- ⚠️ **`MANUAL_SPHERO_original.docx` sí la contiene** (es una copia intacta, y es
-  el procedimiento de reversión). Por eso **este repositorio es privado** —
-  confirmado el 2026-07-30: `git ls-remote` sin credenciales es rechazado.
+- 🔴 **`MANUAL_SPHERO_original.docx` sí la contiene** (es una copia intacta, y es
+  el procedimiento de reversión), y **está versionado**: `02_manual/`, desde el
+  commit `f714a74`.
+  - Aquí ponía: *«Por eso **este repositorio es privado** — confirmado el
+    2026-07-30: `git ls-remote` sin credenciales es rechazado»*. **Esa premisa
+    dejó de ser cierta el 2026-08-11**, cuando 👤 el usuario puso el repositorio
+    en **público** a propósito, para no repartir un PAT en 16 microSD. Medido
+    ese día: `git ls-remote` **sin credenciales funciona**.
+  - O sea que **el fichero que justificaba la privacidad sigue aquí y la
+    privacidad ya no**. 👤 Decisión pendiente del usuario: sacar el `.docx` del
+    repositorio (y del historial), volver a privado, o asumirlo.
+  - 📌 Para no exagerarlo: esa contraseña **ya se daba por comprometida** antes
+    de esto —está en `Atriz_web_server`, público— así que lo que cambia es que
+    hay una fuente más, no que se filtre algo que estuviera a salvo.
 - 🔴 **La credencial del usuario `sphero` está expuesta** en el repositorio público
   `Atriz_web_server` (`swarm_lab_api/app/core/raspberry_config.py`) y **debe considerarse
   comprometida**. Ver §5.1 del plan.
@@ -194,6 +205,10 @@ Resumidos del [informe completo](00_auditoria/INFORME_AUDITORIA.md):
 - ⚠️ **No metas el token de GitHub en el repositorio.** Va en `~/.git-credentials` con
   permisos `600`, y `.gitignore` lo excluye explícitamente junto a `*.token` y
   `authorized_keys`.
+  - 📌 Desde el 2026-08-11 **el token solo hace falta para SUBIR**: `Atriz_migracion_ros2` y
+    `Atriz_rvr` son públicos y se clonan sin credencial. O sea que solo debe existir
+    `~/.git-credentials` en la máquina desde la que se publica, **no en los 16 robots** — que era
+    justo el bloqueante nº 1 de la Fase 6.
 - ⚠️ La credencial **ya está expuesta** en el repositorio público
   `Atriz_web_server` (`swarm_lab_api/app/core/raspberry_config.py`).
   **Debe considerarse comprometida y rotarse.** Ver §5.1 del plan.

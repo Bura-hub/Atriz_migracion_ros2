@@ -371,17 +371,21 @@ sudo apt install -y iw                  # no viene, y el cap. 4 lo necesita
 cat /var/run/reboot-required.pkgs 2>/dev/null    # ¿qué paquete pide reinicio?
 ```
 
-**(b) Credenciales de git.** El repositorio es privado y un sistema recién instalado **no
-tiene credenciales**: `git fetch` falla con `could not read Username` y todo lo que commitees
-se queda solo en la tarjeta. 👤 Lo hace la persona, porque el token es un secreto:
+**(b) Credenciales de git.** Un sistema recién instalado **no tiene credenciales**, y todo lo que
+commitees se queda solo en la tarjeta. 👤 Lo hace la persona, porque el token es un secreto:
 
 ```bash
 git config --global credential.helper 'store --file ~/.git-credentials'
-cd ~/atriz_migracion && git fetch origin    # Username: Bura-hub · Password: el PAT
+cd ~/atriz_migracion && git push --dry-run origin HEAD   # Username: Bura-hub · Password: el PAT
 chmod 600 ~/.git-credentials
 git config --global user.name  "Tu Nombre"
 git config --global user.email "tu@correo"  # sin esto, git no deja commitear
 ```
+
+🔴 **Corregido el 2026-08-11:** aquí ponía *«el repositorio es privado … `git fetch` falla con
+`could not read Username`»*, y el comando de prueba era `git fetch`. Desde que el repositorio es
+**público**, `git fetch` funciona **anónimo** y ya no prueba nada. Solo **escribir** exige
+autenticación, de ahí el `push --dry-run`. **Clonar no necesita PAT; subir, sí.**
 
 ⚠️ **No pegues los tres comandos de golpe.** Si `git fetch` pide usuario, se comerá la línea
 siguiente como respuesta. Uno a uno.
