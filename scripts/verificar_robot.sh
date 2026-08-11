@@ -1470,6 +1470,38 @@ RUIDO="$(journalctl -u atriz-robot --since '-2 min' --no-pager 2>/dev/null \
     || _mal "el journal se está inundando: $RUIDO errores en 2 min" \
             "¿se recompiló el ydlidar tras parchearlo?"
 
+# --- El sistema de infrarrojos (AÑADIDO 2026-08-11) --------------------------
+# 🔴 Este guion comprobaba que los TRES servicios IR RESPONDIERAN, y nada más.
+#    Eso no dice si el IR sirve: el 2026-08-11 se midió que `/infrared_messages`
+#    publicaba `code=0` SIEMPRE —clave equivocada— con los tres servicios
+#    contestando `success=True` tan contentos. Comprobar el efecto, no la lista.
+#
+# 🔴 Y NO basta `ros2 topic list`: el daemon conserva topics de nodos ya muertos
+#    (falso positivo del 2026-07-31). Se exige que el driver esté vivo Y que el
+#    topic ENTREGUE un mensaje.
+if ps -eo comm | grep -qx 'rvr_driver_node'; then
+    # /estado_ir va a 1 Hz: con 6 s de margen sobra, y si no llega es que el
+    # sondeo está apagado o el driver es viejo.
+    if timeout 8 ros2 topic echo /estado_ir --once >/dev/null 2>&1; then
+        _ok "/estado_ir publica (sensores IR, modo, y si el robot conduce solo)"
+    else
+        _mal "/estado_ir NO publica" \
+             "es del driver desde el 2026-08-11 · recompila y reinicia atriz-robot · si es aposta: ir_sondeo_hz"
+    fi
+
+    # ⚠️ `/infrared_messages` NO SE PUEDE COMPROBAR CON UN SOLO ROBOT: solo
+    #    publica cuando OTRO emite. Se comprueba lo único que se puede saber
+    #    aquí —que el publicador exista— y se DICE que lo demás no se sabe, en
+    #    vez de fingir que se ha comprobado.
+    if timeout 6 ros2 topic info /infrared_messages 2>/dev/null | grep -q 'Publisher count: [1-9]'; then
+        _ok "/infrared_messages tiene publicador (el driver escucha el IR)"
+        _nota "que LLEGUEN mensajes NO se comprueba aquí: hace falta otro robot emitiendo · 00_auditoria/evidencia/mediciones_banco/medir_ir_dos_robots.py"
+    else
+        _mal "/infrared_messages sin publicador" \
+             "es del driver desde el 2026-08-11 · recompila y reinicia atriz-robot"
+    fi
+fi
+
 # --- La lista blanca de rosbridge ---------------------------------------------
 # 🔴 `SEGURIDAD_ROSBRIDGE.md` prometia esta comprobacion «en tres sitios: una
 #    herramienta de banco, verificar_robot.sh, y F8». Estaban dos de tres: AQUI

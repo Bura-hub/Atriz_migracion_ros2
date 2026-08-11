@@ -33,6 +33,7 @@ def _rastro_de_cierre(parar):
     """Corre la secuencia real anotando que pasos se llegaron a ejecutar."""
     rastro = []
     secuencia_de_cierre(
+        apagar_ir=lambda: rastro.append('ir_off'),
         parar=parar,
         apagar_barrido=lambda: rastro.append('/stop_scan'),
         desmontar=lambda: rastro.append('desmontar'),
@@ -102,11 +103,57 @@ def test_los_recursos_se_sueltan_aunque_falle_el_apagado_del_barrido():
     """El tercer paso cuelga del `finally` del segundo, no del mismo `try`."""
     pasos = []
     secuencia_de_cierre(
+        apagar_ir=lambda: pasos.append('ir_off'),
         parar=lambda: pasos.append('parar'),
         apagar_barrido=lambda: (_ for _ in ()).throw(RuntimeError('sin driver')),
         desmontar=lambda: pasos.append('desmontar'),
         avisar=lambda _m: None)
-    assert pasos == ['parar', 'desmontar']
+    assert pasos == ['ir_off', 'parar', 'desmontar']
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Y LOS MODOS IR SE APAGAN PASE LO QUE PASE — 2026-08-11
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔴 `following` y `evading` son modos del FIRMWARE: el robot conduce sin que
+#    nadie le mande cmd_vel, asi que ni el watchdog ni el collision_monitor lo
+#    ven. Un Ctrl-C que no los apague deja un robot conduciendo por el aula.
+
+def test_los_modos_ir_se_apagan_ANTES_de_parar_los_motores():
+    """🔴 EL ORDEN ES PARTE DEL ARREGLO, no estetica.
+
+    Si se parara primero, el robot frenaria un instante y volveria a arrancar
+    en la siguiente deteccion IR — el modo lo lleva el firmware, no ROS. Es
+    exactamente el fallo que ya mordio a la parada de emergencia.
+    """
+    pasos = []
+    secuencia_de_cierre(
+        apagar_ir=lambda: pasos.append('ir_off'),
+        parar=lambda: pasos.append('parar'),
+        apagar_barrido=lambda: pasos.append('/stop_scan'),
+        desmontar=lambda: pasos.append('desmontar'),
+        avisar=lambda _m: None)
+    assert pasos == ['ir_off', 'parar', '/stop_scan', 'desmontar']
+    assert pasos.index('ir_off') < pasos.index('parar')
+
+
+def test_todo_lo_demas_sigue_si_el_apagado_del_IR_lanza_SystemExit():
+    """El segundo Ctrl-C, ahora entrando por el paso nuevo: es el PRIMERO de la
+    cadena, asi que si se lo llevara por delante no se apagaria el barrido ni se
+    soltarian los recursos. `SystemExit` NO es `Exception`."""
+    pasos = []
+    secuencia_de_cierre(
+        apagar_ir=lambda: (_ for _ in ()).throw(SystemExit(130)),
+        parar=lambda: pasos.append('parar'),
+        apagar_barrido=lambda: pasos.append('/stop_scan'),
+        desmontar=lambda: pasos.append('desmontar'),
+        avisar=lambda _m: None)
+    assert pasos == ['parar', '/stop_scan', 'desmontar']
+
+
+def test_el_IR_se_apaga_aunque_el_paso_de_parar_reviente():
+    """Al reves: el IR ya se apago antes de que `parar()` fallara."""
+    assert 'ir_off' in _rastro_de_cierre(
+        lambda: (_ for _ in ()).throw(RuntimeError('publisher invalido')))
 
 
 def test_se_capturan_TODAS_las_senales_de_fin_que_se_pueden_capturar():
