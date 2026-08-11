@@ -34,6 +34,50 @@ para los 16.
 - **`verificar_robot.sh`:** comprueba el `PasswordAuthentication` efectivo y **falla** si está en
   `no`.
 
+### 🔴🔴 Y lo grande: **`provision.sh` se ha ejecutado ENTERO por primera vez**
+
+Era, textualmente, «la suposición más peligrosa que le queda al proyecto»: el guion del que sale
+la imagen dorada de los 16 robots solo se había probado con `--simular`, que convierte en
+no-operación justo lo que instala. **96 ✓ · 16 avisos · 0 fallos**, sobre un 24.04 limpio.
+
+**No a la primera.** La primera pasada tiró los dos últimos pasos, y con **el mismo fallo del
+2026-08-10** — o sea reproducible, que es exactamente para lo que servía tener un segundo robot.
+
+La causa, escondida a plena vista en `provision.sh:244`:
+
+```
+drwxr-xr-x root:root  ~/atriz_ws        ← el padre
+drwxr-xr-x sphero     ~/atriz_ws/src    ← el hijo
+```
+
+`install -d -o sphero -g sphero .../atriz_ws/src` **no aplica `-o`/`-g` a los padres que crea de
+paso**. El manual de coreutils: *«Parent directories are created with mode `u=rwx,go=rx` (755),
+regardless of the `-m` option»… «giving them the default attributes»*. Con `sudo`, «por defecto»
+es root. Después `colcon build` corre como el usuario y muere con `Permission denied: 'log'`, y de
+rebote `fase_7` se niega porque el workspace no compiló. **Dos de los nueve pasos caídos por el
+dueño de un directorio.**
+
+Cuatro arreglos, todos en el guion y ninguno a mano: nombrar los dos directorios; reparar lo ya
+creado con `chown -R` (sin eso, «idempotente» no serviría, porque la primera víctima es un robot
+que ya existe); dejar de mandar la salida de `colcon build` a `/dev/null` —el único paso que falló
+había borrado su propia evidencia, 9.075 líneas para decir «✗ colcon build falló»—; y que
+**`verificar_robot.sh` vigile el dueño del workspace, que no vigilaba nadie**.
+
+🔴 **Una conclusión anterior retirada, y es la que costó el día:** el 2026-08-10 quedó escrito
+«✅ Descartado que lo cause el guion — crea el workspace con el dueño correcto». Era exactamente al
+revés. Se descartó **leyendo el código**, que dice `install -d -o "$USUARIO"` y suena bien, en vez
+de mirar el directorio, que decía `root`. Aplicada a un guion, la regla *«comprueba el efecto, no
+el código de salida»* significa que **mirar el fuente es mirar el código de salida**.
+
+✅ **Y de propina se cierra el ⏳ del `ID_PATH` del LIDAR**, abierto desde el 2026-08-04 y la última
+incógnita grande antes de la imagen dorada: el puerto USB da el **mismo `ID_PATH` en otro Pi**.
+`provision.sh` lo comprobó solo (`✓ /dev/ydlidar existe: la regla CASA en este robot`), y el robot
+tiene `/dev/ydlidar → ttyUSB0` y `/dev/rvr → ttyAMA0`. La regla udev es clonable tal cual.
+
+Actualizadas **todas** las menciones al estado de `provision.sh`, no la primera: `README.md` (×2),
+`scripts/README.md`, `CLAUDE.md`, `TRASPASO.md` (×2), `INSTALACION.md` y `FLOTA.md` (×2 para el
+`ID_PATH`).
+
 ### Tarde: rvr-02 desde la tarjeta en blanco, y lo que arrastró el repositorio público
 
 Paso a paso completo en `00_auditoria/evidencia/98_rvr02_de_la_tarjeta_en_blanco.txt`.

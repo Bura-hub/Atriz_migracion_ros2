@@ -2485,9 +2485,18 @@ Su regla es **comprobar el efecto, no la intención**. Si añades comprobaciones
 **La imagen dorada es el atajo; `provision.sh` es la verdad.** Si divergen, gana el script y se
 reconstruye la imagen. Procedimiento completo en `03_operacion/FLOTA.md`.
 
-> 🔴 **Y esa regla supone que el script funciona — eso NO está comprobado.**
-> `provision.sh` **nunca se ha ejecutado de principio a fin** sobre un 24.04 limpio: exigiría
-> reflashear rvr-01, el único robot montado, y el usuario decidió no hacerlo (2026-07-31).
+> ✅ **COMPROBADO el 2026-08-11 con rvr-02: `provision.sh` se ha ejecutado ENTERO**, sobre un
+> Ubuntu Server 24.04 limpio, y termina con **96 ✓ · 16 avisos · 0 fallos**. Dejó de ser
+> «la suposición más peligrosa que le queda al proyecto». Evidencia 98.
+>
+> 🔴 Pero no a la primera: la primera pasada tiró los dos últimos pasos con **el mismo fallo del
+> 2026-08-10**, o sea reproducible. Causa: `install -d -o usuario .../atriz_ws/src` deja el
+> **padre** `atriz_ws` de root —coreutils da a los padres los atributos por defecto, no los
+> pedidos— y `colcon build`, que corre como el usuario, muere con `Permission denied: 'log'`.
+> Arreglado en el guion, no a mano.
+>
+> Texto anterior: *«nunca se ha ejecutado de principio a fin sobre un 24.04 limpio: exigiría
+> reflashear rvr-01, el único robot montado, y el usuario decidió no hacerlo (2026-07-31)»*.
 >
 > Lo que sí está verificado: sintaxis, una pasada completa con `--simular` (código 0), la
 > comprobación de los binarios de Nav2 —que **no** se simula— y la idempotencia. Lo que **no**:

@@ -198,7 +198,8 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 >
 > ⚠️ **Ojo con cuál de las dos secciones de `FLOTA.md` sigues:**
 > · **Robot 2** → «Robot 2: instalación LIMPIA, paso a paso». Es una instalación desde cero, y
->   es la que **valida `provision.sh`**, que nunca se ha ejecutado entero.
+>   es la que **valida `provision.sh`**. ✅ Hecho el 2026-08-11 con rvr-02: el guion se ejecutó
+>   entero, 96 ✓ y 0 fallos, tras arreglar el `install -d` que dejaba `~/atriz_ws` de root.
 > · **Robots 3–16** → «Alta de un robot nuevo», que parte de la **imagen dorada**. Esa imagen
 >   **no debe construirse** hasta que el robot 2 haya funcionado.
 >

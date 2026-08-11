@@ -74,7 +74,36 @@ duplicada que decía lo contrario.
 | 3 · `red.txt` | ⏳ **aplazado a propósito** — se cierra en el paso 6-bis |
 | 4 · Arranque + SSH + UART | ✅ mini-UART `disabled`, `serial0 → PL011` |
 | 5 · Clonar | ✅ sin credenciales |
-| 6 · `provision.sh` | 🔄 **corriendo ahora**, en `tmux`, con `tee ~/provision-rvr02.log` |
+| 6 · `provision.sh` | ✅ **EJECUTADO ENTERO POR PRIMERA VEZ**: 96 ✓ · 16 avisos · **0 fallos** |
+| 6-ter · el LIDAR | ✅ el `ID_PATH` **es el mismo en otro Pi**. Cerrado un ⏳ de semanas |
+| 7 · reinicio + verificador | ⏳ ahora mismo |
+
+### 🔴🔴 `provision.sh` YA NO ES UNA SUPOSICIÓN — y falló dos veces antes de no fallar
+
+Era, textualmente, «la suposición más peligrosa que le queda al proyecto». La primera pasada tiró
+los dos últimos pasos, **con el mismo fallo que el 2026-08-10** — o sea reproducible, que es
+exactamente para lo que servía tener un segundo robot.
+
+**La causa era un `install -d`.** `provision.sh:244` hacía
+`install -d -o sphero -g sphero .../atriz_ws/src`, que parece correcto y no lo es:
+
+```
+drwxr-xr-x root:root  ~/atriz_ws        ← el padre
+drwxr-xr-x sphero     ~/atriz_ws/src    ← el hijo
+```
+
+El manual de coreutils: *«Parent directories are created with mode `u=rwx,go=rx` (755),
+**regardless of the `-m` option**»… «giving them the **default attributes**»*. Y con `sudo`, «por
+defecto» es root. Después `colcon build` va como el usuario y muere con `Permission denied: 'log'`,
+y de rebote `fase_7` se niega porque el workspace no compiló. **Dos de los nueve pasos caídos por
+el dueño de un directorio.**
+
+Arreglado en el guion (`8dc0361`), no a mano: se nombran los dos directorios, se repara lo ya
+creado con `chown -R`, `colcon build` deja de tirar su salida a `/dev/null` —el único paso que
+falló había borrado su propia evidencia: 9.075 líneas para decir «✗ colcon build falló»— y
+**`verificar_robot.sh` pasa a vigilar el dueño del workspace, que no vigilaba nadie.**
+
+📌 PC: **si tu documentación dice en algún sitio que `provision.sh` está sin probar, ya no.**
 
 🔴 **`preparar_tarjeta.sh` ya NO es 🟡.** Verificado sobre hardware real, y lo que lo cierra no es
 la salida del guion sino lo que dijo el robot arrancado: `soc/serial@7e215040/status → disabled` y

@@ -21,7 +21,7 @@ reconstruir el sistema si algo sale mal.
 | | |
 |---|---|
 | **Fase actual** | **Etapas A–E1 y Fases 2, 3, 4 y 4c completadas, más Nav2 y el arranque automático** (2026-07-31). El robot **navega** con Nav2 (⚠️ el «error 8–10 cm» es la tolerancia repetida, no una medida: con cinta y trilateración son **~10-12 cm**, y **41 cm** sobre un mapa rancio — evidencias 83-84), se **localiza** con AMCL sobre un mapa guardado, tiene capa de seguridad (`collision_monitor`), 18 servicios en el driver y **se levanta solo al encender** |
-| **Siguiente paso** | **Migrar el robot 2** → [`03_operacion/FLOTA.md`, «Robot 2: instalación LIMPIA, paso a paso»](03_operacion/FLOTA.md). Con `provision.sh` — levanta la única suposición peligrosa que queda (el script nunca se ha ejecutado entero), da el segundo robot para probar el IR, y valida la imagen dorada antes de replicarla catorce veces. Después, **la plataforma web (Fase 5)**, que es lo único grande que falta |
+| **Siguiente paso** | **Migrar el robot 2** → [`03_operacion/FLOTA.md`, «Robot 2: instalación LIMPIA, paso a paso»](03_operacion/FLOTA.md). ✅ `provision.sh` YA se ha ejecutado entero (2026-08-11, rvr-02: 96 ✓ · 0 fallos) — cae la última suposición peligrosa. Queda el segundo robot para probar el IR y validar la imagen dorada antes de replicarla catorce veces. Después, **la plataforma web (Fase 5)**, que es lo único grande que falta |
 | **Sistema hoy** | Raspberry Pi 4B 8 GB · **Ubuntu Server 24.04.4 LTS** · Python 3.12.3 · `rvr-01` · arranque en **22.1 s** (5.5 kernel + 16.6 userspace) · Sphero RVR por `/dev/rvr` (PL011) · YDLIDAR X2 en `/dev/ydlidar` · **ROS 2 Jazzy** (`ros-base` + `navigation2`) · driver, URDF, LIDAR, SLAM, Nav2, AMCL y `atriz-robot.service` funcionando |
 | ⚠️ **Al arrancar NO conduce** | A propósito: el barrido del lidar arranca **apagado** y sin `/scan` el `collision_monitor` bloquea el movimiento. Se despierta con `atriz-escaneo on`. Ver [RUNBOOK](03_operacion/RUNBOOK.md) |
 | **Sistema objetivo** | Ubuntu Server 24.04 LTS · ROS 2 Jazzy (soporte hasta mayo 2029) · rosbridge · SLAM + Nav2 · 16 robots |
@@ -132,7 +132,7 @@ scripts/
 ├── fase_1_higiene_so.sh      ✅ higiene del SO — verificado en 24.04
 ├── fase_1_validar_sdk_py312.py   ✅ GO/NO-GO de la migración — 🟢 GO (2026-07-30)
 ├── verificar_robot.sh        ✅ 105 aserciones: ¿está este robot bien? ← ÚSALO SIEMPRE
-├── provision.sh              🟡 de un 24.04 limpio a robot terminado (probado en seco)
+├── provision.sh              ✅ de un 24.04 limpio a robot terminado (ejecutado entero en rvr-02)
 ├── preparar_tarjeta.sh       ✅ en el PC: prepara la tarjeta de cada robot
 ├── fase_6_preparar_imagen_dorada.sh   📝 NO VERIFICADO — imagen dorada de la flota
 └── first-boot.sh / .service  📝 NO VERIFICADO — personaliza cada robot clonado

@@ -97,10 +97,24 @@ SUBSYSTEM=="tty", ENV{ID_VENDOR_ID}=="10c4", ENV{ID_MODEL_ID}=="ea60", \
 ```
 
 > ✅ **La regla está escrita, instalada y funcionando en rvr-01** (`/etc/udev/rules.d/99-ydlidar.rules`).
-> ⏳ **Lo que sigue NO VERIFICADO es que el `ID_PATH` sea idéntico en otro robot** con el
-> lidar en el mismo puerto físico. Se cierra en la Fase 6, con el robot 2:
-> `udevadm info -q property -n /dev/ttyUSB0 | grep ID_PATH=`. Si no coincidiera, la regla no
-> es clonable y habría que generarla en `first-boot.sh` en vez de meterla en la imagen dorada.
+>
+> ✅ **Y el `ID_PATH` SÍ es idéntico en otro Pi — CERRADO el 2026-08-11 con rvr-02.** Era la
+> última incógnita grande antes de la imagen dorada. `provision.sh` lo comprobó solo, sobre el
+> hardware, y lo dijo en su registro:
+>
+> ```
+> ✓ regla udev de /dev/ydlidar instalada
+> ✓ /dev/ydlidar existe: la regla CASA en este robot
+> ```
+>
+> Confirmado en el robot: `/dev/ydlidar → ttyUSB0` y `/dev/rvr → ttyAMA0`. **La regla es
+> clonable tal cual**: no hay que generarla en `first-boot.sh` ni tocarla robot por robot.
+>
+> ⚠️ Sigue vigente la condición que la hace funcionar: **el LIDAR va en el MISMO conector
+> físico en los 16**. Lo que se ha demostrado es que ese conector da el mismo `ID_PATH` en
+> otra placa, no que se pueda cambiar de puerto. Texto anterior, ya resuelto: *«⏳ NO
+> VERIFICADO que el `ID_PATH` sea idéntico en otro robot … si no coincidiera, la regla no es
+> clonable»*.
 
 > 🔴 **DECISIÓN DEL USUARIO, 2026-08-04: el puerto fijo se mantiene, y el lidar va en el
 > MISMO conector en los 16.** Se ofreció la alternativa —quitar el `ID_PATH` y casar solo por
@@ -946,7 +960,7 @@ Conviene tenerlo claro para no confiarse:
 |---|---|
 | **Deriva posterior** | La imagen iguala los robots el día 1. A partir de ahí divergen en cuanto alguien toca uno. La respuesta es `git pull && sudo bash provision.sh` en los 16, o Ansible |
 | **Actualizaciones de seguridad** | La higiene deshabilita `unattended-upgrades` a propósito (no queremos que un robot se actualice a mitad de un experimento). Eso significa que **actualizar los 16 es una tarea manual y periódica** |
-| **La regla udev del LIDAR** | Va por `ID_PATH`, y **está sin verificar** que el `ID_PATH` sea idéntico entre robots. Si no lo fuera, no es clonable y hay que generarla en `first-boot.sh`. Ver restricción 1 |
+| ~~**La regla udev del LIDAR**~~ | ✅ **CERRADO el 2026-08-11 con rvr-02**: el `ID_PATH` ES idéntico en otro Pi, `provision.sh` lo comprobó sobre el hardware (`✓ /dev/ydlidar existe: la regla CASA en este robot`). La regla **es clonable tal cual**. Sigue vigente que el LIDAR vaya en el mismo conector físico en los 16. Ver restricción 1 |
 | **El ancho de banda en operación** | La imagen ahorra el tráfico de *instalación*, no el de *telemetría*. El riesgo nº4 sigue intacto y sin medir |
 | **Las tarjetas microSD** | Mueren. Con 16 unidades es mantenimiento periódico. Tener la imagen lista es precisamente lo que convierte eso en 10 minutos |
 

@@ -566,7 +566,7 @@ decidido antes de arrancar.
 
 ⏳ **Y sigue pendiente, sin fecha fija: migrar el robot 2** →
 [`03_operacion/FLOTA.md`, «Robot 2: instalación LIMPIA»](03_operacion/FLOTA.md). Levanta la
-única suposición peligrosa que queda (`provision.sh` nunca se ha ejecutado entero), da el
+✅ suposición ya levantada (`provision.sh` ejecutado entero el 2026-08-11), da el
 segundo robot para el IR, y valida la imagen dorada antes de replicarla catorce veces. Se
 pospuso por la aparición de las credenciales expuestas en `Atriz_rvr` (2026-08-02), que subió
 de prioridad al material docente.
@@ -1198,15 +1198,29 @@ reconstruirlo. En resumen:
   estado inicial.
 - 🔴 La **credencial sigue expuesta**, y quitarla exige limpiar el **historial** de git.
 
-### 🔁 Suposición aceptada: `provision.sh` no se ha probado entero — **LEVANTÁNDOSE el 2026-08-10**
+### ✅ ~~Suposición aceptada: `provision.sh` no se ha probado entero~~ — **LEVANTADA el 2026-08-11**
 
-🆕 **Ya hay un `rvr-02`, y el guion se está ejecutando sobre él**, sobre un Ubuntu limpio y sin
-tocar rvr-01. La suposición más cara del proyecto está en proceso de cerrarse.
+**`provision.sh` se ha ejecutado ENTERO sobre un 24.04 limpio: 96 ✓ · 16 avisos · 0 fallos.** La
+suposición más cara del proyecto está cerrada. Paso a paso completo en la evidencia 98.
 
-⏳ **No ha terminado.** Parado en `colcon build` (`Permission denied: 'log'`), con `fase_7`
+No a la primera: tiró los dos últimos pasos con **el mismo fallo del 2026-08-10** —o sea
+reproducible—, causado por un `install -d -o usuario .../atriz_ws/src` que deja el **padre**
+`atriz_ws` de root. Arreglado en el guion, con reparación de lo ya creado, y
+`verificar_robot.sh` pasa a vigilar el dueño del workspace.
+
+> Lo de abajo es el estado del 2026-08-10, ya superado. Se conserva porque describe el fallo que
+> resultó ser reproducible.
+
+⏳ ~~**No ha terminado.** Parado en `colcon build` (`Permission denied: 'log'`), con `fase_7`
 negándose en cadena. ✅ Descartado que lo cause el guion —compila con `sudo -u` y crea el
-workspace con el dueño correcto—; ⏳ **la causa real, sin determinar**. Diagnóstico y arreglo en
-[`03_operacion/ESTADO_ACTUAL.md`](03_operacion/ESTADO_ACTUAL.md).
+workspace con el dueño correcto—; ⏳ **la causa real, sin determinar**.~~
+
+🔴 **Y aquí está la frase que retrasó el diagnóstico un día entero:** *«Descartado que lo cause el
+guion — crea el workspace con el dueño correcto»*. **Era exactamente al revés: lo causaba el
+guion, y precisamente por el dueño del workspace.** Se descartó leyendo el código —que dice
+`install -d -o "$USUARIO"`, y suena bien— en vez de mirar el directorio, que decía `root`. Es la
+regla del proyecto incumplida: *comprueba el efecto, no el código*. Aplicada a un guion, mirar el
+fuente **es** mirar el código de salida.
 
 📌 **Regla para lo que salga: va al guion, no se arregla a mano.** Lo que frene a rvr-02 frenará
 a los catorce siguientes si se queda en una sesión de SSH.

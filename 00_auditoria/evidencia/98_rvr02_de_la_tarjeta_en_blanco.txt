@@ -234,24 +234,108 @@ LO QUE QUEDA, Y LO QUE HAY QUE VIGILAR
 
 ⏳ PASO 5 · Clonar. Ya SIN credenciales (ver paso 1-ter).
 
-⏳ PASO 6 · `sudo bash provision.sh` (~40 min). **Nunca se ha ejecutado entero.**
-   Solo con `--simular`, que convierte en no-operación justo lo que instala.
-   Es la suposición más peligrosa que le queda al proyecto. ANOTAR CADA FALLO.
+✅ PASO 6 · `provision.sh` — EJECUTADO ENTERO POR PRIMERA VEZ EN LA HISTORIA
+--------------------------------------------------------------------------------
+Era «la suposición más peligrosa que le queda al proyecto»: hasta hoy solo se
+había probado con `--simular`, que convierte en no-operación justo lo que
+instala. Se acabó.
 
-   📌 Referencia de cómo debe quedar, medida en rvr-01 el 2026-08-11:
-      `~/atriz_ws` y sus `build/install/log/src` TODOS `sphero:sphero`,
-      0 ficheros de root, y NINGÚN workspace parásito. El fallo del 2026-08-10
-      (`Permission denied: 'log'`) apunta justo ahí.
+PRIMERA PASADA (~40 min, 9.075 líneas de registro) → 2 pasos caídos:
+
+    ✗ colcon build falló
+    ✗ 2 comprobaciones fallaron. No se instala nada.
+    ✗ fase_7_systemd.sh falló (¿falta /boot/firmware/robot_id.txt?)
+    PASOS CON PROBLEMAS: colcon build · arranque automático
+
+Y es EL MISMO fallo del 2026-08-10. O sea reproducible, que es exactamente para
+lo que servía tener un segundo robot.
+
+🔴 LA CAUSA — un `install -d`, y estaba escondida a plena vista
+--------------------------------------------------------------------------------
+    drwxr-xr-x root:root  ~/atriz_ws        ← el padre
+    drwxr-xr-x sphero     ~/atriz_ws/src    ← el hijo
+
+`provision.sh:244` hacía:
+
+    install -d -o "$USUARIO" -g "$USUARIO" "$HOME_USUARIO/atriz_ws/src"
+
+Parece correcto: nombra al usuario y crea el árbol. No lo es. El manual de
+coreutils de la propia máquina lo dice sin ambigüedad:
+
+    «Parent directories are created with mode u=rwx,go=rx (755), regardless of
+     the -m option» … «giving them the DEFAULT attributes»
+
+`install -d` NO aplica `-o`/`-g` a los padres que crea de paso. Y como el guion
+corre con `sudo`, «por defecto» es **root**. Así que `src` salía del usuario y
+`atriz_ws` de root.
+
+Después `colcon build` va como el usuario (`sudo -u`) y no puede crear `build/`,
+`install/` ni `log/` dentro de un 755 ajeno → `Permission denied: 'log'`. Y de
+rebote `fase_7_systemd.sh` se niega porque el workspace no está compilado, así
+que el robot se queda sin arranque automático.
+
+**Dos de los nueve pasos caídos por el dueño de un directorio.**
+
+⚠️ UN RAZONAMIENTO MÍO QUE HUBO QUE RETIRAR: al ver `atriz_ws` con fecha 14:35 y
+   `src` con 14:51 concluí que «no los creó la misma llamada, algo crea atriz_ws
+   antes del paso 5». Falso: `mtime` NO es fecha de creación. El 14:35 de
+   `atriz_ws` es cuando se creó `src` dentro, y el 14:51 de `src` es cuando se
+   clonó el ydlidar dentro. Los dos son compatibles con una sola llamada, que es
+   lo que resultó ser. Se comprobó leyendo el manual, no deduciendo de fechas.
+
+ARREGLOS, los cuatro (commit 8dc0361):
+  1. Se nombran los DOS directorios en el `install -d`. Nombrar el padre no es
+     redundante: es la ÚNICA forma de que reciba los atributos pedidos.
+  2. Reparación de lo ya creado (`chown -R` si el dueño no es el usuario). Sin
+     esto, ser «idempotente» no serviría de nada aquí: la primera víctima del
+     fallo es un robot que ya existe y al que hay que relanzarle el guion.
+  3. `colcon build` deja de mandar su salida a `/dev/null`. En la primera
+     ejecución completa del guion en la historia del proyecto, el ÚNICO paso que
+     falló fue justo ése — y había tirado su propia evidencia. 9.075 líneas para
+     decir «✗ colcon build falló» y nada más; la causa hubo que sacarla mirando
+     el dueño de un directorio a mano. Ahora va a `~/atriz_ws/colcon-build.log`.
+  4. `verificar_robot.sh` comprueba el dueño de `atriz_ws` y sus cuatro
+     subdirectorios. **No lo vigilaba nadie.** Verificado en rvr-01, que pasa.
+
+SEGUNDA PASADA, ya con el arreglo:
+
+    ! ~/atriz_ws es de 'root', no de 'sphero': colcon build no podría escribir ahí
+    ✓ ~/atriz_ws devuelto a sphero (era el fallo de rvr-02, 2026-08-10)
+    ...
+    ✓ workspace compilado (colcon build)
+    ✓ fase_7_systemd.sh completado: el robot arrancará solo
+
+    RECUENTO: 96 ✓ · 16 avisos · 0 fallos
+    Y el 9/9 sin la línea «PASOS CON PROBLEMAS».
+
+Los 16 avisos son todos esperados y marcados «a propósito» en el propio guion:
+reinicio pendiente del kernel, snapd en disco, el gobernador, y
+`atriz-nav`/`atriz-slam` instalados pero NO habilitados (se piden desde la web).
+
+✅ Y OTRO ⏳ QUE SE CIERRA, DE PROPINA: EL ID_PATH DEL LIDAR
+--------------------------------------------------------------------------------
+    ✓ /dev/ydlidar existe: la regla CASA en este robot
+
+La regla udev lleva a fuego el `ID_PATH` del puerto USB de rvr-01, y estaba
+escrito en `FLOTA.md` como ⏳ NO VERIFICADO que fuese el mismo en otro Pi — con
+la advertencia de que si no coincidía, no habría `/dev/ydlidar` → sin `/scan` →
+el `collision_monitor` bloquea el movimiento → **el robot parecería averiado**.
+
+**Coincide.** Medido en rvr-02:  /dev/rvr → ttyAMA0  ·  /dev/ydlidar → ttyUSB0
+
+Era la última incógnita grande antes de la imagen dorada. No hay que tocar la
+regla udev por robot.
 
 ⏳ PASO 6-bis · `red.txt` + `first-boot.sh --solo-red` (ver paso 3).
 
-⏳ PASO 6-ter · 🔴 EL LIDAR. La regla udev lleva el `ID_PATH` de rvr-01 a fuego.
-   Si el LIDAR no va en el MISMO puerto USB físico: no hay `/dev/ydlidar` → sin
-   `/scan` → el `collision_monitor` bloquea el movimiento → **el robot parecerá
-   averiado**. Es la primera vez que esto se puede comprobar en otro Pi: hasta
-   hoy era ⏳ NO VERIFICADO en `FLOTA.md`.
+✅ PASO 6-ter · EL LIDAR — cerrado, ver arriba. La regla es clonable tal cual.
 
-⏳ PASO 7 · Reiniciar y `verificar_robot.sh --hardware`.
+⏳ PASO 7 · Reiniciar y `verificar_robot.sh --hardware`. Es el que decide si el
+   robot está listo, y sale con código ≠ 0 si algo falla.
+   ⚠️ Desde ese reinicio `atriz-robot.service` arranca solo. El driver conecta
+      con el RVR (no enciende LEDs, comprobado) pero el robot NO conducirá hasta
+      un `atriz-escaneo on`: sin `/scan` el collision_monitor bloquea el
+      movimiento, y eso es lo que hace seguro arrancar así.
 
 📌 rvr-02.local NO resuelve desde rvr-01 — están en redes distintas. Todo el
    diagnóstico del robot 2 pasa por el PC.
@@ -260,9 +344,23 @@ LO QUE QUEDA, Y LO QUE HAY QUE VIGILAR
 RECUENTO DE ESTA PASADA
 ================================================================================
 Encontrados por el usuario ....... 2  (SSH por contraseña · el script de Windows)
-Fallos del guion arreglados ...... 1  (el informe en seco afirmaba lo no hecho)
-Afirmaciones falsas retiradas .... 3  (regdom «a mano» · repos privados/PAT ·
-                                       mi propia medición de la idempotencia)
+Fallos del guion arreglados ...... 2  (el informe en seco afirmaba lo no hecho ·
+                                       el install -d que dejaba atriz_ws de root)
+Afirmaciones falsas retiradas .... 4  (regdom «a mano» · repos privados/PAT ·
+                                       mi medición de la idempotencia · mi
+                                       deducción por mtime, que no es fecha de
+                                       creación)
+Controles que no probaban nada ... 2  (el `git fetch` de «¿puedes subir?» ·
+                                       el informe de --simular)
 Trampas nuevas documentadas ...... 2  (Docker secuestra wsl · ALREADY_EXISTS)
-Dudas cerradas ................... 1  (cp -a sí funciona sobre drvfs)
+Dudas cerradas ................... 2  (cp -a sí funciona sobre drvfs ·
+                                       el ID_PATH del LIDAR es el mismo)
 Bloqueantes que decaen ........... 1  (Fase 6 nº 1: el PAT en la imagen dorada)
+Hitos ............................ 2  (preparar_tarjeta.sh verificado sobre
+                                       hardware · provision.sh ejecutado ENTERO
+                                       por primera vez: 96 ✓ · 0 ✗)
+
+--------------------------------------------------------------------------------
+Y la regla que gobernaba esta pasada se cumplió literalmente: los dos pasos que
+frenaron a rvr-02 acabaron EN EL GUION, no arreglados a mano. El robot 3 no se
+va a encontrar ninguno de los dos.
