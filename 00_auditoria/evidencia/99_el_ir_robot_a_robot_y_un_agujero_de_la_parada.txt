@@ -6,7 +6,8 @@ Robots:   rvr-01 (emisor) y rvr-02 (receptor), los dos en el suelo, ~1 m
 Estado:   ✅ emisión, seguimiento y evasión probados con DOS robots
           ✅ agujero de seguridad encontrado, arreglado (Atriz_rvr 19884e7) y
              VERIFICADO sobre rvr-02
-          ⏳ la RECEPCIÓN de mensajes IR sigue sin existir en ROS 2
+          ✅ la RECEPCIÓN de mensajes IR IMPLEMENTADA el mismo día y MEDIDA:
+             el firmware SÍ la entrega. Ver la sección 3, reescrita.
 
 POR QUÉ EXISTE ESTE FICHERO
 --------------------------------------------------------------------------------
@@ -88,26 +89,41 @@ El de `following` era el único agujero real.
 ================================================================================
 3 · ⏳ LO QUE SIGUE SIN EXISTIR: LA RECEPCIÓN
 ================================================================================
+⚠️ ESTA SECCIÓN SE ESCRIBIÓ ANTES DE IMPLEMENTARLO, Y QUEDÓ FALSA EN HORAS.
+   Se conserva con la corrección al lado porque el error es instructivo: un
+   documento fechado el mismo día que el commit que lo desmiente.
+
                                     ROS 1        ROS 2
     Enviar (send_infrared_message)    ✅           ✅
     Modos (following/evading/off)     ✅           ✅
-    RECIBIR y publicarlo              ✅           🔴 NO EXISTE
+    RECIBIR y publicarlo         ❌ NUNCA        ✅ 2026-08-11
                                  /infrared_messages
 
-El driver de ROS 2 tiene OCHO publicadores —odom, imu, color, ambient_light,
-encoders, battery, motors, estado— y **ninguno de IR**. Y registra ocho
-`add_sensor_data_handler`, ninguno de infrarrojos. El nodo de ROS 1 tenía
-`infrared_message_handler` publicando en `/infrared_messages`.
+🔴 Y la columna de ROS 1 también estaba mal, medido después: `/ir_messages` se
+   ANUNCIABA (`Atriz_rvr_node.py:1627`) y **nunca se publicaba** — no hay ni un
+   solo `pub_ir_messages.publish(...)` en el fichero. Y `/infrared_messages` sí
+   se publicaba, pero desde un handler que leía
+   `datos['InfraredMessage']['Code']` contra un payload real de
+   `{'infrared_code': N}`: KeyError en la primera línea. **El IR de ROS 1 nunca
+   recibió nada.**
 
-⚠️ NO se afirma que sea una regresión. En este proyecto está medido que varias
-   notificaciones del SDK **no llegan con este firmware** (`core_time`, las de
-   motor_status), así que puede que la de ROS 1 tampoco funcionara nunca. Lo
-   único seguro es que **hoy no hay forma de observar un mensaje IR recibido
-   desde ROS 2**, y por eso `send_infrared_message` solo se puede verificar
-   desde el lado que emite.
+✅ HECHO EL MISMO DÍA, y el firmware SÍ lo entrega — al revés que las
+   notificaciones de motor. Medido en rvr-01 con rvr-02 emitiendo:
 
-🔴 SI SE QUIERE, HAY QUE HACERLO ANTES DE LA IMAGEN DORADA. Si no, los dieciséis
-   robots salen sin la ruta de vuelta.
+       enable IR recibido: respuesta = None
+       PRIMER mensaje IR recibido. Payload CRUDO: {'infrared_code': 3}
+
+   El código llega CORRECTO (3 es el que emitió rvr-02).
+
+🔴 PERO EL PAYLOAD DESMONTA EL TIPO DE MENSAJE. La notificación trae UNA sola
+   clave, `infrared_code`. Los cuatro `*_strength` de `InfraredMessage.msg`
+   **no existen en la recepción**: son parámetros del ENVÍO. El tipo describe
+   algo que el robot no manda nunca, y lo intentaban leer los dos drivers.
+
+🔴 Y MI PROPIO EXTRACTOR NO BUSCA LA CLAVE BUENA: probé con
+   `'Code', 'code', 'InfraredCode'` y la real es `infrared_code`, así que
+   `/infrared_messages` publica `code=0` siempre. Es de esta misma tarde.
+   No se parchea suelto: entra en el rediseño del sistema IR completo.
 
 ================================================================================
 4 · UN HALLAZGO LATERAL: rvr-01 TENÍA EL WORKSPACE DIVERGIDO

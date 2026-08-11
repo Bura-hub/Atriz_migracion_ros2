@@ -627,10 +627,28 @@ Arreglado en `Atriz_rvr` (`19884e7`), y auditados los demás: era el único.
 por código, nunca con un emisor delante»*. Verificado por código era, en efecto, insuficiente: el
 que faltaba estaba al lado.
 
-⏳ **Lo que sigue abierto del IR: la RECEPCIÓN.** El driver de ROS 2 tiene ocho publicadores y
-ninguno de infrarrojos; ROS 1 publicaba en `/infrared_messages`. No se afirma que sea una regresión
-—varias notificaciones del SDK no llegan con este firmware—, pero **hoy no hay forma de observar un
-mensaje IR recibido desde ROS 2**. 👤 Si se quiere, hay que añadirlo **antes de la imagen dorada**.
+✅ **La RECEPCIÓN se implementó ese mismo día, y el firmware SÍ la entrega** — al revés que las
+notificaciones de motor. Medido en rvr-01 con rvr-02 emitiendo:
+
+```
+enable IR recibido: respuesta = None
+PRIMER mensaje IR recibido. Payload CRUDO: {'infrared_code': 3}
+```
+
+🔴 **Y el payload desmonta el tipo de mensaje.** La notificación trae **una sola clave**,
+`infrared_code`. Los cuatro `*_strength` de `InfraredMessage.msg` **no existen en la recepción**:
+son parámetros del ENVÍO. El tipo describe algo que el robot no manda nunca.
+
+🔴 **Y ROS 1 nunca recibió nada, tampoco.** Su handler leía `datos['InfraredMessage']['Code']`
+contra ese payload: `KeyError` en la primera línea. Además `/ir_messages` se **anunciaba y nunca se
+publicaba** — así que la frase «ROS 1 publicaba los dos topics con los mismos datos», que está en el
+propio driver y en el CHANGELOG, **es falsa**: uno estaba vacío y el otro reventaba.
+
+⏳ **Por eso el IR entero se está rediseñando** (👤 decisión del usuario, 2026-08-11) en vez de
+parchear la clave: el tipo de mensaje es incorrecto, `atriz.py` no expone nada de IR, no hay ni una
+prueba automatizada válida para ROS 2, y **la detección direccional del SDK no la usa nadie** pese a
+que `get_bot_to_bot_infrared_readings` **responde** (evidencia 41: `0xFFFFFFFF` = los cuatro
+sensores vacíos, que es lo correcto con un solo robot).
 
 📝 **Dos datos que la Fase 5 necesita saber:** un motor bloqueado sube **+11.1 °C en 90 s** de bloqueo (ritmo NO constante, 5→10 °C/min, n=1)
 (sirve de corroboración de atasco), y **la temperatura publicada puede tener 30 s de retraso** —
