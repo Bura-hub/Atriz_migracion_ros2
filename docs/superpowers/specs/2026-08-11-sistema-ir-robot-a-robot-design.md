@@ -88,8 +88,9 @@ tiene en la lista blanca y ninguna práctica lo usa.
 ```
 std_msgs/Header header
 
-uint8   sensor_0            # los cuatro receptores. 255 = vacío · 0-15 = código visto
-uint8   sensor_1
+uint32  crudo               # el uint32 tal como lo devuelve el firmware, SIN interpretar
+uint8   sensor_0            # sus cuatro bytes, del menos significativo al más
+uint8   sensor_1            # 255 = vacío · 0-15 = código visto
 uint8   sensor_2
 uint8   sensor_3
 bool    lecturas_validas    # false si el sondeo está apagado o falló
@@ -106,10 +107,21 @@ uint8   near_code
 bool    conduciendo_por_ir  # get_active_control_system_id() == 8
 ```
 
-🔴 **Los sensores se llaman `sensor_0..3` a propósito.** La máscara que asigna cada byte a una
-esquina está documentada como *«on BOLT»* (`sensor.md:47`) y **nadie ha comprobado que el RVR la
-use igual**. Ponerles nombre de esquina hoy sería inventarse la orientación del robot. **La prueba
-de viabilidad los bautiza**, y si discriminan, se renombran con lo medido.
+🔴 **`crudo` va en el mensaje porque sin él la prueba se mediría a sí misma.** Si el driver parte
+el `uint32` en cuatro bytes según **una suposición de orden**, la medición diría más sobre mi corte
+que sobre el hardware. Publicando el valor íntegro, la evidencia sobrevive a que me equivoque al
+partirlo. Es la misma lección que el `colcon build` mandando su salida a `/dev/null`: **el paso que
+puede fallar no debe destruir su propia evidencia.**
+
+🔴 **Y los sensores se llaman `sensor_0..3` a propósito.** La máscara que asigna cada byte a una
+esquina está documentada en el SDK como *«Mask description **on BOLT**»* (`sensor.md:47`).
+👤 **El robot de este laboratorio es un Sphero RVR, no un BOLT** — otro chasis y otra disposición
+física. Que la máscara valga igual es una **suposición heredada de un producto distinto**, y este
+proyecto ya ha pagado por fiarse de la documentación del propio SDK: los encoders vienen
+documentados como `Left`/`Right` y el payload real trae `LeftTicks`/`RightTicks`.
+
+Ponerles nombre de esquina hoy sería inventarse la orientación del robot. **La prueba de viabilidad
+los bautiza**, y solo entonces se renombran con lo medido.
 
 ⚠️ **Las antigüedades no son adorno.** Un `255` significa «nadie» o «hace demasiado que no
 consulto», y sin la antigüedad no se distinguen.
@@ -212,16 +224,22 @@ la única forma que tiene ROS de enterarse.
 👤 Decisión del usuario: medir antes de construir encima. Es lo único del diseño que se apoya en
 algo **no verificado** — que los cuatro sensores del RVR discriminen dirección como los del BOLT.
 
-⚠️ **Y NO depende de nada de este diseño**, que si no sería circular: la prueba bautiza los campos
-de `EstadoIR`, así que no puede leerlos. Es un guion suelto que llama directamente a
-`get_bot_to_bot_infrared_readings()` del SDK e imprime los cuatro bytes en crudo.
+**Cómo se evita la circularidad** — la prueba bautiza los campos, así que no puede depender de
+cómo se llamen. Se resuelve por partida doble:
 
-**Montaje:** un robot en `broadcasting`; el otro quieto, ejecutando el guion. Se lee con el emisor
-**delante, detrás, a izquierda y a derecha**, a ~50 cm y a ~2 m.
+- los campos son **neutros** (`sensor_0..3`), así que leerlos no presupone nada;
+- y va el **`crudo`**, así que aunque yo parta mal el `uint32`, la evidencia queda entera.
 
-📌 **Orden de implementación que esto impone:** el guion de viabilidad y su medición van **antes**
-de congelar `EstadoIR.msg`. Todo lo demás —la clave `infrared_code`, las validaciones, la seguridad
-de `atriz.py`— no depende de ese resultado y puede ir en paralelo.
+Con eso la prueba puede leer `/estado_ir` en vez de abrir el puerto serie por su cuenta, que
+además obligaría a **parar el driver** en el robot que mide (`pyserial` no pone `TIOCEXCL`: el
+`open()` tiene éxito con el driver vivo y los dos se pisan sin dar error).
+
+**Montaje:** un robot en `broadcasting`; el otro quieto, mirando su `/estado_ir`. Se lee con el
+emisor **delante, detrás, a izquierda y a derecha**, a ~50 cm y a ~2 m.
+
+📌 **Lo único que este orden impone:** los campos no se renombran hasta tener la medición. Todo lo
+demás —la clave `infrared_code`, las validaciones, la seguridad de `atriz.py`— no depende del
+resultado y va en paralelo.
 
 **Criterio, fijado ANTES de medir:**
 - ✅ **Discrimina** si en cada posición hay bytes distintos de 255 y **cambian según el lado**.
