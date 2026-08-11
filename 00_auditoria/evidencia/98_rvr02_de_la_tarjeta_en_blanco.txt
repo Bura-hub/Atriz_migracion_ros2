@@ -330,8 +330,89 @@ regla udev por robot.
 
 ✅ PASO 6-ter · EL LIDAR — cerrado, ver arriba. La regla es clonable tal cual.
 
-⏳ PASO 7 · Reiniciar y `verificar_robot.sh --hardware`. Es el que decide si el
-   robot está listo, y sale con código ≠ 0 si algo falla.
+🟡 PASO 7 · `verificar_robot.sh --hardware`  →  145 ✓ · 7 avisos · 4 FALLOS
+--------------------------------------------------------------------------------
+🔴 TRES DE LOS CUATRO FALLOS ERAN EL MISMO HUECO: LOS GRUPOS DEL USUARIO
+
+    ✗ /dev/rvr sin permisos para sphero
+    ✗ el RVR NO contesta
+    ✗ throttling / under-voltage: «Can't open device file: /dev/vcio»
+
+**Ningún guion del proyecto metía al usuario en `dialout` ni en `video`.** En
+rvr-01 los tiene —`groups=…,20(dialout),…,44(video),…`— pero de su montaje
+MANUAL original, no de un script.
+
+⚠️ Y NO SE HABRÍA VISTO NUNCA. La imagen dorada clona `/etc/group`, así que los
+   robots 3..16 los heredarían de rvr-01 y todo parecería bien. Es exactamente
+   el peligro que el proyecto ya tenía escrito: «la imagen es el ATAJO, el
+   script es la VERDAD. Si divergen, gana el script». Aquí divergían, y solo una
+   instalación LIMPIA podía enseñarlo.
+
+POR QUÉ NO SALTÓ ANTES, Y POR QUÉ IMPORTA MÁS DE LO QUE PARECE:
+`atriz-robot.service` lleva `SupplementaryGroups=dialout`, así que EL SERVICIO
+habla con el RVR aunque el usuario no esté en el grupo — de ahí que el mismo
+verificador diera `✓ /odom a 15.32 Hz` y `✓ batería 98 %` dos secciones antes de
+decir «el RVR NO contesta». No es una contradicción: son dos caminos distintos
+al mismo cable.
+
+Lo que se rompe es todo lo INTERACTIVO. Y eso incluye
+`scripts/estudiantes/atriz.py`, **que es el producto que ejecuta el alumno**.
+
+ARREGLO: `provision.sh` mete al usuario en `dialout` y `video` (paso 3/9, junto
+al UART), es idempotente y avisa de que no surte efecto hasta reiniciar.
+
+  · dialout → /dev/rvr (ttyAMA0) y el /dev/ttyUSB0 del LIDAR
+  · video   → /dev/vcio, que es como vcgencmd lee las bajadas de tensión
+
+⏳ EL CUARTO FALLO, SIN DIAGNOSTICAR: `✗ servicios que NO responden: get_encoders`
+   El topic `/encoders` SÍ va (136 mensajes en 8 s, ~17 Hz), así que el driver
+   lee los encoders; lo que no contestó es el SERVICIO. Hipótesis sin comprobar:
+   que el intento fallido de hablar con el RVR justo antes (fallo 2) dejara el
+   enlace ocupado. **No se da por diagnosticado**: se repite el verificador con
+   los grupos ya aplicados y se mira si sigue.
+
+🔴 Y DOS FALLOS DEL PROPIO VERIFICADOR, LOS DOS MÍOS Y DE HOY:
+
+  1. `verificar_robot.sh: line 1910: [[: 0\n0: syntax error`
+     La comprobación de `authorized_keys` que escribí esta mañana hacía
+     `grep -c … || echo 0`. Con el fichero VACÍO, `grep -c` imprime «0» **y sale
+     con código 1** (no casó nada), así que el `|| echo 0` añadía un segundo cero
+     y la variable quedaba en «0\n0». `grep -c` siempre imprime un número: el
+     respaldo solo hace falta si el fichero no existe.
+
+  2. Un aviso que contradecía a otra comprobación del mismo guion:
+         ✓ Aproximacion.radius = 0.15 (el valor decidido el 2026-08-09)
+         ! el radius del collision_monitor no es 0.18
+     Una mira el parámetro del NODO VIVO y exige 0.15; la otra miraba el FICHERO
+     y seguía pidiendo 0.18, el valor antiguo. Las dos comprobaciones son
+     legítimas —fichero y nodo no son lo mismo— pero tienen que pedir LO MISMO.
+     Alineada: 0.15 ✓ · 0.18 FALLO · otra cosa aviso.
+
+     📌 Segunda vez en el mismo día que aparece este patrón: por la mañana fue
+        `authorized_keys`, con dos comprobaciones de polaridad contraria. El
+        verificador tiene 145 comprobaciones y nada impide que dos se
+        contradigan.
+
+AVISOS (7), todos esperados o ya conocidos:
+  · sin identidad de git global (es del usuario, no del robot)
+  · no hay 60-atriz.yaml ni .network por SSID  → es el paso 6-bis, aplazado
+  · ATRIZ_MAPA apunta a un mapa que no existe  → normal: aún no se ha mapeado
+  · mDNS por enlace en wlan0                   → pendiente conocido
+  · authorized_keys vacío                      → correcto para la imagen dorada
+
+✅ LO QUE SÍ PASÓ, y no es poco: UART y PL011, ROS 2 Jazzy con 276 paquetes,
+   `/odom` a 15.32 Hz, batería 98 %, el LIDAR dando 99 barridos en 8 s, Nav2
+   entero, `collision_monitor` en `active [3]` con `radius 0.15`, rosbridge en
+   el 9090, `atriz-robot.service` habilitado, los 13 ficheros de sistema
+   coincidiendo con el repositorio, y **`~/atriz_ws` con el dueño correcto** —la
+   comprobación que se añadió hoy, pasando en el robot que la motivó.
+
+   Y una que conviene subrayar: `✓ /etc/fstab cierra la PSK (fmask=0177,
+   dmask=0077)`. En rvr-01 eso estaba 👤 PENDIENTE. En rvr-02 sale bien de
+   fábrica, o sea que el guion lo hace y el que iba manualmente atrasado era el
+   robot de referencia.
+
+⏳ PASO 7-bis · Repetir el verificador tras los grupos.
    ⚠️ Desde ese reinicio `atriz-robot.service` arranca solo. El driver conecta
       con el RVR (no enciende LEDs, comprobado) pero el robot NO conducirá hasta
       un `atriz-escaneo on`: sin `/scan` el collision_monitor bloquea el
@@ -344,8 +425,11 @@ regla udev por robot.
 RECUENTO DE ESTA PASADA
 ================================================================================
 Encontrados por el usuario ....... 2  (SSH por contraseña · el script de Windows)
-Fallos del guion arreglados ...... 2  (el informe en seco afirmaba lo no hecho ·
-                                       el install -d que dejaba atriz_ws de root)
+Fallos del guion arreglados ...... 3  (el informe en seco afirmaba lo no hecho ·
+                                       el install -d que dejaba atriz_ws de root ·
+                                       nadie metía al usuario en dialout/video)
+Fallos MÍOS en el verificador .... 2  (grep -c || echo 0 -> «0\n0» ·
+                                       un aviso que pedía el radius 0.18 viejo)
 Afirmaciones falsas retiradas .... 4  (regdom «a mano» · repos privados/PAT ·
                                        mi medición de la idempotencia · mi
                                        deducción por mtime, que no es fecha de

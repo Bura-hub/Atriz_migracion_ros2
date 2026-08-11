@@ -214,6 +214,39 @@ else
     mal "fase_0_1_fix_uart.sh falló"; FALLOS+=("UART")
 fi
 
+# 🔴 LOS GRUPOS DEL USUARIO — hueco encontrado en rvr-02 el 2026-08-11
+#
+#    NINGÚN guion del proyecto metía al usuario en `dialout` ni en `video`. En
+#    rvr-01 los tiene, pero de su montaje MANUAL original, no de un script. Y la
+#    imagen dorada clona /etc/group, así que los robots 3..16 los heredarían y
+#    esto NUNCA se habría visto: es exactamente el peligro de «la imagen es el
+#    atajo, el script es la verdad».
+#
+#    Por qué no saltó antes: `atriz-robot.service` lleva `SupplementaryGroups=
+#    dialout`, así que EL SERVICIO habla con el RVR aunque el usuario no esté en
+#    el grupo. Lo que se rompe es todo lo INTERACTIVO — el verificador y, sobre
+#    todo, `scripts/estudiantes/atriz.py`, que es lo que ejecuta el alumno.
+#
+#    En rvr-02 recién aprovisionado eso dio TRES fallos del verificador que en
+#    realidad eran uno:
+#        ✗ /dev/rvr sin permisos para sphero        → falta dialout
+#        ✗ el RVR NO contesta                       → consecuencia del anterior
+#        ✗ throttling: «Can't open /dev/vcio»       → falta video (vcgencmd)
+#
+#    dialout: /dev/rvr (ttyAMA0) y /dev/ttyUSB0 del LIDAR. video: /dev/vcio, que
+#    es como vcgencmd lee si ha habido bajadas de tensión.
+#    ⚠️ No surte efecto hasta cerrar y abrir sesión; el guion acaba pidiendo un
+#       reinicio, así que queda cubierto.
+for _g in dialout video; do
+    if id -nG "$USUARIO" | tr ' ' '\n' | grep -qx "$_g"; then
+        salta "$USUARIO ya está en el grupo $_g"
+    elif correr usermod -aG "$_g" "$USUARIO"; then
+        ok "$USUARIO añadido al grupo $_g (efectivo tras reiniciar)"
+    else
+        mal "no se pudo añadir $USUARIO al grupo $_g"; FALLOS+=("grupo $_g")
+    fi
+done
+
 # ─────────────────────────────────────────────────────────────────────────────
 say "4/9 · Higiene del SO  (delega en fase_1_higiene_so.sh)"
 

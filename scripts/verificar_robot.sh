@@ -909,9 +909,22 @@ if [[ -f "$CFG/nav2_atriz.yaml" ]]; then
         || _avi "desired_linear_vel no es 0.40" "manual, cap. 11.10"
 fi
 if [[ -f "$CFG/collision_monitor.yaml" ]]; then
-    grep -q 'radius: 0.18' "$CFG/collision_monitor.yaml" \
-        && _ok "collision_monitor: radius 0.18 (para a ~10 cm)" \
-        || _avi "el radius del collision_monitor no es 0.18" "manual, cap. 12.4"
+    # 🔴 Aquí ponía `radius: 0.18` y avisaba cuando NO era 0.18 — el valor
+    #    ANTIGUO. Contradecía a la comprobación del parámetro EN MARCHA (más
+    #    arriba en este mismo guion), que exige 0.15 desde el 2026-08-09 y marca
+    #    FALLO si encuentra 0.18. O sea que en un robot correcto salían las dos:
+    #    «✓ Aproximacion.radius = 0.15» y «! el radius no es 0.18».
+    #    Visto en rvr-02 el 2026-08-11. Son dos comprobaciones distintas y las
+    #    dos valen —una mira el fichero, otra el nodo vivo— pero tienen que
+    #    pedir lo MISMO. Evidencia 95.
+    if grep -q 'radius: 0.15' "$CFG/collision_monitor.yaml"; then
+        _ok "collision_monitor.yaml: radius 0.15 (el valor decidido el 2026-08-09)"
+    elif grep -q 'radius: 0.18' "$CFG/collision_monitor.yaml"; then
+        _mal "collision_monitor.yaml: radius 0.18, el valor ANTIGUO" \
+             "con 0.18 la franja de inmovilización es de 3.6 cm en vez de 0.6. Evidencia 94-95"
+    else
+        _avi "el radius del collision_monitor no es ni 0.15 ni 0.18" "manual, cap. 12.4"
+    fi
 fi
 URDF="$WS/atriz_rvr_description/urdf/rvr.urdf.xacro"
 if [[ -f "$URDF" ]]; then
@@ -1906,7 +1919,13 @@ fi
 #    pero authorized_keys NO — se clona tal cual. Una clave que esté aquí
 #    cuando se saque la imagen abre los 16 robots. Por eso ninguno de los dos
 #    estados es «correcto» a secas: cada uno tiene su pega y se dice cuál.
-_NAK=$(grep -cvE '^[[:space:]]*(#|$)' "$HOME/.ssh/authorized_keys" 2>/dev/null || echo 0)
+# ⚠️ Sin el `|| echo 0` que tenía: con un authorized_keys vacío, `grep -c` imprime
+#    «0» Y sale con código 1 (no casó nada), así que el `|| echo 0` añadía un
+#    SEGUNDO cero y la variable quedaba en «0\n0» → «[[: 0 0: syntax error».
+#    Salió en rvr-02 el 2026-08-11, y es mío. grep -c siempre imprime un número:
+#    el respaldo solo hace falta si el fichero no existe.
+_NAK=$(grep -cvE '^[[:space:]]*(#|$)' "$HOME/.ssh/authorized_keys" 2>/dev/null)
+_NAK=${_NAK:-0}
 if [[ $_NAK -gt 0 ]]; then
     _ok  "SSH por clave pública: $_NAK clave(s) autorizada(s) — el canal automático funciona"
     _avi "…y esas $_NAK clave(s) se clonarían a la imagen dorada: abrirían los 16 robots" \
