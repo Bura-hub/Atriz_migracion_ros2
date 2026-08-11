@@ -47,7 +47,17 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy
 from rclpy.signals import SignalHandlerOptions
 
 from atriz_rvr_msgs.msg import EstadoIR
-from atriz_rvr_msgs.srv import SetIRMode
+from atriz_rvr_msgs.srv import SendInfraredMessage, SetIRMode
+
+#: Los cuatro emisores, con el código que se le asigna a cada uno para poder
+#: distinguirlos EN LA LECTURA: el registro del receptor guarda el ID del
+#: mensaje (0-15), así que el código identifica de qué emisor vino.
+EMISORES = {
+    'frontal':   ('front_strength', 1),
+    'izquierdo': ('left_strength', 2),
+    'derecho':   ('right_strength', 3),
+    'trasero':   ('rear_strength', 4),
+}
 
 VACIO = 255                     # ese sensor no ve nada (sensor.md:54)
 NADA = 0xFFFFFFFF               # los cuatro vacíos
@@ -61,6 +71,8 @@ class Medidor(Node):
             EstadoIR, '/estado_ir', self._recibir,
             QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
         self.cli_modo = self.create_client(SetIRMode, '/set_ir_mode')
+        self.cli_mensaje = self.create_client(SendInfraredMessage,
+                                              '/send_infrared_message')
 
     def _recibir(self, m):
         self.estado = m
@@ -88,6 +100,57 @@ class Medidor(Node):
         if not r.success:
             raise SystemExit(f'🔴 /set_ir_mode({modo}): {r.message}')
         return r.message
+
+
+    def emitir_por(self, emisor, fuerza=64):
+        """Emite por UN SOLO emisor. Los otros tres a 0.
+
+        🔴 Esto es lo que permite mapear la geometría SIN saberla de antemano:
+           el firmware enciende y apaga cada emisor por separado, así que si solo
+           enciendo el frontal y miro qué byte se ilumina en el otro robot, el
+           hardware dibuja el mapa él mismo.
+        ⚠️ El nivel tiene que ser el mismo en todos los ENCENDIDOS; los apagados
+           van a 0. Aquí solo hay uno encendido, así que la regla se cumple sola.
+        """
+        campo, codigo = EMISORES[emisor]
+        if not self.cli_mensaje.wait_for_service(timeout_sec=5.0):
+            raise SystemExit('🔴 /send_infrared_message no aparece.')
+        p = SendInfraredMessage.Request()
+        p.code = codigo
+        p.front_strength = p.left_strength = 0
+        p.right_strength = p.rear_strength = 0
+        setattr(p, campo, fuerza)
+        fut = self.cli_mensaje.call_async(p)
+        limite = time.monotonic() + 6.0
+        while not fut.done() and time.monotonic() < limite:
+            rclpy.spin_once(self, timeout_sec=0.1)
+        if not fut.done():
+            raise SystemExit('🔴 /send_infrared_message no contestó')
+        r = fut.result()
+        if not r.success:
+            raise SystemExit(f'🔴 /send_infrared_message: {r.message}')
+        return codigo
+
+
+def emitir_solo(nodo, emisor, fuerza):
+    """Emite por un emisor, repitiendo, hasta Ctrl-C."""
+    campo, codigo = EMISORES[emisor]
+    print(f'\n▶ EMITIENDO SOLO POR EL EMISOR «{emisor}» ({campo}={fuerza}),')
+    print(f'  con el código {codigo}. Los otros tres emisores a 0.')
+    print('\n  El registro del receptor guarda el ID del mensaje, así que ese')
+    print('  código es lo que identificará a este emisor en la lectura.')
+    print('\n  ⚠️ El mensaje CADUCA EN 1 s en el receptor, por eso se repite.')
+    print('  Ctrl-C para parar.\n')
+    n = 0
+    try:
+        while True:
+            nodo.emitir_por(emisor, fuerza)
+            n += 1
+            print(f'\r  emitido {n} veces por «{emisor}» (código {codigo})',
+                  end='', flush=True)
+            time.sleep(0.4)
+    except KeyboardInterrupt:
+        print(f'\n\n  parado tras {n} emisiones.')
 
 
 def emitir(nodo, lejos, cerca):
@@ -190,9 +253,15 @@ def veredicto(lecturas):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--emitir', action='store_true',
-                    help='este robot hace de baliza en vez de medir')
+                    help='este robot hace de baliza (los CUATRO emisores)')
+    ap.add_argument('--emitir-solo', choices=sorted(EMISORES),
+                    help='emite por UN SOLO emisor, para mapear la geometría')
+    ap.add_argument('--fuerza', type=int, default=64,
+                    help='intensidad del emisor, 0-64 (por defecto 64)')
     ap.add_argument('--lejos', type=int, default=0, help='far_code (0-7)')
     ap.add_argument('--cerca', type=int, default=1, help='near_code (0-7)')
+    ap.add_argument('--vigilar', action='store_true',
+                    help='lee /estado_ir en bucle, sin preguntar nada')
     args = ap.parse_args()
 
     # 🔴 SignalHandlerOptions.NO: rclpy instala su propio manejador de SIGINT y
@@ -200,8 +269,24 @@ def main():
     rclpy.init(args=None, signal_handler_options=SignalHandlerOptions.NO)
     nodo = Medidor()
     try:
+        if args.emitir_solo:
+            emitir_solo(nodo, args.emitir_solo, args.fuerza)
+            return 0
         if args.emitir:
             emitir(nodo, args.lejos, args.cerca)
+            return 0
+        if args.vigilar:
+            print('\n▶ VIGILANDO /estado_ir. Ctrl-C para parar.\n')
+            print('  Mientras el otro robot emite por un solo emisor, mira QUÉ')
+            print('  BYTE deja de ser 255: ese es el receptor que lo ve.\n')
+            n = 0
+            try:
+                while True:
+                    n += 1
+                    _leer(nodo, f'#{n}')
+                    time.sleep(0.5)
+            except KeyboardInterrupt:
+                print('\n  parado.')
             return 0
         posiciones = ['DELANTE, a ~50 cm', 'DETRÁS, a ~50 cm',
                       'a la IZQUIERDA, ~50 cm', 'a la DERECHA, ~50 cm',
