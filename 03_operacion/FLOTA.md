@@ -27,8 +27,14 @@
 > Detalle en `00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.
 >
 > 🔴 **Y hay TRES bloqueantes más, auditados el 2026-08-01** (evidencia 38):
-> 1. **`~/.git-credentials` con el PAT viaja en la imagen.** `fase_6` avisa pero no lo borra.
->    Repartir un token personal en 16 microSD es una decisión, no un detalle. 👤
+> 1. ✅ ~~**`~/.git-credentials` con el PAT viaja en la imagen.**~~ — **DECAE el 2026-08-11.**
+>    👤 El usuario puso `Atriz_migracion_ros2` y `Atriz_rvr` en **público** a propósito, justo
+>    para no tener que repartir un token personal en 16 microSD. **Medido ese día:** los dos
+>    clonan sin credencial ninguna (`atriz-lab` sigue privado). Ya no hay PAT que filtrar.
+>    🔴 Lo que **NO** arregla, y sigue abierto: las credenciales que ya están en el **historial**
+>    de `Atriz_rvr` (PSK del WiFi y contraseña de `sphero`, `API_LABORATORIO.md` §«en público»).
+>    Al ser público el repositorio, ese historial lo lee cualquiera. 👤 pendiente del usuario,
+>    que lo tiene visto y lo abordará más adelante.
 > 2. ✅ ~~rosbridge no está instalado~~ — **instalado el 2026-08-01**, va en `provision.sh` y lo
 >    levanta `robot.launch.py`. Verificado desde un navegador. Texto original: y la web habla por ahí. Clonar antes de la Fase 5 significa
 >    clonar dos veces.
@@ -663,8 +669,11 @@ robots, reflashear será rutina, no emergencia.
   LIDAR enchufado. Batería del RVR cargada — el paso 7 le habla al RVR y al LIDAR de verdad.
 - Una microSD (16 GB o más) y un lector en el PC.
 - **Un PC con Linux o WSL**, con `sudo`, y **este repositorio ya clonado ahí** — `preparar_tarjeta.sh`
-  y `red.txt.ejemplo` viven en él, y para clonarlo hace falta el PAT.
-- El **PAT de GitHub** — el repositorio es privado y `provision.sh` clona de él.
+  y `red.txt.ejemplo` viven en él. **Ya NO hace falta PAT**: desde el 2026-08-11 el repositorio es
+  público (👤 decisión del usuario, justo para no repartir un token en 16 tarjetas). Medido ese
+  día: `git clone` sin credencial ninguna, y lo mismo `Atriz_rvr`, del que clona `provision.sh`.
+- ⚠️ **Si el PC es Windows, necesitas WSL** — este guion es de Linux. Ver §«Windows: preparar la
+  tarjeta desde WSL» más abajo.
 - Los datos de red: SSID y contraseña, y **la IP que le toca a este robot**.
 
 ### Los pasos
@@ -708,6 +717,59 @@ Hace cuatro cosas que **nada más hace**, y las cuatro fallan en silencio si fal
 | quita `console=serial…` de `cmdline.txt` | el UART queda reservado para la consola del kernel y **el RVR no habla**. 🔴 `provision.sh` **no toca `cmdline.txt`**: `fase_0_1_fix_uart.sh` solo **avisa** de que hay que quitarlo a mano |
 | `dtoverlay=disable-bt` bajo `[all]` en `config.txt` | el PL011 no llega a los pines GPIO14/15 donde está cableado el RVR. ⚠️ Sin la cabecera `[all]` **no da error** y no hace nada |
 | crea `/boot/firmware/robot_id.txt` | 🔴 **`provision.sh` lo NECESITA**: su paso 8/9 falla al instalar el arranque automático, y sin él no hay hostname ni `ROS_DOMAIN_ID` |
+
+#### Windows: preparar la tarjeta desde WSL — ✅ recorrido el 2026-08-11
+
+`preparar_tarjeta.sh` es un guion de Linux y el PC del laboratorio es Windows. Esto es lo que
+costó dejarlo listo, con las dos zancadillas que salieron de verdad:
+
+```powershell
+wsl --install                 # admin. Reinicia al acabar
+wsl --list --verbose          # ← MÍRALA antes de dar nada por hecho
+wsl --set-default Ubuntu      # ⚠️ ver la trampa de Docker, justo debajo
+wsl -d Ubuntu
+```
+
+🔴 **Trampa 1 — Docker Desktop secuestra `wsl`.** Si el PC tiene Docker Desktop, su distro
+`docker-desktop` puede ser la predeterminada, y `wsl` a secas te mete ahí. Se reconoce en el acto:
+
+```
+LAPTOP-XXXX:/mnt/host/c/Users/tu# sudo apt update
+-sh: sudo: not found
+```
+
+prompt `#` (ya eres root), `-sh` en vez de bash, `sudo` inexistente y **`/mnt/host/c/`** en vez de
+`/mnt/c/`. No se trabaja ahí: Docker borra y recrea esa distro en cada actualización. `wsl
+--set-default Ubuntu` lo arregla para siempre.
+
+🔴 **Trampa 2 — `wsl --install -d Ubuntu` falla si Ubuntu ya está instalado** (`ERROR_ALREADY_EXISTS`),
+aunque salga `Stopped` en la lista. No hay que instalarlo: hay que **arrancarlo**. Por eso el
+`wsl --list --verbose` va antes.
+
+Ya dentro de Ubuntu (📌 salió la 26.04; da igual, es el WSL del PC, no el robot):
+
+```bash
+whoami; echo $SHELL; ls /mnt/c >/dev/null && echo "/mnt/c OK"   # tu usuario · /bin/bash · OK
+sudo apt update && sudo apt install -y git
+cd ~ && git clone https://github.com/Bura-hub/Atriz_migracion_ros2.git atriz_migracion
+cd ~/atriz_migracion && bash -n scripts/preparar_tarjeta.sh && echo "SCRIPT OK, sin CRLF"
+```
+
+⚠️ **Clona DENTRO de WSL, no uses la copia de Windows por `/mnt/c`.** Git en Windows suele
+convertir los finales de línea a CRLF y bash muere con `$'\r': command not found`. El `bash -n`
+del final es la comprobación: no ejecuta nada, sólo valida la sintaxis.
+
+Y la tarjeta, que WSL2 **no automonta** por ser extraíble (suponiendo que Windows le dé la `E:`):
+
+```bash
+sudo mkdir -p /mnt/e && sudo mount -t drvfs E: /mnt/e
+ls /mnt/e                                    # cmdline.txt y config.txt deben estar
+sudo bash ~/atriz_migracion/scripts/preparar_tarjeta.sh --id 02 --particion /mnt/e --simular
+```
+
+⏳ **NO VERIFICADO**: el montaje `drvfs` y el guion sobre una tarjeta física. En `drvfs` el
+respaldo (`cp -a`) puede no crearse **sin que el guion pare** —no lleva `set -e`—, así que tras la
+pasada de verdad hay que comprobar a mano que aparecen `cmdline.txt.bak-…` y `config.txt.bak-…`.
 
 **3. `red.txt` en la misma partición FAT**, copiando `scripts/red.txt.ejemplo` y rellenándolo con
 la IP de este robot. Manual, cap. 19.3. ⚠️ Lleva la PSK del WiFi: **no va a git**.
