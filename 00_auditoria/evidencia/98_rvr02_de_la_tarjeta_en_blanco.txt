@@ -4,7 +4,10 @@
 Fecha:    2026-08-11
 Robot:    rvr-02 (segunda unidad; rvr-01 sigue montado y sin tocar)
 PC:       Windows + WSL2 (Ubuntu 26.04)
-Estado:   🟢 tarjeta preparada y verificada · ⏳ primer arranque pendiente
+Estado:   ✅ tarjeta · ✅ arranque y UART · ✅ provision.sh ENTERO (96 ✓ · 0 ✗)
+          🟡 verificador: 145 ✓ · 7 avisos · 4 fallos, tres de ellos el mismo
+             hueco (grupos del usuario) ya arreglado en el guion
+          ⏳ pendiente: repetir el verificador · red.txt (paso 6-bis)
 
 POR QUÉ EXISTE ESTE FICHERO
 --------------------------------------------------------------------------------
