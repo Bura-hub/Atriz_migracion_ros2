@@ -159,7 +159,11 @@ LO QUE QUEDA
    mismo instrumento, el mismo robot y la misma sesión: lo único que cambió es
    el arreglo.
 
-⏳ Falta reiniciar `atriz-robot` en rvr-01 y repetirlo allí.
+✅ Y REPETIDO EN rvr-01 tras reiniciar su servicio, con la misma salida:
+       -> success=False, 'parada de emergencia ACTIVA: llama primero a
+                          /release_emergency_stop'
+
+   Los DOS robots de la flota tienen el arreglo activo y comprobado.
 
 ⏳ 👤 Decidir si se añade la ruta de recepción de mensajes IR. Antes de la
    imagen dorada, o los dieciséis salen sin ella.
