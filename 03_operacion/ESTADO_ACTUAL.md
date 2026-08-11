@@ -199,17 +199,31 @@ $ sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --id 02
 Es **un solo problema en cadena**: `fase_7` se niega porque el workspace no compiló. Lo demás de
 `fase_7` sale ✓, y `/boot/firmware/robot_id.txt` tiene `ROBOT_ID=02` correctamente.
 
-### ✅ Lo que YA descarté leyendo el guion, para que nadie lo persiga
+### 🔴 ~~Lo que YA descarté leyendo el guion, para que nadie lo persiga~~ — **ERA FALSO**
 
-**`provision.sh` NO compila como root**, así que el fallo **no es suyo** en ese paso:
+> **Esto es lo que estaba escrito, y es exactamente la conclusión que costó el día.** Se conserva
+> entero porque la lección vale más que el error.
+
+~~**`provision.sh` NO compila como root**, así que el fallo **no es suyo** en ese paso:~~
 
 ```
 provision.sh:519   correr sudo -u "$USUARIO" bash -c "… cd atriz_ws && colcon build --symlink-install"
 provision.sh:244   correr install -d -o "$USUARIO" -g "$USUARIO" "$WS"
 ```
 
-→ Si `~/atriz_ws` aparece de `root`, **lo creó otra cosa lanzada con `sudo` a mano**, no el guion.
-⏳ **La causa NO está determinada.** Hace falta la salida del diagnóstico de abajo.
+~~→ Si `~/atriz_ws` aparece de `root`, **lo creó otra cosa lanzada con `sudo` a mano**, no el
+guion. ⏳ La causa NO está determinada.~~
+
+🔴 **`:244` ERA el fallo.** `install -d` **no aplica `-o`/`-g` a los padres que crea de paso** —el
+manual de coreutils: *«Parent directories are created with mode `u=rwx,go=rx` (755), regardless of
+the `-m` option»… «giving them the default attributes»*—. Con `sudo`, «por defecto» es **root**.
+Así que `.../atriz_ws/src` dejaba `src` del usuario y **`atriz_ws` de root**, y `colcon build`, que
+sí corre como el usuario, no podía crear `log/` dentro.
+
+📌 **Y el método fue el error, no la conclusión.** Se descartó **leyendo el fuente** —que dice
+`install -d -o "$USUARIO"` y suena bien— en vez de mirar el directorio, que decía `root`. Aplicada
+a un guion, la regla del proyecto *«comprueba el efecto, no el código de salida»* significa que
+**mirar el código ES mirar el código de salida**. Arreglado el 2026-08-11; evidencia 98.
 
 ### 🔴 Y la trampa que hay que descartar ANTES de tocar nada: el workspace parásito
 
