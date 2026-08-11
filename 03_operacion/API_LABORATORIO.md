@@ -189,10 +189,21 @@ Al probarlo con dos aparecieron dos cosas que cambian lo que se puede prometer a
 al segundo**. Un código de hace diez segundos no dice que haya alguien ahí ahora, solo que lo hubo.
 Devolver el último valor sin más sería mentir con un dato real.
 
-**2 · `quien_hay_cerca()` dice SI hay alguien, no todavía POR DÓNDE.** El SDK trae una máscara que
-asignaría cada sensor a una esquina, pero está documentada **para el BOLT**, que es otro robot con
-otro chasis. ⏳ Hasta medirlo con dos RVR, prometer dirección sería heredar una suposición de otro
-producto. Se mide con `mediciones_banco/medir_ir_dos_robots.py`.
+**2 · `quien_hay_cerca()` dice SI hay alguien, y solo a medias POR DÓNDE — y está MEDIDO.**
+Se probó el 2026-08-11 con los dos robots, girando el que lee (evidencia 100):
+
+```
+[1] solo          →  el otro está a tu IZQUIERDA
+[1,3] / [1,2,3]   →  está DETRÁS
+[2,3]             →  está DELANTE o A LA DERECHA    ← no los separa
+```
+
+**Tres estados, no cuatro.** Y `sensor_0` **no lleva datos nunca**, en ninguno de los dos robots.
+🔴 La máscara del SDK, que asignaría cada byte a una esquina, está documentada **para el BOLT** y
+**no describe al RVR**: no encaja en ninguna de las dos lecturas posibles del orden de bytes.
+
+Por eso los campos siguen llamándose `sensor_N`. No porque falte medirlo, sino porque **la
+medición dice que no se pueden nombrar**.
 
 **3 · Los dos que conducen avisan por pantalla y se apagan al cerrar.** Ver la garantía nº 8: es la
 única forma de que un Ctrl-C no deje un robot rodando por el aula.

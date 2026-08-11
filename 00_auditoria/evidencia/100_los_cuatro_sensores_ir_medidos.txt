@@ -1,0 +1,134 @@
+================================================================================
+100 · LOS CUATRO SENSORES IR DEL RVR, MEDIDOS — y la máscara del BOLT refutada
+================================================================================
+Fecha:   2026-08-11
+Robots:  rvr-01 y rvr-02, los DOS haciendo de vigilante por turnos
+Método:  00_auditoria/evidencia/mediciones_banco/medir_ir_dos_robots.py
+Estado:  ✅ MEDIDO · 🟡 discrimina TRES estados, no cuatro · 🔴 un byte sin datos
+
+LA PREGUNTA
+--------------------------------------------------------------------------------
+👤 «no estoy seguro de saber dónde están los IR, ¿cuántos son?»
+
+Y la de fondo, que es la que decidía el diseño: ¿los cuatro bytes del uint32 que
+devuelve `get_bot_to_bot_infrared_readings` corresponden a cuatro sensores
+repartidos alrededor del robot, como dice la máscara del SDK?
+
+🔴 Esa máscara está etiquetada «Mask description **on BOLT**». El robot de este
+   laboratorio es un **Sphero RVR**: otro producto, otro chasis. Y en los DOS
+   árboles del proyecto NO EXISTE ni una medida, ni una foto, ni un diagrama de
+   dónde están los IR del RVR. Ni altura, ni orientación, ni ángulo de visión.
+   Lo único espacial documentado es RADIAL: 3 m o más / menos de 1 m.
+
+EL MÉTODO, Y POR QUÉ NO HIZO FALTA SABER DÓNDE ESTABAN
+--------------------------------------------------------------------------------
+No hay que conocer la geometría para medirla: se le pregunta al hardware.
+
+  · El firmware enciende y apaga CADA EMISOR POR SEPARADO, así que se emite por
+    uno solo y se mira qué byte deja de ser 255.
+  · Cada emisor lleva un CÓDIGO distinto (frontal=1, izquierdo=2, derecho=3,
+    trasero=4). El registro del receptor guarda el ID del mensaje, así que el
+    número identifica de qué emisor vino sin depender del cronometraje.
+  · Y para anclar los sensores al cuerpo del robot se GIRA EL QUE LEE, que es
+    autorreferente: compara el mismo robot consigo mismo y no necesita que nadie
+    recuerde cómo estaban colocados al principio.
+
+RESULTADO 1 · COBERTURA DE LOS EMISORES (rvr-01 leyendo, posición fija)
+--------------------------------------------------------------------------------
+    emisor        código      sensores que responden
+    frontal          1        2, 3
+    izquierdo        2        2, 3
+    derecho          3        1, 2, 3   (y a veces solo 1)
+    trasero          4        2, 3 · 1, 2, 3 · 1, 3
+
+→ LOS CUATRO EMISORES LLEGAN, incluido el TRASERO, que apunta al lado contrario.
+  Eso es casi con seguridad REBOTE: en interior el infrarrojo se refleja en
+  paredes y suelo.
+
+🔴 CONSECUENCIA PARA EL AULA: el nombre del emisor NO garantiza la dirección.
+   «Emitir solo por la izquierda» no significa que solo te vean por la izquierda.
+
+RESULTADO 2 · LOS SENSORES, CON LOS DOS ROBOTS
+--------------------------------------------------------------------------------
+Emisor siempre con `--emitir-solo frontal` (código 1). Se gira el que lee.
+
+    dónde está el emisor      rvr-01          rvr-02
+    ────────────────────      ──────────      ──────────────
+    DELANTE                   [2, 3]          [2, 3]
+    a la IZQUIERDA            [1]             [1]
+    DETRÁS                    [1, 3]          [1, 2, 3]
+    a la DERECHA              [2, 3]          [2, 3]
+
+    sensor_0                  NUNCA           NUNCA
+
+✅ Y EL CICLO CIERRA: en rvr-01 se giró 90° cuatro veces hasta volver al inicio,
+   y el patrón volvió a ser el de partida. Eso no lo hace el ruido.
+
+LO QUE ESTO DEMUESTRA
+--------------------------------------------------------------------------------
+1 · ES REPRODUCIBLE ENTRE ROBOTS. Dos unidades distintas dan el mismo patrón en
+    cada orientación. No es una peculiaridad de una.
+
+2 · 🔴 `sensor_0` NO LLEVA DATOS. Nunca, en ninguno de los dos, en ~10
+    experimentos con los cuatro emisores y cuatro orientaciones.
+
+    ⚠️ Y esto RETIRA una hipótesis que llegué a proponer al usuario: que rvr-01
+       tuviera un sensor averiado. Con rvr-02 dando el mismo resultado, es
+       SISTEMÁTICO — ese byte del uint32 no es un cuarto sensor que responda como
+       los otros tres.
+
+3 · 🟡 DISCRIMINA, PERO SOLO TRES ESTADOS:
+
+        [1] solo            ->  emisor a la IZQUIERDA
+        [1,3] / [1,2,3]     ->  emisor DETRÁS
+        [2,3]               ->  emisor DELANTE **o** A LA DERECHA
+
+    🔴 DELANTE Y DERECHA DAN EXACTAMENTE LO MISMO. No se separan, y eso no se
+       arregla midiendo más: es lo que hay.
+
+🔴 LA MÁSCARA DEL BOLT NO DESCRIBE AL RVR
+--------------------------------------------------------------------------------
+La máscara dice: front_left=0x000000FF · front_right=0x0000FF00 ·
+back_right=0x00FF0000 · back_left=0xFF000000 — cuatro esquinas a 90°.
+
+Lo medido no encaja con eso en ninguna de las dos lecturas posibles del orden de
+bytes: con el emisor DELANTE deberían responder los dos frontales y responden
+los dos ALTOS; con el emisor a la DERECHA responde lo mismo que DELANTE; y uno
+de los cuatro no responde jamás.
+
+📌 Es el mismo patrón que ya mordió a este proyecto con los encoders: el SDK los
+   documenta como `Left`/`Right` y el payload real trae `LeftTicks`/`RightTicks`.
+   **La documentación del fabricante no es evidencia.**
+
+⚠️ Y hay una trampa añadida en el propio SDK: la etiqueta «on BOLT» está en la
+   documentación de protocolo, pero el enum de Python la PERDIÓ
+   (`sensor_enums.py:95-100`). Presenta front_left/front_right/back_right/
+   back_left como si fueran del RVR. Quien lea solo el código no tiene forma de
+   saber que son de otro robot.
+
+DECISIONES DE DISEÑO QUE ESTO FIJA
+--------------------------------------------------------------------------------
+El criterio se fijó ANTES de medir, dentro del propio guion, y el resultado es
+intermedio. Se respeta el criterio en vez de estirarlo para que salga bonito:
+
+  · LOS CAMPOS NO SE RENOMBRAN. `sensor_0..3` se quedan. Ponerles `frontal` o
+    `izquierdo` sería prometer una resolución que NO EXISTE.
+
+  · `quien_hay_cerca()` SE QUEDA, devolviendo los cuatro valores, pero
+    documentando que NO separa delante de derecha y que el byte 0 nunca lleva
+    datos. Dice lo que ve, no lo que nos gustaría que viera.
+
+  · EL CAMPO `crudo` SE QUEDA, y ahora con más razón: es lo que permitirá
+    reinterpretar esta medición si algún día aparece documentación real del RVR,
+    sin tener que repetirla.
+
+  · La detección es INTERMITENTE. Con el emisor repitiendo cada 0,4 s y un
+    registro que caduca al segundo, aparecen lecturas de NADIE entre medias. Una
+    sola muestra NO vale: hay que muestrear varias veces.
+
+📌 PARA QUÉ SIRVIÓ MEDIR ANTES DE CONSTRUIR
+   Si hubiéramos creído a la máscara del BOLT, `atriz.py` estaría prometiendo hoy
+   «tienes un robot a tu izquierda-delantera» sobre unos bytes que no distinguen
+   delante de derecha y uno que no existe. El coste de comprobarlo fue una tarde
+   con dos robots; el de no comprobarlo habría sido una práctica que miente al
+   alumno, en dieciséis robots.

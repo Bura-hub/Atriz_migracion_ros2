@@ -219,7 +219,22 @@ la única forma que tiene ROS de enterarse.
 
 ## Pruebas
 
-### 1 · Prueba de viabilidad de la detección direccional — **VA PRIMERO**
+### 1 · Prueba de viabilidad — ✅ EJECUTADA EL 2026-08-11. Resultado: 🟡
+
+**Veredicto: discrimina TRES estados, no cuatro.** `[1]`=izquierda, `[1,3]`=detrás,
+`[2,3]`=delante **o** derecha —no los separa—, y `sensor_0` **no lleva datos nunca**, en ninguno de
+los dos robots. Reproducible entre unidades y el ciclo cierra al girar 360°, así que hay
+direccionalidad real; pero no cuatro direcciones fiables.
+
+🔴 **La máscara del BOLT queda refutada para el RVR.** Detalle en la evidencia 100.
+
+**Consecuencia, aplicando el criterio tal como estaba escrito:** los campos **no se renombran**,
+`quien_hay_cerca()` se queda pero **sin prometer las cuatro direcciones**, y el campo `crudo` se
+queda para poder reinterpretar la medición si algún día aparece documentación real del RVR.
+
+El diseño original de esta prueba, conservado porque es lo que la hizo válida:
+
+### 1-bis · Cómo estaba diseñada
 
 👤 Decisión del usuario: medir antes de construir encima. Es lo único del diseño que se apoya en
 algo **no verificado** — que los cuatro sensores del RVR discriminen dirección como los del BOLT.
