@@ -55,6 +55,43 @@ máxima (todo medido, evidencia 95).
 ningún parámetro cubre — el `range_min` del LIDAR es 10 cm y el borde del robot está a 9. **Un
 obstáculo pegado al robot puede ser invisible.**
 
+### ✅ PC (2026-08-10): **EL ROBOT NAVEGÓ DESDE LA WEB, Y ESTA VEZ `SUCCEEDED` ERA CIERTO**
+
+A5 cierra su parte grande. Cadena entera por rosbridge, sin tocar SSH:
+`/pedir_nav` → Nav2 en **32 s** → objetivo por `navigate_to_pose` → el robot
+conduce solo → desenlace.
+
+```
+pedido        80,0 cm       (x=0,800 en marco map, AMCL situaba al robot en 0,0)
+cinta          71,5 cm      👤 medida por el usuario
+/odom          71,5 cm      ← DOS VÍAS INDEPENDIENTES, y coinciden
+              --------
+corto en        8,5 cm      tolerancia de Nav2: 10 cm  ->  DENTRO
+desenlace     status=4 SUCCEEDED   ·  14,6 s  ·  giro neto −2,6°
+```
+
+✅ **Y aquí `SUCCEEDED` era CORRECTO**, que es un dato nuevo: las tres tandas
+anteriores lo tenían mintiendo (6,1 · 11,8 · 41,3 cm). Con n=4 la lectura honesta
+sigue siendo *«el desenlace no informa»*, no *«miente siempre»* — que es una
+afirmación distinta y más débil de lo que yo había escrito.
+
+🔴 **Y ME EQUIVOQUÉ EN DIRECTO, con el instrumento del que TÚ ya avisaste.**
+Escribí *«Nav2 dijo ÉXITO creyéndose a 15,6 cm»* usando el último `/amcl_pose`
+(0,644). **Ese mensaje estaba RANCIO**: AMCL solo publica cada `update_min_d`
+= 15 cm, y el controlador se guía por la TF viva, no por el último publicado.
+El robot acabó a 8,5 cm, dentro de tolerancia. **Quien mentía era AMCL, no el
+desenlace** — usé un instrumento fuera de su contexto, sobre el instrumento del
+que este fichero ya dice que va con retraso.
+
+⚠️ **Lo que esta tanda NO mide, y conviene que no se lea de más:** AMCL arrancó
+en `(0,0,0°)` por su `set_initial_pose`, **no por haberse localizado**. Su cifra
+absoluta no vale aquí; lo que vale es el **desplazamiento**, que es lo que se
+comparó con la cinta.
+⏳ **`/initialpose` sigue sin ejercerse desde la web**, así que A5 no está entero.
+
+📌 **Y `/odom` vuelve a acertar contra cinta**, quinta vez: 1,5 · 4,2 · 2,2 · 0,3
+y ahora **0,0 cm**. Es lo que la pantalla pinta, y por eso lo pinta.
+
 ### 🆕 PC (2026-08-10): YA HAY CON QUÉ MEDIR EL AULA — `03_operacion/medir_aula.html`
 
 **F0 bloquea la cadena entera del taller** —terminal ← agente de sesión ← F0— y
