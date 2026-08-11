@@ -210,8 +210,17 @@ en ningún topic: hablan al RVR **por el puerto serie**. Lo único que los para 
 emergencia. Y `raw_motors` **no tiene corte automático**: sigue hasta que se le manda modo 0.
 
 ⚠️ **`set_ir_evading` y `set_ir_mode('following')` hacen conducir al robot SOLO**, por firmware.
-No los uses desde la web sin espacio despejado. Comprueban la parada de emergencia **desde el
-2026-08-01** — antes no, y era un agujero real.
+No los uses desde la web sin espacio despejado.
+
+🔴 **Este párrafo decía «Comprueban la parada de emergencia desde el 2026-08-01», en plural, y era
+FALSO.** Solo la comprobaba `set_ir_evading`. `set_ir_mode('following')` respondía `success=True`
+con la parada **activa** y el RVR se ponía a conducir — medido con dos robots el 2026-08-11
+(evidencia 99), diez días después de darlo por arreglado. Arreglado ese día en `Atriz_rvr`
+(`19884e7`); **ahora sí lo comprueban los dos**.
+
+📌 Y es la misma forma que tenía el código: este documento sabía —lo dice la primera línea— que
+`following` conduce igual que `evading`, y aun así lo dio por protegido junto al otro. **Un plural
+sin comprobar es una afirmación sin medir.**
 
 📝 **Y `ros2 service list` no es autoritativo:** vuelve a omitir `set_drive_parameters`
 (17 de 18), comprobado el 2026-08-01. Para saber si un servicio
@@ -385,9 +394,14 @@ filtro**. Son situaciones opuestas.
 sabe que perdió el enlace, seguirá dando órdenes al vacío.
 
 🔴 **Lo que estas defensas NO cubren:** los servicios de movimiento del driver
-(`move_timed`, `raw_motors`, `move_to_pose`, `move_to_pos_and_yaw`, `set_ir_evading`) hablan al
-RVR **por el puerto serie**, así que ni el watchdog ni el `collision_monitor` los ven. Solo los
-para la parada de emergencia — y `set_ir_evading` **no la comprobaba hasta el 2026-08-01**.
+(`move_timed`, `raw_motors`, `move_to_pose`, `move_to_pos_and_yaw`, `set_ir_evading` y
+**`set_ir_mode('following')`**) hablan al RVR **por el puerto serie**, así que ni el watchdog ni el
+`collision_monitor` los ven. Solo los para la parada de emergencia.
+
+⚠️ **`set_ir_mode('following')` FALTABA en esta lista**, y no es casualidad que fuera justo el que
+no comprobaba la parada: la lista y el código se equivocaban igual. `set_ir_evading` no la
+comprobaba hasta el 2026-08-01; `set_ir_mode('following')` **hasta el 2026-08-11**, cuando se midió
+con dos robots (evidencia 99). Los dos la comprueban ya.
 
 ---
 

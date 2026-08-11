@@ -3989,7 +3989,7 @@ No se siguió el orden del `.srv`, sino el del riesgo — así se prueba en banc
 |---|---|---|
 | **lecturas** | `get_encoders`, `get_system_info`, `get_control_state`, `get_rgbc_sensor_values` | app **9.1.462**, bootloader **9.1.167**, MAC, SKU, Nordic y ST |
 | **luces** | `set_led_rgb`, `set_multiple_leds`, `set_leds`, `trigger_led_event` | y sus caminos de error |
-| **IR** | `send_infrared_message`, `set_ir_mode`, `set_ir_evading` | ⚠️ el último **sí puede mover el robot** |
+| **IR** | `send_infrared_message`, `set_ir_mode`, `set_ir_evading` | 🔴 **DOS de los tres mueven el robot**: `set_ir_evading` y `set_ir_mode('following')`. Aquí ponía «el último», en singular, y esa confusión es exactamente la que dejó `following` sin comprobar la parada durante diez días (ev. 99) |
 | **config** | `set_drive_parameters`, `set_pos_and_yaw` | |
 | **movimiento** | `move_timed`, `raw_motors`, `move_to_pose`, `move_to_pos_and_yaw` | ver abajo |
 
@@ -4100,13 +4100,43 @@ Y al lado había un segundo agujero: `set_ir_mode('off')` solo llamaba a
 `stop_..._broadcasting()`, así que **`following` —que también conduce— no se podía apagar**, y
 **`evading` no tenía ninguna forma de apagarse desde ROS**.
 
-✅ **Arreglado y verificado**: `set_ir_evading` comprueba la parada, `'off'` para los tres
-modos, y la parada de emergencia manda además `stop_evading` y `stop_following` — porque
-`drive_stop()` **no basta** contra un modo del firmware, que volvería a conducir en la siguiente
-detección IR.
+🔴 **Y aquí ponía «✅ Arreglado y verificado… se comprueba en todos». Volvía a ser falso, y por la
+misma razón.** El arreglo del 2026-08-01 entró en `set_ir_evading` y **no** en
+`set_ir_mode('following')`, que conduce exactamente igual. Medido con dos robots el 2026-08-11,
+diez días después:
 
-**Lo único que los detiene es la parada de emergencia**, que se comprueba en todos y está
-verificada (16.1).
+```
+$ ros2 topic pub --once /emergency_stop std_msgs/msg/Empty {}
+$ ros2 service call /set_ir_mode ... "{mode: 'following', ...}"
+  -> success=True                                    🔴 y el RVR conduciendo
+
+$ ros2 service call /set_ir_evading ...
+  -> success=False, 'parada de emergencia ACTIVA'    ✅ este sí
+```
+
+📌 **Dos veces la misma lección, con diez días de diferencia:** el arreglo se dio por bueno mirando
+el servicio que se arreglaba, sin buscar los demás que mueven el robot. «Busca TODAS las menciones,
+no la primera» también vale para los controles de seguridad — y «se comprueba en todos» es
+justamente el tipo de frase que hay que medir antes de escribir.
+
+✅ **Arreglado el 2026-08-11** (`Atriz_rvr` `19884e7`) **y verificado sobre rvr-02**, no leído:
+
+```
+$ ros2 topic pub --once /emergency_stop std_msgs/msg/Empty {}
+$ ros2 service call /set_ir_mode ... "{mode: 'following', ...}"
+  -> success=False, 'parada de emergencia ACTIVA: llama primero a /release_emergency_stop'
+```
+
+Se auditaron además **todos** los servicios que mueven, para no repetir el error una tercera vez:
+`move_to_pose` y `move_to_pos_and_yaw` delegan en `_ir_a`, que sí lleva la guardia, y
+`set_drive_parameters` no mueve el robot. **`following` era el único que faltaba.**
+
+Y lo que ya estaba bien: `'off'` para los tres modos, y la parada de emergencia manda además
+`stop_evading` y `stop_following` — porque `drive_stop()` **no basta** contra un modo del firmware,
+que volvería a conducir en la siguiente detección IR.
+
+**Lo único que los detiene es la parada de emergencia**, que **ahora sí** se comprueba en todos los
+que mueven — verificado servicio por servicio el 2026-08-11 (evidencia 99), no por lectura.
 
 ### 16.5 📝 `ros2 service list` no es autoritativo
 

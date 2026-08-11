@@ -4,7 +4,8 @@
 Fecha:    2026-08-11
 Robots:   rvr-01 (emisor) y rvr-02 (receptor), los dos en el suelo, ~1 m
 Estado:   ✅ emisión, seguimiento y evasión probados con DOS robots
-          🔴 un agujero de seguridad encontrado y arreglado (Atriz_rvr 19884e7)
+          ✅ agujero de seguridad encontrado, arreglado (Atriz_rvr 19884e7) y
+             VERIFICADO sobre rvr-02
           ⏳ la RECEPCIÓN de mensajes IR sigue sin existir en ROS 2
 
 POR QUÉ EXISTE ESTE FICHERO
@@ -114,13 +115,6 @@ encoders, battery, motors, estado— y **ninguno de IR**. Y registra ocho
 Al recompilar el driver en rvr-01 para aplicar el arreglo, el diseño de la
 instalación CAMBIÓ:
 
-⚠️ Y una pista que resultó ser FALSA, anotada porque casi me lleva por otro
-   camino: colcon avisó de un *override* («'atriz_rvr_driver' is in:
-   .../install/atriz_rvr_driver») y lo tomé por señal de divergencia. **No lo
-   es**: el mismo aviso salió en rvr-02, recién aprovisionado por el guion. Es
-   lo normal al recompilar un workspace que ya está «sourceado». Lo que sí era
-   real es lo de abajo.
-
     antes:  install/.../lib/python3.12/site-packages/atriz_rvr_driver/*.py   (copia real)
     ahora:  install/.../lib/python3.12/site-packages/atriz-rvr-driver.egg-link
 
@@ -137,6 +131,13 @@ Medido en rvr-02, que salió de `provision.sh` sin tocar nada:
    y no del robot de referencia: rvr-01 acumula estado manual que nadie puso por
    escrito. «La imagen es el ATAJO, el script es la VERDAD.»
 
+⚠️ Y una pista que resultó FALSA, anotada porque casi me lleva por otro camino:
+   colcon avisó de un *override* («'atriz_rvr_driver' is in:
+   .../install/atriz_rvr_driver») y lo tomé por señal de la divergencia. **No lo
+   es.** El mismo aviso salió en rvr-02, recién aprovisionado por el guion: es lo
+   normal al recompilar un workspace que ya está «sourceado». Lo que delató la
+   divergencia fue el `ls` de arriba, no el aviso.
+
 Comprobado antes de tocar el servicio, para no dejar a rvr-01 sin driver:
     · el módulo resuelve a build/.../rvr_driver_node.py, que lleva el arreglo
     · `import atriz_rvr_driver.rvr_driver_node` funciona
@@ -145,12 +146,20 @@ Comprobado antes de tocar el servicio, para no dejar a rvr-01 sin driver:
 ================================================================================
 LO QUE QUEDA
 ================================================================================
-⏳ Reiniciar `atriz-robot` en los dos robots y COMPROBAR el arreglo:
-       ros2 topic pub --once /emergency_stop std_msgs/msg/Empty {}
-       ros2 service call /set_ir_mode ... "{mode: 'following', ...}"
-       -> debe decir success=FALSE
-   Mientras no se ejecute eso, el arreglo está **NO VERIFICADO**: lo único que
-   hay es que compila y que el módulo carga.
+✅ ARREGLO VERIFICADO SOBRE rvr-02 el 2026-08-11, no leído:
+
+       $ systemctl is-active atriz-robot
+       active
+       $ ros2 topic pub --once /emergency_stop std_msgs/msg/Empty {}
+       $ ros2 service call /set_ir_mode ... "{mode: 'following', ...}"
+       -> success=False, 'parada de emergencia ACTIVA: llama primero a
+                          /release_emergency_stop'
+
+   Antes de reiniciar el servicio, el mismo comando decía success=True. Es el
+   mismo instrumento, el mismo robot y la misma sesión: lo único que cambió es
+   el arreglo.
+
+⏳ Falta reiniciar `atriz-robot` en rvr-01 y repetirlo allí.
 
 ⏳ 👤 Decidir si se añade la ruta de recepción de mensajes IR. Antes de la
    imagen dorada, o los dieciséis salen sin ella.
