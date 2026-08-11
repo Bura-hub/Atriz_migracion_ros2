@@ -74,6 +74,26 @@
 #        · sin user-data               -> aviso, no falla
 #        · señuelo `password:` en las cinco -> NO aparece en la salida
 #
+#      El 2026-08-11, preparando rvr-02, se probó contra una RÉPLICA EXACTA de
+#      su tarjeta (el cmdline.txt que dejó el Imager, con su ds=nocloud y su
+#      regdom=CO, y un config.txt terminado en [cm4]):
+#
+#        · --simular          -> no escribe NADA (diff -r contra la copia:
+#                                ficheros idénticos) y ya enseña la línea
+#                                RESULTANTE, no la de antes
+#        · pasada real        -> console=serial eliminado (0 ocurrencias),
+#                                cmdline.txt con 0 saltos de línea,
+#                                disable-bt ACTIVO en [all] según el propio awk,
+#                                ROBOT_ID=02, y los dos .bak-* creados
+#        · dos pasadas        -> 1 sola directiva dtoverlay=disable-bt y 1 solo
+#                                bloque añadido. Solo se acumulan los respaldos,
+#                                que llevan marca de tiempo a propósito.
+#
+#      ⚠️ Y una lección de medición: al comprobar la idempotencia, un
+#         `grep -c 'disable-bt'` dio 2 y pareció un fallo. Contaba también la
+#         línea de COMENTARIO que explica qué hace disable-bt. El guion estaba
+#         bien; el instrumento, no. Cuéntese `^[[:space:]]*dtoverlay=disable-bt`.
+#
 #      📝 Lo que NO se ha probado: una microSD física, con su automontaje y su
 #         sistema de ficheros FAT real. Al preparar el primer clon, comprobar
 #         cada paso y corregir FLOTA.md.
@@ -133,6 +153,13 @@ if [[ ! -w "$PART" ]]; then
 fi
 [[ $SIMULAR -eq 1 ]] && avi "MODO SIMULACIÓN: no se escribirá nada"
 
+# 🔴 En --simular NO se afirma lo que no se ha hecho. Hasta el 2026-08-11 los
+#    pasos 1, 2 y 3 imprimían su ✓ en pasado ("quitado", "añadido") aunque la
+#    escritura estuviera saltada, así que el ensayo en seco decía haber hecho lo
+#    que no hacía. Se vio preparando rvr-02: el ✓ decía «quitado console=serial*»
+#    y dos líneas más abajo el fichero lo seguía teniendo.
+hecho() { if [[ $SIMULAR -eq 1 ]]; then ok "SE HARÍA → $1"; else ok "$1"; fi; }
+
 STAMP="$(date +%Y%m%d-%H%M%S)"
 respalda() {
     [[ $SIMULAR -eq 1 ]] && return 0
@@ -143,15 +170,17 @@ respalda() {
 say "1/5 · cmdline.txt — liberar el puerto serie"
 
 CMD="$PART/cmdline.txt"
+
+# La línea resultante se calcula SIEMPRE, se escriba o no, y se escribe UNA sola
+# vez al final del paso. Así --simular puede enseñar el efecto y no la promesa.
+# cmdline.txt es UNA SOLA LÍNEA: un '\n' aquí impide arrancar, de ahí el tr y el
+# printf '%s' sin salto final.
+LINEA="$(tr -d '\n' < "$CMD")"
+
 if grep -q 'console=serial' "$CMD"; then
     respalda "$CMD"
-    if [[ $SIMULAR -eq 0 ]]; then
-        # cmdline.txt es UNA SOLA LÍNEA. Un salto de línea aquí impide arrancar,
-        # asi que se edita con tr y printf, sin añadir '\n' al final.
-        NUEVO="$(tr -d '\n' < "$CMD" | sed -E 's/[[:space:]]*console=serial[^[:space:]]*//g; s/  +/ /g; s/^ //; s/ $//')"
-        printf '%s' "$NUEVO" > "$CMD"
-    fi
-    ok "quitado console=serial* (reservaba el UART para la consola del kernel)"
+    LINEA="$(printf '%s' "$LINEA" | sed -E 's/[[:space:]]*console=serial[^[:space:]]*//g; s/  +/ /g; s/^ //; s/ $//')"
+    hecho "quitar console=serial* (reservaba el UART para la consola del kernel)"
 else
     ok "cmdline.txt ya estaba bien: no reserva el puerto serie"
 fi
@@ -163,32 +192,46 @@ grep -q 'console=tty1' "$CMD" || avi "no hay console=tty1: no verás mensajes en
 #    ieee80211_regdom -> CO) pero el firmware del brcmfmac es *self-managed* y
 #    fija el suyo — `iw reg get` sigue diciendo US. Manual, cap. 3.3.
 #
-#    Entonces, ¿por qué ponerlo? Porque rvr-01 lo tiene y NINGÚN script lo
-#    escribía: se puso a mano y no quedó registrado. O sea que cada tarjeta
-#    saldría distinta según quién la grabe, y «los 16 robots son iguales» sería
-#    falso en un detalle que nadie miraría. Se fija aquí para que sean iguales,
-#    no porque sirva. Si algún día el firmware deja de pisarlo, además servirá.
+#    Entonces, ¿por qué ponerlo? Porque rvr-01 lo tiene y «los 16 robots son
+#    iguales» tiene que ser cierto también en los detalles que nadie mira.
+#
+#    ⚠️ CORREGIDO el 2026-08-11 (rvr-02): aquí ponía que «NINGÚN script lo
+#    escribía: se puso a mano y no quedó registrado». Es FALSO. La tarjeta de
+#    rvr-02, recién grabada y sin arrancar nunca, ya traía
+#    `cfg80211.ieee80211_regdom=CO` en cmdline.txt junto al marcador
+#    `ds=nocloud;i=rpi-imager-…`. Lo escribe el Raspberry Pi Imager al fijar el
+#    país del WiFi. O sea que este bloque es una RED DE SEGURIDAD para quien
+#    grabe sin poner el país, no el único sitio de donde sale.
 REGDOM="${ATRIZ_REGDOM:-CO}"
 if grep -q 'cfg80211.ieee80211_regdom=' "$CMD"; then
-    ACTUAL="$(grep -o 'cfg80211.ieee80211_regdom=[A-Za-z0-9]*' "$CMD" | cut -d= -f2)"
+    ACTUAL="$(printf '%s' "$LINEA" | grep -o 'cfg80211.ieee80211_regdom=[A-Za-z0-9]*' | cut -d= -f2)"
     if [[ "$ACTUAL" == "$REGDOM" ]]; then
         ok "cmdline.txt ya pide regdom=$REGDOM"
     else
         avi "cmdline.txt pide regdom=$ACTUAL y este script pone $REGDOM: se deja el existente"
     fi
 else
-    if [[ $SIMULAR -eq 0 ]]; then
-        # Igual que arriba: una sola línea, sin '\n' final.
-        NUEVO="$(tr -d '\n' < "$CMD") cfg80211.ieee80211_regdom=$REGDOM"
-        printf '%s' "$NUEVO" > "$CMD"
-    fi
-    ok "añadido cfg80211.ieee80211_regdom=$REGDOM (para que las 16 tarjetas sean iguales)"
+    LINEA="$LINEA cfg80211.ieee80211_regdom=$REGDOM"
+    hecho "añadir cfg80211.ieee80211_regdom=$REGDOM (para que las 16 tarjetas sean iguales)"
 fi
 
-printf '  contenido: %s\n' "$(cat "$CMD")"
-# Una sola línea: si hay más de una, el arranque falla de formas confusas.
+# La única escritura del paso. Antes había dos, y en --simular ninguna: por eso
+# el `cat` de abajo enseñaba el fichero de antes.
+if [[ $SIMULAR -eq 0 ]]; then
+    printf '%s' "$LINEA" > "$CMD"
+    printf '  contenido: %s\n' "$LINEA"
+else
+    printf '  contenido que QUEDARÍA: %s\n' "$LINEA"
+fi
+
+# Una sola línea: si hay más de una, el arranque falla de formas confusas. Se
+# mira el FICHERO, no $LINEA — $LINEA no puede tener saltos, por el tr de arriba.
 LINEAS=$(wc -l < "$CMD")
 (( LINEAS <= 1 )) || mal "cmdline.txt tiene $LINEAS saltos de línea. DEBE ser una sola línea."
+# Y el control que de verdad importa: que el console=serial no haya sobrevivido.
+if [[ $SIMULAR -eq 0 ]] && grep -q 'console=serial' "$CMD"; then
+    morir "console=serial SIGUE en cmdline.txt después de editarlo. El RVR no hablaría."
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 say "2/5 · config.txt — dar el PL011 al RVR"
@@ -241,7 +284,15 @@ else
             printf '%s\n' "${FALTAN[@]}"
         } >> "$CFG"
     fi
-    ok "añadido bajo [all] en $(basename "$CFG"): ${FALTAN[*]}"
+    hecho "añadir bajo [all] en $(basename "$CFG"): ${FALTAN[*]}"
+fi
+# El control: que la clave quede ACTIVA para un Pi 4, no solo escrita. Es la
+# trampa de la cabecera [all], que no da ningún error cuando falta.
+if [[ $SIMULAR -eq 0 ]]; then
+    for k in "${FALTAN[@]}"; do
+        clave_activa "$CFG" "^[[:space:]]*${k//./\\.}" \
+            || morir "$k quedó escrito en $(basename "$CFG") pero NO activo para [pi4]: revisa las cabeceras de sección"
+    done
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -266,7 +317,7 @@ if [[ $SIMULAR -eq 0 ]]; then
 ROBOT_ID=$ID2
 EOF
 fi
-ok "ROBOT_ID=$ID2  ->  rvr-$ID2 · ROS_DOMAIN_ID=$ID_NUM · /rvr_$ID2"
+hecho "escribir ROBOT_ID=$ID2  ->  rvr-$ID2 · ROS_DOMAIN_ID=$ID_NUM · /rvr_$ID2"
 
 # ─────────────────────────────────────────────────────────────────────────────
 say "4/5 · SSH — que se pueda entrar por contraseña"
