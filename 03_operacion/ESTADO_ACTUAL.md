@@ -78,6 +78,47 @@ duplicada que decía lo contrario.
 | 6-ter · el LIDAR | ✅ el `ID_PATH` **es el mismo en otro Pi**. Cerrado un ⏳ de semanas |
 | 7 · reinicio + verificador | ✅ **151 ✓ · 6 avisos · 0 FALLOS — rvr-02 PASA** |
 
+### 🆕🔴 PARA TU CONTRATO, PC: DOS TOPICS NUEVOS Y UN TIPO QUE CAMBIA
+
+El sistema de infrarrojos se ha rehecho entero (2026-08-11). **Esto te toca**, porque cambia la
+lista blanca de rosbridge y rompe un tipo de mensaje.
+
+| | |
+|---|---|
+| `/infrared_messages` | 🔴 **CAMBIA EL TIPO.** Antes: `code` + cuatro `*_strength`. Ahora: `std_msgs/Header header` + `uint8 code`. Los cuatro campos de intensidad **eran ficción**: el firmware no los envía nunca en la recepción, son parámetros del envío |
+| `/estado_ir` | 🆕 nuevo, `atriz_rvr_msgs/msg/EstadoIR`, a 1 Hz |
+| `/send_infrared_message` | 🆕 **abierto** en la lista blanca. Enciende emisores, no mueve nada |
+| `/set_ir_mode` · `/set_ir_evading` | 🔴 **siguen CERRADOS a propósito.** Ver abajo |
+
+📌 **Romper `/infrared_messages` no te rompe nada**: no estaba en la lista blanca, así que la web
+nunca lo pudo leer. Es justo por eso que se rompió ahora.
+
+**Lo que te habilita `/estado_ir`, y es lo interesante para el muro del profesor:**
+
+```
+uint32  crudo · uint8 sensor_0..3 · bool lecturas_validas · float32 antiguedad_lectura_s
+uint8   ultimo_codigo · bool hay_mensaje · float32 antiguedad_mensaje_s
+string  modo · uint8 far_code · uint8 near_code
+bool    conduciendo_por_ir      ← 🔴 ESTE
+```
+
+🔴 **`conduciendo_por_ir` es la única forma de que la web sepa que un robot se está moviendo por
+infrarrojos.** `following` y `evading` son modos del **firmware**: no pasan por `cmd_vel`, así que
+ni el watchdog ni el `collision_monitor` los ven, y hasta hoy **nada en ROS se enteraba**. Si tu
+interfaz enseña «parado» mientras un robot cruza el aula solo, es por esto.
+
+⚠️ **Y las antigüedades no son metadatos:** la lectura del firmware **se borra al segundo**. Un
+`255` con 3 s de antigüedad significa «hace mucho que no miro», no «no hay nadie». Si la web pinta
+lo primero como lo segundo, mentirá con un dato real.
+
+**Por qué `following`/`evading` NO se abren:** hacen conducir al robot saltándose la capa de
+seguridad, y rosbridge **no tiene identidad por usuario** (pendiente ya abierto en
+`SEGURIDAD_ROSBRIDGE.md`). Abrirlos hoy sería que cualquiera en el aula pueda poner a conducir
+cualquier robot. 👤 Se reabre cuando exista esa identidad — no antes, y no por comodidad.
+
+📌 Diseño completo, con lo que se descartó y por qué:
+`docs/superpowers/specs/2026-08-11-sistema-ir-robot-a-robot-design.md`
+
 ### 🔴 Y el último hueco: **nadie metía al usuario en `dialout` ni en `video`**
 
 El primer pase del verificador dio 4 fallos. **Tres eran el mismo**, y el cuarto también:
