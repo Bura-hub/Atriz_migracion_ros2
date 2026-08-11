@@ -232,6 +232,48 @@ fi
 say "5/9 · Código del robot en ~/atriz_ws"
 
 WS="$HOME_USUARIO/atriz_ws/src"
+
+# 🔴 EL FALLO QUE PARÓ A rvr-02 DOS VECES (2026-08-10 y 2026-08-11)
+#
+#    Aquí ponía  `install -d -o "$USUARIO" -g "$USUARIO" "$WS"`  y parecía
+#    correcto: nombra el usuario, crea el árbol entero. Pero `install -d` NO
+#    aplica -o/-g a los padres que crea de paso. El manual de coreutils de la
+#    propia máquina lo dice sin ambigüedad:
+#
+#      «Parent directories are created with mode u=rwx,go=rx (755), regardless
+#       of the -m option» … «giving them the DEFAULT attributes»
+#
+#    O sea que `.../atriz_ws/src` dejaba `src` del usuario y **`atriz_ws` de
+#    root**, porque este guion corre con sudo. Después, `colcon build` va como
+#    el usuario (línea ~520) y no puede crear `build/`, `install/` ni `log/`
+#    dentro de un directorio 755 ajeno:
+#
+#        sphero@rvr-02:~/atriz_ws$ colcon build
+#            Permission denied: 'log'
+#
+#    y el fallo se propaga: `fase_7_systemd.sh` se niega porque el workspace no
+#    está compilado, así que el robot se queda sin arranque automático. Un solo
+#    directorio con el dueño equivocado tumba los dos últimos pasos de los nueve.
+#
+#    Medido en rvr-02: atriz_ws root:root 755 · atriz_ws/src sphero:sphero.
+#
+# ARREGLO 1 · Se nombran los DOS directorios, que sí reciben los atributos
+#             pedidos. Nombrar el padre no es redundante: es la única forma.
+# ARREGLO 2 · Y se repara lo ya creado, porque la primera víctima de este fallo
+#             es un robot que ya existe y al que hay que volver a lanzarle el
+#             guion. Sin esto, ser «idempotente» no serviría de nada aquí.
+if [[ -d "$HOME_USUARIO/atriz_ws" ]]; then
+    _duenyo="$(stat -c %U "$HOME_USUARIO/atriz_ws" 2>/dev/null)"
+    if [[ "$_duenyo" != "$USUARIO" ]]; then
+        avi "~/atriz_ws es de '$_duenyo', no de '$USUARIO': colcon build no podría escribir ahí"
+        if correr chown -R "$USUARIO:$USUARIO" "$HOME_USUARIO/atriz_ws"; then
+            ok "~/atriz_ws devuelto a $USUARIO (era el fallo de rvr-02, 2026-08-10)"
+        else
+            mal "no se pudo corregir el dueño de ~/atriz_ws"; FALLOS+=("dueño de ~/atriz_ws")
+        fi
+    fi
+fi
+
 if [[ -d "$WS/Atriz_rvr/.git" ]]; then
     salta "Atriz_rvr ya está en $WS"
     # Regla nº1 del proyecto: fetch ANTES de mirar el código. El 2026-07-29 se
@@ -241,7 +283,9 @@ if [[ -d "$WS/Atriz_rvr/.git" ]]; then
     R="$(sudo -u "$USUARIO" git -C "$WS/Atriz_rvr" rev-parse --abbrev-ref HEAD 2>/dev/null)"
     ok "rama actual: $R"
 else
-    correr install -d -o "$USUARIO" -g "$USUARIO" "$WS"
+    # Los DOS, no solo el hijo. Ver el bloque de arriba: install -d da a los
+    # padres los atributos por defecto (root:root con sudo), no los pedidos.
+    correr install -d -o "$USUARIO" -g "$USUARIO" "$HOME_USUARIO/atriz_ws" "$WS"
     if correr sudo -u "$USUARIO" git clone -q -b ros2 \
             https://github.com/Bura-hub/Atriz_rvr.git "$WS/Atriz_rvr"; then
         ok "Atriz_rvr clonado en $WS (rama ros2)"
@@ -516,12 +560,23 @@ else
 
     # Y compilar. Que `colcon build` no falle es la prueba de que lo anterior
     # esta en su sitio.
+    # 🔴 Aquí ponía `>/dev/null 2>&1`, y el 2026-08-11 eso costó una tarde: en la
+    #    primera ejecución completa del guion en la historia del proyecto, el
+    #    ÚNICO paso que falló fue justo éste, y había tirado su propia evidencia.
+    #    El registro de 9.075 líneas decía «✗ colcon build falló» y nada más: la
+    #    causa hubo que sacarla mirando el dueño de un directorio a mano.
+    #    Ahora se guarda. Silencioso en pantalla —son cientos de líneas por 16
+    #    robots— pero recuperable, que no es lo mismo que inexistente.
+    LOG_COLCON="$HOME_USUARIO/atriz_ws/colcon-build.log"
     if correr sudo -u "$USUARIO" bash -c \
-        "source /opt/ros/jazzy/setup.bash && cd '$HOME_USUARIO/atriz_ws' && colcon build --symlink-install >/dev/null 2>&1"; then
+        "source /opt/ros/jazzy/setup.bash && cd '$HOME_USUARIO/atriz_ws' && colcon build --symlink-install >'$LOG_COLCON' 2>&1"; then
         ok "workspace compilado (colcon build)"
     else
         mal "colcon build falló"; FALLOS+=("colcon build")
-        avi "míralo a mano: cd ~/atriz_ws && colcon build --symlink-install"
+        avi "el porqué está en $LOG_COLCON"
+        # Las últimas líneas a pantalla: si el robot está delante, ahorra el viaje.
+        [[ -s "$LOG_COLCON" ]] && tail -15 "$LOG_COLCON" | sed 's/^/      /'
+        avi "y a mano: cd ~/atriz_ws && colcon build --symlink-install"
     fi
 fi
 

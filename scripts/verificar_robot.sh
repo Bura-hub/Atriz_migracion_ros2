@@ -1078,6 +1078,27 @@ sec "11 · Arranque automático y parada de emergencia con Nav2"
 
 INST="$HOME/atriz_ws/install"
 
+# ── El dueño del workspace: paró a rvr-02 DOS veces y nadie lo vigilaba ───────
+# 🔴 `install -d -o usuario .../atriz_ws/src` deja `src` del usuario y el PADRE
+#    `atriz_ws` de ROOT: coreutils da a los padres que crea de paso los
+#    atributos por DEFECTO, no los pedidos. Después `colcon build` corre como el
+#    usuario y muere con «Permission denied: 'log'», y de rebote `fase_7` se
+#    niega a instalar el arranque automático. Dos de los nueve pasos de
+#    `provision.sh` caídos por un directorio.
+#    Arreglado en provision.sh el 2026-08-11; esto es la red que faltaba.
+_ws_malos=()
+for d in "$HOME/atriz_ws" "$HOME/atriz_ws/src" "$HOME/atriz_ws/build" \
+         "$HOME/atriz_ws/install" "$HOME/atriz_ws/log"; do
+    [[ -e "$d" ]] || continue
+    [[ "$(stat -c %U "$d" 2>/dev/null)" == "$USER" ]] || _ws_malos+=("$(basename "$d"):$(stat -c %U "$d")")
+done
+if [[ ${#_ws_malos[@]} -eq 0 ]]; then
+    _ok "~/atriz_ws y sus subdirectorios son de $USER (colcon build puede escribir)"
+else
+    _mal "en ~/atriz_ws hay directorios que NO son de $USER: ${_ws_malos[*]}" \
+         "sudo chown -R $USER:$USER ~/atriz_ws  ·  es el fallo que paró a rvr-02 (2026-08-10 y 11)"
+fi
+
 # ── El cancelador de Nav2: se comprueba lo INSTALADO, no el fuente ───────────
 # 🔴 `colcon build` desde el directorio equivocado dice «Finished» y no instala
 #    nada (CLAUDE.md). Mirar el fuente daría un falso OK.
