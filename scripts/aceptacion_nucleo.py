@@ -113,8 +113,26 @@ PENDIENTES_CONOCIDOS = [
               'collision_monitor solo mira /scan, y un LIDAR 2D no ve un vacio a ninguna '
               'altura. Mitigado solo por la regla de laboratorio (suelo continuo y '
               'cerrado). Ver manual cap. 12.2b'),
-    Resultado('F9', 'la PSK del WiFi es legible por cualquier usuario', PENDIENTE,
-              'falta fmask=0177,dmask=0077 en /etc/fstab. chmod NO sirve: es FAT'),
+    # 🔴 RETIRADO EL 2026-08-11, y por el mismo motivo que el de abajo se
+    #    reescribio el 2026-08-08: «un guion que sigue pidiendo algo hecho gasta
+    #    la credibilidad de los que si faltan».
+    #
+    #    Decia: Resultado('F9', 'la PSK del WiFi es legible por cualquier
+    #    usuario', PENDIENTE, 'falta fmask=0177,dmask=0077 en /etc/fstab').
+    #
+    #    NO falta. Medido ese dia en LOS DOS robots:
+    #        rvr-01  /etc/fstab: LABEL=system-boot /boot/firmware vfat
+    #                            defaults,fmask=0177,dmask=0077
+    #                /boot/firmware -> drwx------  (la PSK no se lee sin sudo)
+    #        rvr-02  igual, y lo pone `provision.sh` solo (fase_1, paso 8bis)
+    #
+    #    Y no se pierde vigilancia al quitarlo, que es lo que habia que
+    #    comprobar antes de tocarlo: `verificar_robot.sh` mira el fstab en cada
+    #    pasada y da **FALLO** —no aviso— si el fmask no esta. Una comprobacion
+    #    viva y estricta es mejor que un PENDIENTE escrito a mano, que solo
+    #    puede envejecer. Este envejecio: bloqueaba la via libre afirmando algo
+    #    falso, y ademas figuraba abierto en PRUEBA_ACEPTACION.md y
+    #    ESTADO_ACTUAL.md sin que nadie lo tachara. Evidencia 98.
     # 🔴 CORREGIDO EL 2026-08-08: este pendiente decia «la credencial sphero SIN
     #    ROTAR», y eso dejo de ser cierto el 2026-08-04 -- el usuario roto la PSK
     #    del WiFi y la contrasena de `sphero`, y se archivo Atriz_web_server.

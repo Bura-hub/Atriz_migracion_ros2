@@ -284,8 +284,17 @@ y reinicia» convierte *«corrige la IP del robot 9»* en una tarde. No toca hos
 `machine-id`, ni las claves SSH de host, ni la marca de first-boot.
 
 🔴 **Y no aplica a propósito.** Separar «escribir» de «aplicar» es lo que impide que una IP mal
-puesta deje fuera a un robot que está en otro edificio. `netplan try` pide ENTER y **revierte
-solo a los 90 s** si pierdes la conexión.
+puesta deje fuera a un robot que está en otro edificio.
+
+⚠️ **Pero CUÁL de los dos comandos aplica depende de `DHCP`, y eso faltaba aquí:**
+
+| `red.txt` | cómo se aplica | por qué |
+|---|---|---|
+| `DHCP=no` (lo normal desde el 2026-08-04) | **`sudo reboot`** | `netplan try` **siempre** revertiría: aplicar quita la dirección del DHCP por la que estás conectado, la sesión se corta y no hay quien pulse ENTER |
+| DHCP encendido | `sudo netplan try --timeout 90` | la dirección actual sobrevive. ✅ Verificado en rvr-01 el 2026-08-01: `wlan0` con **tres** direcciones a la vez |
+
+Desde el 2026-08-11 el propio `first-boot.sh --solo-red` mira el `red.txt` y te dice cuál de los
+dos toca, en vez de recomendar siempre `netplan try`.
 
 🔴 **`chmod 600 /boot/firmware/red.txt` NO SIRVE.** Es FAT: no guarda permisos de Unix y el
 `chmod` devuelve 0 sin hacer nada. La PSK del WiFi queda legible por cualquier usuario. Se

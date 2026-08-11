@@ -1477,8 +1477,10 @@ def ejecutar(a: Aceptacion, desde: str, solo: str | None = None) -> int:
               f'Las demas quedan NO EJECUTADAS.')
 
     # 🔴🔴 Hallazgo de revisión (C1): `hay_via_libre([])` devuelve `True` —
-    #    corrida vacia, veredicto limpio. Hoy lo tapan los cuatro
-    #    PENDIENTES_CONOCIDOS, pero cerrarlos es el objetivo declarado del
+    #    corrida vacia, veredicto limpio. Hoy lo tapan los PENDIENTES_CONOCIDOS
+    #    (eran cuatro; el de la PSK del fstab se retiro el 2026-08-11 porque ya
+    #    estaba hecho y lo vigila verificar_robot.sh), pero cerrarlos es el
+    #    objetivo declarado del
     #    proyecto: en cuanto se cierren, `--desde F9` imprimiria «✅ VIA LIBRE»
     #    sin haber corrido ni una fase. Y ya hay un precedente en el repo:
     #    `47_aceptacion_20260802_122915.txt` remató «0 FALLO · 0 PENDIENTE»

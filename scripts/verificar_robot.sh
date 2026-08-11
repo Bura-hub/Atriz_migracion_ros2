@@ -1349,7 +1349,7 @@ if [[ -f /etc/netplan/60-atriz.yaml ]]; then
     fi
 else
     _avi "no hay /etc/netplan/60-atriz.yaml" \
-         "sudo bash scripts/first-boot.sh --solo-red   (y luego netplan try)"
+         "sudo bash scripts/first-boot.sh --solo-red   (y luego: reboot si red.txt lleva DHCP=no, netplan try si no)"
 fi
 # Todo netplan lleva la PSK en claro. En 20.04 venían 644.
 MAL_PERM=0
@@ -1383,7 +1383,7 @@ SSID_AHORA="$(iw dev wlan0 link 2>/dev/null | sed -n 's/^[[:space:]]*SSID:[[:spa
 N_NET="$(ls /etc/systemd/network/0[56]-atriz-*.network 2>/dev/null | wc -l)"
 if [[ "$N_NET" -eq 0 ]]; then
     _avi "no hay ficheros .network por SSID" \
-         "sudo bash scripts/first-boot.sh --solo-red   (y luego netplan try)"
+         "sudo bash scripts/first-boot.sh --solo-red   (y luego: reboot si red.txt lleva DHCP=no, netplan try si no)"
 elif [[ -z "$SSID_AHORA" ]]; then
     _avi "hay $N_NET .network por SSID pero no se pudo leer el SSID actual" ""
 else

@@ -2482,8 +2482,7 @@ Su regla es **comprobar el efecto, no la intención**. Si añades comprobaciones
 | `provision.sh` | en el robot | De un 24.04 limpio a robot terminado. Idempotente: sirve para actualizar |
 | `verificar_robot.sh` | en el robot | Decide si el robot está listo |
 | `fase_7_systemd.sh --id NN` | en el robot | Arranque automático. ✅ Probado con un reinicio real. ✅ `provision.sh` **lo llama** desde el 2026-08-01 (paso 8/9) |
-| `first-boot.sh --solo-red` | en el robot | Regenera el netplan desde `red.txt` **sin reiniciar**. Después: `sudo netplan try --timeout 90` |
-| `first-boot.sh --solo-red` | en el robot | Regenera el netplan desde `red.txt` **sin reiniciar**. No aplica: eso es `netplan try` |
+| `first-boot.sh --solo-red` | en el robot | Regenera el netplan desde `red.txt` y **NO aplica**, a propósito. Cómo aplicarlo depende de `DHCP`: con `DHCP=no` (lo normal desde el 2026-08-04) va `sudo reboot`, porque `netplan try` se autorevierte —quita la dirección por la que estás conectado y no puedes confirmar—. Con DHCP encendido sí sirve `netplan try --timeout 90`. El propio guion te dice cuál |
 | `atriz-escaneo on\|off\|estado` | en el robot | Enciende/apaga el barrido del lidar. **Sin barrido el robot no conduce** |
 
 **La imagen dorada es el atajo; `provision.sh` es la verdad.** Si divergen, gana el script y se

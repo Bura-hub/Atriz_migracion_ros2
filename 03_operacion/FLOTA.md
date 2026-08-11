@@ -330,7 +330,7 @@ queda legible por cualquier usuario, en los 16 robots. Se cierra en `/etc/fstab`
 | Robot | Hostname | `ROS_DOMAIN_ID` | IP laboratorio (estática) | IP casa | MAC |
 |---|---|---|---|---|---|
 | 01 | `rvr-01` | 1 | `10.14.7.7/21` | `192.168.1.200/24` | `d8:3a:dd:d6:c1:ee` (wlan0) · `d8:3a:dd:d6:c1:ea` (eth0) |
-| 02 | `rvr-02` | 2 | | | |
+| 02 | `rvr-02` | 2 | `10.14.7.6/21` | `192.168.1.201/24` | ⏳ anotarla: `ip link show wlan0` |
 | … | … | … | | | |
 | 16 | `rvr-16` | 16 | | | |
 
@@ -845,8 +845,35 @@ sudo nano /boot/firmware/red.txt     # LAB_SSID, LAB_PASS y LAB_IP como mínimo
 
 ```bash
 sudo bash ~/atriz_migracion/scripts/first-boot.sh --solo-red
-sudo netplan try --timeout 90        # revierte solo si pierdes la conexión
+sudo reboot                          # ← NO `netplan try`. Ver el aviso de abajo
 ```
+
+🔴 **`netplan try` no sirve AQUÍ, y conviene entender cuándo sí.** Aplica la configuración,
+**espera a que pulses ENTER para confirmarla** y **revierte si no lo haces**.
+
+- ✅ **Funcionó el 2026-08-01 en rvr-01**, y está verificado: `wlan0` acabó con **tres direcciones
+  IPv4 a la vez**. La sesión SSH iba por la del DHCP, que **seguía ahí**, así que se pudo confirmar.
+- 🔴 **No funciona en un robot nuevo**, porque desde el 2026-08-04 la plantilla lleva `DHCP=no`
+  —decisión tomada para que `rvr-NN.local` resuelva a UNA dirección y el navegador no se cuelgue—.
+  Con `DHCP=no`, aplicar **quita** la dirección del DHCP por la que estás conectado: la sesión se
+  corta en ese instante, no hay quien confirme, y al agotarse el plazo revierte. Siempre.
+
+O sea que la red de seguridad de `netplan try` es exactamente lo que aquí estorba: **la condición
+es si la dirección por la que estás conectado sobrevive al cambio.** Con `DHCP=no` no sobrevive.
+
+Con `reboot` la configuración queda escrita en disco y se aplica al arrancar. Y se vuelve a entrar
+**por nombre**, que funciona con cualquier dirección:
+
+```bash
+ssh sphero@rvr-NN.local
+hostname -I                          # su IP fija, y SOLO esa (DHCP=no)
+```
+
+⚠️ **Si tras el reinicio no responde**, es exactamente el caso para el que `red.txt` vive en la
+partición FAT: metes la tarjeta en cualquier PC, corriges y arrancas otra vez. Lo más fácil de
+equivocar es el **SSID**, que tiene que ser idéntico al de los demás robots — el `[Match] SSID=`
+de los `.network` es lo que decide qué perfil se aplica, y si no casa ninguno el robot se queda
+**sin dirección**.
 
 **6-ter. ⚠️ EL LIDAR: la regla udev lleva el puerto de rvr-01 a fuego.** Si el LIDAR de este robot
 no va **exactamente en el mismo puerto USB físico**, no habrá `/dev/ydlidar` → sin `/scan` → el

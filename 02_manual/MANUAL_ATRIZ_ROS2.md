@@ -4740,8 +4740,9 @@ sudo bash ~/atriz_migracion/scripts/first-boot.sh --solo-red
 # 2. Míralo (sin sacar las contraseñas por pantalla)
 sudo grep -v password /etc/netplan/60-atriz.yaml
 
-# 3. Aplica CON REVERSIÓN AUTOMÁTICA
-sudo netplan try --timeout 90
+# 3. Aplica. CUÁL de los dos depende de si tu dirección sobrevive al cambio:
+sudo reboot                     # si red.txt lleva DHCP=no  (lo normal)
+sudo netplan try --timeout 90   # solo si el DHCP sigue encendido
 ```
 
 📝 **`--solo-red` existe porque cambiar una IP no debería costar un reinicio.** Regenera el
@@ -4752,6 +4753,19 @@ en una tarde.
 🔴 **Y no aplica a propósito.** `netplan try` pide ENTER para confirmar y **revierte solo a los
 90 s** si te quedas sin conexión. Separar «escribir» de «aplicar» es lo que impide que una IP
 mal puesta te deje fuera de un robot que está en otro edificio.
+
+⚠️ **Corregido el 2026-08-11: con `DHCP=no`, `netplan try` NO sirve.** Aplicar quita la dirección
+del DHCP por la que estás conectado, la sesión SSH se corta en ese instante, no hay quien pulse
+ENTER, y a los 90 s revierte. **Siempre.** La condición es si **la dirección por la que estás
+conectado sobrevive al cambio**:
+
+- ✅ **Sobrevive con el DHCP encendido** — así funcionó en rvr-01 el 2026-08-01, y por eso quedó
+  verificado: `wlan0` acabó con **tres direcciones IPv4 a la vez**.
+- 🔴 **No sobrevive con `DHCP=no`**, que es lo que trae la plantilla desde el 2026-08-04. Ahí va
+  `sudo reboot`, y se vuelve a entrar por nombre (`ssh sphero@rvr-NN.local`), que funciona con
+  cualquier dirección.
+
+`first-boot.sh --solo-red` mira el `red.txt` y te dice cuál de los dos toca.
 
 ### 19.5 mDNS: encontrar al robot sin saber su IP
 

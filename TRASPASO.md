@@ -672,7 +672,7 @@ regresó» es la observación física del **mismo** bug de marcos que ya explica
 diferencia de `laser_z`, que sí se midió y estaba 2 cm mal) — con el LIDAR centrado el borde
 debería quedar a 9.8 cm y se midieron 7–8: faltan ~2 cm sin explicar.
 
-⚠️ **La vía libre está BLOQUEADA**, y es lo acordado: los cuatro pendientes conocidos —empezando
+⚠️ **La vía libre está BLOQUEADA**, y es lo acordado: los **tres** pendientes conocidos —empezando
 por **rosbridge sin autenticación**— impiden decir «se puede empezar la web» aunque el robot esté
 impecable. F8 lo confirma de nuevo: rosbridge sirve datos reales (no solo el puerto abierto), y
 sigue **sin autenticación**.

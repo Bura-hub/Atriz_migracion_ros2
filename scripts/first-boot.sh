@@ -285,9 +285,26 @@ fi
 if [[ $SOLO_RED == si ]]; then
     echo "  (--solo-red: no se toca la marca de first-boot)"
     echo
-    echo "  SIGUIENTE PASO, y hazlo tú a mano:"
-    echo "      sudo netplan try --timeout 90"
-    echo "  Aplica la red y la REVIERTE sola si pierdes la conexión."
+    echo "  SIGUIENTE PASO, y hazlo tu a mano. CUAL de los dos depende de si la"
+    echo "  direccion por la que estas conectado SOBREVIVE al cambio:"
+    echo
+    if grep -qiE '^[[:space:]]*DHCP[[:space:]]*=[[:space:]]*no' "$RED_FILE" 2>/dev/null; then
+        echo "      sudo reboot        <-- ESTE, porque red.txt lleva DHCP=no"
+        echo
+        echo "  Con DHCP=no, aplicar QUITA la direccion del DHCP por la que estas"
+        echo "  conectado: la sesion SSH se corta, no hay quien confirme el"
+        echo "  'netplan try', y a los 90 s revierte. Siempre. Reinicia y vuelve"
+        echo "  a entrar por nombre: ssh sphero@\$(hostname).local"
+    else
+        echo "      sudo netplan try --timeout 90"
+        echo "  Aplica la red y la REVIERTE sola si pierdes la conexion."
+        echo "  Sirve porque red.txt NO lleva DHCP=no: la direccion actual"
+        echo "  sobrevive y puedes confirmar. (Verificado en rvr-01 el"
+        echo "  2026-08-01: wlan0 con TRES direcciones IPv4 a la vez.)"
+    fi
+    echo
+    echo "  Si tras el cambio el robot no responde: red.txt vive en la FAT."
+    echo "  Metes la tarjeta en cualquier PC, lo corriges y arrancas otra vez."
     exit 0
 fi
 
