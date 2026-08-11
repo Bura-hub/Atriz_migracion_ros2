@@ -25,7 +25,7 @@ El procedimiento completo de alta de un robot está en
 |---|---|---|---|
 | `verificar_robot.sh` | cualquiera | no | ✅ **probado en rvr-01** (2026-07-31): **105 con `--hardware`** (102 sin él), 0 fallos (2026-08-01). 📝 Ese mismo día se le encontraron **cinco fallos propios más** (van ocho): ver evidencia 32 |
 | `provision.sh` | B–**F** | sí | 🟡 **probado en seco** (`--simular`, 9 pasos); no ejecutado de principio a fin. 📝 Desde el 2026-08-01 instala también el **arranque automático** (paso 8/9). 📝 Desde el 2026-07-31 deja el robot **completo** (8 pasos, incluida la Etapa F) y clona la rama **`ros2`** — antes clonaba `migracion-ros2`, que es código de ROS 1 y no compila |
-| `preparar_tarjeta.sh` | B (en el PC) | sí | 🟡 **probado en seco** sobre copias de la partición FAT; no en una microSD real |
+| `preparar_tarjeta.sh` | B (en el PC) | sí | ✅ **verificado sobre hardware real** el 2026-08-11 con rvr-02: microSD física, FAT por `drvfs` desde WSL, y el robot ya arrancado confirmando el mini-UART `disabled` |
 | `fase_0_1_fix_uart.sh` | 0.1 · B3 | sí | ✅ **ejecutado y verificado** en 20.04 (2026-07-29) y en **24.04 (2026-07-30)** |
 | `diag_uart_pins.sh` | 0.1 | sí | diagnóstico opcional, **nunca ha hecho falta** |
 | `fase_0_3_respaldo.sh` | 0.3 · A1 | no (sudo opcional) | ✅ **ejecutado** (2026-07-29). 📝 Sus dos correcciones del 2026-07-30 **sin reejecutar** |

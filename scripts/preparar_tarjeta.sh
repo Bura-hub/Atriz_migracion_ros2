@@ -48,8 +48,25 @@
 #   por SSH, o va ya dentro de la imagen dorada.
 #
 # ESTADO
-#   🟡 PROBADO EN SECO, no en una tarjeta real. El 2026-07-30 se ejecutó contra
-#      dos copias de la partición FAT de rvr-01, verificando el RESULTADO y no
+#   ✅ VERIFICADO SOBRE HARDWARE REAL el 2026-08-11, preparando rvr-02: tarjeta
+#      física, partición FAT de verdad (montada por drvfs desde WSL) y primer
+#      arranque. La prueba que lo cierra no es la salida del guion, es lo que
+#      dijo el robot ya arrancado:
+#
+#        sphero@rvr-02:~$ cat /proc/device-tree/soc/serial@7e215040/status
+#        disabled                                    ← el mini-UART, apagado
+#        sphero@rvr-02:~$ cat /proc/device-tree/aliases/serial0
+#        /soc/serial@7e201000                        ← el PL011, que es el bueno
+#
+#      O sea que el `console=serial` quitado en el paso 1/5 y el
+#      `dtoverlay=disable-bt` puesto bajo [all] en el 2/5 SURTIERON EFECTO en la
+#      placa, que es lo único que demuestra que la trampa de la cabecera [all] se
+#      esquivó de verdad. Y se entró por SSH con contraseña, o sea que el 4/5
+#      también valía. Detalle completo en 00_auditoria/evidencia/98.
+#
+#   Historial: 🟡 PROBADO EN SECO, no en una tarjeta real. El 2026-07-30 se
+#      ejecutó contra dos copias de la partición FAT de rvr-01, verificando el
+#      RESULTADO y no
 #      solo su salida:
 #
 #        · sobre una copia ya preparada  -> no toca nada (idempotente)
@@ -94,9 +111,12 @@
 #         línea de COMENTARIO que explica qué hace disable-bt. El guion estaba
 #         bien; el instrumento, no. Cuéntese `^[[:space:]]*dtoverlay=disable-bt`.
 #
-#      📝 Lo que NO se ha probado: una microSD física, con su automontaje y su
-#         sistema de ficheros FAT real. Al preparar el primer clon, comprobar
-#         cada paso y corregir FLOTA.md.
+#      📝 Aquí ponía: «Lo que NO se ha probado: una microSD física, con su
+#         automontaje y su sistema de ficheros FAT real». ✅ Cerrado el
+#         2026-08-11 con rvr-02 — ver el ESTADO de arriba. De paso quedó
+#         resuelta una duda concreta: `cp -a` SÍ crea los respaldos sobre
+#         `drvfs`, cosa que importaba porque este guion no lleva `set -e` y un
+#         `cp -a` fallido no lo habría parado.
 #
 set -uo pipefail
 

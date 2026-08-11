@@ -133,7 +133,7 @@ scripts/
 ├── fase_1_validar_sdk_py312.py   ✅ GO/NO-GO de la migración — 🟢 GO (2026-07-30)
 ├── verificar_robot.sh        ✅ 105 aserciones: ¿está este robot bien? ← ÚSALO SIEMPRE
 ├── provision.sh              🟡 de un 24.04 limpio a robot terminado (probado en seco)
-├── preparar_tarjeta.sh       🟡 en el PC: prepara la tarjeta de cada robot (en seco)
+├── preparar_tarjeta.sh       ✅ en el PC: prepara la tarjeta de cada robot
 ├── fase_6_preparar_imagen_dorada.sh   📝 NO VERIFICADO — imagen dorada de la flota
 └── first-boot.sh / .service  📝 NO VERIFICADO — personaliza cada robot clonado
 ```
