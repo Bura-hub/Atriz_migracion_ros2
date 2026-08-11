@@ -148,7 +148,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
          1. Migrar el robot 2                 FLOTA.md, «Robot 2»         ← AQUÍ
          2. La plataforma web                 plan, Fase 5
          2. ✅ systemd en provision.sh        HECHO 2026-08-01 (paso 8/9)
-         3. ✅ Recibir IR — HECHO el 2026-08-11: el firmware SÍ entrega la notificación. ⏳ Queda que publique el código bien (la clave real es `infrared_code`) y el rediseño del IR completo — ev. 99
+         3. ✅ ~~Recibir IR~~ — **CERRADO el 2026-08-11**, y con él el sistema IR entero: rediseñado, medido con dos robots y documentado. Evidencias 99 y 100
          4. Confirmar los 0 fallos de SLAM con otra tanda (p=0.113)
          5. Un obstáculo que aparezca DURANTE la navegación
          6. Clonar a los 16 robots            FLOTA.md

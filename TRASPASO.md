@@ -644,7 +644,7 @@ contra ese payload: `KeyError` en la primera línea. Además `/ir_messages` se *
 publicaba** — así que la frase «ROS 1 publicaba los dos topics con los mismos datos», que está en el
 propio driver y en el CHANGELOG, **es falsa**: uno estaba vacío y el otro reventaba.
 
-⏳ **Por eso el IR entero se está rediseñando** (👤 decisión del usuario, 2026-08-11) en vez de
+✅ **Y por eso el IR entero SE REDISEÑÓ ese mismo día** (👤 decisión del usuario) en vez de
 parchear la clave: el tipo de mensaje es incorrecto, `atriz.py` no expone nada de IR, no hay ni una
 prueba automatizada válida para ROS 2, y **la detección direccional del SDK no la usa nadie** pese a
 que `get_bot_to_bot_infrared_readings` **responde** (evidencia 41: `0xFFFFFFFF` = los cuatro
@@ -670,7 +670,7 @@ una temperatura plana **no** significa «estable», puede ser el mismo dato repe
 | ~~La parada de emergencia de la web no hace nada~~ | seguridad | ✅ **resuelta 2026-07-31**. Había **tres** causas, no una: nombre, **namespace** (`/rvr/`) y **QoS** (`TRANSIENT_LOCAL` en el suscriptor no empareja con nadie). Verificada por los tres nombres, 0 avisos de QoS. Manual, cap. 15 |
 | **Credencial del usuario `sphero` expuesta** en `Atriz_web_server` público, sin rotar | seguridad | 🔴 abierto — **acción del usuario**. Y no basta con rotarla: hay que quitarla del **historial** de git, no solo del último commit |
 | ~~Sin arranque automático~~ | operación | ✅ **resuelto 2026-07-31**: `atriz-robot.service`, probado con un reinicio real. Falta que `provision.sh` lo instale |
-| ~~La integración con el SDK NO está completa~~ | funcionalidad | ✅ **explorado el 2026-08-01**: el driver usa **37 de 99** métodos, y de los 62 restantes se probaron **las 16 consultas útiles** (evidencias 41–44); los otros 46 son notificaciones y modos de conducción alternativos. De lo que faltaba, **solo uno era aprovechable y ya está puesto** (voltaje de batería). 🔴 **El atasco SÍ se detecta** — la conclusión contraria era falsa. 🔴 **No hay rumbo absoluto**, cerrado con evidencia. ⏳ Queda el **IR**, que necesita un segundo robot |
+| ~~La integración con el SDK NO está completa~~ | funcionalidad | ✅ **explorado el 2026-08-01**: el driver usa **37 de 99** métodos, y de los 62 restantes se probaron **las 16 consultas útiles** (evidencias 41–44); los otros 46 son notificaciones y modos de conducción alternativos. De lo que faltaba, **solo uno era aprovechable y ya está puesto** (voltaje de batería). 🔴 **El atasco SÍ se detecta** — la conclusión contraria era falsa. 🔴 **No hay rumbo absoluto**, cerrado con evidencia. ✅ **El IR está CERRADO el 2026-08-11**: probado con dos robots, rediseñado entero y medido. Emisión, recepción, seguimiento y evasión funcionan; la detección direccional da **tres estados, no cuatro**, y la máscara del SDK —que es del BOLT— **no describe al RVR**. Evidencias 99 y 100 |
 | ~~No hay watchdog de `cmd_vel`~~ | seguridad | ✅ **resuelto**: para en 527 ms / 7.9 cm |
 | ~~No hay URDF → árbol TF partido~~ | bloqueante | ✅ **resuelto**: `atriz_rvr_description` |
 | ~~Driver ROS del LIDAR no instalado~~ | bloqueante | ✅ **resuelto**: `/scan` a 10.1 Hz |
