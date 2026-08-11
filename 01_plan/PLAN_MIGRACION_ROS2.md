@@ -540,7 +540,7 @@ La documentación del repo describe un sistema que no existe, lo que hace perder
 Sobre un robot, con el sistema arrancado por systemd tras un reinicio limpio y **sin ninguna intervención manual**:
 
 1. `bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware` pasa **sin fallos**
-   (105 aserciones). Sustituye a la comprobación por `ros2 topic list`, que **conserva topics de
+   (más de 150 aserciones; 154 correctas en rvr-01 el 2026-08-11). Sustituye a la comprobación por `ros2 topic list`, que **conserva topics de
    nodos muertos** y llegó a dar por vivo un robot apagado.
 2. `ros2 run tf2_ros tf2_echo odom base_footprint` resuelve — **el transform que pide el
    consumidor**, no uno cualquiera.

@@ -18,7 +18,7 @@
 |---|---|
 | 🔴 **Nunca hubo una pasada de arranque en frío a navegación de un tirón** | Cada fase se probó en un momento distinto. Nadie ha comprobado que un robot recién reiniciado llegue solo hasta navegar |
 | 🔴 **El ángulo nunca se ha medido** | `move_to_pos_and_yaw` está verificado en **distancia** (0.20 m comandados → 19.5 cm medidos, evidencia 26), pero **su componente de yaw no**, y `move_to_pose` figura como «✅» sin un número detrás |
-| 🔴 **`verificar_robot.sh` no mueve el robot** | Ni con `--hardware`. Sus 105 comprobaciones son estáticas y de telemetría; toda la parte dinámica quedaba fuera |
+| 🔴 **`verificar_robot.sh` no mueve el robot** | Ni con `--hardware`. Sus **más de 150** comprobaciones son estáticas y de telemetría; toda la parte dinámica queda fuera |
 
 **Lo que NO cierra, y hay que saberlo antes de empezar:** las decisiones abiertas (rosbridge sin
 autenticación, el hueco de los precipicios, el `fmask` de la PSK, la rotación de la credencial).
@@ -45,7 +45,7 @@ Se lanza por SSH después del reinicio. `--desde F4` retoma sin repetir lo ya pa
 
 | | Fase | ¿Mueve? | Qué comprueba |
 |---|---|---|---|
-| **F0** | Arranque en frío | no | El robot arrancó **solo**: el servicio activo a 23 s del boot y `NRestarts=0` (ver abajo — **no** el `uptime`, que caduca), los 6 nodos del servicio, el journal limpio, y delega las 105 comprobaciones estáticas en `verificar_robot.sh`. Al final ejercita `Restart=always`, hoy **sin ejercitar** |
+| **F0** | Arranque en frío | no | El robot arrancó **solo**: el servicio activo a 23 s del boot y `NRestarts=0` (ver abajo — **no** el `uptime`, que caduca), los 6 nodos del servicio, el journal limpio, y delega las comprobaciones estáticas en `verificar_robot.sh` (más de 150). Al final ejercita `Restart=always`, hoy **sin ejercitar** |
 | **F1** | Telemetría | no | Los topics con su QoS y su ritmo, medidos con **ejecutor persistente**. Voltaje, estado y umbrales de batería. Que la temperatura no medida sea `NaN` y no `0.0`. Deriva de yaw en reposo |
 | **F2** | LIDAR | no | `start_scan` → `/scan` a **10–12 Hz** con rangos sanos → `stop_scan` → se para. Y que el parche del journal aguanta: nada de inundación con el barrido parado |
 | **F3** | Luces | no | 🔴 **Puerta: miras el robot.** Los cuatro servicios de LED. Lo confirmas tú con los ojos: no hay forma de leerlo desde el software |

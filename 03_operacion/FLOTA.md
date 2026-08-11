@@ -1,40 +1,51 @@
 # Gestión de la flota — 16 robots
 
-> 🔴🔴 **ANTES DE CONSTRUIR LA IMAGEN DORADA, LEE ESTO.**
+> ✅✅ **VALIDADA EL 2026-08-11 SOBRE rvr-02.** Esta guía ya no es una suposición.
 >
-> 🔁 **ACTUALIZADO EL 2026-08-10: ya hay un segundo robot, y el guion se está ejecutando de
-> verdad sobre él.** `rvr-02` existe, y `provision.sh` corre ahí sobre un Ubuntu limpio — sin
-> tocar rvr-01. La suposición **se está levantando ahora mismo**, que es justo lo que faltaba.
+> `provision.sh` **se ejecutó entero** sobre un Ubuntu Server 24.04 limpio —**la primera vez en la
+> historia del proyecto**— y el robot pasó el verificador:
 >
-> ⏳ **No ha terminado**, así que esta guía sigue sin poder darse por validada. Se quedó parado
-> en `colcon build` con `Permission denied: 'log'`, y `fase_7_systemd.sh` se niega en cadena
-> porque el workspace no compiló. Estado, diagnóstico y arreglo en
-> [`ESTADO_ACTUAL.md`](ESTADO_ACTUAL.md).
+> | | |
+> |---|---|
+> | `preparar_tarjeta.sh` | ✅ sobre microSD física, confirmado por el propio robot ya arrancado |
+> | `provision.sh` | ✅ entero: **96 ✓ · 16 avisos · 0 fallos** |
+> | `verificar_robot.sh --hardware` | ✅ **151 ✓ · 0 fallos** |
+> | red fija por `red.txt` | ✅ aplicada **desde un arranque en frío** |
+> | el `ID_PATH` del LIDAR en otro Pi | ✅ **es el mismo**: la regla udev es clonable |
 >
-> ✅ **Lo que ya está descartado:** que lo cause el guion. Compila con `sudo -u "$USUARIO"`
-> (`provision.sh:519`) y crea el workspace con `install -d -o "$USUARIO"` (`:244`), así que un
-> `~/atriz_ws` de `root` vendría de algo lanzado a mano con `sudo`. ⏳ **La causa real, sin
-> determinar.**
+> Paso a paso completo, con todo lo que falló por el camino:
+> [`00_auditoria/evidencia/98_rvr02_de_la_tarjeta_en_blanco.txt`](../00_auditoria/evidencia/98_rvr02_de_la_tarjeta_en_blanco.txt).
 >
-> 📌 **Y la regla que hace que esto valga: lo que frene a rvr-02 va AL GUION**, no se arregla a
-> mano. Si no, los catorce siguientes tropiezan con lo mismo.
+> **No salió a la primera, y ahí está el valor.** La primera pasada tiró los dos últimos pasos con
+> **el mismo fallo del 2026-08-10** —o sea reproducible— y el verificador dio cuatro fallos más.
+> Todo acabó **en el guion**, que era la regla: *lo que frene a rvr-02 no frenará a los catorce
+> siguientes*.
 >
-> **Texto original, que sigue explicando por qué importa:** Lo verificado es sintaxis, una
-> pasada con `--simular` y la comprobación de los binarios de Nav2. **De una pasada limpia no se
-> ha probado nada de lo que instala o compila.**
+> 🔴 **Y una lección que conviene no perder.** Aquí ponía, en verde y con referencias al código:
 >
-> El riesgo no es que falle: es que falle **en el robot 7 de 16**, con seis ya desplegados.
+> > *«✅ Lo que ya está descartado: que lo cause el guion. Compila con `sudo -u "$USUARIO"`
+> > (`provision.sh:519`) y crea el workspace con `install -d -o "$USUARIO"` (`:244`), así que un
+> > `~/atriz_ws` de root vendría de algo lanzado a mano con sudo.»*
+>
+> **Era falso, y citaba como prueba la línea que tenía el fallo.** `install -d` no aplica `-o`/`-g`
+> a los padres que crea de paso, así que `:244` dejaba `atriz_ws` de **root**. Se descartó
+> **leyendo el código** en vez de mirar el directorio. Aplicada a un guion, la regla del proyecto
+> *«comprueba el efecto, no el código de salida»* significa que **mirar el fuente ES mirar el
+> código de salida**.
+>
+> **Por qué esto importaba tanto** (texto original, que sigue siendo la razón): el riesgo no era
+> que fallara, era que fallara **en el robot 7 de 16**, con seis ya desplegados.
 > Detalle en `00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.
 >
-> 🔴 **Y hay TRES bloqueantes más, auditados el 2026-08-01** (evidencia 38):
+> ✅ **Y los TRES bloqueantes auditados el 2026-08-01 (evidencia 38) están los tres cerrados:**
 > 1. ✅ ~~**`~/.git-credentials` con el PAT viaja en la imagen.**~~ — **DECAE el 2026-08-11.**
 >    👤 El usuario puso `Atriz_migracion_ros2` y `Atriz_rvr` en **público** a propósito, justo
 >    para no tener que repartir un token personal en 16 microSD. **Medido ese día:** los dos
 >    clonan sin credencial ninguna (`atriz-lab` sigue privado). Ya no hay PAT que filtrar.
->    🔴 Lo que **NO** arregla, y sigue abierto: las credenciales que ya están en el **historial**
->    de `Atriz_rvr` (PSK del WiFi y contraseña de `sphero`, `API_LABORATORIO.md` §«en público»).
->    Al ser público el repositorio, ese historial lo lee cualquiera. 👤 pendiente del usuario,
->    que lo tiene visto y lo abordará más adelante.
+>    🟡 Lo que **NO** arregla: las credenciales que ya están en el **historial** de `Atriz_rvr`
+>    (PSK del WiFi y contraseña de `sphero`) siguen ahí y, al ser público el repositorio, las lee
+>    cualquiera. 👤 pendiente del usuario. **Pero las dos se ROTARON el 2026-08-04**, así que lo
+>    que queda expuesto son credenciales **muertas**: purgar el historial es higiene, no urgencia.
 > 2. ✅ ~~rosbridge no está instalado~~ — **instalado el 2026-08-01**, va en `provision.sh` y lo
 >    levanta `robot.launch.py`. Verificado desde un navegador. Texto original: y la web habla por ahí. Clonar antes de la Fase 5 significa
 >    clonar dos veces.
@@ -401,7 +412,7 @@ más trampas de las que caben en una lista de pasos.
 |---|---|---|
 | **`provision.sh`** | en el robot | De un 24.04 recién instalado a robot terminado. Idempotente. **Es la fuente de verdad**: la imagen dorada se construye ejecutándolo |
 | 🔴 **`preparar_tarjeta.sh`** | en el **PC** (Linux/WSL) | **OBLIGATORIO antes del primer arranque**, no es comodidad: `cmdline.txt` (si no, el UART queda para la consola y **el RVR no habla**), `config.txt` bajo `[all]`, y `robot_id.txt` — que **`provision.sh` necesita**. 🔴 `provision.sh` **no toca `cmdline.txt`** |
-| **`verificar_robot.sh`** | en el robot | **105 aserciones** con `--hardware` (102 sin él). Sale con código ≠ 0 si algo falla. **Es quien decide si un robot está listo** |
+| **`verificar_robot.sh`** | en el robot | **más de 150 aserciones** (medido el 2026-08-11: rvr-01 **154 ✓ · 3 avisos · 0 fallos** sin `--hardware`; rvr-02 **151 ✓ · 0 fallos** con él). Sale con código ≠ 0 si algo falla. **Es quien decide si un robot está listo** |
 | **`fase_6_preparar_imagen_dorada.sh`** | en el robot de referencia | Le quita la identidad para poder clonarlo |
 
 ### Por qué imagen dorada y no aprovisionar 15 robots por red

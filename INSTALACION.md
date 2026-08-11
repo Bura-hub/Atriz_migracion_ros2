@@ -187,7 +187,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
 > bash scripts/verificar_robot.sh --hardware
 > ```
 >
-> **105 comprobaciones** con `--hardware` (102 sin él), y sale con código ≠ 0 si algo falla. Pásalo al final
+> **Más de 150 comprobaciones** (2026-08-11: rvr-01 154 ✓, rvr-02 151 ✓ con `--hardware`), y sale con código ≠ 0 si algo falla. Pásalo al final
 > de cada etapa en lugar de recordar qué había que mirar. En `rvr-01`, el 2026-07-31: **84
 > correctas, 0 fallos**.
 >

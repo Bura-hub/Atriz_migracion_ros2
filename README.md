@@ -21,7 +21,8 @@ reconstruir el sistema si algo sale mal.
 | | |
 |---|---|
 | **Fase actual** | **Etapas A–E1 y Fases 2, 3, 4 y 4c completadas, más Nav2 y el arranque automático** (2026-07-31). El robot **navega** con Nav2 (⚠️ el «error 8–10 cm» es la tolerancia repetida, no una medida: con cinta y trilateración son **~10-12 cm**, y **41 cm** sobre un mapa rancio — evidencias 83-84), se **localiza** con AMCL sobre un mapa guardado, tiene capa de seguridad (`collision_monitor`), 18 servicios en el driver y **se levanta solo al encender** |
-| **Siguiente paso** | **Migrar el robot 2** → [`03_operacion/FLOTA.md`, «Robot 2: instalación LIMPIA, paso a paso»](03_operacion/FLOTA.md). ✅ `provision.sh` YA se ha ejecutado entero (2026-08-11, rvr-02: 96 ✓ · 0 fallos) — cae la última suposición peligrosa. Queda el segundo robot para probar el IR y validar la imagen dorada antes de replicarla catorce veces. Después, **la plataforma web (Fase 5)**, que es lo único grande que falta |
+| ✅ **Hay un SEGUNDO robot** | **`rvr-02` desplegado desde una microSD en blanco el 2026-08-11**, y con él cae la última suposición grande: `provision.sh` **se ejecutó entero** por primera vez (96 ✓ · 0 fallos) y el robot pasa el verificador (**151 ✓ · 0 fallos**). Su red fija se aplicó **desde un arranque en frío**, y el `ID_PATH` del LIDAR resultó ser **el mismo en otro Pi**, así que la regla udev es clonable. Paso a paso, con los seis fallos que salieron y dónde acabó arreglado cada uno: [evidencia 98](00_auditoria/evidencia/98_rvr02_de_la_tarjeta_en_blanco.txt) |
+| **Siguiente paso** | **`fase_6_preparar_imagen_dorada.sh`**, que ya no tiene ningún bloqueante técnico: los tres auditados el 2026-08-01 están cerrados. 📌 El aviso de `ATRIZ_MAPA` que sale en rvr-02 **no lo bloquea** — `fase_6` borra los mapas y vacía esa variable **a propósito**, porque repartir el mapa del robot de referencia haría que Nav2 dijera «llegué» estando a medio metro en los otros 15 (evidencia 84). Cada aula mapea el suyo. Y después, **la plataforma web (Fase 5)**, que es lo único grande que queda |
 | **Sistema hoy** | Raspberry Pi 4B 8 GB · **Ubuntu Server 24.04.4 LTS** · Python 3.12.3 · `rvr-01` · arranque en **22.1 s** (5.5 kernel + 16.6 userspace) · Sphero RVR por `/dev/rvr` (PL011) · YDLIDAR X2 en `/dev/ydlidar` · **ROS 2 Jazzy** (`ros-base` + `navigation2`) · driver, URDF, LIDAR, SLAM, Nav2, AMCL y `atriz-robot.service` funcionando |
 | ⚠️ **Al arrancar NO conduce** | A propósito: el barrido del lidar arranca **apagado** y sin `/scan` el `collision_monitor` bloquea el movimiento. Se despierta con `atriz-escaneo on`. Ver [RUNBOOK](03_operacion/RUNBOOK.md) |
 | **Sistema objetivo** | Ubuntu Server 24.04 LTS · ROS 2 Jazzy (soporte hasta mayo 2029) · rosbridge · SLAM + Nav2 · 16 robots |
@@ -57,8 +58,8 @@ base distintas y no deben mezclarse.**
 bash scripts/verificar_robot.sh --hardware
 ```
 
-**105 comprobaciones** con `--hardware` (102 sin él) y código de salida ≠ 0 si algo falla. Es lo que hace que 16 robots sean
-manejables: no se pueden revisar a ojo. En `rvr-01`, el 2026-08-01: **105 correctas con `--hardware`, 0 fallos**.
+**Más de 150 comprobaciones** y código de salida ≠ 0 si algo falla. Es lo que hace que 16 robots sean
+manejables: no se pueden revisar a ojo. En `rvr-01`: **105 correctas** con `--hardware` el 2026-08-01, y **154 correctas · 3 avisos · 0 fallos** el 2026-08-11. En `rvr-02`, recién aprovisionado: **151 · 0 fallos** con `--hardware`.
 
 Su regla es **comprobar el efecto, no la intención**, y no es retórica: comprueba el *ritmo* de
 `/odom` (no que el topic exista) porque el RVR se dormía dejando el nodo vivo y publicando cero,
@@ -131,7 +132,7 @@ scripts/
 ├── fase_0_3_respaldo.sh      ✅ prepara la SD para la imagen
 ├── fase_1_higiene_so.sh      ✅ higiene del SO — verificado en 24.04
 ├── fase_1_validar_sdk_py312.py   ✅ GO/NO-GO de la migración — 🟢 GO (2026-07-30)
-├── verificar_robot.sh        ✅ 105 aserciones: ¿está este robot bien? ← ÚSALO SIEMPRE
+├── verificar_robot.sh        ✅ 150+ aserciones: ¿está este robot bien? ← ÚSALO SIEMPRE
 ├── provision.sh              ✅ de un 24.04 limpio a robot terminado (ejecutado entero en rvr-02)
 ├── preparar_tarjeta.sh       ✅ en el PC: prepara la tarjeta de cada robot
 ├── fase_6_preparar_imagen_dorada.sh   📝 NO VERIFICADO — imagen dorada de la flota

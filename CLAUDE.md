@@ -1893,7 +1893,7 @@ Medido el 2026-08-01: **502 errores en 20 s**, **el 99 % del journal del servici
 → Lo grave no es el ruido: **ahoga cualquier error de verdad**, y este proyecto tiene sus
   peores fallos documentados como silenciosos — el journal es donde se buscan. Además son
   escrituras 24/7 sobre una **microSD**, que es lo que las mata.
-→ **Y nadie lo ve:** servicio `active`, verificador con 105 correctas, robot funcionando.
+→ **Y nadie lo ve:** servicio `active`, verificador sin un solo fallo, robot funcionando.
 → **La lección:** la decisión «arrancar con el lidar parado» se validó mirando **el motor**,
   no **el nodo ROS que lo lee**. **Al cambiar el estado por defecto de un componente,
   comprueba qué hacen todos los que dependían de él.**

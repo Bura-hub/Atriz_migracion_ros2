@@ -434,7 +434,7 @@ def f0(a: Aceptacion) -> None:
         'journal sin errores desde el arranque', not errores, 'F0',
         '' if not errores else f'{len(errores)} linea(s): {errores[0][:110]}'))
 
-    # ── las 105 comprobaciones estaticas ──
+    # ── las comprobaciones estaticas (mas de 150 desde el 2026-08-11) ──
     v = subprocess.run(['bash', str(pathlib.Path.home() / 'atriz_migracion' /
                                     'scripts' / 'verificar_robot.sh')],
                        capture_output=True, text=True, timeout=300)

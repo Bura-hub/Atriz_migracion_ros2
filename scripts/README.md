@@ -12,7 +12,7 @@ Si vienes a montar un robot nuevo, son estos. El resto son las piezas que ellos 
 |---|---|---|
 | **`preparar_tarjeta.sh --id NN`** | en el **PC**, tarjeta recién grabada | Deja `cmdline.txt`, `config.txt` y `robot_id.txt` correctos antes del primer arranque |
 | **`provision.sh`** | en el robot | De un 24.04 limpio a robot terminado. Idempotente: sirve también para actualizar |
-| **`verificar_robot.sh --hardware`** | en el robot | **102+ aserciones**. **Decide si el robot está listo.** Código ≠ 0 si algo falla |
+| **`verificar_robot.sh --hardware`** | en el robot | **más de 150 aserciones**. **Decide si el robot está listo.** Código ≠ 0 si algo falla |
 
 El procedimiento completo de alta de un robot está en
 [`03_operacion/FLOTA.md`](../03_operacion/FLOTA.md).

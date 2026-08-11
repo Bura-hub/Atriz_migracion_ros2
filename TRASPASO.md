@@ -1146,6 +1146,8 @@ cuando el driver tenía el puerto ocupado. Los tres corregidos.
 ```
 sin --hardware   76 correctas · 1 aviso · 0 fallos
 con --hardware   105 correctas · 0 fallos   (2026-08-01)
+sin  --hardware   154 correctas · 3 avisos · 0 fallos   (2026-08-11)
+rvr-02 --hardware 151 correctas · 0 fallos   (2026-08-11, recien aprovisionado)
 ```
 
 ### ✅ Dos decisiones CERRADAS el 2026-08-01 (eran los últimos bloqueos de la Fase 5)

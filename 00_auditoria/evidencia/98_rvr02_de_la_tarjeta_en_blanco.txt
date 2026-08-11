@@ -525,16 +525,37 @@ ocurrió solo.
    sin haber casado con nada**. rvr-02 está en casa y casó el perfil de casa. El
    del aula solo puede probarse en el aula.
 
-⏳ LO QUE FALTA PARA DAR rvr-02 POR DESPLEGADO
+⏳ LO QUE FALTA, Y LO QUE NO FALTA AUNQUE LO PAREZCA
 --------------------------------------------------------------------------------
-Solo queda 1 de los 4 avisos que sea trabajo de verdad:
+Los 4 avisos que quedan, y **ninguno bloquea la imagen dorada**:
 
-  · ATRIZ_MAPA apunta a un mapa inexistente → 👤 el mapa del aula, físico
+  · ATRIZ_MAPA apunta a un mapa inexistente → ver abajo: NO es un defecto
   · sin identidad de git global .............. del usuario, si va a commitear
   · mDNS por enlace en wlan0 ................. pendiente conocido, manual 19.5
   · authorized_keys vacío .................... correcto para la imagen dorada
 
-Y entonces: `fase_6_preparar_imagen_dorada.sh`.
+⚠️ CORRECCIÓN DE ALGO QUE ESCRIBÍ ANTES EN ESTE MISMO FICHERO: dije que el mapa
+   del aula era «lo que falta para dar rvr-02 por desplegado» y que iba antes de
+   la imagen dorada. **Es al revés.** `fase_6_preparar_imagen_dorada.sh` BORRA
+   los mapas del robot de referencia y VACÍA `ATRIZ_MAPA` a propósito
+   (`:218` y `:244`), y el motivo está medido — evidencia 84, mismo cuarto,
+   mismo recorrido, lo único distinto el mapa:
+
+                    mapa rancio   tanda 1   tanda 2
+        AMCL           45,0 cm     8,9 cm   15,2 cm
+        al objetivo    41,3 cm     6,1 cm   11,8 cm   (tolerancia Nav2: 10 cm)
+
+   O sea que repartir el mapa de rvr-01 a los 16 haría que Nav2 dijera «llegué»
+   estando a medio metro, en 15 salas que ni siquiera son la suya. La imagen
+   sale SIN mapa **por diseño**, y el aviso de rvr-02 es exactamente el que debe
+   salir en un robot que aún no ha mapeado su aula.
+
+   📌 Lo comprobé leyendo `atriz_rvr_bringup/maps/README.md` del OTRO
+      repositorio. Es un caso claro de por qué alinear los dos: la razón de que
+      ese aviso sea correcto no está escrita aquí.
+
+O sea que el siguiente paso es `fase_6_preparar_imagen_dorada.sh`, sin nada
+técnico que lo frene. El mapa del aula es 👤 físico y va cuando haya aula.
    ⚠️ Desde ese reinicio `atriz-robot.service` arranca solo. El driver conecta
       con el RVR (no enciende LEDs, comprobado) pero el robot NO conducirá hasta
       un `atriz-escaneo on`: sin `/scan` el collision_monitor bloquea el
