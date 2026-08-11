@@ -1,0 +1,156 @@
+================================================================================
+99 · EL IR ROBOT-A-ROBOT — y el agujero de la parada de emergencia que destapó
+================================================================================
+Fecha:    2026-08-11
+Robots:   rvr-01 (emisor) y rvr-02 (receptor), los dos en el suelo, ~1 m
+Estado:   ✅ emisión, seguimiento y evasión probados con DOS robots
+          🔴 un agujero de seguridad encontrado y arreglado (Atriz_rvr 19884e7)
+          ⏳ la RECEPCIÓN de mensajes IR sigue sin existir en ROS 2
+
+POR QUÉ EXISTE ESTE FICHERO
+--------------------------------------------------------------------------------
+`TRASPASO.md:614` llevaba escrito:
+
+    ⏳ «Lo único que queda necesita un segundo robot: todo el IR robot-a-robot.
+       Y el arreglo de seguridad de `set_ir_evading` está verificado POR CÓDIGO,
+       nunca con un emisor delante.»
+
+Era el último pendiente que dependía de tener dos robots. 👤 El usuario lo
+recordó al terminar el despliegue de rvr-02.
+
+================================================================================
+1 · LO QUE FUNCIONA
+================================================================================
+    rvr-01  set_ir_mode broadcasting  far=0 near=1  -> success 'modo IR: broadcasting'
+    rvr-02  set_ir_mode following     far=0 near=1  -> success 'modo IR: following'
+    rvr-02  set_ir_evading            far=0 near=1  -> success 'evasión IR activada'
+    rvr-02  set_ir_mode off                         -> success 'modo IR: off'
+    rvr-02  send_infrared_message code=3 front=64   -> success 'código 3 emitido'
+
+👤 Y el comportamiento físico lo juzgó el usuario, que es la única forma: no hay
+   nada en el software que lo diga.
+
+================================================================================
+2 · 🔴 EL AGUJERO — set_ir_mode(following) con la parada de emergencia ACTIVA
+================================================================================
+Salió de la propia sesión de pruebas, sin buscarlo:
+
+    $ ros2 topic pub --once /emergency_stop std_msgs/msg/Empty {}
+    $ ros2 service call /set_ir_mode ... "{mode: 'following', ...}"
+      -> success=True                                        🔴
+
+    $ ros2 topic pub --once /emergency_stop std_msgs/msg/Empty {}
+    $ ros2 service call /set_ir_evading ...
+      -> success=False, 'parada de emergencia ACTIVA'         ✅
+
+**Dos servicios que hacen conducir al robot, y solo uno comprueba la parada.**
+
+Confirmado en el código: `_srv_ir_evasion` llama a `_mover_permitido()`;
+`_srv_ir_modo` **no**. Y `following` conduce igual que `evading`: los dos son
+modos del FIRMWARE del RVR, no pasan por `cmd_vel`, así que **ni el watchdog ni
+el `collision_monitor` intervienen**. Arrancar eso con la parada activa es
+exactamente lo que la parada existe para impedir.
+
+📌 Y lo peor es que estaba a la vista: el comentario de al lado, del 2026-08-01,
+   dice *«`following` —que hace conducir al robot— no se podía apagar»*. O sea
+   que quien escribió el arreglo SABÍA que `following` conduce, y aun así el
+   `_mover_permitido()` solo entró en `set_ir_evading`.
+
+   **El arreglo del 2026-08-01 se dio por bueno mirando el servicio que se
+   arreglaba, sin buscar los demás que movían el robot.** «Busca TODAS las
+   menciones, no la primera» también vale para los controles de seguridad.
+
+ARREGLO (Atriz_rvr, commit 19884e7):
+  · `_mover_permitido()` antes de `'following'`, con el mismo aviso WARN que ya
+    tenía `set_ir_evading`.
+  · NO se protege `'broadcasting'`: solo emite luz infrarroja, no mueve ESTE
+    robot. Ni `'off'`, que tiene que funcionar siempre — apagar no se niega.
+
+AUDITORÍA DEL RESTO, para no repetir el error de 2026-08-01:
+Se revisaron TODOS los servicios que mueven. Tres salieron marcados «sin
+guardia» y los tres eran FALSOS POSITIVOS de mi propio filtro:
+
+    _srv_move_to_pos_yaw   -> delega en _ir_a, que SÍ la lleva
+    _srv_move_to_pose      -> delega en _ir_a, que SÍ la lleva
+    _srv_drive_params      -> NO mueve: solo cambia la rampa del limitador
+
+El de `following` era el único agujero real.
+
+✅ LO QUE SÍ ESTABA BIEN, y conviene decirlo porque es lo que evita el fallo
+   peor: `_cb_parada_emergencia` **sí** para los modos IR. Manda
+   `stop_robot_to_robot_infrared_evading()` y `..._following()` además de
+   `drive_stop()`, con el motivo escrito al lado: *«`drive_stop()` NO BASTA con
+   los modos IR activos… el RVR volvería a conducir en la siguiente
+   detección»*. O sea que la parada SÍ detiene a un robot que ya está siguiendo;
+   lo que faltaba era impedir que ARRANCARA con la parada puesta.
+
+================================================================================
+3 · ⏳ LO QUE SIGUE SIN EXISTIR: LA RECEPCIÓN
+================================================================================
+                                    ROS 1        ROS 2
+    Enviar (send_infrared_message)    ✅           ✅
+    Modos (following/evading/off)     ✅           ✅
+    RECIBIR y publicarlo              ✅           🔴 NO EXISTE
+                                 /infrared_messages
+
+El driver de ROS 2 tiene OCHO publicadores —odom, imu, color, ambient_light,
+encoders, battery, motors, estado— y **ninguno de IR**. Y registra ocho
+`add_sensor_data_handler`, ninguno de infrarrojos. El nodo de ROS 1 tenía
+`infrared_message_handler` publicando en `/infrared_messages`.
+
+⚠️ NO se afirma que sea una regresión. En este proyecto está medido que varias
+   notificaciones del SDK **no llegan con este firmware** (`core_time`, las de
+   motor_status), así que puede que la de ROS 1 tampoco funcionara nunca. Lo
+   único seguro es que **hoy no hay forma de observar un mensaje IR recibido
+   desde ROS 2**, y por eso `send_infrared_message` solo se puede verificar
+   desde el lado que emite.
+
+🔴 SI SE QUIERE, HAY QUE HACERLO ANTES DE LA IMAGEN DORADA. Si no, los dieciséis
+   robots salen sin la ruta de vuelta.
+
+================================================================================
+4 · UN HALLAZGO LATERAL: rvr-01 TENÍA EL WORKSPACE DIVERGIDO
+================================================================================
+Al recompilar el driver en rvr-01 para aplicar el arreglo, el diseño de la
+instalación CAMBIÓ:
+
+⚠️ Y una pista que resultó ser FALSA, anotada porque casi me lleva por otro
+   camino: colcon avisó de un *override* («'atriz_rvr_driver' is in:
+   .../install/atriz_rvr_driver») y lo tomé por señal de divergencia. **No lo
+   es**: el mismo aviso salió en rvr-02, recién aprovisionado por el guion. Es
+   lo normal al recompilar un workspace que ya está «sourceado». Lo que sí era
+   real es lo de abajo.
+
+    antes:  install/.../lib/python3.12/site-packages/atriz_rvr_driver/*.py   (copia real)
+    ahora:  install/.../lib/python3.12/site-packages/atriz-rvr-driver.egg-link
+
+Medido en rvr-02, que salió de `provision.sh` sin tocar nada:
+
+    $ ls ~/atriz_ws/install/atriz_rvr_driver/lib/python3.12/site-packages/
+    atriz-rvr-driver.egg-link
+
+→ **rvr-02 ya tenía el egg-link.** O sea que el divergido era rvr-01 —su
+  workspace se compiló a mano en algún momento **sin `--symlink-install`**— y la
+  recompilación de hoy lo ha ALINEADO con lo que produce el guion.
+
+📌 Es un argumento más, y este medido, para que la imagen dorada salga de rvr-02
+   y no del robot de referencia: rvr-01 acumula estado manual que nadie puso por
+   escrito. «La imagen es el ATAJO, el script es la VERDAD.»
+
+Comprobado antes de tocar el servicio, para no dejar a rvr-01 sin driver:
+    · el módulo resuelve a build/.../rvr_driver_node.py, que lleva el arreglo
+    · `import atriz_rvr_driver.rvr_driver_node` funciona
+    · `ros2 pkg executables` sigue listando los tres ejecutables
+
+================================================================================
+LO QUE QUEDA
+================================================================================
+⏳ Reiniciar `atriz-robot` en los dos robots y COMPROBAR el arreglo:
+       ros2 topic pub --once /emergency_stop std_msgs/msg/Empty {}
+       ros2 service call /set_ir_mode ... "{mode: 'following', ...}"
+       -> debe decir success=FALSE
+   Mientras no se ejecute eso, el arreglo está **NO VERIFICADO**: lo único que
+   hay es que compila y que el módulo carga.
+
+⏳ 👤 Decidir si se añade la ruta de recepción de mensajes IR. Antes de la
+   imagen dorada, o los dieciséis salen sin ella.

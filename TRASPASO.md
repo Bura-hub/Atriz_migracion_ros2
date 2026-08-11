@@ -611,8 +611,26 @@ De los 62 métodos que el driver no usaba se **probaron las 16 consultas** que p
 | ⚠️ **Térmica y fallo: NO VERIFICADAS** | la prueba llegó a 40 °C y no podía disparar nada. No se persigue: el sondeo cada 30 s ya da el dato |
 | 📚 **Documentación del protocolo rescatada** | `sdk.sphero.com` ya no existe. Copia en `00_auditoria/referencia_sdk/` |
 
-⏳ **Lo único que queda necesita un segundo robot:** todo el **IR robot-a-robot**. Y el arreglo
-de seguridad de `set_ir_evading` está verificado **por código**, nunca con un emisor delante.
+✅ ~~**Lo único que queda necesita un segundo robot: todo el IR robot-a-robot**~~ — **PROBADO
+el 2026-08-11 con rvr-01 y rvr-02**, que es la primera vez que se ha podido. Emisión, `following`,
+`evading` y `off` responden y el comportamiento físico lo confirmó 👤 el usuario. Evidencia 99.
+
+🔴 **Y destapó un agujero de seguridad real, encontrado ejecutando y no leyendo:** con la parada de
+emergencia **activa**, `set_ir_evading` se negaba —correcto— pero **`set_ir_mode following`
+respondía `success=True` y el RVR se ponía a conducir**. Los dos son modos del firmware: no pasan
+por `cmd_vel`, así que ni el watchdog ni el `collision_monitor` los ven. Es el MISMO agujero que se
+tapó el 2026-08-01 para `evading`, dejado abierto para `following` porque aquel arreglo se dio por
+bueno mirando el servicio que se arreglaba en vez de buscar los demás que mueven el robot.
+Arreglado en `Atriz_rvr` (`19884e7`), y auditados los demás: era el único.
+
+📌 Y esto responde a la frase que estaba aquí — *«el arreglo de `set_ir_evading` está verificado
+por código, nunca con un emisor delante»*. Verificado por código era, en efecto, insuficiente: el
+que faltaba estaba al lado.
+
+⏳ **Lo que sigue abierto del IR: la RECEPCIÓN.** El driver de ROS 2 tiene ocho publicadores y
+ninguno de infrarrojos; ROS 1 publicaba en `/infrared_messages`. No se afirma que sea una regresión
+—varias notificaciones del SDK no llegan con este firmware—, pero **hoy no hay forma de observar un
+mensaje IR recibido desde ROS 2**. 👤 Si se quiere, hay que añadirlo **antes de la imagen dorada**.
 
 📝 **Dos datos que la Fase 5 necesita saber:** un motor bloqueado sube **+11.1 °C en 90 s** de bloqueo (ritmo NO constante, 5→10 °C/min, n=1)
 (sirve de corroboración de atasco), y **la temperatura publicada puede tener 30 s de retraso** —
