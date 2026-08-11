@@ -55,6 +55,49 @@ máxima (todo medido, evidencia 95).
 ningún parámetro cubre — el `range_min` del LIDAR es 10 cm y el borde del robot está a 9. **Un
 obstáculo pegado al robot puede ser invisible.**
 
+### 🆕 PC (2026-08-10): YA HAY CON QUÉ MEDIR EL AULA — `03_operacion/medir_aula.html`
+
+**F0 bloquea la cadena entera del taller** —terminal ← agente de sesión ← F0— y
+llevaba semanas como «diez minutos en el aula». Era verdad, y no bastaba: **no
+había con qué**. Ahora sí.
+
+Una página sin librerías ni CDN, al lado de `probar_conexion_web.html`. Se copia
+al portátil, se abre con doble clic **estando en el aula y en su WiFi**, y barre
+los robots por nombre y por dirección.
+
+🔴 **Es una PÁGINA y no un script, y eso es lo que la hace válida.** Está medido
+en este proyecto que no se transfiere entre clientes: el mismo nombre tarda
+**2,7 s en el navegador y 7,3 s desde Node**, y `ping`, `Resolve-DnsName` y
+`getent` han dado verde los tres **con el navegador colgado 12 s**. El testigo
+válido es el cliente que se va a usar, y en el aula ese cliente es un navegador.
+
+🔴 **Y prueba por NOMBRE Y por IP, que es lo único que hace útil un rojo:**
+
+```
+nombre ❌ · IP ✅   ->  mDNS roto: el transporte VIVE, se arregla con la
+                        direccion a mano (el muro ya la admite por robot)
+nombre ❌ · IP ❌   ->  el AP AISLA: esto si tira el diseno del transporte
+sin IP probadas    ->  NO da veredicto, y lo dice
+```
+
+Ese último caso es deliberado: sin IP, un fallo no distingue **tres** causas
+—robots apagados, mDNS roto, AP aislando— y elegir una sería inventar.
+
+✅ **Verificada por efecto y con control**, contra rvr-01 desde un navegador de
+verdad:
+
+```
+ws://rvr-01.local:9090     ABRE en 35 ms · primer dato en 29 ms
+ws://10.255.255.1:9090     COLGADO a los 6,7 s   <- el camino que engana
+```
+
+El control importa: un WebSocket a una dirección muerta **no falla, se cuelga**
+—ni `onerror` ni `onclose`—, y sin plazo propio sería indistinguible de «tarda».
+Es el fallo que dejó al muro de flota sin encontrar ningún robot.
+
+📌 **Lo que sigue siendo del aula:** la medida. Yo no puedo llevarla; lo que
+faltaba era la herramienta, y ya está.
+
 ### 📣 PC (2026-08-10): Nav2 arrancado y leído POR LA WEB — y un número para tu casilla vacía
 
 **A5, la mitad que no mueve el robot, cerrada.** Arrancado por rosbridge —no por
