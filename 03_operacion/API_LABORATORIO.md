@@ -140,7 +140,7 @@ with Robot() as robot:
 `colcon build`: el material tiene que funcionar en 16 robots salidos de la imagen dorada, y cada
 paso de instalación es una cosa más que se rompe en clase. `python3 mi_script.py` y ya.
 
-### Las siete cosas que la biblioteca acierta por el alumno
+### Las ocho cosas que la biblioteca acierta por el alumno
 
 Ninguna es hipotética. Cada una es un fallo que este proyecto ya pagó:
 
@@ -153,6 +153,49 @@ Ninguna es hipotética. Cada una es un fallo que este proyecto ya pagó:
 | 5 | Se suscribe con **BEST_EFFORT** a `/scan`, `/odom`, `/imu`, `/color` y `/encoders` | Un suscriptor RELIABLE **no recibe nada, sin error**: DDS no empareja. Es la misma trampa de QoS que costó la parada de emergencia. 📝 `/ambient_light` queda **fuera de la API**: la decisión del 2026-08-01 es que en este montaje no significa lo que parece |
 | 6 | Limita a **≤ 0.40 m/s** y a un tiempo máximo por llamada | 0.40 m/s es la meseta medida del robot; por encima el número es ficción. El tiempo máximo evita el script que se va a comer una pared mientras el alumno mira otra cosa |
 | 7 | `cerrar()` **para el robot y apaga el barrido**, también en el camino de error | Si no, el X2 se queda girando a **11.8 Hz** en vez de 2.7 — 24/7, por 16 robots |
+| 8 | 🆕 `cerrar()` **apaga además los modos IR, y ANTES de parar los motores** | `following` y `evading` son modos del **firmware**: el robot conduce sin que nadie le mande `cmd_vel`, así que ni el watchdog ni el `collision_monitor` los ven. Parar primero lo frenaría un instante y **volvería a arrancar en la siguiente detección** — el mismo fallo que ya mordió a la parada de emergencia. Sin esto, un Ctrl-C deja **un robot conduciendo por el aula** |
+
+📌 Eran siete hasta el 2026-08-11. La octava salió de probar el IR con dos robots por primera vez.
+
+---
+
+## 🆕 Infrarrojos robot-a-robot (2026-08-11)
+
+Este documento tenía **cero menciones al IR** hasta esta fecha, y la biblioteca tampoco lo exponía.
+No era un olvido con causa: **hasta el 2026-08-10 solo había un robot**, y el IR robot-a-robot no
+se puede ni probar con uno.
+
+Al probarlo con dos aparecieron dos cosas que cambian lo que se puede prometer al alumno:
+
+- ✅ **`broadcasting`, `following` y `evading` funcionan** — comportamiento físico confirmado.
+- 🔴 **El IR de ROS 1 nunca recibió un solo mensaje**, y su `evading` llamaba a un método que no
+  existe en el SDK. No se perdió al migrar: nunca funcionó.
+
+### Lo que expone la biblioteca
+
+| | qué hace | ¿mueve el robot? |
+|---|---|---|
+| `emitir_ir(codigo)` | manda un código 0-7 por los cuatro emisores | no |
+| `escuchar_ir(caducidad=2.0)` | el último código recibido, o `None` | no |
+| `quien_hay_cerca()` | lo que ven los cuatro sensores | no |
+| `emitir_como_baliza(lejos, cerca)` | emite para que otro te siga o te evite | no |
+| `seguir_a_otro(lejos, cerca)` | va hacia el que emita | 🔴 **sí, solo** |
+| `huir_de_otro(lejos, cerca)` | se aleja del que emita | 🔴 **sí, solo** |
+| `parar_ir()` | apaga los tres modos | — |
+
+### Tres decisiones que conviene entender
+
+**1 · `escuchar_ir()` tiene caducidad, y no es una comodidad.** El registro del firmware **se borra
+al segundo**. Un código de hace diez segundos no dice que haya alguien ahí ahora, solo que lo hubo.
+Devolver el último valor sin más sería mentir con un dato real.
+
+**2 · `quien_hay_cerca()` dice SI hay alguien, no todavía POR DÓNDE.** El SDK trae una máscara que
+asignaría cada sensor a una esquina, pero está documentada **para el BOLT**, que es otro robot con
+otro chasis. ⏳ Hasta medirlo con dos RVR, prometer dirección sería heredar una suposición de otro
+producto. Se mide con `mediciones_banco/medir_ir_dos_robots.py`.
+
+**3 · Los dos que conducen avisan por pantalla y se apagan al cerrar.** Ver la garantía nº 8: es la
+única forma de que un Ctrl-C no deje un robot rodando por el aula.
 
 ---
 

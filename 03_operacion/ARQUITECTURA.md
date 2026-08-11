@@ -175,7 +175,24 @@ expone 19**, y **todos son alcanzables por rosbridge**, así que conviene saber 
 | Configuración | `set_drive_parameters`, `set_pos_and_yaw` | bajo |
 | Parada | `release_emergency_stop` | — |
 | 🔴 **Movimiento** | `move_timed`, `raw_motors`, `move_to_pose`, `move_to_pos_and_yaw` | **alto** |
-| 🔴 **Infrarrojos** | `set_ir_mode`, `set_ir_evading`, `send_infrared_message` | **alto** |
+| 🔴 **Infrarrojos** | `set_ir_mode` (`following`), `set_ir_evading` | **alto** — hacen CONDUCIR al robot por firmware |
+| Infrarrojos, lo que no mueve | `set_ir_mode` (`broadcasting`, `off`), `send_infrared_message` | ninguno: solo encienden emisores |
+
+🆕 **Y dos topics de IR desde el 2026-08-11** (rediseño completo del subsistema; diseño en
+`docs/superpowers/specs/2026-08-11-sistema-ir-robot-a-robot-design.md`):
+
+| topic | qué es |
+|---|---|
+| `/infrared_messages` | el **evento**: otro robot me ha emitido un código |
+| `/estado_ir` | el **estado** a 1 Hz: qué ven mis cuatro sensores, cuánto hace del último mensaje, qué modo tengo, y **si el firmware me está conduciendo** |
+
+🔴 **`conduciendo_por_ir` cierra un agujero que llevaba abierto desde siempre:** con `following`
+activo el robot se mueve **sin pasar por `cmd_vel`**, así que ni el watchdog ni el
+`collision_monitor` lo ven, y hasta esa fecha **nada en ROS sabía que se estaba moviendo**.
+
+📌 **En rosbridge se abren los dos topics y `send_infrared_message`.** `following` y `evading` se
+quedan **cerrados a propósito** mientras rosbridge no tenga identidad por usuario: abrirlos sería
+que cualquiera en el aula pueda poner a conducir cualquier robot.
 
 ⚠️ **`/start_scan` y `/stop_scan` NO son del driver**: son servicios del **nodo del YDLIDAR**.
 Buscarlos en el driver es media hora tirada.

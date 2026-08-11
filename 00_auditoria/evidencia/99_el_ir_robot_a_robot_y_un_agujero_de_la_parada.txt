@@ -8,6 +8,7 @@ Estado:   ✅ emisión, seguimiento y evasión probados con DOS robots
              VERIFICADO sobre rvr-02
           ✅ la RECEPCIÓN de mensajes IR IMPLEMENTADA el mismo día y MEDIDA:
              el firmware SÍ la entrega. Ver la sección 3, reescrita.
+          ✅ y con eso el IR ENTERO se rediseñó: ver la sección 5.
 
 POR QUÉ EXISTE ESTE FICHERO
 --------------------------------------------------------------------------------
@@ -183,3 +184,87 @@ LO QUE QUEDA
 
 ⏳ 👤 Decidir si se añade la ruta de recepción de mensajes IR. Antes de la
    imagen dorada, o los dieciséis salen sin ella.
+
+
+================================================================================
+5 · EL REDISEÑO COMPLETO — 2026-08-11, tarde
+================================================================================
+👤 Decisión del usuario: «haz el rediseño completo ahora», después de que la
+prueba con dos robots destapara que el IR era, en sus palabras, «un producto mío
+muy burdo de hace mucho tiempo pero que demuestra conexión».
+
+Diseño acordado y escrito en
+`docs/superpowers/specs/2026-08-11-sistema-ir-robot-a-robot-design.md`.
+
+LO QUE SE EXPLORÓ ANTES DE TOCAR NADA
+--------------------------------------------------------------------------------
+Tres barridos sobre el SDK y el proyecto. Lo que sacaron, resumido:
+
+  · La notificación IR declara UN campo, `infrared_code`. Los cuatro
+    `*_strength` de InfraredMessage.msg son parámetros del ENVÍO: en la
+    recepción no existen.
+  · `get_active_control_system_id()` devuelve **8** mientras el firmware conduce
+    el robot por IR. Nadie lo usaba, y es la única forma de que ROS se entere.
+  · `get_bot_to_bot_infrared_readings` RESPONDE, y su `0xFFFFFFFF` no era basura:
+    es «los cuatro sensores vacíos», correcto con un solo robot.
+  · **No existen los ficheros de protocolo** de los que se autogeneró el SDK, y
+    la clase que guarda los parámetros no tiene campos para unidades, mínimos ni
+    máximos. Lo que hay es todo lo que hay: cualquier rango o geometría que
+    queramos, lo medimos nosotros.
+  · **No hay servicio de streaming de IR**: solo sondeo, y el dato caduca en 1 s.
+  · El límite `strength` 0-64 vive en UN solo sitio del SDK — un helper que el
+    driver no usa. Si no validamos nosotros, no valida nadie.
+  · Los diez comandos IR van al procesador ST, y
+    `disable_notifications_and_active_commands` va al Nordic: ese «apágalo todo»
+    NO apaga el IR.
+  · ROS 2 había PERDIDO la validación de rangos que ROS 1 sí tenía.
+  · Cero IR en atriz.py, en las once prácticas y en API_LABORATORIO.md.
+  · Cero pruebas de IR válidas para ROS 2.
+  · Huecos en la numeración de CIDs dentro del bloque IR (0x2A, 0x2B, 0x2D).
+    ⚠️ Inferencia por vecindad, NO documentada. No se construye sobre ella.
+
+LO QUE SE HIZO
+--------------------------------------------------------------------------------
+Contrato de ROS — evento y estado separados, como ya hace `/estado_robot`:
+
+    /infrared_messages   el EVENTO   header + code          (se rehace el tipo)
+    /estado_ir           el ESTADO   1 Hz, EstadoIR.msg     (nuevo)
+
+`EstadoIR` lleva el `crudo` (el uint32 íntegro) ADEMÁS de los cuatro bytes.
+🔴 Y eso salió de un recordatorio del usuario: «el robot no es BOLT, es Sphero
+RVR». Si el driver parte el uint32 según MI suposición de orden, la prueba de
+viabilidad mediría mi corte y no el hardware. Con el crudo, la evidencia
+sobrevive a que me equivoque. Misma lección que el `colcon build` mandando su
+salida a /dev/null: el paso que puede fallar no debe destruir su evidencia.
+
+Driver: la clave real; ante un payload desconocido AVISA en vez de publicar un 0
+(0 es un código válido); sondeo tras el parámetro `ir_sondeo_hz`; validación
+0-7 recuperada; la parada de emergencia deja el estado en `off`.
+
+atriz.py: siete métodos nuevos, y la garantía nº 8 de la biblioteca —
+`secuencia_de_cierre` pasa de TRES pasos a CUATRO y `apagar_ir` va **el
+primero**, porque parar antes dejaría al robot arrancando otra vez en la
+siguiente detección. Sin eso, un Ctrl-C deja un robot conduciendo por el aula.
+77 tests en verde, tres nuevos que PROVOCAN el fallo.
+
+rosbridge: los dos topics y `send_infrared_message` entran; `following` y
+`evading` se quedan fuera mientras no haya identidad por usuario.
+
+Verificador: exige que `/estado_ir` ENTREGUE un mensaje, y de
+`/infrared_messages` dice explícitamente lo que NO se puede comprobar con un
+solo robot, en vez de fingirlo.
+
+⏳ LO QUE FALTA, Y ES FÍSICO
+--------------------------------------------------------------------------------
+La PRUEBA DE VIABILIDAD de la detección direccional, con los dos robots:
+
+    en el que emite:  python3 medir_ir_dos_robots.py --emitir
+    en el que mide:   python3 medir_ir_dos_robots.py
+
+Criterio fijado ANTES de medir, dentro del propio guion:
+    ✅ discrimina · 🟡 detecta pero no discrimina · 🔴 no sirve
+Y cada veredicto lleva escrita su consecuencia sobre el diseño.
+
+Es lo único del rediseño apoyado en algo no verificado, y la razón la dio el
+usuario: **la máscara de los cuatro sensores está documentada «on BOLT», y este
+robot es un RVR.**
