@@ -15,6 +15,104 @@ para saber por dónde vas.
 
 ---
 
+## 🆕🆕 2026-08-10 · **HAY UN SEGUNDO ROBOT, Y `provision.sh` SE ESTÁ EJECUTANDO DE VERDAD**
+
+👤 Lo trae el usuario, y **levanta la suposición más cara que tenía este proyecto abierta.**
+
+Desde el 2026-07-31 estaba escrito que rvr-01 es «el único robot montado», y sobre esa base se
+decidió **no reflashearlo**: `provision.sh` —el guion que convierte un Ubuntu limpio en robot y del
+que sale la imagen dorada de los 16— **nunca se había ejecutado de principio a fin**. Con el riesgo
+escrito al lado: *«no es que falle: es que falle en el robot 7 de 16, con seis ya desplegados»*.
+
+**Ya no. `rvr-02` existe y `provision.sh` está corriendo sobre él.** Y está encontrando cosas, que
+es exactamente para lo que servía.
+
+### 🔴 Dónde está parado ahora mismo
+
+```
+sphero@rvr-02:~/atriz_ws$ colcon build
+    Permission denied: 'log'
+
+$ sudo bash ~/atriz_migracion/scripts/fase_7_systemd.sh --id 02
+  ✗ el workspace está compilado
+  ✗ existe robot.launch.py instalado
+  ✗ 2 comprobaciones fallaron. No se instala nada.
+```
+
+Es **un solo problema en cadena**: `fase_7` se niega porque el workspace no compiló. Lo demás de
+`fase_7` sale ✓, y `/boot/firmware/robot_id.txt` tiene `ROBOT_ID=02` correctamente.
+
+### ✅ Lo que YA descarté leyendo el guion, para que nadie lo persiga
+
+**`provision.sh` NO compila como root**, así que el fallo **no es suyo** en ese paso:
+
+```
+provision.sh:519   correr sudo -u "$USUARIO" bash -c "… cd atriz_ws && colcon build --symlink-install"
+provision.sh:244   correr install -d -o "$USUARIO" -g "$USUARIO" "$WS"
+```
+
+→ Si `~/atriz_ws` aparece de `root`, **lo creó otra cosa lanzada con `sudo` a mano**, no el guion.
+⏳ **La causa NO está determinada.** Hace falta la salida del diagnóstico de abajo.
+
+### 🔴 Y la trampa que hay que descartar ANTES de tocar nada: el workspace parásito
+
+Este proyecto se equivocó **seis veces en una sola sesión** con esto. Si alguna vez se lanzó
+`colcon` desde `~/atriz_ws/src/Atriz_rvr` en vez de desde `~/atriz_ws`, colcon crea **ahí dentro**
+su `build/`, `install/` y `log/`, compila contra ellos y dice **«Finished»** — con el cambio sin
+llegar nunca al sistema. Y encaja con un `log/` que no se puede escribir.
+
+**El diagnóstico que distingue las dos causas:**
+
+```bash
+whoami
+ls -ld ~/atriz_ws ~/atriz_ws/src ~/atriz_ws/log 2>&1
+ls -d ~/atriz_ws/src/*/build ~/atriz_ws/src/*/log 2>/dev/null || echo "sin workspace parasito"
+```
+
+Y según salga:
+
+```bash
+sudo chown -R sphero:sphero ~/atriz_ws                       # si hay cosas de root
+rm -rf ~/atriz_ws/src/*/build ~/atriz_ws/src/*/install ~/atriz_ws/src/*/log   # si hay parasito
+bash ~/atriz_migracion/scripts/compilar.sh                   # NO `colcon build` a pelo
+```
+
+⚠️ **`compilar.sh` y no `colcon build`**: se sitúa solo en la raíz, comprueba que compiló **algo**
+y **avisa del parásito**. Es la herramienta que existe justo para este fallo.
+⚠️ Y relanzar `provision.sh` —que es idempotente— **no arregla un permiso que él no creó**. Primero
+el `chown` o el borrado; luego el guion.
+
+### 📌 Lo que hay que hacer con lo que se aprenda
+
+**Cada cosa que frene a rvr-02 es una que no frenará a los catorce siguientes — si acaba en el
+guion en vez de arreglarse a mano.** Cuando salga la causa, va a `provision.sh`.
+
+## ✅ 2026-08-10 · EL AULA: el aislamiento de clientes queda DESCARTADO
+
+👤 El usuario entró por **`ssh sphero@rvr-02.local` desde el laboratorio, y funcionó.**
+
+Eso cierra las dos preguntas que podían tirar el diseño del transporte:
+
+- **El AP NO aísla a sus clientes.** El aislamiento actúa en **capa 2**: bloquea *todo* el tráfico
+  entre dispositivos inalámbricos, sea el puerto que sea. Si el SSH llegó, no hay aislamiento.
+- **mDNS funciona en ese AP.** El nombre `.local` resolvió, así que no capa multicast.
+
+🔴 **Lo que NO cierra, y hay que decirlo:** que SSH llegue **no prueba que el navegador llegue**. En
+este proyecto pasó exactamente eso — `ping` y `Resolve-DnsName` verdes con el navegador colgado
+12 s, porque el nombre resolvía a cuatro direcciones. Esa causa **se arregló** el 2026-08-04 (una
+dirección por red), así que el riesgo es bajo, pero SSH prueba SSH.
+
+⏳ **Sigue sin saberse qué IP coge el robot en ese SSID.** `05-atriz-lab.network` casa por SSID y
+**nunca ha casado con nada**; si difiere en un carácter, el robot cae al netplan genérico.
+
+→ **Queda como confirmación de 30 s, no como viaje prioritario:** abrir `medir_aula.html` con los
+robots 1..2, y `ip -4 addr show wlan0` en el robot.
+
+📝 **Y corrijo mi propia insistencia:** llevaba varias respuestas diciendo que esos diez minutos
+eran «lo que decide si construir o rediseñar». Con este dato **ya está decidido, y a favor**. Lo
+que sube al primer puesto es el **agente de sesión**, que yo mismo había aparcado *hasta saber
+esto*.
+
 ## 📣 🔴 URGENTE PARA TU PANTALLA: EL ROBOT PUEDE QUEDARSE MUERTO SIN QUE NADA FALLE
 
 Medido el 2026-08-09 con 24 estaciones en las cuatro direcciones (evidencias 93, 94 y 95).

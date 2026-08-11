@@ -2,12 +2,26 @@
 
 > 🔴🔴 **ANTES DE CONSTRUIR LA IMAGEN DORADA, LEE ESTO.**
 >
-> Esta guía supone que `provision.sh` funciona. **Eso no está comprobado**: el script nunca se
-> ha ejecutado de principio a fin sobre un Ubuntu 24.04 limpio, porque exigiría reflashear
-> rvr-01 —el único robot montado— y el usuario decidió no hacerlo el 2026-07-31.
+> 🔁 **ACTUALIZADO EL 2026-08-10: ya hay un segundo robot, y el guion se está ejecutando de
+> verdad sobre él.** `rvr-02` existe, y `provision.sh` corre ahí sobre un Ubuntu limpio — sin
+> tocar rvr-01. La suposición **se está levantando ahora mismo**, que es justo lo que faltaba.
 >
-> Lo verificado es sintaxis, una pasada con `--simular` y la comprobación de los binarios de
-> Nav2. **De una pasada limpia no se ha probado nada de lo que instala o compila.**
+> ⏳ **No ha terminado**, así que esta guía sigue sin poder darse por validada. Se quedó parado
+> en `colcon build` con `Permission denied: 'log'`, y `fase_7_systemd.sh` se niega en cadena
+> porque el workspace no compiló. Estado, diagnóstico y arreglo en
+> [`ESTADO_ACTUAL.md`](ESTADO_ACTUAL.md).
+>
+> ✅ **Lo que ya está descartado:** que lo cause el guion. Compila con `sudo -u "$USUARIO"`
+> (`provision.sh:519`) y crea el workspace con `install -d -o "$USUARIO"` (`:244`), así que un
+> `~/atriz_ws` de `root` vendría de algo lanzado a mano con `sudo`. ⏳ **La causa real, sin
+> determinar.**
+>
+> 📌 **Y la regla que hace que esto valga: lo que frene a rvr-02 va AL GUION**, no se arregla a
+> mano. Si no, los catorce siguientes tropiezan con lo mismo.
+>
+> **Texto original, que sigue explicando por qué importa:** Lo verificado es sintaxis, una
+> pasada con `--simular` y la comprobación de los binarios de Nav2. **De una pasada limpia no se
+> ha probado nada de lo que instala o compila.**
 >
 > El riesgo no es que falle: es que falle **en el robot 7 de 16**, con seis ya desplegados.
 > Detalle en `00_auditoria/evidencia_24_04/29_provision_sin_verificar.txt`.

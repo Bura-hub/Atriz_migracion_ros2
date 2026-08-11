@@ -4,6 +4,73 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-10 (PC) — **Hay un segundo robot, y con él caen dos suposiciones grandes**
+
+Sesión de traspaso. Las dos cosas las trae el usuario, y las dos levantan bloqueos que llevaban
+semanas escritos como «no se puede saber desde aquí».
+
+### 1 · `provision.sh` se está ejecutando de verdad, por primera vez
+
+Desde el 2026-07-31 el proyecto asumía que el guion funciona, porque probarlo exigía reflashear
+rvr-01 —«el único robot montado»—. Con el riesgo escrito al lado: *«no es que falle: es que falle
+en el robot 7 de 16, con seis ya desplegados»*.
+
+**Ya hay un `rvr-02` y el guion corre sobre él.** Y está encontrando cosas, que es para lo que
+servía. Parado aquí:
+
+```
+colcon build                      Permission denied: 'log'
+fase_7_systemd.sh --id 02         ✗ el workspace está compilado
+                                  ✗ existe robot.launch.py instalado
+                                  ✗ 2 comprobaciones fallaron. No se instala nada.
+```
+
+Es **un solo problema en cadena**: `fase_7` se niega porque el workspace no compiló.
+
+✅ **Descartado leyendo el guion, para que nadie lo persiga:** no lo causa `provision.sh`. Compila
+con `sudo -u "$USUARIO"` (`:519`) y crea el workspace con `install -d -o "$USUARIO"` (`:244`), así
+que un `~/atriz_ws` de `root` vendría de algo lanzado a mano con `sudo`.
+⏳ **La causa real NO está determinada.** Falta el diagnóstico desde el robot.
+
+🔴 **Y la trampa que hay que descartar antes de tocar nada: el workspace parásito.** Este proyecto
+se equivocó **seis veces en una sesión** con esto — `colcon` lanzado desde `src/Atriz_rvr` crea ahí
+su `build/`, `install/` y `log/`, compila contra ellos y dice «Finished» con el cambio sin llegar
+al sistema. Encaja con un `log/` que no se puede escribir. Por eso el arreglo pasa por
+`scripts/compilar.sh`, que **avisa del parásito**, y no por `colcon build` a pelo.
+
+📌 **La regla que hace que esto valga la pena, y va escrita en los tres sitios: lo que frene a
+rvr-02 va AL GUION, no se arregla a mano.** Si se queda en una sesión de SSH, los catorce
+siguientes tropiezan igual.
+
+### 2 · El aula: el aislamiento de clientes queda DESCARTADO
+
+👤 El usuario entró por `ssh sphero@rvr-02.local` **desde el laboratorio**, y funcionó.
+
+- **El AP no aísla.** El aislamiento de clientes actúa en **capa 2**: bloquea todo el tráfico entre
+  dispositivos inalámbricos, sea el puerto que sea. Si el SSH llegó, no hay aislamiento.
+- **mDNS funciona ahí.** El nombre `.local` resolvió, así que no capa multicast.
+
+Esas dos eran las que podían **tirar el diseño del transporte**, y salen a favor.
+
+🔴 **Lo que no cierra:** que SSH llegue no prueba que el navegador llegue — en este proyecto
+`ping` y `Resolve-DnsName` dieron verde con el navegador colgado 12 s. Esa causa se arregló el
+2026-08-04, así que el riesgo es bajo, pero SSH prueba SSH.
+⏳ Sigue sin saberse **qué IP coge el robot en ese SSID**: `05-atriz-lab.network` nunca ha casado
+con nada.
+
+📝 **Y corrijo mi propia insistencia:** llevaba varias respuestas diciendo que los diez minutos en
+el aula eran «lo que decide si construir o rediseñar». **Con este dato ya está decidido, y a
+favor.** Baja a confirmación de 30 s. Lo que sube al primer puesto es el **agente de sesión**, que
+yo mismo había aparcado *hasta saber esto*.
+
+### Alineado
+
+`ESTADO_ACTUAL.md` (el canal, con el diagnóstico accionable arriba del todo), `CLAUDE.md`,
+`TRASPASO.md` y `FLOTA.md` — las cuatro afirmaciones de «rvr-01 es el único robot montado» que
+sostenían la decisión de no probar el guion.
+
+---
+
 ## 2026-08-09 (PC) — **«No se puede verificar» también es una afirmación, y la mía era falsa**
 
 Salió de una pregunta del usuario: *«¿qué falta aquí por probar?»*. Al ir a contestarla con la

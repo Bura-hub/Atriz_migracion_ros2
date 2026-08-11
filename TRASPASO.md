@@ -1198,11 +1198,22 @@ reconstruirlo. En resumen:
   estado inicial.
 - 🔴 La **credencial sigue expuesta**, y quitarla exige limpiar el **historial** de git.
 
-### 🔴 Suposición aceptada: `provision.sh` no se ha probado entero
+### 🔁 Suposición aceptada: `provision.sh` no se ha probado entero — **LEVANTÁNDOSE el 2026-08-10**
 
-**Decisión del usuario el 2026-07-31: no se reflashea rvr-01.** Es el único robot montado y
-probar el script de principio a fin exigiría un 24.04 limpio. Se **asume** que funciona hasta
-tener una tarjeta de repuesto.
+🆕 **Ya hay un `rvr-02`, y el guion se está ejecutando sobre él**, sobre un Ubuntu limpio y sin
+tocar rvr-01. La suposición más cara del proyecto está en proceso de cerrarse.
+
+⏳ **No ha terminado.** Parado en `colcon build` (`Permission denied: 'log'`), con `fase_7`
+negándose en cadena. ✅ Descartado que lo cause el guion —compila con `sudo -u` y crea el
+workspace con el dueño correcto—; ⏳ **la causa real, sin determinar**. Diagnóstico y arreglo en
+[`03_operacion/ESTADO_ACTUAL.md`](03_operacion/ESTADO_ACTUAL.md).
+
+📌 **Regla para lo que salga: va al guion, no se arregla a mano.** Lo que frene a rvr-02 frenará
+a los catorce siguientes si se queda en una sesión de SSH.
+
+**Texto original, conservado porque explica la decisión:** Decisión del usuario el 2026-07-31: no
+se reflashea rvr-01. Es el único robot montado y probar el script de principio a fin exigiría un
+24.04 limpio. Se **asume** que funciona hasta tener una tarjeta de repuesto.
 
 ✅ **Verificado:** sintaxis, una pasada con `--simular` (código 0 recorriendo las nueve
 secciones), la comprobación de los cuatro binarios de Nav2 —que **no** se simula— y la
