@@ -22,7 +22,8 @@ funcionado** y que el tipo de mensaje **describe algo que el robot no envía**.
 | `get_bot_to_bot_infrared_readings` **responde** | evidencia 41: `{'sensor_data': 4294967295}` = `0xFFFFFFFF` = los cuatro sensores vacíos, correcto con un solo robot |
 | Existe `get_active_control_system_id()` → **8** mientras el robot conduce por IR | `drive.py:684`, `drive_enums.py:79` |
 | La lectura direccional **caduca en 1 s** | `referencia_sdk/sensor.md:54` |
-| 4 emisores (frontal/izq/der/trasero), 4 receptores en las esquinas | `sensor.md:213-224`, `:45-47` |
+| 4 emisores (frontal/izq/der/trasero) | `sensor.md:213-224` — nombres de parámetros, NO una observación del chasis |
+| ~~4 receptores en las esquinas~~ | 🔴 **REFUTADO el 2026-08-11** (evidencia 100): la máscara es del BOLT y no describe al RVR. Tres estados distinguibles, no cuatro, y un byte que nunca lleva datos |
 | `far_code` = 3 m o más · `near_code` = menos de 1 m | `sensor.md:69-74` |
 | Las intensidades encendidas deben compartir nivel | `sensor.md:213` |
 
@@ -120,8 +121,12 @@ física. Que la máscara valga igual es una **suposición heredada de un product
 proyecto ya ha pagado por fiarse de la documentación del propio SDK: los encoders vienen
 documentados como `Left`/`Right` y el payload real trae `LeftTicks`/`RightTicks`.
 
-Ponerles nombre de esquina hoy sería inventarse la orientación del robot. **La prueba de viabilidad
-los bautiza**, y solo entonces se renombran con lo medido.
+Ponerles nombre de esquina hoy sería inventarse la orientación del robot.
+
+✅ **Y la prueba se ejecutó (evidencia 100). El resultado es que NO se pueden bautizar:** discrimina
+tres estados —izquierda, detrás, y «delante o derecha» sin separarlos— y `sensor_0` no lleva datos
+nunca, en ninguno de los dos robots. Los campos se quedan como están, y ahora no por prudencia sino
+**por medición**.
 
 ⚠️ **Las antigüedades no son adorno.** Un `255` significa «nadie» o «hace demasiado que no
 consulto», y sin la antigüedad no se distinguen.
