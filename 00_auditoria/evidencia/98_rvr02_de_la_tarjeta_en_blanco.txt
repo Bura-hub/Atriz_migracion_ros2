@@ -6,7 +6,8 @@ Robot:    rvr-02 (segunda unidad; rvr-01 sigue montado y sin tocar)
 PC:       Windows + WSL2 (Ubuntu 26.04)
 Estado:   ✅ tarjeta · ✅ arranque y UART · ✅ provision.sh ENTERO (96 ✓ · 0 ✗)
           ✅ verificador: 151 ✓ · 0 FALLOS  ·  ✅ red fija aplicada en frío
-          ⏳ para darlo por desplegado: solo el mapa del aula (👤 físico)
+          ✅ prueba de humo, incluidas las prácticas del ALUMNO
+          → rvr-02 DESPLEGADO. Siguiente: fase_6_preparar_imagen_dorada.sh
 
 POR QUÉ EXISTE ESTE FICHERO
 --------------------------------------------------------------------------------
@@ -524,6 +525,37 @@ ocurrió solo.
 ⏳ Lo que NO cierra, y conviene no confundirlo: `05-atriz-lab.network` **sigue
    sin haber casado con nada**. rvr-02 está en casa y casó el perfil de casa. El
    del aula solo puede probarse en el aula.
+
+✅ PRUEBA DE HUMO SOBRE EL ROBOT — y sobre el camino del ALUMNO
+--------------------------------------------------------------------------------
+    /odom .................. 16.52-16.69 Hz   (rvr-01: 16.671)
+    /scan con barrido on ... 12.22 Hz         (esperado 10-12)
+    bateria ................ 8.16 V           (baja 7.0 · critica 6.5)
+    /estado_robot .......... rvr_responde=true · antiguedad 16 ms · latido 941
+    01_avanzar.py .......... ✅ 0.20 m/s durante 3 s
+    02_girar.py ............ ✅ 87.8 grados reales de 90 pedidos (-2.2)
+    distancia_frontal ...... 1.538 m
+    luces() ................ ✅
+
+🟢 LO QUE DE VERDAD PRUEBA ESTO: `atriz.py` es lo que ejecuta el ALUMNO, y es
+   exactamente lo que estaba roto por la falta de `dialout` — con el servicio
+   funcionando y la biblioteca no. Que las prácticas corran cierra ese agujero
+   **desde el producto final**, no desde el guion que lo arregló.
+
+⚠️ DOS COSAS QUE PARECIERON FALLOS Y NO LO ERAN, las dos por mi parte:
+
+  1. `bateria: 8.16 %`. Es un fallo de MI comando, no del robot ni de la
+     biblioteca: le puse yo la etiqueta `%`. `bateria()` devuelve **voltios**, y
+     está documentado con su razón en `atriz.py`: «el porcentaje dijo 100 % con
+     la bateria a 8.29 V, a 1.29 V del umbral de «baja» del firmware (7.0)».
+     8.16 V es una bateria sana.
+
+  2. Los scripts se movieron con `atriz-escaneo off` puesto justo antes, cuando
+     está escrito que sin `/scan` el collision_monitor bloquea el movimiento.
+     No hay contradicción: **`atriz.py` enciende el barrido sola** (`/start_scan`)
+     y lo apaga al cerrar **solo si fue ella quien lo encendió**
+     (`debe_apagar_barrido`). Por eso `distancia_frontal` también devolvió un
+     número. Es diseño, y bueno.
 
 ⏳ LO QUE FALTA, Y LO QUE NO FALTA AUNQUE LO PAREZCA
 --------------------------------------------------------------------------------
