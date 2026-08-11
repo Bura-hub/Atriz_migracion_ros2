@@ -542,8 +542,13 @@ ella caliente.
 
 ⚠️ **Lo que sigue sin probarse es el AULA**, y ahí está el riesgo real: `05-atriz-lab.network`
 **nunca ha casado con nada**. Si el SSID difiere en un carácter, el robot cae al netplan
-genérico y se queda **sin dirección estática** con 16 alumnos delante. Tampoco está probado que
-sobreviva a un arranque en frío, que es justo lo que hará el robot 7.
+genérico y se queda **sin dirección estática** con 16 alumnos delante.
+
+✅ **Lo del arranque en frío SÍ está cerrado (2026-08-11, rvr-02)**, y era la otra mitad de este
+aviso: los `.network` se generaron con `first-boot.sh --solo-red` y se aplicaron **desde un
+arranque en frío**, nunca en caliente. `wlan0` quedó con **una sola** dirección, la estática, sin
+la del DHCP, y el emparejamiento por SSID **ocurre en el arranque**. Sigue abierto solo el perfil
+del aula, que se prueba en el aula.
 
 ---
 

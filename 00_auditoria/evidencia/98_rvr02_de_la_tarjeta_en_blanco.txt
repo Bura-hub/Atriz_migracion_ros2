@@ -5,8 +5,8 @@ Fecha:    2026-08-11
 Robot:    rvr-02 (segunda unidad; rvr-01 sigue montado y sin tocar)
 PC:       Windows + WSL2 (Ubuntu 26.04)
 Estado:   ✅ tarjeta · ✅ arranque y UART · ✅ provision.sh ENTERO (96 ✓ · 0 ✗)
-          ✅ verificador: 151 ✓ · 6 avisos · 0 FALLOS — rvr-02 PASA
-          ⏳ para darlo por desplegado: red.txt (paso 6-bis) y el mapa del aula
+          ✅ verificador: 151 ✓ · 0 FALLOS  ·  ✅ red fija aplicada en frío
+          ⏳ para darlo por desplegado: solo el mapa del aula (👤 físico)
 
 POR QUÉ EXISTE ESTE FICHERO
 --------------------------------------------------------------------------------
@@ -451,14 +451,90 @@ AVISOS (7), todos esperados o ya conocidos:
    ni se llegaba a ejecutar: `✓ yaw de /odom en reposo: -0.0° (el offset se
    está restando)`.
 
+✅ PASO 6-bis · LA RED  →  150 ✓ · 4 avisos · 0 fallos
+--------------------------------------------------------------------------------
+👤 Direcciones que dio el usuario:  rvr-02 → lab 10.14.7.6 · casa 192.168.1.201
+   MAC de wlan0: d8:3a:dd:d6:c2:d2   (anotada en la tabla de FLOTA.md)
+
+⚠️ ANTES DE ESCRIBIR NADA HUBO QUE PARAR: el mensaje decía que rvr-01 tiene la
+   10.14.7.6 y que rvr-02 tendría **también la .6**. Dos robots con la misma IP
+   fija. Medido en rvr-01 antes de tocar nada:
+
+       /etc/systemd/network/05-atriz-lab.network:  Address=10.14.7.7/21
+       /etc/systemd/network/06-atriz-casa.network: Address=192.168.1.200/24
+
+   rvr-01 tiene la **.7**, y lo dicen además nueve sitios de la documentación.
+   👤 Aclarado: era un lapsus al escribir; rvr-02 se queda con la .6 y rvr-01 no
+   se toca. 📌 Preguntar costó un mensaje; no preguntar habría costado una tarde
+   con dos robots peleándose por una dirección en el aula.
+
+Y una comprobación barata antes de reiniciar, porque el `[Match] SSID=` es lo
+que decide qué perfil se aplica y un carácter de diferencia deja al robot SIN
+dirección: se compararon los dos SSID de rvr-02 contra los de rvr-01.
+**Idénticos los dos.** (Comparados por programa, sin sacarlos por pantalla.)
+
+🔴 Y AQUÍ SALIÓ OTRA INSTRUCCIÓN QUE HABÍA ENVEJECIDO: `netplan try`
+--------------------------------------------------------------------------------
+`FLOTA.md`, `CLAUDE.md`, `scripts/README.md`, el manual §19.3 y el propio
+`first-boot.sh` mandaban `sudo netplan try --timeout 90` después de generar la
+red. Aquí **no puede funcionar**: `netplan try` aplica, espera un ENTER de
+confirmación y **revierte si no lo recibe**. Con `DHCP=no`, aplicar QUITA la
+dirección del DHCP por la que estás conectado → la sesión SSH se corta → nadie
+confirma → revierte. Siempre.
+
+Y no es que el comando esté mal. **La condición es si la dirección por la que
+estás conectado sobrevive al cambio:**
+
+  · ✅ sobrevivía el 2026-08-01 en rvr-01, con el DHCP encendido — `wlan0` acabó
+       con TRES direcciones a la vez y por eso quedó verificado
+  · 🔴 no sobrevive con `DHCP=no`, adoptado el 2026-08-04 para que
+       `rvr-NN.local` resuelva a UNA sola dirección
+
+O sea: la instrucción era correcta cuando se escribió, **dejó de serlo cuatro
+días después con un cambio de otra decisión, y nadie la revisó**. Es el patrón
+más caro de este proyecto y no lo comete el código, lo comete la documentación.
+
+ARREGLADO: `first-boot.sh --solo-red` ahora MIRA el `red.txt` y dice cuál de los
+dos toca. Alineados los cinco sitios.
+
+⚠️ Y un fallo mío dentro de ese arreglo, cazado antes de subirlo: usé `$RED` en
+   vez de `$RED_FILE`. Con la variable sin definir el `grep` falla en silencio y
+   cae SIEMPRE en la rama del `netplan try` — o sea que el guion habría dado con
+   toda confianza el consejo equivocado. Probadas las dos ramas por separado.
+
+RESULTADO TRAS EL REINICIO:
+    ✓ existe /etc/netplan/60-atriz.yaml
+    ✓ wlan0 sin dirección del DHCP (una dirección por red)
+    ✓ wlan0 con UNA sola dirección IPv4: 192.168.1.201/24
+    ✓ el .network de «…» está aplicado
+    150 ✓ · 4 avisos · 0 fallos
+
+✅ Y ESO CIERRA UN ⏳ DE LOS CAROS: EL ARRANQUE EN FRÍO
+--------------------------------------------------------------------------------
+Estaba escrito en `ESTADO_ACTUAL.md`, `CLAUDE.md` y `TRASPASO.md`:
+
+    «Todo se aplicó en caliente con netplan try. Nadie ha comprobado que los
+     .network se apliquen desde cero ni que el emparejamiento por SSID ocurra
+     en el arranque. **Es exactamente lo que hará el robot 7**»
+
+rvr-02 acaba de ser ese robot 7. Los `.network` se generaron y se aplicaron
+**desde un arranque en frío**, nunca en caliente, y el emparejamiento por SSID
+ocurrió solo.
+
+⏳ Lo que NO cierra, y conviene no confundirlo: `05-atriz-lab.network` **sigue
+   sin haber casado con nada**. rvr-02 está en casa y casó el perfil de casa. El
+   del aula solo puede probarse en el aula.
+
 ⏳ LO QUE FALTA PARA DAR rvr-02 POR DESPLEGADO
 --------------------------------------------------------------------------------
-  1. `red.txt` + `first-boot.sh --solo-red` (paso 6-bis). Hoy va por DHCP:
-     `hostname -I` → 192.168.1.41. rvr-01 tiene la .200 fija en casa.
-     👤 Falta saber qué IP le toca en el laboratorio: la tabla de FLOTA.md la
-        tiene en blanco y el administrador las asigna una a una.
-  2. El mapa del aula (👤 físico, en el laboratorio).
-  3. Y entonces sí: `fase_6_preparar_imagen_dorada.sh`.
+Solo queda 1 de los 4 avisos que sea trabajo de verdad:
+
+  · ATRIZ_MAPA apunta a un mapa inexistente → 👤 el mapa del aula, físico
+  · sin identidad de git global .............. del usuario, si va a commitear
+  · mDNS por enlace en wlan0 ................. pendiente conocido, manual 19.5
+  · authorized_keys vacío .................... correcto para la imagen dorada
+
+Y entonces: `fase_6_preparar_imagen_dorada.sh`.
    ⚠️ Desde ese reinicio `atriz-robot.service` arranca solo. El driver conecta
       con el RVR (no enciende LEDs, comprobado) pero el robot NO conducirá hasta
       un `atriz-escaneo on`: sin `/scan` el collision_monitor bloquea el

@@ -467,8 +467,14 @@ una sola dirección mientras el PC recibía dos. **`getent` no ve lo que la Pi a
 
 ⏳ **Lo que sigue SIN PROBAR es el aula, y ahí está el riesgo:** `05-atriz-lab.network` **nunca ha
 casado con nada**. Si su SSID difiere en un carácter, el robot cae al netplan genérico y se queda
-**sin dirección estática** con 16 alumnos delante. Tampoco está probado que sobreviva a un
-**arranque en frío**, que es justo lo que hará el robot 7.
+**sin dirección estática** con 16 alumnos delante.
+
+✅ **Lo del arranque en frío ya NO está pendiente: cerrado el 2026-08-11 con rvr-02**, que es
+literalmente el caso que este párrafo temía («lo que hará el robot 7»). Se escribió su `red.txt`,
+se generaron los `.network` con `first-boot.sh --solo-red` y **se aplicaron reiniciando**, nunca en
+caliente. El verificador tras el arranque: `✓ wlan0 con UNA sola dirección IPv4: 192.168.1.201/24`
+· `✓ wlan0 sin dirección del DHCP` · `✓ el .network de «…» está aplicado`. **El emparejamiento por
+SSID ocurre en el arranque.** Queda solo el perfil del aula, que solo puede probarse allí.
 
 Ancho de banda medido dos veces con dos clientes distintos: **80.7 kB/s navegando → 10.3 Mbit/s
 los 16**, y `/scan` es el **83 %**. Manual, **cap. 19**.

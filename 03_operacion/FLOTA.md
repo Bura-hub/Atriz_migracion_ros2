@@ -330,7 +330,7 @@ queda legible por cualquier usuario, en los 16 robots. Se cierra en `/etc/fstab`
 | Robot | Hostname | `ROS_DOMAIN_ID` | IP laboratorio (estática) | IP casa | MAC |
 |---|---|---|---|---|---|
 | 01 | `rvr-01` | 1 | `10.14.7.7/21` | `192.168.1.200/24` | `d8:3a:dd:d6:c1:ee` (wlan0) · `d8:3a:dd:d6:c1:ea` (eth0) |
-| 02 | `rvr-02` | 2 | `10.14.7.6/21` | `192.168.1.201/24` | ⏳ anotarla: `ip link show wlan0` |
+| 02 | `rvr-02` | 2 | `10.14.7.6/21` | `192.168.1.201/24` | `d8:3a:dd:d6:c2:d2` (wlan0) |
 | … | … | … | | | |
 | 16 | `rvr-16` | 16 | | | |
 
