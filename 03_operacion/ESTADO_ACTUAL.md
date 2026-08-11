@@ -76,7 +76,43 @@ duplicada que decía lo contrario.
 | 5 · Clonar | ✅ sin credenciales |
 | 6 · `provision.sh` | ✅ **EJECUTADO ENTERO POR PRIMERA VEZ**: 96 ✓ · 16 avisos · **0 fallos** |
 | 6-ter · el LIDAR | ✅ el `ID_PATH` **es el mismo en otro Pi**. Cerrado un ⏳ de semanas |
-| 7 · reinicio + verificador | ⏳ ahora mismo |
+| 7 · reinicio + verificador | ✅ **151 ✓ · 6 avisos · 0 FALLOS — rvr-02 PASA** |
+
+### 🔴 Y el último hueco: **nadie metía al usuario en `dialout` ni en `video`**
+
+El primer pase del verificador dio 4 fallos. **Tres eran el mismo**, y el cuarto también:
+
+```
+✗ /dev/rvr sin permisos para sphero
+✗ el RVR NO contesta
+✗ throttling: «Can't open /dev/vcio»
+✗ servicios que NO responden: get_encoders
+```
+
+Ningún guion del proyecto metía al usuario en esos grupos. rvr-01 los tiene de su montaje
+**manual** original. Y **no se habría visto nunca**: la imagen dorada clona `/etc/group`, así que
+los robots 3-16 los heredarían y todo parecería bien. Es literalmente *«la imagen es el ATAJO, el
+script es la VERDAD»* — divergían, y sólo una instalación limpia podía enseñarlo.
+
+📌 Por qué no saltó antes: `atriz-robot.service` lleva `SupplementaryGroups=dialout`, así que **el
+servicio** habla con el RVR aunque el usuario no esté en el grupo — de ahí que el mismo verificador
+diera `✓ /odom a 15.32 Hz` dos secciones antes de decir «el RVR NO contesta». Lo que se rompe es
+todo lo **interactivo**, y eso incluye **`atriz.py`, el producto que ejecuta el alumno**.
+
+Arreglado en `provision.sh` (paso 3/9). Tras reiniciar: `✓ el RVR contesta`, `✓ throttled=0x0`,
+`✓ los 19 servicios del driver responden`.
+
+### 🟢 PARA TU PANTALLA: TRES PENDIENTES QUE YA NO LO SON
+
+| tu documentación dice | la realidad, medida el 2026-08-11 |
+|---|---|
+| `provision.sh` sin probar entero | ✅ ejecutado entero, 96 ✓ · 0 fallos |
+| el `ID_PATH` del LIDAR sin verificar en otro Pi | ✅ **es el mismo**. La regla udev es clonable |
+| `red.txt` en 755, la PSK legible | ✅ **ya estaba resuelto y nadie lo tachó**. `fmask=0177,dmask=0077` en el `fstab` de **los dos** robots, `/boot/firmware` en `drwx------` |
+
+⚠️ Y una corrección mía del mismo día: marqué como riesgo abierto las credenciales del historial
+de los repositorios públicos. **Se rotaron el 2026-08-04** — están muertas. Sacarlas del historial
+es higiene, no urgencia. Estaba escrito en este mismo fichero y no lo miré.
 
 ### 🔴🔴 `provision.sh` YA NO ES UNA SUPOSICIÓN — y falló dos veces antes de no fallar
 
@@ -1514,7 +1550,7 @@ muerto, así que un `git clone --recursive` repartía ROS 1 y la web abandonada.
 |---|---|
 | ✅ ~~**Rotar la PSK del WiFi y la contraseña de `sphero`**~~ | **HECHO el 2026-08-04.** Era el bloqueo más antiguo del proyecto. Los secretos siguen en el historial de los repositorios públicos, pero **ya no valen**: rotar es lo único que cierra una exposición, y borrar ramas o archivar repositorios **no cerró nada** — los dos casos medidos |
 | ✅ ~~**DOS credenciales NUEVAS de `Atriz_web_server`**~~ | **HECHO el 2026-08-04.** La `SECRET_KEY` de los JWT estaba en las **tres** ramas y la de PostgreSQL en un `.env` commiteado en `master`. Rotadas, y el repositorio **archivado después** — en ese orden, porque archivar deja el repo en solo lectura y **no cierra ninguna exposición**. [`REPOSITORIOS.md`](REPOSITORIOS.md) |
-| **`red.txt` en 755** | 👤 tuyo. La PSK es legible por cualquier usuario; `chmod` no sirve, va `fmask=0177` en `/etc/fstab` |
+| ✅ ~~**`red.txt` en 755**~~ | **RESUELTO, y estaba resuelto sin que nadie lo tachara.** Medido el 2026-08-11 en los DOS robots: `/etc/fstab` con `defaults,fmask=0177,dmask=0077` y `/boot/firmware` en `drwx------`. En rvr-02 lo pone `provision.sh` solo. El verificador lo confirma: `✓ /etc/fstab cierra la PSK` |
 | **El mapa del aula** | 👤 tuyo, en el laboratorio. Bloquea la tarea 4 del plan de navegación |
 | **`~/.ssh/authorized_keys` vacío** | 👤 tuyo, desde el PC |
 | **La FOTO del conector USB del LIDAR** | 👤 tuyo, y **obligatoria** desde que se decidió puerto fijo en los 16 (2026-08-04). Es lo único que le dirá a quien monte el robot 7 dónde va el cable. Con el cable en el conector equivocado, el launch **muere en 1 s sin imprimir nada**. Sigue sin existir |

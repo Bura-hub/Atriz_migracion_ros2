@@ -5,9 +5,8 @@ Fecha:    2026-08-11
 Robot:    rvr-02 (segunda unidad; rvr-01 sigue montado y sin tocar)
 PC:       Windows + WSL2 (Ubuntu 26.04)
 Estado:   ✅ tarjeta · ✅ arranque y UART · ✅ provision.sh ENTERO (96 ✓ · 0 ✗)
-          🟡 verificador: 145 ✓ · 7 avisos · 4 fallos, tres de ellos el mismo
-             hueco (grupos del usuario) ya arreglado en el guion
-          ⏳ pendiente: repetir el verificador · red.txt (paso 6-bis)
+          ✅ verificador: 151 ✓ · 6 avisos · 0 FALLOS — rvr-02 PASA
+          ⏳ para darlo por desplegado: red.txt (paso 6-bis) y el mapa del aula
 
 POR QUÉ EXISTE ESTE FICHERO
 --------------------------------------------------------------------------------
@@ -98,10 +97,20 @@ problemas de credentials». Consecuencias, las dos:
      personal ya no tiene que viajar en 16 microSD. Retirado del paso 5 de
      `FLOTA.md`, que lo pedía explícitamente.
 
-  🔴 NO arregla, y sigue abierto (👤 usuario): las credenciales que YA están en
-     el historial de `Atriz_rvr` — PSK del WiFi y contraseña de `sphero`,
-     documentado desde el 2026-08-02 en `API_LABORATORIO.md` §«en público».
-     Al ser público el repositorio, ese historial lo lee cualquiera.
+  🟡 Lo que NO arregla: las credenciales que YA están en el historial de
+     `Atriz_rvr` —PSK del WiFi y contraseña de `sphero`, documentado desde el
+     2026-08-02— siguen ahí, y al ser público el repositorio las lee cualquiera.
+
+     ⚠️ CORRECCIÓN, el mismo día: primero escribí esto como «🔴 sigue abierto»
+        y le di al usuario más preocupación de la que tocaba. **Las dos se
+        ROTARON el 2026-08-04** (`ESTADO_ACTUAL.md`: «los secretos siguen en el
+        historial de los repositorios públicos, pero **ya no valen**»). Lo que
+        queda expuesto son credenciales MUERTAS. Sacarlas del historial sigue
+        siendo higiene; no es una urgencia. Lo mismo vale para el
+        `MANUAL_SPHERO_original.docx`, que sigue versionado con la contraseña
+        vieja.
+        📌 La lección: antes de marcar algo como riesgo abierto, mirar si el
+           repositorio ya registra que se cerró. Estaba escrito.
 
 ⚠️ Clonar DENTRO de WSL, no usar la copia de Windows por `/mnt/c`: git en
    Windows convierte a CRLF y bash muere con `$'\r': command not found`.
@@ -367,12 +376,15 @@ al UART), es idempotente y avisa de que no surte efecto hasta reiniciar.
   · dialout → /dev/rvr (ttyAMA0) y el /dev/ttyUSB0 del LIDAR
   · video   → /dev/vcio, que es como vcgencmd lee las bajadas de tensión
 
-⏳ EL CUARTO FALLO, SIN DIAGNOSTICAR: `✗ servicios que NO responden: get_encoders`
-   El topic `/encoders` SÍ va (136 mensajes en 8 s, ~17 Hz), así que el driver
-   lee los encoders; lo que no contestó es el SERVICIO. Hipótesis sin comprobar:
-   que el intento fallido de hablar con el RVR justo antes (fallo 2) dejara el
-   enlace ocupado. **No se da por diagnosticado**: se repite el verificador con
-   los grupos ya aplicados y se mira si sigue.
+✅ EL CUARTO FALLO ERA EL MISMO: `✗ servicios que NO responden: get_encoders`
+   Tras aplicar los grupos: `✓ los 19 servicios del driver responden`.
+
+   ⚠️ Y con eso se cae MI hipótesis, que conviene dejar escrita porque era
+      plausible y era falsa: dije que probablemente el intento fallido de hablar
+      con el RVR justo antes había dejado el enlace ocupado. No. El verificador
+      hace esa llamada abriendo `/dev/rvr`, y sin `dialout` no podía. **Los
+      cuatro fallos eran UNO.** Se marcó «sin diagnosticar» a propósito en vez
+      de darlo por explicado, y menos mal.
 
 🔴 Y DOS FALLOS DEL PROPIO VERIFICADOR, LOS DOS MÍOS Y DE HOY:
 
@@ -415,7 +427,38 @@ AVISOS (7), todos esperados o ya conocidos:
    fábrica, o sea que el guion lo hace y el que iba manualmente atrasado era el
    robot de referencia.
 
-⏳ PASO 7-bis · Repetir el verificador tras los grupos.
+✅ PASO 7-bis · VERIFICADOR TRAS LOS GRUPOS  →  151 ✓ · 6 avisos · **0 FALLOS**
+--------------------------------------------------------------------------------
+    ✓ /dev/rvr legible y escribible por sphero
+    ✓ throttling / under-voltage: throttled=0x0
+    ✓ el RVR contesta por /dev/rvr
+    ✓ los 19 servicios del driver responden
+    ✓ collision_monitor.yaml: radius 0.15   (ya sin el aviso que lo contradecía)
+    ✓ /odom a 16.70 Hz                      (era 15.32 antes del reinicio)
+    ✓ LIDAR X2: 84 barridos en 8 s
+    ✓ ~/atriz_ws y sus subdirectorios son de sphero
+    (y sin el `line 1910: syntax error`)
+
+**rvr-02 pasa el verificador.** Los 6 avisos que quedan, ninguno bloqueante:
+
+  · sin identidad de git global .............. del usuario, no del robot
+  · mDNS por enlace en wlan0 ................. pendiente conocido, manual 19.5
+  · no hay 60-atriz.yaml ni .network ......... ES el paso 6-bis, aplazado
+  · ATRIZ_MAPA apunta a un mapa inexistente .. normal: aún no se ha mapeado
+  · authorized_keys vacío .................... correcto para la imagen dorada
+
+📌 Y una comprobación NUEVA que apareció al arreglar los permisos, y que antes
+   ni se llegaba a ejecutar: `✓ yaw de /odom en reposo: -0.0° (el offset se
+   está restando)`.
+
+⏳ LO QUE FALTA PARA DAR rvr-02 POR DESPLEGADO
+--------------------------------------------------------------------------------
+  1. `red.txt` + `first-boot.sh --solo-red` (paso 6-bis). Hoy va por DHCP:
+     `hostname -I` → 192.168.1.41. rvr-01 tiene la .200 fija en casa.
+     👤 Falta saber qué IP le toca en el laboratorio: la tabla de FLOTA.md la
+        tiene en blanco y el administrador las asigna una a una.
+  2. El mapa del aula (👤 físico, en el laboratorio).
+  3. Y entonces sí: `fase_6_preparar_imagen_dorada.sh`.
    ⚠️ Desde ese reinicio `atriz-robot.service` arranca solo. El driver conecta
       con el RVR (no enciende LEDs, comprobado) pero el robot NO conducirá hasta
       un `atriz-escaneo on`: sin `/scan` el collision_monitor bloquea el
@@ -440,12 +483,15 @@ Afirmaciones falsas retiradas .... 4  (regdom «a mano» · repos privados/PAT �
 Controles que no probaban nada ... 2  (el `git fetch` de «¿puedes subir?» ·
                                        el informe de --simular)
 Trampas nuevas documentadas ...... 2  (Docker secuestra wsl · ALREADY_EXISTS)
-Dudas cerradas ................... 2  (cp -a sí funciona sobre drvfs ·
-                                       el ID_PATH del LIDAR es el mismo)
+Dudas cerradas ................... 3  (cp -a sí funciona sobre drvfs ·
+                                       el ID_PATH del LIDAR es el mismo ·
+                                       la PSK del fstab ya estaba resuelta y
+                                       seguía marcada pendiente en 3 sitios)
 Bloqueantes que decaen ........... 1  (Fase 6 nº 1: el PAT en la imagen dorada)
-Hitos ............................ 2  (preparar_tarjeta.sh verificado sobre
+Hitos ............................ 3  (preparar_tarjeta.sh verificado sobre
                                        hardware · provision.sh ejecutado ENTERO
-                                       por primera vez: 96 ✓ · 0 ✗)
+                                       por primera vez: 96 ✓ · 0 ✗ · rvr-02
+                                       PASA el verificador: 151 ✓ · 0 fallos)
 
 --------------------------------------------------------------------------------
 Y la regla que gobernaba esta pasada se cumplió literalmente: los dos pasos que

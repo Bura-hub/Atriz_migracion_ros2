@@ -34,6 +34,39 @@ para los 16.
 - **`verificar_robot.sh`:** comprueba el `PasswordAuthentication` efectivo y **falla** si está en
   `no`.
 
+### ✅ rvr-02 PASA el verificador: 151 ✓ · 6 avisos · 0 fallos
+
+El primer pase dio 4 fallos y **los cuatro eran el mismo hueco**: ningún guion del proyecto metía
+al usuario en `dialout` ni en `video`. rvr-01 los tiene de su montaje **manual** original.
+
+**No se habría visto nunca.** La imagen dorada clona `/etc/group`, así que los robots 3-16 los
+heredarían de rvr-01 y todo parecería bien — *«la imagen es el ATAJO, el script es la VERDAD»*.
+Divergían, y sólo una instalación limpia podía enseñarlo.
+
+Y no saltó antes porque `atriz-robot.service` lleva `SupplementaryGroups=dialout`: **el servicio**
+habla con el RVR aunque el usuario no esté en el grupo. De ahí que el verificador diera
+`✓ /odom a 15.32 Hz` dos secciones antes de decir «el RVR NO contesta». Lo que se rompe es todo lo
+interactivo, y eso incluye **`atriz.py`, el producto que ejecuta el alumno**.
+
+⚠️ **Una hipótesis mía retirada:** del cuarto fallo (`get_encoders` no responde) dije que
+«probablemente el intento fallido de hablar con el RVR dejó el enlace ocupado», y lo marqué **sin
+diagnosticar** en vez de darlo por explicado. Menos mal: era falso. El verificador hace esa llamada
+abriendo `/dev/rvr`, y sin `dialout` no podía.
+
+**Dos fallos del propio verificador, los dos míos y del mismo día:** un `grep -c … || echo 0` que
+con el fichero vacío producía `0\n0` y reventaba con `[[: syntax error`; y un aviso que pedía el
+`radius` **0.18** —el valor antiguo— contradiciendo a la comprobación del nodo vivo, que exige
+0.15. Segunda vez en el día con ese patrón: por la mañana fue `authorized_keys`.
+
+**Y un pendiente que ya estaba resuelto y nadie había tachado:** `red.txt` en 755 / la PSK legible
+figuraba abierto en `PRUEBA_ACEPTACION.md` (×2) y `ESTADO_ACTUAL.md`. Medido: **los dos robots**
+tienen `fmask=0177,dmask=0077` en el `fstab` y `/boot/firmware` en `drwx------`.
+
+⚠️ **Y una corrección mía, del mismo día:** marqué como riesgo abierto las credenciales del
+historial de los repositorios públicos. **Se rotaron el 2026-08-04** — están muertas, y así estaba
+escrito en `ESTADO_ACTUAL.md`. Sacarlas del historial es higiene, no urgencia. La lección: antes de
+marcar algo como riesgo abierto, mirar si el repositorio ya registra que se cerró.
+
 ### 🔴🔴 Y lo grande: **`provision.sh` se ha ejecutado ENTERO por primera vez**
 
 Era, textualmente, «la suposición más peligrosa que le queda al proyecto»: el guion del que sale

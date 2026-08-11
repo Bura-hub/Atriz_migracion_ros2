@@ -79,6 +79,10 @@ puso `Atriz_migracion_ros2` y `Atriz_rvr` en público a propósito, para no repa
 microSD (medido ese día: los dos clonan sin credencial; `atriz-lab` sigue privado). El `.docx`
 sigue versionado en `02_manual/`. **No des por privado nada de este repositorio.**
 
+✅ **Pero la credencial del `.docx` está MUERTA: se rotó el 2026-08-04**, junto con la PSK. Lo que
+queda versionado es una contraseña que ya no vale. Sacarla es higiene, no urgencia. 📌 Antes de
+marcar algo como riesgo abierto, mira si el repositorio ya registra que se cerró.
+
 🔴 **Y el 2026-08-02 apareció un SEGUNDO caso, en `Atriz_rvr` (público, rama `ros2`), otro
 fichero y otras dos credenciales:** la PSK del WiFi del laboratorio y la contraseña del usuario
 `sphero`, en texto plano en `scripts/estudiantes/00_LEEME_PRIMERO.md` y

@@ -98,7 +98,7 @@ suspensos, y las dos son trampas reales de este sistema:
 
   | Aviso | Se traduce a |
   |---|---|
-  | `red.txt` en 755, la PSK legible | **PENDIENTE** nº 3 |
+  | ~~`red.txt` en 755, la PSK legible~~ | ✅ **RESUELTO.** Ese aviso ya no sale: `verificar_robot.sh` dice `✓ /etc/fstab cierra la PSK (fmask=0177,dmask=0077)`. Comprobado el 2026-08-11 en **los dos** robots — en rvr-01 el `fstab` lo lleva y `/boot/firmware` es `drwx------`; en rvr-02 lo pone `provision.sh` (paso 8bis de la higiene) |
   | mDNS por enlace: `wlan0` no lo tiene | **PENDIENTE** (drop-in de systemd-networkd, manual 19.5) |
   | los `.bak-*` de apt | cosmético, se informa y ya |
   | no se pudo leer `60-atriz.yaml` (necesita root) | no concluyente: se **reintenta con `sudo -n`**, y si no hay privilegio se marca **NO VERIFICADO**, que no es lo mismo que «bien» |
@@ -286,8 +286,8 @@ Al final va el recuento y el veredicto, en ese orden:
      Lo que lo impide:
        · [PENDIENTE] rosbridge sin autenticacion en el 9090
        · [PENDIENTE] el hueco de los precipicios
-       · [PENDIENTE] la PSK del WiFi es legible por cualquier usuario
-       · [PENDIENTE] la credencial sphero sin rotar
+       · [PENDIENTE] la PSK del WiFi es legible por cualquier usuario   ← ✅ YA NO
+       · [PENDIENTE] la credencial sphero sin rotar                     ← ✅ YA NO
 ==============================================================================
 ```
 

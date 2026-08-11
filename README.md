@@ -189,9 +189,11 @@ Resumidos del [informe completo](00_auditoria/INFORME_AUDITORIA.md):
   - O sea que **el fichero que justificaba la privacidad sigue aquí y la
     privacidad ya no**. 👤 Decisión pendiente del usuario: sacar el `.docx` del
     repositorio (y del historial), volver a privado, o asumirlo.
-  - 📌 Para no exagerarlo: esa contraseña **ya se daba por comprometida** antes
-    de esto —está en `Atriz_web_server`, público— así que lo que cambia es que
-    hay una fuente más, no que se filtre algo que estuviera a salvo.
+  - ✅ **Y lo que de verdad cierra esto: la contraseña se ROTÓ el 2026-08-04.** La que hay
+    en el `.docx` **ya no vale**. Rotar es lo único que cierra una exposición —borrar
+    ramas o archivar repositorios no cerró nada, y los dos casos están medidos—, así que
+    lo que queda versionado es una credencial muerta. Sigue siendo higiene sacarla, no
+    una urgencia.
 - 🔴 **La credencial del usuario `sphero` está expuesta** en el repositorio público
   `Atriz_web_server` (`swarm_lab_api/app/core/raspberry_config.py`) y **debe considerarse
   comprometida**. Ver §5.1 del plan.
