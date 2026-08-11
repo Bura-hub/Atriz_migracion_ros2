@@ -398,8 +398,14 @@
 >   **1,8–2,9 cm** contra los 9,9–10,7 del `collision_monitor`, con el flanco `false→true` visto
 >   desde el robot (T2).
 >
-> Hoy son **358 pruebas** (`tsc` y `eslint` limpios), las seis rutas se abren y se han mirado
-> **renderizadas con datos reales**, y el muro encuentra al robot **por su nombre**.
+> **Aquel día** eran **358 pruebas** (`tsc` y `eslint` limpios), las seis rutas se abrían y se
+> habían mirado **renderizadas con datos reales**, y el muro encontraba al robot **por su nombre**.
+>
+> ⚠️ **Esta cifra decía «Hoy son 358 pruebas» y se quedó rancia seis días.** Al **2026-08-10** son
+> **620** en la suite normal, más **47 con navegador** que corren sin robot contra el doble y **4**
+> que sí lo necesitan; y las rutas son **nueve**, no seis. La cifra viva está en el `README.md` de
+> `atriz-lab`, que es su repositorio: **este fichero no es el sitio donde llevar la cuenta**, y por
+> eso queda fechada en vez de actualizada.
 > El diseño de la aplicación está en
 > [`00_auditoria/planes/2026-08-04-estructura-app-web.md`](00_auditoria/planes/2026-08-04-estructura-app-web.md)
 > y **todas las dudas abiertas, con recomendación**, en
