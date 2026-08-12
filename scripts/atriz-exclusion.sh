@@ -77,6 +77,37 @@ case "${1:-}" in
       log "   ⚠️ Si llevas rato mapeando, GUARDA EL MAPA antes de pararlo."
       exit 1
     fi
+    # 🆕 2026-08-11 · Y EL INFRARROJO, que hasta hoy no vigilaba nadie.
+    #
+    # 🔴 `set_ir_mode('following')` y `set_ir_evading` hacen conducir al robot
+    #    por FIRMWARE: no pasan por `/cmd_vel`. Así que si se arranca Nav2 con
+    #    uno de esos activo, quedan DOS CONTROLADORES mandando sobre el mismo
+    #    robot — Nav2 publicando velocidades y el firmware conduciendo por su
+    #    cuenta— y nada los arbitra. El SDK tampoco: se buscó el 2026-08-11 y no
+    #    hay ni una línea sobre precedencia.
+    #
+    # 📝 Se mira `/estado_ir`, que el driver publica a 1 Hz. Si no llega (driver
+    #    parado, o `ir_sondeo_hz:=0`), NO se bloquea: no se puede afirmar que
+    #    haya IR activo, y negar el arranque por no poder mirar sería peor que
+    #    el problema. Se avisa y se sigue — la regla del proyecto es no fingir
+    #    que se ha comprobado algo.
+    EST_IR="$(timeout 4 ros2 topic echo /estado_ir --once 2>/dev/null || true)"
+    if [[ -z "$EST_IR" ]]; then
+      log "⚠️ no se pudo leer /estado_ir: NO se comprueba el infrarrojo."
+      log "   (driver parado, o arrancado con ir_sondeo_hz:=0)"
+    elif grep -q 'conduciendo_por_ir: true' <<<"$EST_IR"; then
+      log "🔴 EL ROBOT ESTÁ CONDUCIENDO POR INFRARROJOS. La navegación no arranca."
+      log ""
+      log '   following y evading son modos del FIRMWARE: el robot se mueve'
+      log '   SIN pasar por /cmd_vel, asi que ni el watchdog ni el'
+      log '   collision_monitor los ven. Arrancar Nav2 encima dejaria DOS'
+      log '   controladores mandando sobre el mismo robot, sin nadie que arbitre.'
+      log ""
+      log '   Apagalo primero:'
+      log "     ros2 service call /set_ir_mode atriz_rvr_msgs/srv/SetIRMode \"{mode: 'off', far_code: 0, near_code: 0}\""
+      log '   Desde una practica:  robot.parar_ir()'
+      exit 1
+    fi
     ;;
   *)
     log "uso: atriz-exclusion slam|nav"

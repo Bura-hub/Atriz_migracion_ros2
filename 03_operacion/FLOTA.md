@@ -342,6 +342,34 @@ queda legible por cualquier usuario, en los 16 robots. Se cierra en `/etc/fstab`
 |---|---|---|---|---|---|
 | 01 | `rvr-01` | 1 | `10.14.7.7/21` | `192.168.1.200/24` | `d8:3a:dd:d6:c1:ee` (wlan0) · `d8:3a:dd:d6:c1:ea` (eth0) |
 | 02 | `rvr-02` | 2 | `10.14.7.6/21` | `192.168.1.201/24` | `d8:3a:dd:d6:c2:d2` (wlan0) |
+
+### 🔴 Los códigos de infrarrojos: OCHO para DIECISÉIS robots
+
+Añadido el 2026-08-11, tras medir el IR con dos robots (evidencias 99 y 100).
+
+El IR robot-a-robot identifica al emisor por un **código del 0 al 7**. Ocho valores, y el
+laboratorio tiene dieciséis robots: **el reparto no puede ser uno por robot**. Dos robots del aula
+compartirán código por fuerza, y entonces **son indistinguibles entre sí por infrarrojos**.
+
+📌 No es un fallo del sistema ni algo que se pueda arreglar en el guion: es el límite del hardware
+(`InfraredCodes`, ocho valores). Lo que sí se puede es **decidirlo en vez de descubrirlo**.
+
+**Reparto propuesto — el código es `ROBOT_ID` módulo 8:**
+
+| robots | código |
+|---|---|
+| 01 · 09 | 1 |
+| 02 · 10 | 2 |
+| … | … |
+| 07 · 15 | 7 |
+| 08 · 16 | 0 |
+
+Y la regla operativa que lo hace utilizable: **los robots que compartan código no se usan en la
+misma práctica de IR.** Con dos grupos de ocho, cada grupo tiene los ocho códigos distintos.
+
+⚠️ **Lo que NO está medido:** qué pasa con **varios robots emitiendo a la vez**. Todo lo probado es
+con **dos**. Colisiones de códigos, interferencia y saturación con ocho o dieciséis emisores en la
+misma sala son ⏳ **desconocidos**. Antes de una práctica con toda el aula, medirlo.
 | … | … | … | | | |
 | 16 | `rvr-16` | 16 | | | |
 
