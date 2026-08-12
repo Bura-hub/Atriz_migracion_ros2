@@ -89,3 +89,46 @@ Motivo: el usuario quiere medir el color de un piso luminoso para dibujar
 
   ✅ EJECUTADA dos veces sobre rvr-01 el 2026-08-12 (los números del apartado 1).
   ⏳ NO EJECUTADA sobre el piso luminoso: el robot no estaba encima.
+
+───────────────────────────────────────────────────────────────────────────────
+5 · `espejo_de_color.py` — Y UNA DEMOSTRACIÓN EN VIVO DE POR QUÉ HAY QUE AVISAR
+───────────────────────────────────────────────────────────────────────────────
+  El usuario pidió que el robot se encienda del color que detecta, escalando
+  entre máximos y mínimos. Escrito en `mediciones_banco/espejo_de_color.py`:
+  lee el RGBC, resta la base, estira cada canal entre su mín y su máx, suaviza
+  con mediana móvil y manda `/set_leds` con `rgb_color=[r,g,b]`.
+
+  🔴 `SetLeds.srv` NO TIENE CAMPOS DE RESPUESTA. No hay `success` que mirar: el
+     instrumento es el ojo de quien tiene el robot delante.
+
+  EJECUTADO el 2026-08-12 sobre el suelo normal del laboratorio (piso apagado),
+  calibrando 8 s y haciendo de espejo 15 s a 4 Hz:
+
+    verde   mín 45  máx 46  recorrido 1   ⚠️ RECORRIDO CORTO
+    sensor R 23 G 46 B 23   ->   LEDs [255, 255, 255]
+    sensor R 23 G 46 B 22   ->   LEDs [  0, 255, 255]
+    sensor R 24 G 45 B 23   ->   LEDs [255,   0, 255]
+
+  El sensor se mueve UNA CUENTA y los LEDs saltan de blanco a cian a magenta.
+  Estirar un recorrido de 1 cuenta a 0-255 multiplica el ruido por 255.
+
+  → Por eso el guion trae `--min-recorrido` (8 cuentas por defecto) y AVISA en vez
+    de callar. Un espejo de color que estroboscopia sobre una superficie quieta no
+    está roto: está haciendo exactamente lo que se le pidió con datos sin señal.
+
+  📌 ES EL MISMO FENÓMENO QUE UNOS CLUSTERES QUE PARECEN COLORES. El usuario pasó
+     un k-means de k=10 sobre un CSV tomado con el piso APAGADO y salieron diez
+     centroides con dos decimales, tan convincentes como falsos. Las señales de
+     que no había colores estaban en los propios números:
+       · rango global R 13-39 · G 33-76 · B 13-52 = el del suelo con luz ambiente
+       · `claro` ≈ 99, cuando una pantalla de móvil a tope dio 387
+       · 9 de 10 centroides con VERDE dominante — un ciclo real daría fases con
+         R > G y fases con B > G
+       · clusters de 742 a 785 muestras, casi idénticos: es k-means partiendo una
+         nube, no encontrando tramos de un ciclo, que serían de duración desigual
+     🔴 **k-means con k=10 SIEMPRE devuelve 10 clusters.** Misma familia que la
+     rama por descarte del clasificador de color, que llamó «verde» a un suelo a
+     oscuras con R=0 G=1 B=0.
+
+  ⏳ NO EJECUTADO sobre el piso luminoso encendido, que es donde el recorrido
+     debería ser grande y el guardia callar.

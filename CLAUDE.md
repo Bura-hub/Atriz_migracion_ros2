@@ -2218,6 +2218,13 @@ probar_color_por_websocket.py # NO mueve: los DOS modos del sensor POR ROSBRIDGE
 #                              camino de la WEB. Mide latencia y separa `result` (rosbridge)
 #                              de `success` (driver). 🔴 «Funciona por ROS» NO implica «funciona
 #                              por la web»: es lo que costó la falsa medida de /start_scan
+espejo_de_color.py           # ⚠️ ENCIENDE TODOS LOS LEDS (no mueve): el robot se pinta del color
+#                              que ve debajo, estirando cada canal entre su mín y su máx.
+#                              🔴 `SetLeds.srv` NO tiene campos de respuesta: no hay `success`, el
+#                                 instrumento es TU OJO. Y `--min-recorrido` avisa cuando el
+#                                 recorrido es de pocas cuentas: estirar 1 cuenta a 0-255 multiplica
+#                                 el ruido por 255 y el robot estroboscopia sobre una superficie
+#                                 QUIETA — medido el 2026-08-12. Evidencia 103
 registrar_piso_luminoso.py   # NO mueve: registra el RGBC a CSV sobre un piso que CICLA solo.
 #                              Guarda las muestras CRUDAS (sin fichero no hay gráfica) y hace una
 #                              tanda de CONTROL con el LED del sensor encendido antes de nada.
