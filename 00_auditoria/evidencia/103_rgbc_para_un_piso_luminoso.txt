@@ -132,3 +132,33 @@ Motivo: el usuario quiere medir el color de un piso luminoso para dibujar
 
   ⏳ NO EJECUTADO sobre el piso luminoso encendido, que es donde el recorrido
      debería ser grande y el guardia callar.
+
+───────────────────────────────────────────────────────────────────────────────
+6 · EL TECHO DE `--hz` DE `espejo_de_color.py`, MEDIDO
+───────────────────────────────────────────────────────────────────────────────
+  Cada vuelta del bucle son DOS viajes de servicio: leer el RGBC y pintar los LEDs.
+  Pidiendo `--hz 100` (o sea, quitando la pausa) el bucle da lo que da:
+
+    a solas                                600 ... 443 repintados / 15 s  =  29,5 Hz
+    con un `ros2 topic hz` compitiendo     600 repintados / 30 s          =  20,0 Hz
+
+  → El techo NO es un número fijo: depende de qué más corra en la Pi. 20-30 Hz.
+
+  COSTE SOBRE LA TELEMETRÍA, con control y en el mismo minuto:
+
+    /odom SIN el espejo        16,579 Hz
+    /odom con el espejo a tope 16,107 Hz      -2,8 %
+
+  ⚠️ n=1 cada uno. El efecto es pequeño pero cae por debajo de la banda habitual
+     de este robot (16,49-16,59), así que probablemente es real. No se ha repetido.
+
+  📌 Y por encima de ~21 Hz no se gana nada: es el refresco útil del sensor
+     (apartado 1). Repintar más deprisa es repintar el MISMO dato.
+
+  → Recomendación: **10 Hz**. 20 si se quiere vivo. Poner 100 no rompe nada, solo
+    elimina la pausa.
+
+  🔴 Y `--suavizado` cuenta MUESTRAS, no segundos: al subir `--hz` el suavizado se
+     afloja solo. Con `--suavizado 5`, a 5 Hz la mediana abarca 1,0 s y a 20 Hz
+     abarca 0,25. Misma familia que los umbrales de silencio en milisegundos
+     mudados entre topics de ritmos distintos.
