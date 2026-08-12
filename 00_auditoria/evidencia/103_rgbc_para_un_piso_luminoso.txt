@@ -1,0 +1,91 @@
+═══════════════════════════════════════════════════════════════════════════════
+103 · EL RGBC PARA UN PISO LUMINOSO: RITMO REAL Y LÍNEA BASE
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:  2026-08-12, laboratorio
+Robot:  rvr-01
+Motivo: el usuario quiere medir el color de un piso luminoso para dibujar
+        después una gráfica de colores. La evidencia 86 dejó eso explícitamente
+        abierto: «no se transfiere a una baldosa LED real».
+
+⚠️ ESTO NO MIDE TODAVÍA EL PISO LUMINOSO. El robot no estaba encima de él. Lo que
+   se caracterizó es el INSTRUMENTO, sobre el suelo normal del laboratorio.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · SE PUEDE MUESTREAR MUCHO MÁS RÁPIDO DE LO QUE SE CREÍA — Y MENOS
+───────────────────────────────────────────────────────────────────────────────
+  `medir_superficie_emisora.py` duerme 0,12 s entre lecturas, o sea ~8 Hz, y ese
+  número se había tomado como el ritmo posible. NO LO ES: es su `sleep`.
+
+  Medido sin pausa, dos tandas:
+
+    tanda 1 (15 s)   871 muestras   58,04 Hz   0 sin respuesta
+    tanda 2 (10 s)   540 muestras   53,95 Hz   0 sin respuesta
+
+  🔴 PERO EL RITMO DE MUESTREO NO ES EL RITMO DE INFORMACIÓN. Contando cuántas
+     muestras consecutivas son IDÉNTICAS en los cuatro canales:
+
+    muestras repetidas   330 de 539  (61 %)   ->   ritmo ÚTIL ≈ 20,9 Hz
+
+  O sea: el servicio contesta a ~54 Hz y el sensor refresca a ~21. Preguntar más
+  deprisa no añade información, añade FILAS. Para una gráfica eso importa: no es
+  ruido que se pueda promediar, es el mismo dato repetido.
+
+  📝 Los ~21 Hz son una COTA INFERIOR del refresco, no una medida directa de él:
+     sobre una superficie estática dos lecturas seguidas pueden coincidir por
+     casualidad. Sobre una superficie que cambia, la fracción de repetidas baja.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · 🔴 LA LÍNEA BASE NO ES CERO, Y ES LO QUE MÁS PUEDE ESTROPEAR LA GRÁFICA
+───────────────────────────────────────────────────────────────────────────────
+  Con el LED del sensor APAGADO, sobre el suelo normal del laboratorio iluminado:
+
+    rojo   min  15   máx  36   mediana  30
+    verde  min  38   máx  71   mediana  45
+    azul   min  15   máx  45   mediana  36
+    claro  min  88   máx 117   mediana  99
+
+  La evidencia 86 daba el suelo de ruido de este robot en 1-4. Aquí sale ~99.
+  La diferencia es LUZ AMBIENTE reflejada por el suelo, que entra igual con el
+  LED del sensor apagado — y que se SUMARÁ a lo que emita la baldosa.
+
+  → Sin restar esa base, los colores del piso salen LAVADOS hacia el color de la
+    iluminación de la sala. El protocolo obliga a una tanda con la baldosa
+    APAGADA, en la misma posición y con la misma luz de sala.
+
+  ⏳ NO MEDIDO: cuánto de esos 99 es la lámpara de la sala y cuánto el color del
+     propio suelo. Se separaría apagando la luz de la sala, que no se hizo.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · LO QUE ESTA VÍA NO PUEDE DAR, Y CONVIENE SABERLO ANTES
+───────────────────────────────────────────────────────────────────────────────
+  · **El PWM de la baldosa, NO.** Un PWM va a cientos o miles de Hz y aquí se
+    muestrea a ~21 útiles. Lo que se vería es BATIDO (aliasing), no la frecuencia.
+    La herramienta lo informa como «salto entre muestras consecutivas» y dice
+    explícitamente que no es el PWM.
+  · **Dónde satura el canal, SIN MEDIR todavía.** Referencias de este robot:
+    blanco reflectante 2288, pantalla de móvil a tope 387. Un techo repetido es
+    SOSPECHA de saturación, no prueba: puede ser el color más brillante del ciclo.
+    Se distingue bajando el brillo del piso y viendo si el techo baja con él.
+  · **`/color` no vale aquí**: publica CEROS con el LED apagado, porque sale del
+    streaming, que se apaga con la detección. Se usa el SERVICIO
+    `/get_rgbc_sensor_values`, que es una consulta. Evidencia 86.
+
+───────────────────────────────────────────────────────────────────────────────
+4 · HERRAMIENTA NUEVA
+───────────────────────────────────────────────────────────────────────────────
+  00_auditoria/evidencia/mediciones_banco/registrar_piso_luminoso.py
+
+  · NO mueve el robot. Guarda las muestras CRUDAS a CSV (t_s, rojo, verde, azul,
+    claro) — sin fichero no hay gráfica, y la herramienta vieja solo imprimía
+    medianas.
+  · Tanda de CONTROL con el LED del sensor ENCENDIDO antes de nada: sin ella,
+    «con el LED apagado no llega nada» es indistinguible de «el sensor está
+    muerto» y de «la baldosa está apagada».
+  · Apaga el LED blanco de los bajos por TODOS los caminos de salida —Ctrl-C,
+    Ctrl-\, SIGTERM, SIGHUP— con `SignalHandlerOptions.NO`. Es el fallo de los
+    cuatro caminos de la evidencia 56, y aquí cuesta batería del RVR.
+  · Distingue `success=False` de una lectura de ceros. Sin eso, «no hay nada que
+    ver» y «el sensor no contestó» son el mismo (0,0,0,0).
+
+  ✅ EJECUTADA dos veces sobre rvr-01 el 2026-08-12 (los números del apartado 1).
+  ⏳ NO EJECUTADA sobre el piso luminoso: el robot no estaba encima.

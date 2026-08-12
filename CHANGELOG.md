@@ -56,6 +56,26 @@ el reloj saltó **+12 h 56 min** con el stack ya arrancando (la Pi no tiene RTC)
 ⏳ rvr-02 sin medir (solo acepta contraseña) · ⏳ cuál de los dos defectos rompe DDS · ⏳ que el
 arreglo prevenga el fallo, que exige un arranque en frío real. Evidencia 102.
 
+### Y de camino: el RGBC preparado para un piso luminoso
+
+El usuario quiere medir el color de un piso luminoso para dibujar una gráfica. La evidencia 86 dejó
+eso abierto («no se transfiere a una baldosa LED real»). Se caracterizó **el instrumento**, que es lo
+que se podía hacer sin el robot encima del piso:
+
+- **El ritmo posible no era 8 Hz, era ~54** — los 8 eran el `sleep` de `medir_superficie_emisora.py`,
+  tomado por un límite. 🔴 **Pero el ritmo ÚTIL es ~21 Hz**: el 61 % de las muestras consecutivas son
+  idénticas, o sea el mismo dato repetido. Para una gráfica eso no es ruido promediable.
+- 🔴 **La línea base no es cero**: con el LED del sensor apagado, el suelo del laboratorio da
+  `claro ≈ 99`, no los 1-4 de ruido electrónico. Es luz ambiente, y se **suma** a lo que emita la
+  baldosa. Sin restarla, los colores salen lavados hacia el color de la lámpara de la sala.
+- **`registrar_piso_luminoso.py`** (nuevo): guarda las muestras crudas a CSV, hace una tanda de
+  control con el LED encendido, apaga el LED por los cuatro caminos de salida y distingue
+  `success=False` de una lectura de ceros.
+
+⏳ **Sin medir todavía**: el piso luminoso de verdad, dónde satura el canal, y el PWM — que esta vía
+**no puede** dar (va a cientos de Hz contra 21 de muestreo útil: se vería batido, no la frecuencia).
+Evidencia 103.
+
 ---
 
 ## 2026-08-11 (PC) — El sistema de infrarrojos llega a la web, y la brújula que no se pintó

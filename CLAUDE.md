@@ -2218,6 +2218,14 @@ probar_color_por_websocket.py # NO mueve: los DOS modos del sensor POR ROSBRIDGE
 #                              camino de la WEB. Mide latencia y separa `result` (rosbridge)
 #                              de `success` (driver). 🔴 «Funciona por ROS» NO implica «funciona
 #                              por la web»: es lo que costó la falsa medida de /start_scan
+registrar_piso_luminoso.py   # NO mueve: registra el RGBC a CSV sobre un piso que CICLA solo.
+#                              Guarda las muestras CRUDAS (sin fichero no hay gráfica) y hace una
+#                              tanda de CONTROL con el LED del sensor encendido antes de nada.
+#                              🔴 Mide el RITMO ÚTIL, no el de muestreo: el servicio contesta a
+#                                 ~54 Hz y el sensor refresca a ~21 — el 61 % de las muestras son
+#                                 el MISMO dato repetido. Y avisa de la LÍNEA BASE: con el LED
+#                                 apagado, el suelo del laboratorio da claro ≈ 99 (no 1-4), que es
+#                                 luz ambiente y se suma a lo que emita la baldosa. Evidencia 103
 medir_superficie_emisora.py  # NO mueve: ¿lee el RGBC una pantalla o una baldosa LED?
 #                              Mide con el LED del sensor ON y OFF, seguidas y sin mover.
 #                              🔴 Las DOS tandas hacen falta: con solo la de ON, «no se
