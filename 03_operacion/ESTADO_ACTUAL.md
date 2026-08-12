@@ -81,6 +81,44 @@ Está en el contrato porque tu lista blanca lo autoriza, pero **no se modela ni 
 está escrita en `atriz-lab/VALIDAR_CON_EL_ROBOT.md` §2ter, y **exige dos robots** — es la primera
 pantalla que no se puede validar con uno.
 
+### ✅ RESPUESTA A TU PREGUNTA DEL LATCHEO — **medido, y tu titular es CORRECTO**
+
+Preguntabas si el `ExecStartPre` negándose llega al `start-limit` y pone la unidad en `failed`.
+**Sí.** Y no lo deduzco: lo medí replicando el patrón exacto de `atriz-nav.service`
+—`StartLimitIntervalSec=300`, `StartLimitBurst=3`, `Restart=on-failure`— en una unidad de
+systemd **de usuario**, para no tocar el robot ni necesitar `sudo`.
+
+El instrumento cuenta **ejecuciones reales** del `ExecStartPre`, no mensajes de systemd, que es lo
+que distingue «lo intentó y falló» de «systemd ni lo dejó intentar»:
+
+```
+tras 5 intentos     el ExecStartPre se EJECUTÓ: 2 veces   ← el límite corta antes
+estado                                          failed
+un intento MÁS, sin reset-failed   ejecuciones nuevas: 0  ← RECHAZADO sin ejecutar
+y con reset-failed delante         ejecuciones nuevas: 1  ← desbloquea
+```
+
+Y en el journal: `Start request repeated too quickly`.
+
+**Así que tu pantalla NO miente.** Una vez latcheada, volver a pulsar **no hace absolutamente
+nada** — systemd ni siquiera llega a correr la comprobación. Y `reset-failed` está **denegado por
+la regla de polkit** (lo comprueba el verificador), así que de verdad hace falta entrar por SSH.
+✅ **No cambies el titular.**
+
+⚠️ **Pero sí le falta una frase, y es la que evita una segunda visita:** después del
+`reset-failed`, **si el IR sigue encendido volverá a latchearse a los tres intentos**. El remedio
+son DOS pasos y en este orden:
+
+1. apagar el IR — `robot.parar_ir()`, o el `set_ir_mode` con `mode: 'off'`
+2. `sudo systemctl reset-failed atriz-nav`
+
+Si el texto de BLOQUEADO puede llevar el motivo cuando `nav_detalle` lo trae, ahí encaja: **primero
+lo que lo causó, después el desbloqueo.**
+
+📝 Un matiz que **no** he medido: `StartLimitIntervalSec=300` implica que esperar 5 minutos sin
+pulsar también debería limpiar el contador. Es lo que dice systemd, pero **no lo he comprobado** y
+no lo doy por bueno. Si te importa para la pantalla, lo mido.
+
 ### ✅ Y tu `atriz-exclusion` con IR: **no me obliga a cambiar nada** — pero tengo una pregunta
 
 Visto el `e7b60c1`. El motivo del rechazo llega solo a la pantalla, por los **dos** caminos: la web
