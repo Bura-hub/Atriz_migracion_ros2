@@ -4,6 +4,70 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-11 (PC) — El sistema de infrarrojos llega a la web, y la brújula que no se pintó
+
+El robot rehízo el IR entero y dejó escrito en `ESTADO_ACTUAL.md` qué le tocaba al PC. Integrado en
+`atriz-lab`. **El quinto control de `comprobar_contrato.mjs` —el de campos— sirvió por primera vez:**
+se puso en rojo por sí solo con los dos `.msg` nuevos, que es exactamente el fallo que el 2026-08-08
+dejó pasar en silencio.
+
+Contrato después: **LEER 16 · ESCRIBIR 3 · SERVICIOS 13 · TIPOS 7/7 · CAMPOS 53 en 7 `.msg`**.
+
+### Lo que se construyó
+
+- **`lib/robot/infrarrojos.ts`**, que interpreta `EstadoIR` **sin inventar dirección**, con 17
+  pruebas.
+- **Tarjeta en «por qué no obedece»** cuando `conduciendo_por_ir` es `true` — el único campo que
+  delata a un robot conducido por su firmware, que no pasa por `cmd_vel` y por tanto es invisible
+  para el vigilante y para el `collision_monitor`.
+- **`--conduciendo-ir`** en el doble de rosbridge, para poder pintar ese caso sin dos robots.
+
+### 🔴 La decisión que más importa: NO se pintó una brújula de cuatro cuadrantes
+
+El robot midió con los dos robots (evidencia 100) que los cuatro `sensor_N` **no son cuatro
+direcciones**: DELANTE y DERECHA dan el mismo patrón y `sensor_0` no lleva datos nunca. Discrimina
+**tres** zonas. Pintar cuatro habría mentido **con datos reales**.
+
+La rama por descarte **no adivina** —dice «hay alguien, no sé dónde»—, que es el fallo del
+clasificador de color de este mismo proyecto («si no, verde» sobre una cuenta de ruido). Y la
+antigüedad decide **antes** que los sensores: por encima de 1 s la lectura está caducada y los
+cuatro `255` no se leen como «no hay nadie».
+
+La prueba que lo sostiene barre **las 64 entradas posibles**. Mutada en dos direcciones —quitar la
+caducidad, hacer que la rama por descarte adivine—: **caen las dos**.
+
+### 🔴 Dos fallos propios, los dos encontrados MIRANDO y no razonando
+
+1. **El titular tapaba el aviso.** Con el robot conduciendo por IR y todo lo demás sano, la pantalla
+   decía «Ninguna de las causas conocidas encaja» **justo encima** de la tarjeta que avisa de que el
+   robot se mueve solo. Las dos frases eran ciertas por separado. **Ninguna prueba de
+   `diagnosticar()` podía verlo**: se vio en el volcado de lo que el navegador acaba pintando.
+   Arreglado sin marcar la causa como confirmada —eso afirmaría una causalidad no medida—, sino
+   dejando de decir «ninguna» cuando hay algo.
+2. **Comprobé el código fuente en vez de la pantalla.** La prueba de navegador buscaba `puede ser` y
+   la etiqueta se ve en MAYÚSCULAS. Falló, y falló bien: es justo lo que esas pruebas existen para
+   no dejar pasar.
+
+### 📝 Y uno de operación, que costó que la web no cargara
+
+El servidor de desarrollo se lanzó como `npm run dev | head -40`. Al llegar a la línea 40 `head`
+termina, se cierra la tubería y el servidor se queda escribiendo contra un extremo muerto: **el
+puerto sigue en LISTENING y no sirve ni la raíz**. Lo vio el usuario antes que yo. Es la misma
+familia de todo este proyecto — una comprobación de existencia que no prueba el efecto.
+
+### ⏳ Lo que queda, y es una sola cosa para el robot
+
+**Medir el caudal de `/estado_ir` en kB/s.** No está en el muro de la flota porque
+`presupuesto.ts` **lanza** ante un topic sin caudal medido, a propósito. Con ese número entra en
+`CAUDAL_KBS` y se puede decidir; sin él se queda fuera. Sí está en la pantalla por robot, que es
+donde hace falta.
+
+⏳ **Nada de esto ha visto un `/estado_ir` de verdad.** La casilla está en
+`atriz-lab/VALIDAR_CON_EL_ROBOT.md` §2ter y **exige dos robots**: es la primera pantalla que no se
+puede validar con uno.
+
+---
+
 ## 2026-08-11 (Pi) — La tarjeta de rvr-02 se formatea, y al ir a grabarla aparece un agujero de cuatro documentos
 
 Se reinicia el despliegue de rvr-02 desde una microSD en blanco, para documentar el proceso entero

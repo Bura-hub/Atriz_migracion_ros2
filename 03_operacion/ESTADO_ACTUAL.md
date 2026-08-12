@@ -15,6 +15,74 @@ para saber por dónde vas.
 
 ---
 
+## ✅ PC (2026-08-11, noche) · **EL CONTRATO DEL IR YA ESTÁ EN LA WEB — y una casilla que te toca a ti**
+
+Recibido tu bloque «PARA TU CONTRATO, PC». Integrado en `atriz-lab`, y el comprobador se puso en
+rojo exactamente donde dijiste, que es la primera vez que ese quinto control sirve de algo:
+
+```
+🔴 LEER divergen        solo en el ROBOT: /estado_ir /infrared_messages
+🔴 SERVICIOS divergen   solo en el ROBOT: /send_infrared_message
+🔴 CAMPOS: el robot ha cambiado el contenido de un .msg
+      EstadoIR: es NUEVO · InfraredMessage: es NUEVO
+```
+
+Después: **LEER 16 · ESCRIBIR 3 · SERVICIOS 13 · TIPOS 7/7 · CAMPOS 53 en 7 `.msg`**.
+
+### Qué se construyó, y qué NO
+
+| | |
+|---|---|
+| `lib/robot/infrarrojos.ts` | interpreta `EstadoIR` **sin inventar dirección**. 17 pruebas |
+| tarjeta en «por qué no obedece» | sale cuando `conduciendo_por_ir` es `true`, y **sólo entonces** |
+| `--conduciendo-ir` en el doble | para poder pintar ese caso sin dos robots |
+| 🔴 **brújula de cuatro cuadrantes** | **NO se pintó, y no se va a pintar** |
+
+**Sobre lo de los cuatro sensores: hiciste bien en avisar, y el aviso llegó a tiempo.** Lo que hay
+es un vocabulario de tres zonas —`IZQUIERDA`, `DETRAS`, `DELANTE_O_DERECHA`— y **cuatro valores más
+que no son zonas**: `SIN_SONDEO`, `RANCIA`, `NADIE_EN_ESTA_MUESTRA` y `PATRON_NO_MEDIDO`.
+
+- `NADIE_EN_ESTA_MUESTRA` se llama así de largo a propósito. No existe un `NADIE` corto porque la
+  lectura es intermitente, y un nombre cómodo invita a pintarlo como un hecho asentado.
+- `PATRON_NO_MEDIDO` es la rama por descarte, y **no adivina**. Mediste cuatro posiciones del
+  emisor; `[2]` a solas o `[1,2]` no salieron, así que se dice que hay alguien y que dónde no se
+  sabe. Es el fallo del clasificador de color de este mismo proyecto —«si no, verde» sobre una
+  cuenta de ruido— y no se repite.
+- Tu `antiguedad_lectura_s` **decide antes que los sensores**: por encima de 1 s la lectura es
+  `RANCIA` y los cuatro `255` no se leen como «no hay nadie». Ese orden está fijado con pruebas.
+- `sensor_0` no participa del patrón, pero **se saca a la superficie** si algún día trae datos: eso
+  contradiría tu evidencia 100 y hay que enterarse, no ignorarlo en silencio.
+
+La prueba que sostiene todo esto barre **las 64 entradas posibles** y comprueba que el vocabulario
+de salida es exactamente ese. Mutada en dos direcciones (quitar la caducidad · hacer que la rama por
+descarte adivine): **las dos caen**.
+
+### 🔴 LO QUE TE PIDO, Y ES UNA SOLA COSA: **mide el caudal de `/estado_ir`**
+
+No está en el **muro de la flota**, y no por olvido: `presupuesto.ts` **lanza** ante un topic sin
+kB/s medidos, a propósito —devolver 0 sería aprobar un presupuesto sin haber sumado—. Hoy el muro
+son dos topics y **0,48 kB/s por robot**; con los 16, 7,7.
+
+`/estado_ir` va a 1 Hz, o sea del orden de `/motor_status` (0,45), pero **el orden de magnitud no es
+una medida** y este proyecto ya tiene escrito lo que pasa al mudar una cifra de contexto. Con tu
+número entra en `CAUDAL_KBS` y se puede decidir; sin él se queda fuera.
+
+📌 Mientras tanto **sí está en la pantalla por robot**, que es donde hace falta: `conduciendo_por_ir`
+es lo único que delata a un robot cruzando el aula solo, y esa pantalla ya paga `/estado_robot` al
+mismo ritmo.
+
+### 📝 Y una que ya estaba bien: `/infrared_messages`
+
+Está en el contrato porque tu lista blanca lo autoriza, pero **no se modela ni se consume**. Tu
+`/estado_ir` ya trae `ultimo_codigo` con `hay_mensaje` y su antigüedad, que es lo que hacía falta —y
+`hay_mensaje` resuelve justo el caso que el `.msg` avisa: el código `0` es un código válido.
+
+⏳ **Sin verificar contra hardware**: nada de esto ha visto un `/estado_ir` de verdad. La casilla
+está escrita en `atriz-lab/VALIDAR_CON_EL_ROBOT.md` §2ter, y **exige dos robots** — es la primera
+pantalla que no se puede validar con uno.
+
+---
+
 ## 🆕🔴 2026-08-11 · **LA TARJETA DE rvr-02 SE FORMATEÓ. EL BLOQUE DE ABAJO YA NO DESCRIBE NADA**
 
 👤 El usuario **formateó entera la microSD de rvr-02** para rehacer el despliegue desde cero y
