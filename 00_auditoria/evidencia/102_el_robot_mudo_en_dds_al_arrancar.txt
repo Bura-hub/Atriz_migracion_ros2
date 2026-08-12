@@ -1,0 +1,199 @@
+═══════════════════════════════════════════════════════════════════════════════
+102 · rvr-01 ARRANCÓ MUDO EN DDS EN EL LABORATORIO, CON TODO EN VERDE
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-12, laboratorio (SSID Atriz-server, 10.14.7.7)
+Robot:   rvr-01
+Origen:  el usuario, mirando la web: «rvr-01 · Voltaje — · sin señal de vida»
+
+RESUMEN
+  El robot estaba encendido, el servicio en verde, el driver vivo y hablando con
+  el RVR — y NO llegaba un solo mensaje a nadie, tampoco a un `echo` en la propia
+  Pi. En la ventana de arranque hubo DOS defectos a la vez y con una sola
+  observación NO SE PUEDE ATRIBUIR el fallo a uno de ellos. Se cierran los dos.
+  Lo que SÍ queda medido y cerrado: la red del laboratorio NO tiene nada que ver,
+  y `05-atriz-lab.network` casó por primera vez en su vida.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · EL SÍNTOMA, MEDIDO
+───────────────────────────────────────────────────────────────────────────────
+  systemctl is-active atriz-robot      active     NRestarts=0
+  rvr_driver_node                      vivo, 21 % de CPU, 17 min de vida
+  log del driver                       «estado de batería: ok (8.37 V)»
+  vigilante de silencio del driver     NUNCA saltó
+
+  ros2 topic echo /battery_state --once   SIN MENSAJE en 12 s
+  ros2 topic hz /odom /imu /estado_robot  SIN DATOS los tres
+  ros2 topic info /battery_state -v       Publisher count: 1
+                                          Node name: _NODE_NAME_UNKNOWN_
+
+  🔴 `/battery_state` es RELIABLE + TRANSIENT_LOCAL. Un suscriptor que llega
+     tarde recibe el último valor AL INSTANTE si alguna vez se publicó. Que no
+     llegara NADA es lo que hace concluyente la medida.
+
+  📝 INFERENCIA, no medida directa: que el vigilante de silencio (3 s, a 1 Hz)
+     nunca avisara implica que las muestras del RVR seguían llegando, o sea que
+     el driver recibía y publicaba. Lo que no cruzó fue DDS. No se instrumentó
+     el publicador para verlo desde dentro.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · DOS INSTRUMENTOS MINTIERON ANTES DE LLEGAR AL FALLO
+───────────────────────────────────────────────────────────────────────────────
+  (a) `ros2 topic list` devolvió una lista INCOMPLETA —sin /battery_state, /odom,
+      /estado_robot— sobre publicadores que existían. Se escribió «faltan todos
+      los topics del driver», que era FALSO: tras `ros2 daemon stop && start`
+      aparecieron los 33. Era el demonio del CLI.
+
+  (b) `ros2 node list` salió VACÍO. Se usó como si fuera un síntoma. NO LO ES:
+      siguió vacío DESPUÉS del arreglo, con el robot publicando a 16,5 Hz.
+
+  🔴 Van SIETE veces que el instrumento miente en este proyecto. El dato que sí
+     valía era la AUSENCIA DE MENSAJES, no la lista de nada.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · LA VENTANA DE ARRANQUE — LOS DOS DEFECTOS
+───────────────────────────────────────────────────────────────────────────────
+(a) EL RELOJ SALTÓ +12 h 56 min CON EL STACK YA ARRANCANDO
+
+  Aug 11 20:00:38  systemd-timesyncd: System clock time unset or jumped
+                   backwards, restored from recorded timestamp
+  Aug 11 20:00:39  Starting atriz-robot.service          ← arranca con la hora de ayer
+  Aug 12 08:56:48  Initial clock synchronization         ← EL SALTO
+  Aug 12 08:59:06  CRITICAL FAILURE: collision_monitor IS DOWN
+                   (el proceso 873 estaba VIVO)
+
+  timedatectl:  RTC time: n/a          ← la Pi 4 no tiene RTC. Les pasa a los 16.
+
+  📌 Ya estaba en CLAUDE.md desde la evidencia 85, pero SOLO como trampa de
+     `journalctl`. Que además pueda dejar DDS mudo es nuevo.
+
+(b) `network-online.target` NO ESPERA A NADA
+
+  20:00:39  Reached target network-online.target
+  20:00:39  Starting atriz-robot.service
+  20:00:45  wpa_supplicant: CTRL-EVENT-CONNECTED        ← SEIS SEGUNDOS DESPUÉS
+
+  systemctl is-enabled systemd-networkd-wait-online  ->  disabled
+
+  🔴 El `Wants=network-online.target` de la unidad no garantiza lo que su nombre
+     promete. El stack nace sin dirección, y Fast DDS enumera interfaces al crear
+     el participante.
+
+  ⚠️ NO SE PUEDE DECIR CUÁL DE LOS DOS ROMPIÓ DDS. Los dos ocurrieron en la misma
+     ventana, en el mismo arranque, y hay UNA observación. Elegir uno sería
+     exactamente lo que la regla 4 del proyecto prohíbe. Se cierran los dos
+     porque los dos son defectos reales por separado.
+
+───────────────────────────────────────────────────────────────────────────────
+4 · LO QUE QUEDA DESCARTADO, CON DATOS
+───────────────────────────────────────────────────────────────────────────────
+HIPÓTESIS DEL USUARIO: «¿será porque pusimos la red de casa como prioridad y
+ahora estamos en el laboratorio?»  ->  NO.
+
+  Trying to associate with SSID 'Atriz-server'   ← única SSID intentada
+  Associated with aa:05:d6:2e:83:6d             ← a la primera, sin reintentos
+  Network File: /etc/systemd/network/05-atriz-lab.network
+  Address: 10.14.7.7 · State: routable (configured) · Online state: online
+
+LA RED, DESCARTADA CON NÚMEROS:
+  signal −46 dBm · rx/tx 200 Mbit/s · 0 errores · 1 descarte de 34 622
+  0 eventos CTRL-EVENT-DISCONNECTED en todo el arranque · power_save: off
+
+LOS WEBSOCKETS NO LOS CIERRA LA RED:
+  09:09:21  cierra tras 62 s  +  09:09:21  CONECTA     ← el MISMO segundo
+  09:10:21  cierra tras 60 s  +  09:10:21  CONECTA     ← el MISMO segundo
+  09:22:44  CONECTA + cierra tras 0 s + CONECTA
+  Un corte de red deja un HUECO. Aquí no hay hueco: cierra y abre el navegador.
+  Y a las 09:10:34 el mismo cliente se dio de baja de /encoders, /imu, /color y
+  se suscribió a /scan y /estado_ir: es la web cambiando de vista.
+
+───────────────────────────────────────────────────────────────────────────────
+5 · ✅ CIERRA UN PENDIENTE VIEJO: EL PERFIL DEL AULA CASÓ
+───────────────────────────────────────────────────────────────────────────────
+  CLAUDE.md decía: «⚠️ Lo que sigue sin probarse es el AULA, y ahí está el riesgo
+  real: 05-atriz-lab.network nunca ha casado con nada. Si el SSID difiere en un
+  carácter, el robot cae al netplan genérico y se queda SIN DIRECCIÓN ESTÁTICA
+  con 16 alumnos delante.»
+
+  MEDIDO HOY, EN EL AULA:
+    Network File: /etc/systemd/network/05-atriz-lab.network
+    Address: 10.14.7.7 · Gateway: 10.14.0.1 · DNS: 8.8.8.8 · routable, online
+
+  El emparejamiento por SSID funciona en el laboratorio. n=1, un robot (rvr-01).
+  ⏳ Falta repetirlo en rvr-02 y en los 14 que vengan de la imagen dorada.
+
+───────────────────────────────────────────────────────────────────────────────
+6 · EL REMEDIO INMEDIATO, VERIFICADO POR EFECTO
+───────────────────────────────────────────────────────────────────────────────
+  sudo systemctl restart atriz-robot        (👤 lo ejecutó el usuario)
+
+  DESPUÉS, con el reloj ya sincronizado:
+    /odom          16.534 Hz
+    /imu           16.701 Hz
+    /estado_robot   1.000 Hz
+    /battery_state  8.162 V
+
+───────────────────────────────────────────────────────────────────────────────
+7 · EL ARREGLO ESTRUCTURAL — Y POR QUÉ NO ES `After=time-sync.target`
+───────────────────────────────────────────────────────────────────────────────
+  🔴 DESCARTADO CON PRUEBA, no por opinión:
+
+    systemctl cat systemd-time-wait-sync.service
+      TimeoutStartSec=infinity
+
+  Ordenar `atriz-robot` tras `time-sync.target` y habilitar esa unidad dejaría los
+  16 robots COLGADOS PARA SIEMPRE en un laboratorio sin salida a NTP. No se pone.
+
+  ✅ LO QUE SE HIZO: dos esperas ACOTADAS y que FALLAN ABIERTO en
+     `scripts/atriz-robot.sh`, sección 2 — el mismo criterio que la espera de
+     puertos que ya vivía ahí, y por la misma razón (systemd no sabe dar esto).
+
+       ESPERA_RED=60     ATRIZ_ESPERA_RED     ip -4 -brief addr show scope global up
+       ESPERA_RELOJ=90   ATRIZ_ESPERA_RELOJ   timedatectl show -p NTPSynchronized
+
+  PROBADO AISLANDO EL BLOQUE REAL DEL FICHERO (extraído con awk, no copiado):
+
+    CASO 1 · condición ya cierta (la red de este robot)
+             ✓ red con dirección IPv4 (tras 0s)   · 0 s · el script sigue vivo
+    CASO 2 · reloj ya sincronizado
+             ✓ reloj sincronizado (tras 0s)       · 0 s
+    CASO 3 · condición que NUNCA se cumple, tope 3 s
+             ⚠️ NO se cumplió en 3s — SE ARRANCA IGUAL, a propósito
+             · 3 s · EL SCRIPT SIGUE VIVO         ← falla ABIERTO
+    CASO 4 · tope 0 (desactivada)
+             ⚠️ espera desactivada (tope=0)       · 0 s
+    código de salida final: 0
+
+  🔴 El contador usa `t=$(( t + 1 ))` y NO `(( t++ ))`. Con el post-incremento,
+     `set -e` habría matado el CASO 3 en la primera vuelta, sin una línea — que
+     es exactamente cómo estuvo rota la espera de puertos hasta el 2026-08-04.
+
+  ⏳ NO VERIFICADO: que estas esperas IMPIDAN el fallo en un arranque en frío de
+     verdad. Lo medido es que las condiciones se cumplen o vencen. Cerrarlo exige
+     un arranque en frío en el laboratorio, con la Pi apagada varias horas.
+
+───────────────────────────────────────────────────────────────────────────────
+8 · `scripts/diagnosticar_mudo.sh` — NUEVO
+───────────────────────────────────────────────────────────────────────────────
+  Solo lectura, sin sudo, no mueve el robot. Reinicia el demonio del CLI ANTES de
+  preguntar nada (por el punto 2 de este documento) y parte el diagnóstico en dos
+  según la única pregunta que importa: ¿publica o no publica?
+
+  ✅ EJECUTADO sobre rvr-01 SANO el 2026-08-12 (rama «publica»):
+       ✓ /odom 16.367 · /imu 16.439 · /estado_robot 0.999 · /battery_state 8.117 V
+       ✓ signal −42 dBm · power_save off · 0 desconexiones de WiFi
+       · rosbridge: 17 conexiones · 15 cierres · 1 abierta
+       ✓ 9 cierres con reconexión en el MISMO segundo → los cierra el NAVEGADOR
+
+  ⚠️ La rama «mudo» reproduce a mano lo medido hoy, pero el guion NO se ha
+     ejecutado sobre un robot en ese estado. NO VERIFICADA.
+
+───────────────────────────────────────────────────────────────────────────────
+9 · LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ⏳ rvr-02: al usuario le pasó lo mismo mientras se diagnosticaba esto. NO se ha
+     medido: rvr-02 solo acepta contraseña y no hay clave desde rvr-01. Se cierra
+     ejecutando `diagnosticar_mudo.sh` allí.
+  ⏳ Cuál de los dos defectos rompe DDS. Aislarlo exige provocar el salto de reloj
+     a propósito sobre un stack arrancado — en banco, nunca en un robot de clase.
+  ⏳ Si el arreglo previene el fallo: hace falta un arranque en frío real.
+  ⏳ Repetir el emparejamiento de `05-atriz-lab.network` en rvr-02 y en la imagen.

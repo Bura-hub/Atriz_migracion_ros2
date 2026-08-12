@@ -25,6 +25,8 @@ set -euo pipefail
 
 WS=/home/sphero/atriz_ws
 ESPERA_HW=${ATRIZ_ESPERA_HW:-60}      # segundos que se esperan los dos puertos
+ESPERA_RED=${ATRIZ_ESPERA_RED:-60}    # segundos que se espera una IPv4 utilizable
+ESPERA_RELOJ=${ATRIZ_ESPERA_RELOJ:-90}  # segundos que se espera a que NTP sincronice
 
 log() { echo "[atriz-robot] $*"; }
 
@@ -73,7 +75,78 @@ export RMW_IMPLEMENTATION="${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"
 
 log "ROS_DOMAIN_ID=$ROS_DOMAIN_ID  RMW=$RMW_IMPLEMENTATION  hostname=$(hostname)"
 
-# ── 2. Esperar el hardware ────────────────────────────────────────────────────
+# ── 2. Esperar a que la MÁQUINA esté lista, no solo el hardware ───────────────
+# 🔴🔴 EL 2026-08-12, EN EL LABORATORIO, rvr-01 ARRANCÓ Y SE QUEDÓ MUDO EN DDS: los
+#    publicadores existían (`/battery_state` con `Publisher count: 1`) y NO llegaba
+#    un solo mensaje a nadie — ni a la web, ni a un `ros2 topic echo` en la propia
+#    Pi. El driver estaba sano: leyó la batería (8.37 V) y su vigilante de silencio
+#    nunca saltó, o sea que las muestras del RVR seguían llegando. Lo que no cruzaba
+#    era DDS. Dos minutos después el `lifecycle_manager` daba por muerto al
+#    `collision_monitor`, que estaba vivo.
+#
+#    En esa ventana de arranque hubo DOS defectos a la vez, y con una sola
+#    observación NO SE PUEDE DECIR CUÁL rompió DDS. Se cierran los dos:
+#
+#    (a) EL RELOJ SALTÓ +12 h 56 min CON EL STACK YA ARRANCANDO. La Pi no tiene RTC
+#        (`RTC time: n/a`), arranca con la hora restaurada del disco y NTP la corrige
+#        después:
+#            Aug 11 20:00:38  restored from recorded timestamp
+#            Aug 11 20:00:39  ← atriz-robot arranca AQUÍ, con la hora de ayer
+#            Aug 12 08:56:48  Initial clock synchronization   ← el salto
+#        Ya estaba documentado en CLAUDE.md, pero SOLO como trampa de `journalctl`.
+#
+#    (b) `network-online.target` NO ESPERA A NADA. `systemd-networkd-wait-online`
+#        viene `disabled`, así que el target se alcanza al instante y el
+#        `Wants=network-online.target` de la unidad no garantiza lo que promete:
+#            20:00:39  Reached target network-online.target
+#            20:00:39  Starting atriz-robot.service
+#            20:00:45  wpa_supplicant: CTRL-EVENT-CONNECTED   ← SEIS SEGUNDOS DESPUÉS
+#        El stack nace sin dirección, y Fast DDS enumera interfaces al crear el
+#        participante.
+#
+# 🔴 POR QUÉ AQUÍ Y NO CON `After=time-sync.target`: `systemd-time-wait-sync.service`
+#    lleva `TimeoutStartSec=infinity`. Un laboratorio sin salida a NTP dejaría los
+#    16 robots colgados en el arranque PARA SIEMPRE. Estas esperas están ACOTADAS y
+#    FALLAN ABIERTO: avisan y arrancan igual. Es el mismo criterio que la espera de
+#    puertos de más abajo, y por la misma razón.
+#
+# 📝 NO VERIFICADO: que esto impida el fallo en un arranque en frío de verdad. Lo
+#    que sí está medido es que las dos condiciones se cumplen o vencen (abajo).
+
+reloj_sincronizado() {
+    [[ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" == yes ]]
+}
+
+# scope global excluye la de loopback y las link-local: si hay una, se puede hablar.
+red_lista() {
+    [[ -n "$(ip -4 -brief addr show scope global up 2>/dev/null)" ]]
+}
+
+# 🔴 `t=$(( t + 1 ))` y NO `(( t++ ))`: el post-incremento devuelve el valor ANTERIOR,
+#    y `(( 0 ))` es FALSO -> estado 1 -> `set -e` mata el script en la primera vuelta.
+#    Es la trampa que tuvo rota la espera de puertos hasta el 2026-08-04.
+esperar_a() {
+    local que=$1 tope=$2 comprobar=$3 t=0
+    if (( tope <= 0 )); then
+        log "⚠️ espera de $que desactivada (tope=$tope)"
+        return 0
+    fi
+    while ! "$comprobar"; do
+        if (( t >= tope )); then
+            log "⚠️ $que NO se cumplió en ${tope}s — SE ARRANCA IGUAL, a propósito"
+            log "   (si falla, mira si DDS quedó mudo: evidencia 102)"
+            return 0
+        fi
+        sleep 1
+        t=$(( t + 1 ))
+    done
+    log "✓ $que (tras ${t}s)"
+}
+
+esperar_a "red con dirección IPv4" "$ESPERA_RED"   red_lista
+esperar_a "reloj sincronizado"     "$ESPERA_RELOJ" reloj_sincronizado
+
+# ── 3. Esperar el hardware ────────────────────────────────────────────────────
 # systemd puede lanzarnos antes de que udev haya creado los enlaces. Sin esto el
 # launch arranca, no encuentra el puerto y el nodo queda vivo y mudo — que es el
 # fallo más caro de diagnosticar de este proyecto.
@@ -136,7 +209,7 @@ diagnosticar_lidar() {
 esperar /dev/rvr
 esperar /dev/ydlidar
 
-# ── 3. Arrancar ───────────────────────────────────────────────────────────────
+# ── 4. Arrancar ───────────────────────────────────────────────────────────────
 # `exec` para que el launch herede el PID: sin él systemd vigila a este script y
 # los SIGINT no llegan a ros2 launch, así que el driver nunca ejecuta su apagado
 # limpio (apagar LEDs y el LED del sensor de color).

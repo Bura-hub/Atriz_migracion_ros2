@@ -465,9 +465,12 @@ El muro pinta `rvr-01 · 7,67 V · en línea` **por nombre y sin override**.
 ⚠️ Y un testigo falso casi lo da por cerrado antes de tiempo: `getent ahosts` **desde la Pi** dio
 una sola dirección mientras el PC recibía dos. **`getent` no ve lo que la Pi anuncia al cable.**
 
-⏳ **Lo que sigue SIN PROBAR es el aula, y ahí está el riesgo:** `05-atriz-lab.network` **nunca ha
-casado con nada**. Si su SSID difiere en un carácter, el robot cae al netplan genérico y se queda
-**sin dirección estática** con 16 alumnos delante.
+✅ **CERRADO EL 2026-08-12, EN EL LABORATORIO: `05-atriz-lab.network` CASÓ.** Aquí ponía «nunca ha
+casado con nada» y era el riesgo de que 16 robots se quedaran sin dirección estática con los alumnos
+delante. Medido sobre rvr-01 el primer día en el aula: única SSID intentada `Atriz-server`, a la
+primera, `Network File: /etc/systemd/network/05-atriz-lab.network`, `Address: 10.14.7.7`,
+`routable (configured)`, `online`, y con salida a NTP. ⏳ **n=1**: falta rvr-02 y la imagen dorada.
+Evidencia 102.
 
 ✅ **Lo del arranque en frío ya NO está pendiente: cerrado el 2026-08-11 con rvr-02**, que es
 literalmente el caso que este párrafo temía («lo que hará el robot 7»). Se escribió su `red.txt`,

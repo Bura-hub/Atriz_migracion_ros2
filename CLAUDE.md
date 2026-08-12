@@ -540,9 +540,19 @@ comentado, o sea corriendo con su valor por defecto (`yes`).
 coste y solo la primera vez: **2716 · 2710 · 2729 ms** con la caché vaciada contra **2 ms** con
 ella caliente.
 
-⚠️ **Lo que sigue sin probarse es el AULA**, y ahí está el riesgo real: `05-atriz-lab.network`
-**nunca ha casado con nada**. Si el SSID difiere en un carácter, el robot cae al netplan
-genérico y se queda **sin dirección estática** con 16 alumnos delante.
+✅ **CERRADO EL 2026-08-12: `05-atriz-lab.network` CASÓ, en el laboratorio de verdad.** Aquí ponía
+«nunca ha casado con nada» y era el riesgo real de la mudanza al aula. Medido sobre rvr-01 con el
+robot ya en el laboratorio:
+
+```
+Trying to associate with SSID 'Atriz-server'   <- única SSID intentada, a la primera
+Network File: /etc/systemd/network/05-atriz-lab.network
+Address: 10.14.7.7 · Gateway: 10.14.0.1 · State: routable (configured) · online
+```
+
+No hubo intento a la red de casa ni caída al netplan genérico, y la salida a NTP funciona (el
+robot sincronizó contra `ntp.ubuntu.com`). ⏳ **n=1, un robot**: falta repetirlo en rvr-02 y en los
+que salgan de la imagen dorada. Evidencia 102.
 
 ✅ **Lo del arranque en frío SÍ está cerrado (2026-08-11, rvr-02)**, y era la otra mitad de este
 aviso: los `.network` se generaron con `first-boot.sh --solo-red` y se aplicaron **desde un
@@ -818,6 +828,44 @@ pasado.
   la trampa de `date -u +%T` en versión nueva: una ventana relativa sobre un reloj que salta.
 → ⚠️ **`ExecMainStartTimestamp` no sirve para saber cuánto lleva vivo un servicio.** `NRestarts` y
   el PID sí. → 📌 **Le pasa a los 16 robots en CADA arranque**: ninguna Pi 4 tiene RTC. Evidencia 85.
+
+🔴🔴 **Y EL 2026-08-12 ESO DEJÓ AL ROBOT MUDO EN DDS, QUE ES MUCHO PEOR QUE UNA MARCA DE TIEMPO
+RARA.** Hasta hoy esto estaba escrito solo como trampa de `journalctl`. En el laboratorio, rvr-01
+salió en la web con «Voltaje — · sin señal de vida» con **todo en verde**:
+
+```
+systemctl is-active atriz-robot   active, NRestarts=0
+rvr_driver_node                   vivo, 21 % CPU, batería leída (8,37 V)
+vigilante de silencio del driver  NUNCA saltó   <- o sea: el RVR SÍ mandaba muestras
+ros2 topic echo /battery_state    SIN MENSAJE en 12 s   (¡y es TRANSIENT_LOCAL!)
+ros2 topic hz /odom /imu          SIN DATOS
+ros2 topic info /battery_state -v Publisher count: 1 · Node name: _NODE_NAME_UNKNOWN_
+```
+
+→ **Ni la web ni un `echo` en la propia Pi recibían nada.** Los publicadores existían y DDS no
+  cruzaba. Dos minutos después el `lifecycle_manager` daba por muerto a un `collision_monitor`
+  **vivo**.
+→ 🔴 **DOS defectos en la misma ventana de arranque, y con UNA observación no se puede decir cuál
+  lo rompió** — elegir uno sería justo lo que prohíbe la regla 4:
+  · **el reloj saltó +12 h 56 min** con el stack ya arrancando (`Starting atriz-robot` a las
+    20:00:39, `Initial clock synchronization` a las 08:56:48);
+  · **`network-online.target` no espera a nada**: `systemd-networkd-wait-online` viene
+    **`disabled`**, así que el target se alcanza al instante y el `Wants=` de la unidad no
+    garantiza lo que promete. `Reached target network-online` 20:00:39 · WiFi asociado **20:00:45**.
+→ 🔴 **Y `After=time-sync.target` NO es la solución**: `systemd-time-wait-sync.service` lleva
+  **`TimeoutStartSec=infinity`**. Un laboratorio sin salida a NTP dejaría los 16 robots colgados
+  en el arranque para siempre.
+→ ✅ **Arreglo: dos esperas ACOTADAS y que FALLAN ABIERTO** en `atriz-robot.sh` (sección 2) —
+  `ATRIZ_ESPERA_RED` (60 s) y `ATRIZ_ESPERA_RELOJ` (90 s). Avisan y arrancan igual. ⏳ **NO
+  VERIFICADO que prevengan el fallo**: exige un arranque en frío real.
+→ 🔴 **Y DOS INSTRUMENTOS MINTIERON ANTES DE LLEGAR A LA CAUSA, van siete en el proyecto:**
+  `ros2 topic list` devolvió una lista **incompleta** (se llegó a escribir «faltan todos los topics
+  del driver», falso: volvieron con `ros2 daemon stop && start`), y **`ros2 node list` salió VACÍO
+  y NO es síntoma de nada** — siguió vacío con el robot publicando a 16,5 Hz. **El dato que valía
+  era la ausencia de MENSAJES, no la de listas.**
+→ ✅ **`scripts/diagnosticar_mudo.sh`** hace este recorrido en un comando, sin sudo y sin mover el
+  robot: reinicia el demonio del CLI **antes** de preguntar, y parte el diagnóstico según si el
+  robot publica o no. Evidencia 102.
 
 **🔴🔴 `avanzar(0.20, 3)` NO SIGNIFICA 60 cm: EL POLÍGONO DE SEGURIDAD LO PUEDE PARTIR POR LA
 MITAD, EN SILENCIO.** Medido el 2026-08-08 sobre la práctica 1 del curso: **26,4 cm** una vez y
@@ -2209,6 +2257,11 @@ fase_0_3_respaldo.sh          # prepara la SD antes de reflashear
 fase_1_validar_sdk_py312.py   # GO/NO-GO de la migración
 fase_7_systemd.sh --id NN     # arranque automático (sudo) · --simular · --quitar
 auditar_documentacion.py      # ¿dice la documentación lo que de verdad pasa? · sin ROS ni sudo
+diagnosticar_mudo.sh          # «sale sin señal de vida en la web» · SOLO LECTURA, sin sudo, no mueve
+#                               Parte el diagnóstico en dos: ¿PUBLICA el robot, o publica y falla
+#                               el camino a la web? Reinicia el demonio del CLI ANTES de preguntar
+#                               🔴 porque ese demonio fue el primero que mintió el 2026-08-12:
+#                                  lista incompleta sobre publicadores que existían. Evidencia 102
 prueba_aceptacion.py          # ⚠️ LA PRUEBA DE ACEPTACIÓN: 10 fases, de arranque en frío a Nav2
 #                               MUEVE EL ROBOT en F4-F7 · GUIADA: exige terminal de verdad
 #                               --solo F4,F6   ejecuta solo esas fases (las demás quedan PENDIENTE)
@@ -2345,14 +2398,14 @@ lo que produce deriva entre documentación y realidad.
 | La plataforma web **al final** | decisión del usuario |
 | `ros-jazzy-ros-base`, **NO** `desktop` | Server headless; RViz2 va en un portátil |
 | **`ros-jazzy-navigation2`, NO `ros-jazzy-nav2-bringup`** | `bringup` depende de `nav2-minimal-tb3-sim`, `tb4-sim` y `ros-gz-sim`: **312 paquetes** de simulador y dos TurtleBots en un robot real, incluido `pocketsphinx-en-us`. Los launch los escribimos nosotros, como con `slam_toolbox` |
-| 🔴 ~~**Estática + DHCP conviven en `wlan0`**~~ **RETIRADA el 2026-08-04** | Era la suposición «A VERIFICAR» que sostenía el diseño de la flota. El robot se muda de casa al laboratorio **sin tocar un comando**. Evidencia 39, manual cap. 19 🔴 **RETIRADA: se midió desde el ROBOT y nunca desde el CLIENTE.** Con tres direcciones, `rvr-NN.local` resuelve a cuatro y el navegador **se cuelga ~21 s** en las que no sirven — el muro no encontraba ningún robot. La sustituye **una dirección por red** emparejada por SSID: `00_auditoria/planes/2026-08-04-direccionamiento-flota.md`. ✅ **Aplicada en rvr-01 y verificada desde el CLIENTE el 2026-08-04**: `ws://rvr-01.local:9090` abre en el navegador y el muro entra por nombre (evidencias 74 y 75). ⏳ **El aula sigue sin probarse:** `05-atriz-lab.network` nunca ha casado con nada |
+| 🔴 ~~**Estática + DHCP conviven en `wlan0`**~~ **RETIRADA el 2026-08-04** | Era la suposición «A VERIFICAR» que sostenía el diseño de la flota. El robot se muda de casa al laboratorio **sin tocar un comando**. Evidencia 39, manual cap. 19 🔴 **RETIRADA: se midió desde el ROBOT y nunca desde el CLIENTE.** Con tres direcciones, `rvr-NN.local` resuelve a cuatro y el navegador **se cuelga ~21 s** en las que no sirven — el muro no encontraba ningún robot. La sustituye **una dirección por red** emparejada por SSID: `00_auditoria/planes/2026-08-04-direccionamiento-flota.md`. ✅ **Aplicada en rvr-01 y verificada desde el CLIENTE el 2026-08-04**: `ws://rvr-01.local:9090` abre en el navegador y el muro entra por nombre (evidencias 74 y 75). ✅ **CERRADO el 2026-08-12: `05-atriz-lab.network` CASÓ en el laboratorio** — rvr-01 asoció a `Atriz-server` a la primera, sin intentar la red de casa, y quedó `routable` en `10.14.7.7` con salida a NTP. n=1: falta rvr-02 y la imagen dorada. Evidencia 102 |
 | 📜 **El driver de ROS 1 de Atriz DERIVA de `git.uibk.ac.at/informatik/stair/ros-sphero-rvr`** (Innsbruck) | Descubierto el 2026-08-01: **seis nombres de servicio idénticos**, el topic `/is_emergency_stop` —el nombre raro que costó el primer fallo de la parada— y el `cmd_vel_timeout = 0.3` que su README documenta explícitamente. Explica de dónde salen nombres que aquí parecían arbitrarios. Evidencia 46 |
 | ✅ **Y corrobora la prueba del magnetómetro** | Su driver hace **exactamente** la misma secuencia que probamos (`calibrate_to_north` + notificación → `yaw_north_direction`), sin ningún paso previo que nos hubiéramos saltado. Su docstring confirma que **el robot debería girar**. En nuestro firmware no gira: la conclusión «no hay rumbo absoluto» se sostiene con contraste externo |
 | **NO se adopta nada de `CollaborativeRoboticsLab/sphero_rvr_ros`** (revisado 2026-08-01) | Su rama `ros2` usa **`ros2_control` en C++**, que es la arquitectura canónica — pero migrar sería reescribir el driver y **perder todo lo caracterizado**. Y está menos avanzada en lo que aquí importa: **sin keepalive** (el RVR se duerme a los 300.6 s), sin parada de emergencia, sin capa de seguridad, y con la navegación aún en `move_base` de ROS 1. ✅ **Sí se toma una idea**: separar el **canal de salud de flota** (~1 Hz) del canal de operación. Evidencia 46 |
 | **Imagen dorada** para los 16, no aprovisionar por red | ~300 MB y 15-20 min por robot, sobre la única AP. `FLOTA.md` |
 | La imagen dorada se **construye ejecutando `provision.sh`**, no a mano | Una imagen irreproducible es una caja negra. `FLOTA.md` |
 | **`provision.sh` instala `navigation2`** desde el 2026-07-31 | Antes no lo instalaba: un robot aprovisionado con el script no podía navegar, ni tenía capa de seguridad, ni localización |
-| 🔴 ~~**Estática y DHCP CONVIVEN en `wlan0`**~~ **RETIRADA el 2026-08-04** | 3 direcciones IPv4 a la vez (`10.14.7.7`, `192.168.1.200`, DHCP) y la ruta por defecto la pone el DHCP. Era **la suposición que sostenía todo el diseño de red**. Un robot se muda de red **sin tocar un comando**. Manual, cap. 19 🔴 **RETIRADA: se midió desde el ROBOT y nunca desde el CLIENTE.** Con tres direcciones, `rvr-NN.local` resuelve a cuatro y el navegador **se cuelga ~21 s** en las que no sirven — el muro no encontraba ningún robot. La sustituye **una dirección por red** emparejada por SSID: `00_auditoria/planes/2026-08-04-direccionamiento-flota.md`. ✅ **Aplicada en rvr-01 y verificada desde el CLIENTE el 2026-08-04**: `ws://rvr-01.local:9090` abre en el navegador y el muro entra por nombre (evidencias 74 y 75). ⏳ **El aula sigue sin probarse:** `05-atriz-lab.network` nunca ha casado con nada |
+| 🔴 ~~**Estática y DHCP CONVIVEN en `wlan0`**~~ **RETIRADA el 2026-08-04** | 3 direcciones IPv4 a la vez (`10.14.7.7`, `192.168.1.200`, DHCP) y la ruta por defecto la pone el DHCP. Era **la suposición que sostenía todo el diseño de red**. Un robot se muda de red **sin tocar un comando**. Manual, cap. 19 🔴 **RETIRADA: se midió desde el ROBOT y nunca desde el CLIENTE.** Con tres direcciones, `rvr-NN.local` resuelve a cuatro y el navegador **se cuelga ~21 s** en las que no sirven — el muro no encontraba ningún robot. La sustituye **una dirección por red** emparejada por SSID: `00_auditoria/planes/2026-08-04-direccionamiento-flota.md`. ✅ **Aplicada en rvr-01 y verificada desde el CLIENTE el 2026-08-04**: `ws://rvr-01.local:9090` abre en el navegador y el muro entra por nombre (evidencias 74 y 75). ✅ **CERRADO el 2026-08-12: `05-atriz-lab.network` CASÓ en el laboratorio** — rvr-01 asoció a `Atriz-server` a la primera, sin intentar la red de casa, y quedó `routable` en `10.14.7.7` con salida a NTP. n=1: falta rvr-02 y la imagen dorada. Evidencia 102 |
 | ✅ **Fase A de seguridad APLICADA (2026-08-02): `raw_motors` ya NO es alcanzable** | Lista blanca en `robot.launch.py` (`topics_sub_glob`, `topics_pub_glob`, `services_glob`, `actions_glob`, `params_glob`) + `rosapi_node`. Cierra `raw_motors`, `move_timed`, `move_to_pose`, los IR y **publicar en `/cmd_vel`**, que era el agujero más silencioso. ✅ Verificado con el **efecto físico**: `raw_motors` al 30 % por WebSocket → **0.00 cm** de desplazamiento (evidencia 53). `SEGURIDAD_ROSBRIDGE.md` |
 | 🔴 **PERO SIGUE BLOQUEANDO LA FASE 5: no hay identidad por usuario** | La Fase A **no** levanta el pendiente. **rosbridge 2.7.0 en Jazzy NO TIENE AUTENTICACIÓN** —no existe: `rosauth` no es dependencia, no hay parámetro `authenticate`, y `check_origin()` devuelve `True` incondicionalmente—, así que **cualquiera en el aula sigue pudiendo teleoperar cualquier robot** por `cmd_vel_raw`. Se cierra en la **Fase B**: proxy que valida el JWT en cada robot, con rosbridge atado a `127.0.0.1`. ⚠️ «Token en el WebSocket» quedó **descartado por imposible** |
 | ✅ **El camino web ↔ robot está verificado de extremo a extremo** | Navegador del PC → `ws://rvr-01.local:9090` → topics **y** servicios. `03_operacion/probar_conexion_web.html`, sin librerías ni CDN. La web **no necesita SSH para nada operativo**. Evidencia 39 |

@@ -11,7 +11,52 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-11
+**Última actualización:** 2026-08-12
+
+---
+
+## 🔴 Pi (2026-08-12, EN EL LABORATORIO) · **UN ROBOT PUEDE SALIR «SIN SEÑAL DE VIDA» CON TODO EN VERDE — y no es la web**
+
+PC: esto te toca porque **el síntoma aparece primero en tu pantalla** y apunta al sitio equivocado.
+
+Hoy rvr-01 salió en la web con «Voltaje — · sin señal de vida». **El robot no estaba muerto y la red
+estaba perfecta.** Lo que no cruzaba era DDS, dentro de la propia Pi:
+
+```
+driver vivo, batería leída (8,37 V), vigilante de silencio SIN saltar
+ros2 topic echo /battery_state --once   SIN MENSAJE en 12 s   ← ¡y es TRANSIENT_LOCAL!
+ros2 topic hz /odom /imu                SIN DATOS
+ros2 topic info /battery_state -v       Publisher count: 1
+```
+
+**Causa: el stack nació a caballo de un arranque a medias.** El reloj saltó +12 h 56 min con los
+nodos ya arrancando (la Pi no tiene RTC) y `network-online.target` no espera a nada
+(`systemd-networkd-wait-online` viene `disabled`): el WiFi asoció **6 s después** del servicio.
+⚠️ Con una sola observación **no se puede decir cuál de los dos rompió DDS**. Se cierran los dos.
+
+### Lo que te sirve a ti, en concreto
+
+| | |
+|---|---|
+| 🔴 **«sin señal de vida» NO implica robot apagado ni red mala** | Aquí el WiFi daba −46 dBm, 200 Mbit/s, **0 desconexiones** y `power_save off`. Antes de culpar al enlace, hay que preguntar si el robot **publica** |
+| ✅ **Los cierres de websocket que ves NO son la red** | 17 conexiones y 15 cierres en un arranque, y **cierran y reabren en el MISMO segundo**. Un corte de red deja **hueco**; el navegador no. Son cambios de vista de la propia web (se vio el `unsubscribe` de `/encoders` y el `subscribe` a `/scan` en el mismo cliente) |
+| 📌 **El remedio es `sudo systemctl restart atriz-robot`** | Y hace falta **SSH**: no hay forma de arreglarlo desde la web |
+| ⏳ **A rvr-02 le pasó lo mismo y NO está medido** | No hay clave SSH entre robots. Se cierra ejecutando allí `scripts/diagnosticar_mudo.sh` |
+
+### ✅ Y una casilla tuya que se cierra: el perfil de red del aula CASÓ
+
+`05-atriz-lab.network` llevaba desde el 2026-08-04 como «nunca ha casado con nada» — era el riesgo
+de que 16 robots se quedaran sin dirección estática en el aula. Medido hoy, en el laboratorio:
+
+```
+Trying to associate with SSID 'Atriz-server'   ← única SSID, a la primera
+Network File: /etc/systemd/network/05-atriz-lab.network
+Address: 10.14.7.7 · Gateway: 10.14.0.1 · routable (configured) · online
+```
+
+n=1 (rvr-01). Falta rvr-02 y los que salgan de la imagen dorada.
+
+📌 **No cambia el contrato**: ningún `.msg`, topic ni servicio se ha tocado hoy. Evidencia 102.
 
 ---
 

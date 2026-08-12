@@ -4,6 +4,60 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-12 (Pi, laboratorio) — Un robot mudo en DDS con todo en verde, y el perfil del aula que por fin casó
+
+Primer día en el laboratorio. El usuario avisó de que rvr-01 salía en la web con **«Voltaje — · sin
+señal de vida»** y de que a rvr-02 le pasó lo mismo mientras se diagnosticaba.
+
+### El fallo
+
+El robot **no estaba muerto**: el driver leyó la batería a los 30 s (8,37 V) y su vigilante de
+silencio nunca saltó. Lo que no cruzaba era **DDS**. Los publicadores existían y no llegaba un
+mensaje a nadie — tampoco a un `echo` en la propia Pi, que es lo que descarta a la web.
+
+```
+ros2 topic echo /battery_state --once   SIN MENSAJE en 12 s   (y es TRANSIENT_LOCAL)
+ros2 topic hz /odom /imu /estado_robot  SIN DATOS los tres
+ros2 topic info /battery_state -v       Publisher count: 1 · _NODE_NAME_UNKNOWN_
+collision_monitor                       proceso VIVO, dado por muerto por el lifecycle_manager
+```
+
+**Dos defectos en la misma ventana de arranque, y con una observación no se puede atribuir a uno:**
+el reloj saltó **+12 h 56 min** con el stack ya arrancando (la Pi no tiene RTC), y
+`network-online.target` **no espera a nada** porque `systemd-networkd-wait-online` viene `disabled`
+— el WiFi asoció **seis segundos después** de arrancar el servicio.
+
+### Lo que se hizo
+
+- **`scripts/atriz-robot.sh`**: dos esperas **acotadas y que fallan abierto** antes de lanzar —
+  dirección IPv4 (`ATRIZ_ESPERA_RED`, 60 s) y reloj sincronizado (`ATRIZ_ESPERA_RELOJ`, 90 s).
+  🔴 **No** se usa `After=time-sync.target`: `systemd-time-wait-sync` lleva `TimeoutStartSec=infinity`
+  y dejaría los 16 robots colgados en un laboratorio sin NTP. Probado el bloque real aislado, los
+  cuatro casos, incluido el que vence y **sigue vivo**.
+- **`scripts/diagnosticar_mudo.sh`** (nuevo): solo lectura, sin sudo, no mueve el robot. Reinicia el
+  demonio del CLI **antes** de preguntar nada y parte el diagnóstico según si el robot publica.
+  Ejecutado sobre rvr-01 sano.
+
+### Lo que se descartó, con datos
+
+- **La hipótesis del usuario** («la red de casa como prioridad») → **no**: única SSID intentada,
+  `Atriz-server`, a la primera.
+- **La red** → −46 dBm, 200 Mbit/s, 0 errores, 1 descarte de 34 622, 0 desconexiones, `power_save off`.
+- **Los websockets no los cierra la red**: cierran y reabren **en el mismo segundo**, que es la firma
+  del navegador. Un corte deja hueco.
+
+### ✅ Un pendiente viejo, cerrado por estar aquí
+
+**`05-atriz-lab.network` casó por primera vez.** Era el riesgo abierto de la mudanza al aula
+(«nunca ha casado con nada»): `Address: 10.14.7.7 · routable · online`. n=1, falta rvr-02.
+
+### Pendiente
+
+⏳ rvr-02 sin medir (solo acepta contraseña) · ⏳ cuál de los dos defectos rompe DDS · ⏳ que el
+arreglo prevenga el fallo, que exige un arranque en frío real. Evidencia 102.
+
+---
+
 ## 2026-08-11 (PC) — El sistema de infrarrojos llega a la web, y la brújula que no se pintó
 
 El robot rehízo el IR entero y dejó escrito en `ESTADO_ACTUAL.md` qué le tocaba al PC. Integrado en
