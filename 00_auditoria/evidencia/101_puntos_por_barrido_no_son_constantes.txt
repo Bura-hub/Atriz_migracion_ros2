@@ -1,0 +1,70 @@
+================================================================================
+101 · LOS PUNTOS POR BARRIDO DEL X2 NO SON CONSTANTES — medido en dos robots
+================================================================================
+Fecha:  2026-08-11
+Robots: rvr-01 y rvr-02
+
+LA PREGUNTA
+--------------------------------------------------------------------------------
+👤 «¿por qué el lidar del robot 2 da muestras distintas en la web?»
+
+MEDIDO
+--------------------------------------------------------------------------------
+                          rvr-01      rvr-02
+    puntos por barrido      260         250
+    incremento           1.390°      1.4458°
+    arco total            360.0°      360.0°
+    ritmo               11.74 Hz     12.10 Hz
+    puntos válidos       65 %         78 %
+
+Configuración: IDÉNTICA. `ydlidar_x2.yaml` sale del repositorio, así que no hay
+diferencia posible ahí.
+
+LA EXPLICACIÓN, Y ESTÁ DENTRO DE LOS PROPIOS NÚMEROS
+--------------------------------------------------------------------------------
+El X2 muestrea a ritmo FIJO (`sample_rate: 3` → 3 kHz) y su motor GIRA LIBRE,
+sin regulación. Los puntos por vuelta son el cociente:
+
+    rvr-01:  260 × 11.74 = 3052 muestras/s
+    rvr-02:  250 × 12.10 = 3025 muestras/s
+                           ────────────────
+                           difieren un 0.9 %
+
+→ Los dos sensores muestrean prácticamente IGUAL, y coinciden con los ~2990
+  muestras/s que el proyecto ya tenía medidos. Lo único distinto es que rvr-02
+  gira un ~3 % más rápido, y por eso le caben menos puntos en cada vuelta.
+
+Y el incremento angular lo confirma: es exactamente 360 ÷ puntos en los dos. No
+es un parámetro distinto — es una consecuencia.
+
+✅ NO HAY NADA MAL EN NINGUNO DE LOS DOS ROBOTS.
+
+⚠️ Y el 65 % contra 78 % de válidos NO es el sensor: es LA SALA. Un punto sin
+   eco se publica como 0.0 (`invalid_range_is_inf: false`), así que ese
+   porcentaje mide cuántas superficies hay a tiro, no la calidad del LIDAR.
+   Para compararlo habría que poner los dos robots en el mismo sitio mirando
+   igual.
+
+🔴 LO QUE ESTO OBLIGA, Y AFECTA A LOS DIECISÉIS
+--------------------------------------------------------------------------------
+**El número de puntos por barrido NO es constante.** Ni entre robots, ni en el
+mismo robot: la velocidad de giro cambia con la batería y la fricción. Medido en
+rvr-02 el mismo día: 10.5 Hz en una medida y 12.1 Hz en otra.
+
+Consecuencias:
+
+  · CUALQUIER consumidor que dé por hecho un array de longitud fija se romperá,
+    y de forma sutil: puntos desplazados angularmente o un sector sin pintar.
+    El dibujo se construye con `angle_min` y `angle_increment` DE CADA MENSAJE,
+    nunca con una constante.
+
+  · Lo mismo vale para cualquier cálculo por índice. `distancia_frontal()` de
+    `atriz.py` ya lo hace bien: recorre con `angle_min + i * angle_increment` en
+    vez de suponer que el índice 0 es el frente.
+
+  · Y no se debe «arreglar» forzando la frecuencia en el YAML: `frequency: 10.0`
+    es una PETICIÓN, no una garantía. El motor del X2 no la obedece.
+
+📌 Es el mismo patrón que este proyecto ya conoce: un parámetro que se manda, se
+   acepta y no surte efecto — como el `cfg80211.ieee80211_regdom`, que el módulo
+   recibe y el firmware del WiFi pisa.
