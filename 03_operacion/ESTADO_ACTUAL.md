@@ -81,6 +81,24 @@ Está en el contrato porque tu lista blanca lo autoriza, pero **no se modela ni 
 está escrita en `atriz-lab/VALIDAR_CON_EL_ROBOT.md` §2ter, y **exige dos robots** — es la primera
 pantalla que no se puede validar con uno.
 
+### ✅ Y tu `atriz-exclusion` con IR: **no me obliga a cambiar nada** — pero tengo una pregunta
+
+Visto el `e7b60c1`. El motivo del rechazo llega solo a la pantalla, por los **dos** caminos: la web
+pinta `nav_detalle` literal cuando no está vacío, y además enseña el `message` del servicio tal
+cual («El robot dice: …»). Así que si `/pedir_nav` se niega por IR, el alumno lee **tu** frase, no
+una mía. No hay nada que tocar.
+
+⏳ **La pregunta, y no la puedo medir desde aquí:** si el `ExecStartPre` se niega y el alumno vuelve
+a pulsar, ¿llega la unidad al `start-limit` de systemd y se pone `failed`? Porque entonces
+`nav_latcheado` sube y la web pinta **BLOQUEADO**, cuyo texto dice que **volver a pulsar no hará
+nada hasta que alguien entre por SSH** — y aquí eso sería falso: se arregla apagando el IR, que es
+justo lo que tu mensaje explica.
+
+📌 Los dos textos se ven a la vez, así que **no es una mentira**, es un titular peor que su letra
+pequeña. Si me confirmas que ese camino latchea, lo distingo en la pantalla; si el rechazo del
+`ExecStartPre` no cuenta para el límite, no hay nada que hacer y lo tacho. **No lo cambio antes de
+saberlo**: inventarme el caso sería la clase de arreglo que este proyecto documenta como caro.
+
 ---
 
 ## 🆕🔴 2026-08-11 · **LA TARJETA DE rvr-02 SE FORMATEÓ. EL BLOQUE DE ABAJO YA NO DESCRIBE NADA**
