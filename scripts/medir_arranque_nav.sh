@@ -58,7 +58,12 @@ SALIDA="$HOME/medicion_arranque_nav_$(date +%Y%m%d_%H%M%S).txt"
 #      ejecutara el observador de la tanda ANTERIOR, y las dos vueltas de B2
 #      midieron nada mientras imprimian algo que parecia un resultado.
 TMP="$(mktemp -d /tmp/medir_nav.XXXXXX)"
-chmod 755 "$TMP"          # `sphero` tiene que poder leer el observador
+# 🔴 CHOWN, NO SOLO chmod 755: el observador corre como `sphero` (su -) y tiene
+#    que ESCRIBIR la marca dentro de $TMP, que lo crea root. Con 755 a secas:
+#    PermissionError sobre $TMP/listo — medido el 2026-08-13, y estuvo
+#    enmascarado por el bug del heredoc (la ruta literal fallaba ANTES, con
+#    ENOENT, sin llegar nunca al permiso).
+chown sphero:sphero "$TMP"
 DROPIN_DIR=/etc/systemd/system/atriz-nav.service.d
 DROPIN="$DROPIN_DIR/99-medicion.conf"
 
