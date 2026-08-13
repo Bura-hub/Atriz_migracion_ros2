@@ -43,6 +43,19 @@ quedaron cubiertos a la vez, y esta observación no puede distinguirlos.
 
 Evidencia 104.
 
+### M10: pasó, y levanta el bloqueo de atriz-nav
+
+👤 El usuario lanzó `medir_recuperacion.sh` (~3 min, unidades de juguete, el robot sin tocar). La
+configuración de la unidad real —`PartOf=` + `Requires=`— volvió **`active` con timestamp nuevo**
+(11:40:42 → 11:40:51) tras `kill -9` del proceso base: murió y volvió limpia. `bindsto` y `ambas`
+no vuelven, como estaba medido. Dato nuevo: `Upholds=` con una unidad que siempre falla **se planta
+en `NRestarts=3`** en los 40 s observados — no ignora el StartLimit (acotado a esa ventana).
+
+Y de propina, dos cosas del arranque actual: la unidad instalada de `atriz-nav` es **idéntica byte a
+byte** a la del repo desde el 2026-08-07 (la nota «sigue con BindsTo=» de `ARRANQUE_NAVEGACION.md`
+estaba rancia y se corrige hoy), y un cliente web encendió el barrido a las 11:31 dejando 2 errores
+transitorios de TF del collision_monitor (no son el mensaje de A11, que sigue en 0). Evidencia 106.
+
 ---
 
 ## 2026-08-12 (Pi, laboratorio) — Un robot mudo en DDS con todo en verde, y el perfil del aula que por fin casó

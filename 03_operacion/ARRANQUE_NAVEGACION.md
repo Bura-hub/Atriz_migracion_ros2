@@ -232,8 +232,11 @@ proceso: **`BindsTo` gana y la unidad no vuelve.**
 📝 `Requires=` no cambia la recuperación —`partof-solo` da lo mismo— pero impide arrancar sobre un
 driver muerto, que daría un Nav2 `active` sin `/scan` y sin TF.
 
-⏳ **Pendiente de aplicarlo a `atriz-nav.service`**, que sigue con `BindsTo=`. Va junto con la
-sesión B2/B3, para no cambiar la unidad y estrenarla a ciegas en el mismo movimiento.
+✅ **APLICADO — y esta nota estuvo RANCIA desde el 2026-08-07.** Decía «pendiente de aplicarlo a
+`atriz-nav.service`, que sigue con `BindsTo=`»; medido el 2026-08-13: la unidad instalada
+(`/etc/systemd/system/atriz-nav.service`, del 2026-08-07 13:00) es **idéntica byte a byte** a la del
+repo, con `PartOf=` + `Requires=` y `NeedDaemonReload=no`. Y M10 se replicó ese mismo día con el
+guion corregido: `partof` vuelve `active` **con timestamp nuevo** tras `kill -9`. Evidencia 106.
 
 ---
 

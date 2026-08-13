@@ -1,0 +1,69 @@
+═══════════════════════════════════════════════════════════════════════════════
+106 · M10: PARTOF+REQUIRES VUELVE CON TIMESTAMP NUEVO — LA RÉPLICA QUE BLOQUEABA
+      LEVANTAR atriz-nav
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-13, laboratorio
+Robot:   rvr-01 (las unidades de juguete corren en la Pi; el robot no se toca)
+Origen:  el bloque rojo de TRASPASO.md: «NO levantes atriz-nav antes de M10»
+Guion:   scripts/medir_recuperacion.sh (👤 lo lanzó el usuario: pide sudo)
+Salida:  ~/medicion_recuperacion_20260813_114010.txt
+
+RESUMEN
+  M10 PASA con el criterio exacto: la configuración que lleva la unidad real
+  (`PartOf=` + `Requires=`) vuelve `active` CON TIMESTAMP NUEVO tras matar el
+  proceso de la base con `kill -9` — o sea murió y VOLVIÓ limpia, que es lo que
+  `is-active` a solas no puede distinguir. Replica la medida del 2026-08-07
+  (evidencia 78), esta vez con el guion corregido que lee el timestamp. Queda
+  levantado el bloqueo de B2/B3. Y un dato nuevo: `Upholds=` respeta el
+  StartLimit en los 40 s observados (NRestarts se planta en 3).
+
+───────────────────────────────────────────────────────────────────────────────
+1 · M10, LOS CUATRO CASOS — LEYENDO EL TIMESTAMP, NO SOLO EL ESTADO
+───────────────────────────────────────────────────────────────────────────────
+  dependencia          tras `restart base`      tras MATAR el proceso (el caso real)
+  ─────────────        ───────────────────      ────────────────────────────────
+  bindsto              active, ts nuevo         🔴 inactive — NO VUELVE
+  partof (+Requires)   active, ts nuevo         ✅ active, ts 11:40:42 → 11:40:51
+  ambas                active, ts nuevo         🔴 inactive — BindsTo gana
+  bindsto + Upholds=   active, ts nuevo         ✅ active, ts nuevo
+
+  · El caso que decide es MATAR el proceso (Restart=always fue el incidente
+    real), no el restart explícito — y ahí `is-active` da `active` en dos de
+    tres configuraciones por motivos opuestos. El guion corregido lee
+    `ActiveEnterTimestamp`, que es lo que separa «volvió» de «ni se enteró».
+  · La unidad instalada /etc/systemd/system/atriz-nav.service lleva EXACTAMENTE
+    `PartOf=` + `Requires=` (cotejada hoy byte a byte contra el repo: IDÉNTICOS,
+    instalada el 2026-08-07 13:00, NeedDaemonReload=no, disabled a propósito).
+
+───────────────────────────────────────────────────────────────────────────────
+2 · UPHOLDS= Y EL STARTLIMIT — EL DATO QUE FALTABA DEL DISEÑO PROPUESTO
+───────────────────────────────────────────────────────────────────────────────
+  Con una unidad que SIEMPRE falla bajo `Upholds=`, observada 40 s:
+    estado=failed · NRestarts=3 — SE PLANTA, no sigue subiendo.
+  O sea: en esta ventana `Upholds=` NO ignora el StartLimit, y el escenario
+  «Nav2 sin mapa entra en bucle indefinido» no ocurre en 40 s.
+  ⚠️ Acotado a lo observado: 40 s. Si `StartLimitIntervalSec=300` limpia el
+  contador a los 5 min y `Upholds=` reintenta entonces, este ensayo no lo ve.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · M6, DE PROPINA: LOS 11 ARRANQUES CONSERVADOS, Y UN BARRIDO QUE ENCENDIÓ LA WEB
+───────────────────────────────────────────────────────────────────────────────
+  · El journal es persistente (35,8 MB) y conserva 11 arranques (09→13 ago).
+  · En el arranque actual aparecieron 2 ERRORES de TF del collision_monitor
+    («Lookup would require extrapolation into the future», 11:31:58 y 11:32:35)
+    DENTRO de una ventana con el barrido encendido (11:31:14–11:34:28).
+  · Quién encendió el barrido: UN CLIENTE WEB — el journal de rosbridge muestra
+    al cliente 6d595118 suscribiéndose a /scan a las 11:31:11. No fue ningún
+    guion de esta sesión (`diagnosticar_mudo.sh` no toca el escaneo).
+  · Los 2 errores de TF son transitorios (2 en ~3 min) y NO son el mensaje de
+    A11 («Ignoring the source», que sigue en 0 en este arranque).
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ✅ El bloqueo de TRASPASO.md sobre atriz-nav queda LEVANTADO: sigue B2/B3.
+  ⏳ Si `StartLimitIntervalSec=300` limpia solo el contador a los 5 min (exige
+     esperar 5 min mirando; no se hizo hoy).
+  📝 Los errores de TF por extrapolación del collision_monitor con el barrido
+     encendido: 2 en 3 min, transitorios. Sin perseguir — se anotan por si
+     reaparecen sostenidos.
