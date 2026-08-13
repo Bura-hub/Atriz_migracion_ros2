@@ -4,6 +4,47 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-13 (Pi, laboratorio) — El arranque en frío que faltaba llegó solo: el reloj saltó 22 h y DDS cruzó
+
+El pendiente central de la evidencia 102 §7 —«NO VERIFICADO que las esperas impidan el fallo en un
+arranque en frío de verdad»— se cerró **sin provocarlo**: el usuario encendió rvr-01 en el aula y el
+arranque reprodujo el escenario completo del incidente del 2026-08-12.
+
+### Lo medido (journal de este arranque, `journalctl -b 0`)
+
+```
+12:50:07 (AYER)  reloj restaurado a la marca guardada — la Pi no tiene RTC
+12:50:08         Starting atriz-robot.service
+12:50:14         ✓ red con dirección IPv4 (tras 2s)
+11:05:23 (HOY)   Initial clock synchronization        ← salto de +22 h 15 min
+11:05:23         ✓ reloj sincronizado · ✓ /dev/rvr · ✓ /dev/ydlidar
+11:05:23         arrancando robot.launch.py           ← DESPUÉS del salto
+```
+
+**Ni un proceso de ROS arrancó antes de la sincronización** — que es el orden que las esperas
+existen para garantizar. Y esta vez **DDS cruza**: `diagnosticar_mudo.sh` (primera ejecución en su
+escenario real, tras un arranque en frío) dio todo en verde — `/odom` 16,68 Hz, `/battery_state`
+8,13 V, WiFi −51 dBm, 0 desconexiones. La red del aula casó por segunda vez (n=2 en rvr-01).
+
+📝 «tras 0s» de la espera de reloj: `esperar_a()` cuenta **iteraciones**, no fechas — el contador es
+inmune al salto. Significa que la primera comprobación ya encontró `NTPSynchronized=yes`.
+
+### La redacción honesta
+
+Es **n=1 y sin contrafactual**: no se afirma «las esperas previenen el fallo», sino que en el primer
+arranque en frío real con las esperas, las condiciones se cumplieron antes del launch y el robot no
+salió mudo. Cuál de los dos defectos (reloj vs. red) rompía DDS **sigue sin separarse** — hoy ambos
+quedaron cubiertos a la vez, y esta observación no puede distinguirlos.
+
+### Pendiente
+
+- ⏳ rvr-02 con `diagnosticar_mudo.sh` (hoy no disponible).
+- ⏳ `StartLimitIntervalSec=300`: sigue sin medir si limpia solo el contador.
+
+Evidencia 104.
+
+---
+
 ## 2026-08-12 (Pi, laboratorio) — Un robot mudo en DDS con todo en verde, y el perfil del aula que por fin casó
 
 Primer día en el laboratorio. El usuario avisó de que rvr-01 salía en la web con **«Voltaje — · sin

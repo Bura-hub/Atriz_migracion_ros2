@@ -1,0 +1,104 @@
+═══════════════════════════════════════════════════════════════════════════════
+104 · EL PRIMER ARRANQUE EN FRÍO CON LAS ESPERAS: EL RELOJ SALTÓ 22 h Y DDS CRUZÓ
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-13, laboratorio (SSID Atriz-server, 10.14.7.7)
+Robot:   rvr-01
+Origen:  el ⏳ de la evidencia 102 §7: «NO VERIFICADO que estas esperas IMPIDAN
+         el fallo en un arranque en frío de verdad»
+
+RESUMEN
+  Hoy ocurrió el arranque en frío real que faltaba, sin provocarlo: el usuario
+  encendió rvr-01 en el aula y el reloj arrancó restaurado a AYER (+22 h 15 min
+  de salto al sincronizar). Las dos esperas nuevas de `atriz-robot.sh` actuaron
+  en el orden previsto — red a los 2 s, reloj sincronizado ANTES de lanzar
+  `robot.launch.py` — y esta vez DDS CRUZA: `/odom` a 16,68 Hz, `/battery_state`
+  con voltaje, `diagnosticar_mudo.sh` entero en verde en su primera ejecución
+  tras un arranque en frío. Es n=1 y SIN CONTRAFACTUAL: no autoriza a decir que
+  las esperas PREVIENEN el fallo — solo que en el primer arranque con ellas las
+  condiciones se cumplieron antes del launch y el robot no salió mudo.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LA VENTANA DE ARRANQUE, DEL JOURNAL DE ESTE ARRANQUE (journalctl -b 0)
+───────────────────────────────────────────────────────────────────────────────
+  2026-08-12T12:50:07  timesyncd: System clock time unset or jumped backwards,
+                       restored from recorded timestamp: Wed 2026-08-12 12:50:07
+  2026-08-12T12:50:08  Starting atriz-robot.service       ← arranca con la hora de AYER
+  2026-08-12T12:50:14  atriz-robot: ✓ red con dirección IPv4 (tras 2s)
+  2026-08-12T12:50:14  timesyncd: Network configuration changed, trying to
+                       establish connection.
+  2026-08-13T11:05:23  timesyncd: Contacted time server 185.125.190.58:123
+                       (ntp.ubuntu.com)
+  2026-08-13T11:05:23  timesyncd: Initial clock synchronization  ← EL SALTO: +22 h 15 min
+  2026-08-13T11:05:23  atriz-robot: ✓ reloj sincronizado (tras 0s)
+  2026-08-13T11:05:23  atriz-robot: ✓ /dev/rvr (tras 0s) · ✓ /dev/ydlidar (tras 0s)
+  2026-08-13T11:05:23  atriz-robot: arrancando robot.launch.py   ← DESPUÉS del salto
+  2026-08-13T11:05:30  Started atriz-robot.service
+
+  systemctl show atriz-robot:
+    NRestarts=0
+    ExecMainStartTimestamp=Wed 2026-08-12 12:50:08 -05   ← sellado en el pasado
+    ActiveEnterTimestamp=Thu 2026-08-13 11:05:30 -05       (la trampa de la 85, viva)
+
+  ✅ EL ORDEN ES EL QUE LAS ESPERAS EXISTEN PARA GARANTIZAR: ni un solo proceso
+     de ROS arrancó antes de `Initial clock synchronization`. El 2026-08-12 el
+     stack arrancaba con el reloj sin sincronizar y el WiFi asociando 6 s tarde;
+     hoy el launch esperó a las dos cosas.
+
+  📝 QUÉ SIGNIFICA «tras 0s» — leído en el fuente, no supuesto: `esperar_a()`
+     (atriz-robot.sh:128) cuenta ITERACIONES de `sleep 1`, no diferencias de
+     fecha, así que el salto de reloj no corrompe el contador. «tras 0s» = la
+     PRIMERA comprobación de `timedatectl NTPSynchronized` ya dio `yes`. El
+     tiempo real entre la red y la sincronización no se puede leer de las marcas
+     (el reloj saltó en medio); el ORDEN sí, y es lo que importa.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · DDS CRUZA — `diagnosticar_mudo.sh`, PRIMERA VEZ TRAS UN ARRANQUE EN FRÍO
+───────────────────────────────────────────────────────────────────────────────
+  Ejecutado a las 11:31 (26 min tras el arranque), sin sudo, sin mover el robot.
+  La evidencia 102 §8 lo había verificado solo sobre un robot ya sano en
+  caliente; esta es su primera pasada en el escenario para el que se escribió.
+
+  ── 1 · procesos ──          servicio active · NRestarts=0 · los 5 nodos vivos
+  ── 2 · ¿llegan datos? ──    /odom 16.681 Hz · /imu 16.682 Hz
+                              /estado_robot 0.999 Hz
+                              /battery_state voltage: 8.13 V
+  ── 3 · camino a la web ──   signal -51 dBm · power_save off
+                              0 desconexiones de WiFi desde el arranque
+                              rosbridge: 1 conexión abierta ahora
+
+  El 2026-08-12, en este mismo punto, `ros2 topic echo /battery_state --once`
+  se quedaba 12 s SIN MENSAJE. Hoy todo publica y todo llega.
+
+  ✅ Y LA RED DEL AULA CASÓ POR SEGUNDA VEZ (n=2 en rvr-01): `10.14.7.7` por
+     `05-atriz-lab.network`, asociación a `Atriz-server`, salida a NTP
+     funcionando (la sincronización de la sección 1 lo prueba por efecto).
+
+───────────────────────────────────────────────────────────────────────────────
+3 · LO QUE ESTA OBSERVACIÓN CIERRA Y LO QUE NO
+───────────────────────────────────────────────────────────────────────────────
+  CIERRA (n=1):
+  · El escenario del incidente se REPITIÓ (Pi sin RTC, reloj de ayer, salto de
+    +22 h) y con las esperas el robot NO salió mudo.
+  · Las esperas se comportan como se escribieron: acotadas, en orden, y el
+    launch no arranca hasta que red y reloj están.
+  · `diagnosticar_mudo.sh` funciona en su escenario real.
+
+  NO CIERRA, y no se afirma:
+  · «Las esperas previenen el fallo». Sin contrafactual (un arranque igual SIN
+    esperas que falle) y con n=1, la frase honesta es: en el primer arranque en
+    frío real con las esperas, las condiciones se cumplieron antes del launch y
+    DDS cruzó. El 2026-08-12 tampoco falló DDS en todos los arranques.
+  · Cuál de los dos defectos (reloj vs. red) rompía DDS. Hoy los dos quedaron
+    cubiertos a la vez, así que esta observación no los separa — y no puede.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ⏳ rvr-02 sin medir con `diagnosticar_mudo.sh` (hoy no está disponible).
+  ⏳ Cuál de los dos defectos rompe DDS: exigiría aislarlos (p. ej. arrancar con
+     `ATRIZ_ESPERA_RELOJ=0` y red esperada, o al revés). No se persigue hoy:
+     costaría arranques en frío provocados y el arreglo cubre los dos.
+  ⏳ n=1 para las esperas en frío; n=2 para el perfil de red del aula en rvr-01.
+     Los robots de la imagen dorada siguen en n=0 para las dos cosas.
+  📝 Sin medir: si `StartLimitIntervalSec=300` limpia solo el contador (de la
+     102 §7, sigue igual).
