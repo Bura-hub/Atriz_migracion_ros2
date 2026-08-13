@@ -49,7 +49,10 @@ trap '' PIPE
 trap 'exit 130' INT TERM
 
 MAPA="${1:-/home/sphero/mapas/cuarto.yaml}"
-SALIDA="$HOME/medicion_arranque_nav_$(date +%Y%m%d_%H%M%S).txt"
+# 🔴 RUTA FIJA, NO $HOME: este guion corre con `sudo bash`, y ahí $HOME es
+#    /root — la salida del 2026-08-13 acabó en /root y hubo que reconstruir
+#    B3 desde el journal.
+SALIDA="/home/sphero/medicion_arranque_nav_$(date +%Y%m%d_%H%M%S).txt"
 # 🔴 DIRECTORIO TEMPORAL PROPIO, no rutas fijas en /tmp. Dos razones, y las dos
 #    ya mordieron:
 #    · seguridad: con `fs.protected_regular=2`, root NO puede escribir sobre un
