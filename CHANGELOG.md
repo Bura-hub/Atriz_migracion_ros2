@@ -95,6 +95,25 @@ Con el instrumento arreglado, la segunda corrida midió las dos cosas (evidencia
   `systemctl start` devuelve **0** y la unidad llega a `Started` **antes** de que el wrapper
   detecte el mapa ausente. El servicio ROS tiene que negarse ANTES de llamar a systemctl.
 
+### La sesión física docente: el material tocó el suelo y todo salió en banda
+
+Primera vez que `atriz.py` y su guion se miden con el robot moviéndose, 👤 con el usuario midiendo
+con cinta y transportador (evidencia 108):
+
+```
+avanzar(0.20, 3) ×2      58 y 59 cm        (banda 55-65)    ✅
+girar(90)                ~90° transportador vs 90,97° /odom  ✅
+Ctrl-C ×5                paró las 5 · ~1 cm de arrastre      ✅
+luces() ×3               rojo/verde/azul/apagado, vistos     ✅
+distancia_frontal()      cinta 60,0 vs robot 61,1 (Δ 1,1)    ✅
+```
+
+La **práctica 63 (seguidor de línea) NO se corrió**: no había línea que pegar. Sigue siendo lo
+único del material docente sin validar físicamente. Para ese día queda
+`mediciones_banco/calibrar_claro.py`, que mide el canal `claro` sobre el suelo y sobre la línea
+para anclar los umbrales de `seguidor_config.json` a ESTE suelo (los 400/1000 actuales son de otra
+habitación).
+
 ### A11: cerrado — «Ignoring the source» es transitorio y tiene aritmética exacta
 
 Conteo por arranque (`journalctl -b 0`), en tres momentos: sin nav **0** · tras tres periodos de

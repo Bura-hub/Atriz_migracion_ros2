@@ -1,0 +1,65 @@
+═══════════════════════════════════════════════════════════════════════════════
+108 · LA SESIÓN FÍSICA DEL MATERIAL DOCENTE: TODO EN VERDE — MENOS LA PRÁCTICA
+      63, QUE SIGUE SIN LÍNEA
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-13, laboratorio
+Robot:   rvr-01 · batería ~8,0 V al empezar el bloque
+Origen:  TRASPASO.md, «el siguiente paso exacto: la sesión física» — atriz.py
+         y las prácticas llevaban 89 tests y NADA medido con el robot
+         moviéndose.
+Guion:   scripts/sesion_fisica.py · los números los midió EL USUARIO con cinta
+         y transportador (regla: la evidencia registra el número medido, no la
+         impresión del guion)
+
+RESUMEN
+  Primera vez que el material docente toca el suelo: avanzar(), girar(),
+  Ctrl-C ×5, luces() y distancia_frontal() — los cinco dentro de banda, con
+  el usuario midiendo. La práctica 63 (seguidor de línea) NO se corrió: no
+  había línea en el aula. Sigue siendo lo único del material docente sin
+  validar físicamente, y ya tiene el calibrador de umbral listo en el banco.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LO MEDIDO, ENSAYO A ENSAYO
+───────────────────────────────────────────────────────────────────────────────
+  ensayo                    medido (usuario)          criterio         veredicto
+  ─────────────────────     ─────────────────────     ─────────        ─────────
+  avanzar(0.20, 3) ×2       58 y 59 cm (cinta)        55–65 cm         ✅
+  girar(90)                 ~90° (transportador)      ±~1°             ✅
+    · /odom dijo 90,97° — coherentes dentro de la resolución del transportador
+  Ctrl-C ×5 (alturas        paró LAS CINCO; ~1 cm     cm, no decenas   ✅
+    distintas, terminal     de arrastre en cada una
+    del usuario)
+  luces() r/v/a/apagado ×3  vistos los tres colores   ojo del usuario  ✅
+                            y el apagado, 3 pasadas
+  distancia_frontal()       cinta 60,0 · robot 61,1   ±2 cm            ✅
+                            (Δ 1,1 cm)
+
+  · El polígono Precaucion NO mordió (montaje con 1 m al frente y costados
+    libres — el guion lo pide y se respetó) y el watchdog tampoco (~6 cm
+    habría sido su firma).
+  · El arrastre de ~1 cm tras Ctrl-C cuadra con la deriva de frenado medida
+    de drive_rc_si_units (1,1 cm, evidencia de 2026-07-31).
+  · El fallo intermitente que buscaba Ctrl-C (evidencias 56/85) NO apareció
+    en n=5. n=5 no es una prueba de ausencia; es la primera tanda física.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LA PRÁCTICA 63: NO CORRIDA, Y QUÉ QUEDA PREPARADO
+───────────────────────────────────────────────────────────────────────────────
+  No había línea que pegar en el aula hoy (👤 decisión del usuario: saltarla).
+  Sigue en pie todo lo dicho: se valida en el aula, sobre línea negra en suelo
+  claro, ~6 m de camino, y ANTES hay que calibrar `umbral_negro`/`umbral_claro`
+  de seguidor_config.json sobre ESTE suelo (los 400/1000 actuales están
+  anclados a otra habitación; medido que no se transfiere: 1275 vs ~950).
+
+  ✅ Preparado para ese día: mediciones_banco/calibrar_claro.py — enciende la
+  luz del sensor, toma 15 muestras del canal claro por servicio, da mediana y
+  rango, y apaga la luz también si muere a mitad. Uso: una pasada con el
+  sensor sobre el suelo y otra sobre la línea.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ⏳ Práctica 63 sobre línea real — lo único del material docente sin tocar
+     suelo. Con calibrar_claro.py el día que haya línea son ~15 min.
+  📝 Ctrl-C: n=5 en verde no cierra un fallo intermitente para siempre; si
+     reaparece, probar_ctrl_c_atriz.py mide el desplazamiento por /odom.
