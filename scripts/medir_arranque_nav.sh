@@ -36,6 +36,18 @@
 
 set -uo pipefail          # 🔴 SIN -e a propósito: aquí un fallo ES un resultado.
 
+# 🔴 UN ^C MATABA LA LIMPIEZA ENTERA, medido el 2026-08-13: SIGINT va al grupo de
+#    procesos entero, o sea también al `tee` del exec de abajo, y bash moría SIN
+#    ejecutar el trap EXIT — dejó nav corriendo, el drop-in puesto, $TMP sin
+#    borrar y el barrido encendido. Dos piezas y hacen falta las dos:
+#    · INT/TERM → exit: con un trap puesto, bash ejecuta el EXIT en vez de
+#      morir con la señal (reproducido con guion de juguete: sin esto limpiar
+#      NO corre, con esto SÍ).
+#    · PIPE ignorado: los echos de `limpiar` van al tee, que ya está muerto;
+#      sin esto el primer echo mataría la limpieza a mitad.
+trap '' PIPE
+trap 'exit 130' INT TERM
+
 MAPA="${1:-/home/sphero/mapas/cuarto.yaml}"
 SALIDA="$HOME/medicion_arranque_nav_$(date +%Y%m%d_%H%M%S).txt"
 # 🔴 DIRECTORIO TEMPORAL PROPIO, no rutas fijas en /tmp. Dos razones, y las dos
@@ -63,7 +75,7 @@ limpiar() {
   echo "── dejando el sistema como estaba ─────────────────────────────────"
   systemctl stop atriz-nav.service 2>/dev/null || true
   systemctl reset-failed atriz-nav.service 2>/dev/null || true
-  rm -f "$DROPIN"; rmdir "$DROPIN_DIR" 2>/dev/null || true
+  rm -f "$DROPIN" "$DROPIN_DIR/mapa.env"; rmdir "$DROPIN_DIR" 2>/dev/null || true
   rm -rf "$TMP"
   systemctl daemon-reload
   # El barrido: la unidad lo apaga en su ExecStopPost, pero no se da por hecho.
@@ -76,7 +88,15 @@ trap limpiar EXIT
 
 poner_mapa() {   # $1 = ruta que verá la unidad
   mkdir -p "$DROPIN_DIR"
-  printf '[Service]\nEnvironment=ATRIZ_MAPA=%s\n' "$1" > "$DROPIN"
+  # 🔴 `Environment=` EN UN DROP-IN NO PISA AL `EnvironmentFile=` DE LA UNIDAD:
+  #    systemd aplica los EnvironmentFile DESPUÉS de todos los Environment=, así
+  #    que el `EnvironmentFile=-/etc/default/atriz` de atriz-nav.service ganaba
+  #    siempre. Medido el 2026-08-13 leyendo /proc/<pid>/environ: con el drop-in
+  #    diciendo /ruta/que/no/existe, el proceso corría con el mapa real — B3
+  #    arrancó BIEN y midió nada. Un EnvironmentFile= ADICIONAL del drop-in sí
+  #    gana: los ficheros se leen en orden y el último manda.
+  printf 'ATRIZ_MAPA=%s\n' "$1" > "$DROPIN_DIR/mapa.env"
+  printf '[Service]\nEnvironmentFile=%s\n' "$DROPIN_DIR/mapa.env" > "$DROPIN"
   systemctl daemon-reload
 }
 
@@ -162,7 +182,11 @@ n = Node('cronometro_nav')
 cli = ActionClient(n, NavigateToPose, 'navigate_to_pose')
 
 # La marca: le dice al shell "ya estoy observando, lanza el systemctl".
-with open('"$TMP/listo"', 'w') as f:
+# 🔴 POR LA VARIABLE MARCA, NUNCA UNA RUTA INCRUSTADA: este heredoc va con
+#    <<'PYFIN' (sin expansión, a propósito), así que un "$TMP/..." aquí dentro
+#    es un LITERAL. Así fallaron las dos vueltas del 2026-08-13: el observador
+#    intentaba abrir el fichero '"$TMP/listo"', con comillas y todo.
+with open(os.environ['MARCA'], 'w') as f:
     f.write(str(time.time()))
 print('    (observador en pie)', flush=True)
 

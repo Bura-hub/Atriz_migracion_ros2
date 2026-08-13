@@ -56,6 +56,29 @@ byte** a la del repo desde el 2026-08-07 (la nota «sigue con BindsTo=» de `ARR
 estaba rancia y se corrige hoy), y un cliente web encendió el barrido a las 11:31 dejando 2 errores
 transitorios de TF del collision_monitor (no son el mensaje de A11, que sigue en 0). Evidencia 106.
 
+### B2/B3, primer intento: TRES fallos del instrumento en una sola corrida
+
+👤 El usuario lanzó `medir_arranque_nav.sh` y la tanda no midió nada — pero destapó tres fallos del
+guion, los tres arreglados **en el guion** y ninguno a mano:
+
+1. **B2, el observador nacía muerto**: el heredoc va con `<<'PYFIN'` (sin expansión, a propósito) y
+   una línea intentaba abrir el literal `'"$TMP/listo"'`. Las dos vueltas se abandonaron solas — el
+   guardia de «instrumento roto» del propio guion funcionó. Arreglo: la marca va por la variable
+   `MARCA`, que era el mecanismo previsto. Verificado en aislamiento: marca escrita, nodos vistos.
+2. **Un ^C mataba la limpieza entera**: SIGINT va al grupo entero —también al `tee` del `exec`— y
+   bash moría **sin ejecutar el trap EXIT**. Quedaron nav corriendo, el drop-in puesto, `$TMP` sin
+   borrar y el barrido encendido. Arreglo: `trap 'exit 130' INT TERM` + `trap '' PIPE`. Reproducido
+   con guion de juguete: sin el arreglo la limpieza NO corre, con él SÍ.
+3. **B3 medía nada**: el drop-in usaba `Environment=ATRIZ_MAPA=/ruta/que/no/existe`, pero el
+   `EnvironmentFile=-/etc/default/atriz` de la unidad **lo pisa siempre** (systemd aplica los
+   EnvironmentFile después). Medido leyendo `/proc/<pid>/environ`: nav corría con el mapa real y el
+   `start` «sin mapa» devolvió 0. Arreglo: el drop-in mete un `EnvironmentFile=` adicional, que sí
+   gana por orden de lectura.
+
+📝 La forma de los tres es conocida: el 1 y el 3 son «un comando que devuelve 0 no prueba que
+hiciera algo» (el drop-in se escribía y no hacía nada), y el 2 es «el fallo que se cuelga es peor
+que el que falla». Van con la re-corrida de B2/B3 (evidencia 107).
+
 ---
 
 ## 2026-08-12 (Pi, laboratorio) — Un robot mudo en DDS con todo en verde, y el perfil del aula que por fin casó
