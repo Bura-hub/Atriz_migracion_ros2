@@ -1,0 +1,106 @@
+═══════════════════════════════════════════════════════════════════════════════
+107 · B2/B3: atriz-nav BAJO SYSTEMD POR PRIMERA VEZ — 27,8 s HASTA ACEPTAR
+      OBJETIVOS (n=2, Δ=0,04 s) Y EL BOTÓN MUERTO CONFIRMADO (n=2)
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-13, laboratorio
+Robot:   rvr-01 · mapa cuarto3.yaml (no es de este sitio: irrelevante, no se
+         manda ningún objetivo y el robot no se mueve)
+Origen:  B2/B3 de ARRANQUE_NAVEGACION.md — la unidad se escribió el 2026-08-03
+         y nunca había corrido bajo systemd. M10 (evidencia 106) la desbloqueó.
+Guion:   scripts/medir_arranque_nav.sh (👤 sudo, lo lanzó el usuario)
+Salida:  ~/medicion_arranque_nav_20260813_120939.txt (la corrida buena)
+
+RESUMEN
+  B2: la navegación entera (AMCL + Nav2) tarda 27,80 y 27,84 s desde el
+  `systemctl start` hasta «acepta objetivos» — reproducible a 0,04 s, holgura
+  4,3× sobre TimeoutStartSec=120. Ese ~28 s es el plazo del estado «arrancando»
+  que la web debe pintar. B3: CONFIRMADO en dos tandas que un solo start sin
+  mapa quema el StartLimitBurst y deja el botón muerto («repeated too
+  quickly»), con el agravante de que `systemctl start` DEVUELVE 0 y la unidad
+  llega a `Started` antes de que el wrapper detecte el mapa ausente. Y llegar
+  aquí costó CUATRO fallos del instrumento, los cuatro arreglados en el guion.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · B2 · EL ARRANQUE, CRONOMETRADO DESDE EL systemctl start (n=2)
+───────────────────────────────────────────────────────────────────────────────
+                                   vuelta 1      vuelta 2
+  `start --no-block` devuelve en    0,061 s       0,052 s   (encolar el job)
+  🎯 ACEPTA OBJETIVOS a los         27,798 s      27,840 s  ← Δ = 0,042 s
+  estado de la unidad               active/success las dos
+
+  · Orden de aparición de los nodos: NO es estable (v1: amcl→bt_navigator→
+    map_server…; v2: map_server→amcl→controller…). Nada debe depender de él.
+  · TimeoutStartSec=120 está BIEN puesto: 4,3× de holgura.
+  · Para la web: «arrancando» dura ~28 s. El dato que no tenía nadie.
+  · Batería: 8,17 V antes del bloque → 7,98 V después (dos arranques de nav,
+    B3 dos veces y ~15 min de barrido; no separa el coste por pieza).
+
+  EL BARRIDO, en las dos vueltas:
+    tras arrancar nav   ENCENDIDO   (ExecStartPre lo enciende)
+    tras parar nav      APAGADO     («off-si-sobra»)
+  🔴 Sigue abierta la decisión de ARRANQUE_NAVEGACION (conflicto 2): parar la
+     navegación deja ciego a cualquier otro consumidor de /scan — y con el
+     botón en la web eso lo hace un alumno.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · B3 · SIN MAPA: EL BOTÓN DE TRES PULSACIONES, DOS TANDAS
+───────────────────────────────────────────────────────────────────────────────
+  TANDA 1 (12:02, reconstruida del journal — la salida se fue a /root):
+    start (código 0) → Started 12:02:26 → wrapper: «🔴 no hay mapa legible»
+    12:02:28 → Failed → restart counter 1 → Failed → counter 2 →
+    «Start request repeated too quickly» → el 2º start humano RECHAZADO.
+
+  TANDA 2 (12:12, la corrida buena):
+    a los 45 s del primer start: activating / NRestarts=1 — cada ciclo dura
+    ~30 s (17 s de arranque que muere + RestartSec=10), así que 45 s solo ven
+    un reintento. El 2º start humano SÍ se aceptó (el latch aún no había
+    saltado), consumió el TERCER intento, y el latch saltó ahí:
+      12:13:24  Start request repeated too quickly · Failed to start
+    código de salida del 2º start: 1 · estado final: failed / exit-code
+
+  ✅ CONFIRMADO (desenlace a del guion), con dos matices medidos:
+  · `systemctl start` devuelve 0 y la unidad llega a `Started` ANTES de que
+    atriz-nav.sh vea que no hay mapa: desde la web «arrancó» y «no podía
+    arrancar» son indistinguibles en ese instante.
+  · El presupuesto de 3 se consume entre reintentos automáticos y pulsaciones
+    humanas EN CUALQUIER COMBINACIÓN; con 45 s de ventana el reparto exacto
+    depende del momento de la 2ª pulsación.
+  🔴 CONSECUENCIA DE DISEÑO (la que B3 existía para decidir): el servicio ROS
+     tiene que NEGARSE antes de llamar a systemctl si no hay mapa. Recuperar
+     el latch exige `reset-failed`, que nadie tiene desde el navegador (la
+     lista blanca de polkit lo deniega a propósito, evidencia del 2026-08-08).
+
+───────────────────────────────────────────────────────────────────────────────
+3 · LO QUE COSTÓ MEDIRLO: CUATRO FALLOS DEL INSTRUMENTO EN DOS CORRIDAS
+───────────────────────────────────────────────────────────────────────────────
+  1. El observador abría el literal '"$TMP/listo"' — heredoc con <<'PYFIN' no
+     expande. Las dos vueltas de la 1ª corrida se abandonaron solas (el guardia
+     de «instrumento roto» funcionó). Arreglo: la marca va por $MARCA.
+  2. Un ^C del usuario mató también al `tee` del exec y bash murió SIN ejecutar
+     el trap EXIT: nav quedó corriendo, el drop-in puesto, $TMP sin borrar y el
+     barrido encendido. Arreglo: trap 'exit 130' INT TERM + trap '' PIPE —
+     reproducido con guion de juguete en los dos sentidos.
+  3. El drop-in usaba Environment=, que el EnvironmentFile=-/etc/default/atriz
+     de la unidad PISA SIEMPRE: la 1ª tanda de B3 arrancó CON el mapa real
+     (leído en /proc/<pid>/environ) y su start «sin mapa» devolvió 0 midiendo
+     nada. Arreglo: el drop-in mete un EnvironmentFile= adicional, que gana
+     por orden de lectura.
+  4. $TMP lo crea root con 755 y el observador corre como sphero: no podía
+     ESCRIBIR la marca (PermissionError) — enmascarado por el fallo 1, que
+     reventaba antes con ENOENT. Arreglo: chown sphero.
+  Y un papercut: la salida iba a $HOME, que bajo `sudo bash` es /root — la
+  tanda 1 de B3 hubo que reconstruirla del journal. Arreglo: ruta fija.
+  📝 La forma del 1 y el 3 es la de siempre: un comando que devuelve 0 no
+     prueba que hiciera algo. La del 2: el fallo que se cuelga es peor que el
+     que falla.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ✅ B2 y B3 CERRADOS. atriz-nav ya ha corrido bajo systemd, n=2 reproducible.
+  ⏳ La decisión del barrido al parar nav (conflicto 2): sigue pendiente, ahora
+     con el dato medido en las dos vueltas.
+  ⏳ El «negarse antes de systemctl si no hay mapa» del servicio ROS: decidido
+     que hace falta, sin implementar.
+  ⏳ Si StartLimitIntervalSec=300 limpia solo el contador a los 5 min: sigue
+     sin medir (nadie esperó 5 min mirando).

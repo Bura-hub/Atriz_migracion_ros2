@@ -77,7 +77,32 @@ guion, los tres arreglados **en el guion** y ninguno a mano:
 
 📝 La forma de los tres es conocida: el 1 y el 3 son «un comando que devuelve 0 no prueba que
 hiciera algo» (el drop-in se escribía y no hacía nada), y el 2 es «el fallo que se cuelga es peor
-que el que falla». Van con la re-corrida de B2/B3 (evidencia 107).
+que el que falla». En la re-corrida apareció un **cuarto** (el `$TMP` de root con 755: sphero no
+podía escribir la marca — enmascarado por el 1, que reventaba antes con ENOENT) y un papercut (la
+salida a `$HOME`, que bajo `sudo` es `/root`). Los cinco arreglados en el guion.
+
+### B2/B3: medidos — 27,8 s hasta aceptar objetivos, y el botón muerto confirmado
+
+Con el instrumento arreglado, la segunda corrida midió las dos cosas (evidencia 107):
+
+- **B2 (n=2)**: 🎯 **27,798 y 27,840 s** desde `systemctl start` hasta «acepta objetivos» —
+  reproducible a **0,04 s**. `TimeoutStartSec=120` tiene 4,3× de holgura. El estado «arrancando» de
+  la web dura ~28 s. El barrido: se enciende al arrancar nav y **se apaga al pararla** — el
+  conflicto 2 de `ARRANQUE_NAVEGACION.md` sigue abierto, ahora con el dato.
+- **B3 (n=2)**: 🔴 **botón muerto CONFIRMADO** — un start sin mapa quema el `StartLimitBurst` entre
+  reintentos automáticos y pulsaciones humanas, y acaba en «Start request repeated too quickly»
+  con `reset-failed` como única salida (denegado desde el navegador a propósito). Agravante medido:
+  `systemctl start` devuelve **0** y la unidad llega a `Started` **antes** de que el wrapper
+  detecte el mapa ausente. El servicio ROS tiene que negarse ANTES de llamar a systemctl.
+
+### A11: cerrado — «Ignoring the source» es transitorio y tiene aritmética exacta
+
+Conteo por arranque (`journalctl -b 0`), en tres momentos: sin nav **0** · tras tres periodos de
+nav **2**. Y las dos apariciones caen clavadas donde la última muestra de `/scan` era vieja porque
+el barrido estaba **apagado a propósito**: 11:40:28 − 359,77 s = 11:34:28,4 (el `Lidar has
+stopped!` exacto). Con barrido encendido y nav activa: **0**. Ignorar una fuente rancia y bloquear
+el movimiento (medido 2026-07-31: 0,0 cm) es el comportamiento correcto — la capa de seguridad NO
+está inerte. Evidencia 105.
 
 ---
 

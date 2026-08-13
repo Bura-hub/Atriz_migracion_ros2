@@ -1,0 +1,69 @@
+═══════════════════════════════════════════════════════════════════════════════
+105 · A11: «IGNORING THE SOURCE» ES TRANSITORIO, Y CADA APARICIÓN TIENE
+      ARITMÉTICA EXACTA — LA CAPA DE SEGURIDAD NO ESTÁ INERTE
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-13, laboratorio
+Robot:   rvr-01
+Origen:  A11 (planes/2026-08-06): el collision_monitor escribía «Ignoring the
+         source» sobre el LIDAR; si fuera SOSTENIDO, la capa de seguridad
+         estaría inerte. La comprobación del 2026-08-08 quedó invalidada por
+         usar `--since "-6h"` (evidencia 85); esta usa `journalctl -b 0`.
+
+RESUMEN
+  Medido en tres momentos del mismo arranque: ANTES de correr Nav2, 0
+  ocurrencias; DESPUÉS de que Nav2 corriera tres veces (11:51–12:02, y las dos
+  vueltas de B2), 2 ocurrencias EN TOTAL — y las dos caen, con aritmética
+  exacta, en el instante en que la última muestra de /scan era vieja porque el
+  barrido estaba APAGADO A PROPÓSITO (el estado normal de reposo de este
+  robot). Con el barrido encendido y Nav2 activa: cero. A11 se cierra:
+  transitorio, explicado, y no inerte.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · EL CONTEO, POR ARRANQUE (journalctl -b 0), CON CONTROL
+───────────────────────────────────────────────────────────────────────────────
+  momento                                        conteo   control
+  ─────────────────────────────────────────      ──────   ─────────────────────
+  11:19 · sin nav en todo el arranque               0     NTPSynchronized=yes
+  12:15 · tras 3 periodos de nav y 2 de B3          2     NTPSynchronized=yes
+
+  Y en el journal entero del arranque (sin -u): también 2 — no hay más fuentes.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LAS DOS APARICIONES, CON SU ARITMÉTICA
+───────────────────────────────────────────────────────────────────────────────
+  11:40:28  [scan]: … timestamps differ on 359.770649 seconds. Ignoring the source.
+     · último «Lidar has stopped!»: 11:34:28  (lo apagó un cliente web)
+     · 11:40:28 − 359,77 s = 11:34:28,4  ← EXACTO: la edad del último /scan
+  12:09:49  [scan]: … timestamps differ on 403.519754 seconds. Ignoring the source.
+     · 12:09:49 − 403,52 s = 12:03:05,5 ← el final de la primera tanda de B3,
+       cuando el barrido se apagó; B2 vuelta 1 acababa de encenderlo (12:09:4x)
+       y el monitor evaluó UNA vez contra la muestra rancia antes de que
+       llegara la fresca.
+
+  O sea: el mensaje aparece cuando el monitor compara contra un /scan viejo
+  porque el barrido llevaba minutos apagado — que es el reposo NORMAL de los
+  16 robots («las unidades systemd arrancan con el escaneo parado»). En cuanto
+  llegan barridos frescos, no vuelve a aparecer: 0 mensajes durante los tres
+  periodos con nav activa y barrido encendido.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · POR QUÉ NO ES UN AGUJERO DE SEGURIDAD
+───────────────────────────────────────────────────────────────────────────────
+  · «Ignoring the source» con el barrido apagado no deja pasar mandos sin
+    filtro: SIN /scan el collision_monitor BLOQUEA el movimiento — medido el
+    2026-07-31 (0,0 cm contra 9,9 del control). Ignorar una fuente rancia y
+    bloquear es el comportamiento correcto, no la capa inerte.
+  · El escenario que A11 temía —mensajes repartidos DURANTE la navegación—
+    no ocurre: 0 en tres periodos de nav.
+  · Familia distinta, no confundir: 2 errores «Lookup would require
+    extrapolation into the future» (11:31:58 y 11:32:35, 2 en 37 s), justo al
+    encender un cliente web el barrido. Transitorios también, y de TF, no del
+    umbral de fuentes.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ✅ A11 CERRADO: transitorio, con mecanismo, y sin ventana de conducción sin
+     filtro. No va por delante de nada.
+  📝 Si algún día aparece REPARTIDO con el barrido encendido, eso sí es la
+     alarma original — el discriminante de esta evidencia sirve tal cual.
