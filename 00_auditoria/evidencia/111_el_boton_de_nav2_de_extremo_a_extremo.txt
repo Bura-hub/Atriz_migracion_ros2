@@ -62,4 +62,5 @@ LO QUE SIGUE ABIERTO
 ───────────────────────────────────────────────────────────────────────────────
   ⏳ «…y un objetivo que el robot cumpla» (ítem 1 de ARRANQUE_NAVEGACION):
      sigue esperando un mapa DEL SITIO — es el Bloque C, en el aula.
-  ⏳ La decisión del barrido al parar (conflicto 2), ahora con n=3.
+  ⏳ ~~La decisión del barrido al parar (conflicto 2), ahora con n=3.~~
+     ✅ DECIDIDA (B) e implementada el mismo día: evidencia 114.

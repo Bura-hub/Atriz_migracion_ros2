@@ -115,6 +115,16 @@ la misma corrida (`/motor_status` 0,44 vs 0,45 · `/battery_state` ~0,02 vs 0,03
 
 Todo el detalle, condiciones y límites: **evidencia 110**.
 
+**Y a las 16:55, el conflicto 2 cerrado con la decisión B (evidencia 114): parar la navegación
+ya NO deja ciego al alumno que tenía el barrido encendido de antes.** Las unidades anotan si
+`/scan` ya publicaba al llegar (`on-recordando`) y al parar **devuelven el estado que
+encontraron** — verificado por las unidades reales: alumno-primero → `/scan` sigue a 11,8 Hz
+tras el paro; nav-solo → apagado, como siempre. Para tu pantalla, dos cosas: (1) **tu aviso en
+la confirmación de parada SIGUE haciendo falta**, pero ahora solo para el orden inverso — quien
+enciende el barrido *después* de arrancada la navegación; puedes matizarlo. (2) El «arrancando»
+de Nav2 con el barrido apagado sube ~2 s por la comprobación previa: **~32 s** (n=1) contra los
+28 con barrido ya encendido — tu texto de «unos 28 segundos» puede decir «~30».
+
 **Y a las 16:40, la pieza nueva que te cambia el muro (evidencia 113): el robot mudo ya se cura
 solo — UNA vez por arranque.** `atriz-vigia-dds` (ExecStartPost de atriz-robot, instalado por
 fase_7, irá en la imagen dorada): espera `/estado_robot` hasta 90 s; si no llega, SIGINT al

@@ -98,8 +98,10 @@ RESUMEN
 LO QUE SIGUE ABIERTO
 ───────────────────────────────────────────────────────────────────────────────
   ✅ B2 y B3 CERRADOS. atriz-nav ya ha corrido bajo systemd, n=2 reproducible.
-  ⏳ La decisión del barrido al parar nav (conflicto 2): sigue pendiente, ahora
-     con el dato medido en las dos vueltas.
+  ⏳ ~~La decisión del barrido al parar nav (conflicto 2): sigue pendiente, ahora
+     con el dato medido en las dos vueltas.~~ ✅ DECIDIDA (B) e implementada el
+     2026-08-14: las unidades devuelven el barrido al estado que encontraron
+     (evidencia 114).
   ⏳ ~~El «negarse antes de systemctl si no hay mapa» del servicio ROS: decidido
      que hace falta, sin implementar.~~
      🔴 RETIRADO el 2026-08-14: **el guardia YA EXISTÍA.** `supervisor_navegacion`

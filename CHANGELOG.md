@@ -4,6 +4,22 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14, 16:55 (Pi, remoto) — Conflicto 2 cerrado (decisión B): al parar la navegación, el barrido vuelve al estado que la unidad encontró
+
+Decisión del usuario entre tres opciones presentadas con sus costes. `atriz-escaneo` gana
+**`on-recordando <unidad>`** —anota en `/run/atriz` si `/scan` ya publicaba antes de
+encenderlo— y **`off-si-sobra [unidad]`** consume la marca: si estaba encendido de antes, se
+queda encendido. El mismo principio que `atriz.py` («apaga solo lo que encendiste»), ahora
+también en systemd — `off-si-sobra` cubría a las unidades entre sí; esto cubre al consumidor
+humano. Verificado en banco (las 4 transiciones) y por las **unidades reales** vía `/pedir_nav`:
+alumno-primero → `/scan` **sigue a 11,8 Hz** tras el paro, marca consumida; nav-solo → apagado
+(regresión intacta), con el journal como testigo de los tres mensajes. 🔴 Lo que NO cubre, dicho
+desde el diseño: quien enciende *después* de arrancada la nav — para ese sigue el aviso de la
+web. 📝 Coste medido: el arranque de nav con barrido apagado sube a **~32 s** (n=1, la ventana
+de 2 s de la comprobación previa); con barrido encendido, 28,0 s sin cambio. **Evidencia 114.**
+
+---
+
 ## 2026-08-14, 16:40 (Pi, remoto) — El vigía de DDS: el robot mudo se cura solo, y sus dos primeros disparos fueron falsos positivos que la marca contuvo
 
 Decisión del usuario («hagámoslo de una vez») sobre la evidencia 109. Pieza nueva:

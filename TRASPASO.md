@@ -36,7 +36,9 @@
 >   `mediciones_banco/calibrar_claro.py` quedó listo para ese día.
 >
 > ⏳ **Lo que el día dejó abierto:** el **mapa del aula** (no se llegó a mapear — Bloque C entero
-> pendiente), la decisión del **barrido-apagado-al-parar-nav** (conflicto 2, ahora con dato),
+> pendiente), ~~la decisión del **barrido-apagado-al-parar-nav** (conflicto 2, ahora con dato)~~
+> (✅ decidida B e implementada el 14, evidencia 114: las unidades devuelven el estado que
+> encontraron),
 > ~~el «negarse sin mapa» del servicio ROS~~ (✅ retirado el 14: ya existía desde el 07,
 > evidencia 80), y ~~si `StartLimitIntervalSec=300` limpia solo el contador~~ (✅ medido el 14,
 > evidencia 112: **sí se limpia solo** a los ~5 min del último arranque). Y los cuatro fallos

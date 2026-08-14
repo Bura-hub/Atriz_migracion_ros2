@@ -218,6 +218,16 @@ movimiento (medido: **0.0 cm** contra 9.9 del control) y el robot **parece averi
 `/scan`**, es que otro lo tiene encendido → **no lo apaga al cerrar**. Solo apaga lo que él
 encendió.
 
+✅ **Y LA OTRA DIRECCIÓN quedó cerrada el 2026-08-14 (decisión B del usuario, evidencia 114):
+las unidades también devuelven el estado que encontraron.** `atriz-escaneo on-recordando
+<unidad>` anota en `/run/atriz` si `/scan` ya publicaba antes de encenderlo, y `off-si-sobra
+[unidad]` consume la marca: si estaba encendido de antes, **se queda encendido** al parar la
+navegación. Verificado por las unidades reales en las dos direcciones (alumno-primero: `/scan`
+sigue a 11,8 Hz tras el paro; nav-solo: apagado, la regresión intacta). ⚠️ **No cubre el orden
+inverso** —quien enciende *después* de arrancada la nav— para ese sigue el aviso de la web.
+📝 Coste: el arranque de nav con barrido apagado sube ~2 s (~32 s, n=1) por la comprobación
+previa; con barrido encendido no cambia (28,0 s).
+
 Es pequeño, es un principio general, y es lo que evita que dos consumidores del mismo recurso se
 pisen sin enterarse. **Los dos conflictos son la firma de fallo de este proyecto: algo que parece
 sano y no está haciendo nada.**

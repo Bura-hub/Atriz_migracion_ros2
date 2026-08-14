@@ -1,0 +1,62 @@
+═══════════════════════════════════════════════════════════════════════════════
+114 · CONFLICTO 2, CERRADO CON LA DECISIÓN B: AL PARAR LA NAVEGACIÓN, EL
+      BARRIDO VUELVE AL ESTADO QUE LA UNIDAD ENCONTRÓ — VERIFICADO EN LAS
+      DOS DIRECCIONES POR LAS UNIDADES REALES
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-14, remoto · batería ~7,9 V · 👤 fase_7 y decisión del usuario
+Origen:  Conflicto 2 de ARRANQUE_NAVEGACION.md, medido n=3 (B2 ×2 + botón):
+         parar nav apagaba el barrido y dejaba ciego EN SILENCIO a cualquier
+         otro consumidor de /scan — y con el botón de la web, lo dispara un
+         alumno. `off-si-sobra` ya cubría a las UNIDADES (slam/nav entre sí);
+         el hueco era el consumidor HUMANO que lo tenía encendido de antes.
+
+RESUMEN
+  Decisión B del usuario: «devolver el estado que había». `atriz-escaneo`
+  gana `on-recordando <unidad>` —anota en /run/atriz si /scan YA publicaba
+  antes de encenderlo— y `off-si-sobra [unidad]` consume esa marca: si estaba
+  encendido de antes, SE QUEDA encendido. Mismo principio que atriz.py
+  («apaga solo lo que encendiste»), ahora también en systemd. Verificado por
+  las unidades reales en las dos direcciones, con el journal como testigo.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LO VERIFICADO, POR EFECTO
+───────────────────────────────────────────────────────────────────────────────
+  banco (guion del repo, antes de instalar): las 4 transiciones — sin marca
+  no anota y apaga (regresión); con barrido previo anota, deja encendido al
+  parar, consume la marca; y el paro siguiente (sin marca) apaga.
+
+  unidades reales (tras fase_7, ciclos por /pedir_nav — sin sudo):
+    ALUMNO-PRIMERO   barrido ON (66 scans/5 s) → nav FUNCIONANDO a los
+                     28,0 s → paro a los 6,6 s → **/scan SIGUE a 11,8 Hz** ·
+                     marca consumida (0 restantes)
+       journal: «ya estaba ENCENDIDO — anotado…» → «se DEJA ENCENDIDO — ya lo
+                estaba antes de que atriz-nav.service lo encendiera»
+    NAV-SOLO         barrido OFF → FUNCIONANDO a los 32,1 s → paro →
+                     **/scan a 0,0 Hz** (el reposo apagado se conserva)
+       journal: «✅ escaneo APAGADO — ninguna unidad lo necesitaba»
+
+  📝 El arranque de nav con el barrido APAGADO sube a ~32 s (n=1; era 27,8-28,4
+     n=3): la ventana de 2 s de la comprobación previa más ruido. Con el
+     barrido ya encendido: 28,0 s, sin cambio. El tope de 120 s sigue sobrado.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LO QUE CUBRE Y LO QUE NO — dicho desde el diseño
+───────────────────────────────────────────────────────────────────────────────
+  ✅ El alumno (o la teleop web) que tenía el barrido encendido ANTES de que
+     alguien arrancara la navegación ya no se queda ciego al pararla.
+  ✅ Sesgo de fallo conservado: marca no escribible → comportamiento viejo;
+     marca rancia de un crash → `on-recordando` la limpia al encontrar el
+     barrido apagado; ante la duda de unidades, encendido (como estaba).
+  🔴 NO cubre el orden inverso: quien enciende DESPUÉS de arrancada la nav
+     sigue expuesto al paro — para ese queda el aviso de la web en la
+     confirmación, que sigue vigente.
+  📝 La marca vive en /run/atriz (RuntimeDirectory+Preserve de atriz-robot):
+     sobrevive a reinicios de unidad, muere sola al reiniciar la Pi.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ✅ El conflicto 2 queda CERRADO en su mitad de systemd (decisión B).
+  ⏳ El punto 3 de la verificación de ARRANQUE_NAVEGACION —un guion de alumno
+     corriendo NO deja ciega a la nav (la dirección contraria, la de
+     atriz.py)— sigue por provocar de extremo a extremo.
