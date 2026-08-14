@@ -11,7 +11,7 @@
 
 [Unit]
 Description=Atriz — reengancha el LIDAR si el nodo quedó con el descriptor muerto
-Documentation=file:///home/sphero/atriz_migracion/00_auditoria/evidencia/69_apagar_rvr_con_pi_viva.txt
+Documentation=file:///home/sphero/atriz_migracion/00_auditoria/evidencia/69_lidar_descriptor_muerto.txt
 
 [Service]
 Type=oneshot

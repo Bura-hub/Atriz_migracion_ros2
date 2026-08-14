@@ -115,6 +115,14 @@ la misma corrida (`/motor_status` 0,44 vs 0,45 · `/battery_state` ~0,02 vs 0,03
 
 Todo el detalle, condiciones y límites: **evidencia 110**.
 
+**Y a las 17:05, la última pieza del día (evidencia 115): el LIDAR desenchufado también se cura
+solo.** Desenchufar el USB del X2 de la Pi —gesto cotidiano de ahorro, y NO «apagar el RVR»,
+que era una atribución falsa ya corregida— dejaba al nodo con el descriptor muerto y al robot
+«sin obedecer» hasta un SSH. Ahora udev dispara `atriz-lidar-reenganche` al reaparecer el
+adaptador y, solo si el descriptor está `(deleted)`, reinicia el stack: **verificado
+desenchufando de verdad, ~22 s a robot útil**, con el vigía de DDS dando su «✓ cruza» en la
+vuelta. Para tu pantalla: mismo patrón que el vigía — el robot **parpadea ~30 s** y vuelve solo.
+
 **Y a las 16:55, el conflicto 2 cerrado con la decisión B (evidencia 114): parar la navegación
 ya NO deja ciego al alumno que tenía el barrido encendido de antes.** Las unidades anotan si
 `/scan` ya publicaba al llegar (`on-recordando`) y al parar **devuelven el estado que
@@ -2038,7 +2046,7 @@ muerto, así que un `git clone --recursive` repartía ROS 1 y la web abandonada.
 | **El mapa del aula** | 👤 tuyo, en el laboratorio. Bloquea la tarea 4 del plan de navegación |
 | **`~/.ssh/authorized_keys` vacío** | 👤 tuyo, desde el PC |
 | **La FOTO del conector USB del LIDAR** | 👤 tuyo, y **obligatoria** desde que se decidió puerto fijo en los 16 (2026-08-04). Es lo único que le dirá a quien monte el robot 7 dónde va el cable. Con el cable en el conector equivocado, el launch **muere en 1 s sin imprimir nada**. Sigue sin existir |
-| 🔴 **Que el LIDAR se recupere solo tras re-enumerar el USB** | Hoy se arregla con `systemctl restart atriz-robot`, y **cualquier apagado del RVR con la Pi viva lo provoca** — o sea, algo cotidiano. Con 16 robots volverá. Evidencia 69, apartado 6: dos opciones y sin decidir |
+| ✅ ~~**Que el LIDAR se recupere solo tras re-enumerar el USB**~~ | **CERRADO el 2026-08-14** (evidencia 115): `atriz-lidar-reenganche` por udev, verificado desenchufando de verdad — ~22 s a robot útil, sin SSH. 🔴 Y la atribución vieja era falsa: lo que re-enumera es **desenchufar el cable de la Pi** (gesto cotidiano de ahorro), no apagar el RVR — medido con cero eventos USB en un ciclo del RVR |
 | ✅ ~~**El aula, entero: `05-atriz-lab.network` nunca ha casado con nada**~~ | **CERRADO el 2026-08-12, en el laboratorio** (evidencia 102): rvr-01 asoció a `Atriz-server` a la primera, `Address: 10.14.7.7`, `routable` y con salida a NTP. ⏳ n=1: falta rvr-02 y la imagen dorada |
 | ✅ ~~**Que el direccionamiento sobreviva a un ARRANQUE EN FRÍO**~~ | **CERRADO el 2026-08-11 con rvr-02**, y era «exactamente lo que hará el robot 7». Se escribió `red.txt`, se generaron los `.network` con `first-boot.sh --solo-red` y se aplicaron **desde un arranque en frío** — nunca en caliente. Resultado: `✓ wlan0 con UNA sola dirección IPv4: 192.168.1.201/24`, `✓ wlan0 sin dirección del DHCP`, `✓ el .network de «…» está aplicado`. **El emparejamiento por SSID ocurre en el arranque.** ⏳ Lo que NO cierra: `05-atriz-lab.network` **sigue sin haber casado con nada** — rvr-02 está en casa y casó el perfil de casa. El del aula se prueba en el aula |
 

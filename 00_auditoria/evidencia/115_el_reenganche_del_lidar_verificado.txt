@@ -1,0 +1,74 @@
+═══════════════════════════════════════════════════════════════════════════════
+115 · EL REENGANCHE DEL LIDAR, VERIFICADO DE PUNTA A PUNTA: DESENCHUFAR →
+      udev → REINICIO SOLO → BARRIDO FUNCIONANDO EN ~22 s — Y EL MECANISMO
+      DEL INCIDENTE ORIGINAL ESTABA MAL ATRIBUIDO
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-14, con el usuario junto al robot · batería ~7,9 V
+Origen:  Evidencia 69 §6 («que se recupere solo está SIN HACER, y con 16
+         robots va a volver») · decisión A del usuario, de tres opciones.
+
+RESUMEN
+  Pieza nueva: `98-atriz-lidar-reenganche.rules` (udev) + una oneshot que,
+  cuando el adaptador del X2 REAPARECE, reinicia atriz-robot SOLO si el nodo
+  quedó con el descriptor muerto — cinco guardias que fallan abierto y un
+  anti-aleteo de 120 s para no quemar el StartLimitBurst. Verificado con la
+  provocación real (desenchufar/enchufar el USB, 👤): la cadena entera corrió
+  sola y el barrido quedó funcionando a los ~22 s. Y por el camino cayó una
+  atribución falsa de la evidencia 69: NO es apagar el RVR lo que re-enumera.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · 🔴 LA CORRECCIÓN PRIMERO: EL X2 NO SE ALIMENTA DEL ROBOT (el adaptador)
+───────────────────────────────────────────────────────────────────────────────
+  La evidencia 69 y CLAUDE.md decían: «el X2 se alimenta del robot, así que
+  apagar el RVR re-enumera su adaptador USB». DOS pruebas lo desmienten hoy:
+  · MEDIDO: 👤 apagó y encendió el RVR con la Pi viva → `journalctl -k`:
+    CERO eventos USB en la ventana. El adaptador ni se inmutó (y el driver
+    del RVR se recuperó solo al volver: 7,89 V leídos después).
+  · TESTIMONIO del usuario, que es quien provocó el incidente original:
+    aquel 2026-08-04 él DESENCHUFÓ el USB del lidar de la Pi para ahorrar
+    energía. El adaptador se alimenta de la Pi; lo que re-enumera es el
+    gesto del cable, no el estado del robot.
+  📌 Consecuencia: el disparador es un gesto DELIBERADO y cotidiano («ahorro
+     batería»), no un efecto raro de la carga — con 16 robots y alumnos,
+     esto pasará más, no menos. El reenganche cubre exactamente eso.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LA CADENA ENTERA, CON EL JOURNAL DE TESTIGO (17:03, provocación real 👤)
+───────────────────────────────────────────────────────────────────────────────
+  17:03:33  kernel: cp210x converter now attached to ttyUSB1   ← era USB0: el
+            número cambió, justo por lo que existe /dev/ydlidar
+  17:03:33  udev → Starting atriz-lidar-reenganche.service
+  17:03:34  «🔴 el nodo del lidar tiene el descriptor MUERTO ((deleted)) y el
+             adaptador acaba de reaparecer: reiniciando atriz-robot»
+  17:03:34  Stopping atriz-robot → arranque limpio
+  17:03:54  [vigia-dds] ✓ DDS cruza: /estado_robot a los 1.0 s  ← los DOS
+            vigilantes componen
+  17:03:55  active · NRestarts=0 · fd del nodo → /dev/ttyUSB1 VIVO
+  efecto:   atriz-escaneo on → «✅ /scan publica» · off → reposo
+  TOTAL:    ~22 s de desenchufar a robot útil, sin un SSH. Antes: un humano.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · LOS GUARDIAS, Y LO QUE SE VERIFICÓ DE CADA UNO
+───────────────────────────────────────────────────────────────────────────────
+  · fd VIVO → «sano, no toco nada»: verificado en vivo antes de instalar.
+  · fd (deleted) + adaptador reaparecido → reinicio: verificado (arriba).
+  · atriz-robot inactiva / nodo ausente / sin fd de tty → no-op: por lógica,
+    y el arranque normal del robot los ejercita en cada boot (el evento add
+    del arranque dispara la oneshot con la unidad aún levantándose).
+  · Anti-aleteo (<120 s desde el último reenganche → no reinicia): SIN
+    provocar — exigiría desenchufar dos veces en 2 min; la rama es cuatro
+    líneas y el sesgo es no-actuar. ⏳ Se anota, no se promete.
+  · La regla casa por vendor/modelo (10c4:ea60), NO por ID_PATH, a propósito:
+    debe sonar aunque el cable esté en el puerto equivocado (ahí los guardias
+    la hacen no-op); la autoridad sobre /dev/ydlidar sigue siendo la regla
+    de provision.sh.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ✅ El §6 de la evidencia 69 queda CERRADO: el robot se recupera solo.
+  📝 CLAUDE.md corregido: el mecanismo del descriptor muerto es «desenchufar
+     el USB de la Pi», no «apagar el RVR».
+  ⏳ La foto del conector USB en FLOTA.md: MÁS obligatoria aún — el reenganche
+     no salva de enchufar en el puerto equivocado.
+  ⏳ El anti-aleteo, sin provocar (rama trivial, sesgo no-actuar).

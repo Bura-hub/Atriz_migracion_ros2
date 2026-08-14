@@ -4,6 +4,29 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14, 17:05 (Pi, con el usuario junto al robot) — El reenganche del LIDAR, verificado desenchufando de verdad — y el mecanismo del incidente estaba mal atribuido
+
+Decisión A del usuario sobre la evidencia 69 §6. Pieza nueva: **`98-atriz-lidar-reenganche.rules`**
+(udev, casa por 10c4:ea60) + oneshot **`atriz-lidar-reenganche`** que reinicia `atriz-robot`
+SOLO si el nodo del X2 quedó con el descriptor `(deleted)` — cinco guardias que fallan abierto y
+anti-aleteo de 120 s (un USB aleteando no debe quemar el `StartLimitBurst`). En `fase_7` y el
+MANIFIESTO.
+
+🔴 **Y la atribución de la evidencia 69 era FALSA:** «el X2 se alimenta del robot, apagarlo
+re-enumera el adaptador». Dos pruebas hoy: 👤 apagó/encendió el RVR con la Pi viva → **cero
+eventos USB** en el kernel (el driver del RVR se recuperó solo); y el testimonio de quien provocó
+el incidente original — el 2026-08-04 **desenchufó el USB de la Pi para ahorrar energía**. El
+adaptador se alimenta de la Pi; el disparador es un gesto deliberado y cotidiano, con 16 robots
+pasará más. `CLAUDE.md` corregido.
+
+✅ **Verificado de punta a punta con la provocación real** (👤 desenchufó/enchufó): kernel
+`ttyUSB0→ttyUSB1` → udev → «descriptor MUERTO ((deleted)): reiniciando» → stack limpio → vigía
+«✓ DDS cruza a 1,0 s» → `atriz-escaneo on` publica. **~22 s de desenchufar a robot útil, sin un
+SSH.** Los guardias sano/arrancando verificados; el anti-aleteo queda por lógica (sesgo:
+no-actuar). **Evidencia 115.**
+
+---
+
 ## 2026-08-14, 16:55 (Pi, remoto) — Conflicto 2 cerrado (decisión B): al parar la navegación, el barrido vuelve al estado que la unidad encontró
 
 Decisión del usuario entre tres opciones presentadas con sus costes. `atriz-escaneo` gana

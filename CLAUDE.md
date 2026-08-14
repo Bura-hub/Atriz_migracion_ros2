@@ -1986,8 +1986,13 @@ Medido el 2026-08-01: **502 errores en 20 s**, **el 99 % del journal del servici
   leído el fuente. **Antes de rediseñar el arranque de un sistema, mira por qué falla el
   componente.**
 
-**🔴🔴 SI APAGAS Y ENCIENDES EL RVR CON LA PI VIVA, EL LIDAR QUEDA MUERTO Y TODO PARECE SANO.**
-El X2 se alimenta del robot, así que apagarlo re-enumera su adaptador USB. La regla udev rehace
+**🔴🔴 SI EL USB DEL LIDAR SE DESENCHUFA DE LA PI, EL NODO QUEDA MUERTO Y TODO PARECE SANO.**
+~~El X2 se alimenta del robot, así que apagarlo re-enumera su adaptador USB.~~ 🔴 **CORREGIDO el
+2026-08-14 (evidencia 115): esa atribución era FALSA.** El adaptador se alimenta **de la Pi**;
+medido: apagar y encender el RVR con la Pi viva da **cero eventos USB** en el kernel. Lo que
+re-enumera es **desenchufar el cable de la Pi** — que es lo que el usuario hizo el 2026-08-04
+para ahorrar energía, y es un gesto deliberado y cotidiano: con 16 robots pasará más, no menos.
+La regla udev rehace
 `/dev/ydlidar` correctamente, pero **el nodo abre el puerto una sola vez al arrancar y no lo
 reabre nunca**: se queda agarrado al descriptor viejo, que el kernel ya destruyó. Medido el
 2026-08-04:
@@ -2010,9 +2015,13 @@ ls -l /proc/$(pgrep -f "[y]dlidar_ros2_dr")/fd | grep tty    # si dice (deleted)
 ```
 → **Arreglo hoy:** `sudo systemctl restart atriz-robot`. Verificado por efecto: fd vivo,
   0 errores, `/start_scan` `result:true`, **`/scan` a 11,90 Hz**.
-→ ⏳ **Que se recupere solo está SIN HACER**, y con 16 robots va a volver: o udev reinicia la
-  unidad al reaparecer el dispositivo, o el nodo reabre el puerto tras N fallos. Un
-  `Restart=always` **no sirve**: el proceso no muere. Evidencia 69.
+→ ~~⏳ **Que se recupere solo está SIN HACER**~~ ✅ **HECHO Y VERIFICADO el 2026-08-14
+  (evidencia 115): `atriz-lidar-reenganche`** — udev dispara una oneshot al reaparecer el
+  adaptador, y esta reinicia `atriz-robot` SOLO si el nodo tiene el descriptor `(deleted)`
+  (cinco guardias que fallan abierto + anti-aleteo de 120 s para no quemar el StartLimitBurst).
+  Provocado de verdad desenchufando el USB: **~22 s** de desenchufar a barrido funcionando, sin
+  un SSH. Un `Restart=always` seguía sin servir (el proceso no muere): por eso es udev quien
+  avisa. Lo instala `fase_7`, va en el MANIFIESTO.
 → 📝 **`/start_scan` NO es lento**, aunque lo pareciera: medido por WebSocket con la conexión ya
   abierta —el camino de la web— son **1,4-2,1 s**, `result:true` 6 de 6, muy dentro de los 5 s de
   rosbridge. La medida de 4,6-6,5 s que se llegó a escribir salía de `ros2 service call`, que
