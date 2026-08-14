@@ -404,6 +404,16 @@ precaución frena al 40 % **aunque el robot se aleje**: 30 cm comandados → 14 
 
 La regla del proyecto: se comprueba **el efecto**, no el código de salida.
 
+> ✅ **ACTUALIZACIÓN 2026-08-13: la sesión física se hizo, en tres tandas, y casi todos los 🔴
+> de abajo están cerrados.** 2026-08-03 (evidencias 57-61: avanzar, girar con transportador
+> n=9, faros), 2026-08-08 (evidencia 85: ocho de las diez prácticas corridas, cuatro fallos
+> reales encontrados y arreglados) y 2026-08-13 (evidencia 108: los cinco ensayos en banda con
+> el usuario midiendo — avanzar 58/59 cm, girar(90) ~90°, **Ctrl-C 5 de 5** con ~1 cm de
+> arrastre, luces vistas, distancia_frontal a 1,1 cm de la cinta).
+> ⏳ **Sigue abierto únicamente el seguidor de línea (práctica 63)**, que espera a que haya
+> línea en el aula; el calibrador de umbral está en `mediciones_banco/calibrar_claro.py`.
+> La lista de abajo se conserva como estaba: es la foto del cierre de la Tarea 13.
+
 **Estado de cada punto al cierre de la Tarea 13 (2026-08-03):**
 
 1. 🔴 **NO VERIFICADO. Los 10 scripts se ejecutan contra el robot**, uno a uno, con el pasillo

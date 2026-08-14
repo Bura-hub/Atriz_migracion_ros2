@@ -772,6 +772,31 @@ que habría mordido igual en la instalación de los 16).
 corre como root **casi nunca es lo que dice**. Mira si lo que falló fue la *redirección*, y
 comprueba la **fecha** del fichero que estás leyendo.
 
+**🔴🔴 `EnvironmentFile=` PISA SIEMPRE a `Environment=`, INCLUSO SI `Environment=` VIENE DE UN
+DROP-IN.** Medido el 2026-08-13 (evidencia 107): un drop-in con
+`Environment=ATRIZ_MAPA=/ruta/que/no/existe` sobre una unidad que lleva
+`EnvironmentFile=-/etc/default/atriz` arrancó **con el mapa real** —leído en
+`/proc/<pid>/environ`— y la prueba «sin mapa» devolvió 0 midiendo nada. El orden no es «el
+drop-in gana»: **los `EnvironmentFile=` se aplican después de todos los `Environment=`**.
+→ Para pisar una variable desde un drop-in, mete un **`EnvironmentFile=` adicional** (gana por
+  orden de lectura), no un `Environment=`.
+→ 📝 Y comprueba el efecto en `/proc/<pid>/environ`, no en `systemctl show`: es la forma de
+  siempre — un start que devuelve 0 no prueba que arrancara con lo que crees.
+
+**🔴 UN Ctrl-C MATA TAMBIÉN AL `tee` DE `exec > >(tee …)` Y BASH MUERE SIN EJECUTAR EL TRAP
+`EXIT`.** El 2026-08-13 un ^C del usuario dejó el sistema sucio —nav corriendo, drop-in
+instalado, `$TMP` sin borrar, barrido encendido— porque la señal llega **al grupo de procesos
+entero**: el `tee` muere, el siguiente `echo` recibe SIGPIPE, y bash sale **sin correr el
+`trap … EXIT`**. Reproducido con guion de juguete en los dos sentidos.
+→ **Arreglo, las dos líneas juntas:** `trap '' PIPE` + `trap 'exit 130' INT TERM` — con INT/TERM
+  capturados, el `exit` sí dispara el trap EXIT y la limpieza corre.
+→ ⚠️ Y al simularlo: un bash **no interactivo en segundo plano arranca con SIGINT en SIG_IGN**
+  (no se puede re-trapear) — la simulación necesita un orquestador que mande la señal al grupo
+  (`os.killpg`) con `start_new_session=True`, no un `bash -c '... &'`.
+→ 📝 Dos papercuts del mismo guion, para no repetirlos: bajo `sudo bash`, **`$HOME` es `/root`**
+  (la salida se «perdió» ahí); y un `mktemp -d` de root con un observador corriendo como
+  `sphero` no deja **escribir** la marca — `chown` tras crearlo.
+
 **🔴🔴 `set -e` + `(( t++ ))` MATA EL SCRIPT EN SILENCIO, Y ASÍ ESTUVO ROTA LA ESPERA DE
 HARDWARE DE `atriz-robot.sh`.** Un post-incremento aritmético **devuelve el valor ANTERIOR**, y
 `(( 0 ))` es falso → estado de salida **1** → con `set -e` el script muere ahí mismo, sin una
@@ -2438,8 +2463,8 @@ lo que produce deriva entre documentación y realidad.
 | **Las unidades systemd arrancarán con el lidar PARADO** (`/stop_scan`) | si no, el X2 gira a 11.8 Hz 24/7 en los 16 robots en vez de a 2.7. Manual, cap. 8.4a |
 | **NO se mide ahora el consumo del lidar** entre 11.8 y 2.7 Hz | serían horas de robot con `/battery_state` para un número que solo decide un matiz del systemd. Se anota **NO MEDIDO**. Decisión del usuario, 2026-07-31 |
 | **NO se persigue el efecto del roll en la deriva** | medido ~1 cm sin significación (p=0.142). Cerrarlo costaría ~62 corridas y 5 h de robot, para 1 cm sobre una tolerancia de objetivo de 10. Decisión del usuario, 2026-07-31 |
-| 🔴 **El material docente corre sobre `atriz.py`, NO sobre `rclpy`** | Un script de alumno contra `rclpy` a pelo tiene que acertar siete cosas que este proyecto pagó aprendiéndolas (topic correcto, encender el barrido, republicar contra el watchdog, `SignalHandlerOptions.NO`, BEST_EFFORT, límites de velocidad/tiempo, apagar el barrido al cerrar). `atriz.py` las acierta una vez y el alumno escribe robótica, no ROS. Diseño en `03_operacion/API_LABORATORIO.md`, 2026-08-02. Código escrito y revisado (tareas 1-13 + oleada de arreglos final, **89 tests**) — **⏳ NO VERIFICADO contra el robot moviéndose**: falta la sesión física (ver `TRASPASO.md`) |
-| ✅ **La navegación va en `atriz-nav.service`, instalada y NO habilitada** (2026-08-03) | Hasta entonces **nadie arrancaba Nav2 ni AMCL**: había que entrar por SSH y lanzar dos launch a mano, así que la Decisión 2 era cierta solo para teleoperación. Unidad aparte y no un argumento de `robot.launch.py`, para no acoplar los ciclos de vida. **Sin `enable`**: Nav2 cuesta ~58 % de un núcleo y la Pi se alimenta del USB del RVR, así que sale de la batería — y la autonomía (~2 h) ya no cubre una clase (2-3 h). Levanta **AMCL**, no SLAM, por el marco compartido. `03_operacion/ARRANQUE_NAVEGACION.md`. ⏳ **NO VERIFICADO**: exige el mapa del aula, que no existe |
+| 🔴 **El material docente corre sobre `atriz.py`, NO sobre `rclpy`** | Un script de alumno contra `rclpy` a pelo tiene que acertar siete cosas que este proyecto pagó aprendiéndolas (topic correcto, encender el barrido, republicar contra el watchdog, `SignalHandlerOptions.NO`, BEST_EFFORT, límites de velocidad/tiempo, apagar el barrido al cerrar). `atriz.py` las acierta una vez y el alumno escribe robótica, no ROS. Diseño en `03_operacion/API_LABORATORIO.md`, 2026-08-02. Código escrito y revisado (tareas 1-13 + oleada de arreglos final, **89 tests**) — ✅ **VERIFICADO con el robot moviéndose**: ocho prácticas corridas el 2026-08-08 (evidencia 85) y la sesión física **en banda** el 2026-08-13 con el usuario midiendo (evidencia 108: avanzar 58/59 cm, girar(90) ~90°, Ctrl-C 5/5, luces, distancia_frontal Δ1,1 cm). ⏳ Queda solo la **práctica 63** (seguidor de línea), que espera a la línea del aula |
+| ✅ **La navegación va en `atriz-nav.service`, instalada y NO habilitada** (2026-08-03) | Hasta entonces **nadie arrancaba Nav2 ni AMCL**: había que entrar por SSH y lanzar dos launch a mano, así que la Decisión 2 era cierta solo para teleoperación. Unidad aparte y no un argumento de `robot.launch.py`, para no acoplar los ciclos de vida. **Sin `enable`**: Nav2 cuesta ~58 % de un núcleo y la Pi se alimenta del USB del RVR, así que sale de la batería — y la autonomía (~2 h) ya no cubre una clase (2-3 h). Levanta **AMCL**, no SLAM, por el marco compartido. `03_operacion/ARRANQUE_NAVEGACION.md`. ✅ **VERIFICADA BAJO SYSTEMD el 2026-08-13** (evidencia 107): 27,80/27,84 s desde `systemctl start` hasta aceptar objetivos (n=2), con un mapa de mecanismo. 🔴 Y B3 confirmó que **un start sin mapa deja el botón muerto** (StartLimit latcheado, `reset-failed` denegado desde la web): el servicio ROS debe **negarse antes de systemctl** — decidido, sin implementar. ⏳ El `aula.yaml` de verdad sigue sin existir |
 | ⏳ **El seguidor de línea se valida EN EL AULA, no en casa** (decisión del usuario, 2026-08-09) | Una línea en el suelo de una habitación no reproduce lo que la práctica valida: el recorrido, la iluminación y el contraste del laboratorio. Y el seguidor decide **por umbral del canal `claro`**, que es justo lo que cambia con el suelo — medido: **1275 en una habitación y ~950 en otra, el mismo robot el mismo día**. Un ✅ en casa mediría **el suelo, no el algoritmo** |
 | **El seguidor de línea es edge-following, NO un PID de umbral único** | Un solo sensor mirando abajo no puede distinguir desviarse a la izquierda de desviarse a la derecha — el diseño original de `API_LABORATORIO.md` no podía funcionar. Rediseñado en la tarea 11 (ver trampas, arriba). NO VERIFICADO sobre una línea real |
 

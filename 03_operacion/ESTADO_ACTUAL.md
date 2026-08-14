@@ -11,7 +11,40 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-12
+**Última actualización:** 2026-08-13
+
+---
+
+## ✅ Pi (2026-08-13, EN EL LABORATORIO) · **atriz-nav CORRIÓ BAJO SYSTEMD — y los dos números que tu pantalla necesitaba**
+
+Segundo día en el laboratorio: evidencias **104-108**, todo con el robot delante.
+
+### Los dos datos para la web, medidos
+
+| | |
+|---|---|
+| **«Arrancando» dura ~28 s** | Del `systemctl start` a que `/navigate_to_pose` **acepta objetivos**: **27,80 y 27,84 s** (n=2, Δ **0,04 s**). Holgura 4,3× sobre `TimeoutStartSec=120`. Píntalo en **segundos transcurridos, no porcentaje**. ⚠️ El orden de aparición de los nodos **no es estable** entre arranques: nada debe depender de él |
+| 🔴 **El botón sin mapa queda MUERTO, confirmado n=2** | Un solo `start` sin mapa quema el `StartLimitBurst=3` entre reintentos automáticos y pulsaciones humanas, en cualquier combinación → «Start request repeated too quickly», y recuperarlo exige `reset-failed`, que la lista blanca de polkit **deniega a propósito** desde el navegador. Y lo peor: **`systemctl start` devuelve 0 y la unidad llega a `Started` ANTES de que el wrapper vea que no hay mapa** — desde la web «arrancó» y «no podía arrancar» son indistinguibles en ese instante. 🔴 **Decidido y SIN implementar: el servicio ROS (`/pedir_nav`) tiene que NEGARSE antes de llamar a systemctl si no hay mapa** |
+
+### Lo demás del día, en cinco líneas
+
+- ✅ **M10 medido** (evidencia 106): `PartOf=`+`Requires=` vuelve **con timestamp nuevo** tras
+  `kill -9` del proceso base. `BindsTo` (y «ambas») no vuelven. Era lo que bloqueaba atriz-nav.
+- ✅ **A11 cerrado** (evidencia 105): «Ignoring the source» es **transitorio con aritmética
+  exacta** — aparece solo cuando el último `/scan` es viejo por barrido apagado a propósito
+  (el reposo normal). Con nav activa y barrido encendido: **0**. La capa de seguridad no está
+  inerte: sin `/scan` **bloquea**.
+- ✅ **El arranque en frío real, visto entero** (evidencia 104): reloj **+22 h 15 min** y las dos
+  esperas de `atriz-robot.sh` **actuaron**; DDS cruzó. El incidente del 2026-08-12 no se repitió.
+- ✅ **La sesión física docente EN VERDE** (evidencia 108): avanzar 58/59 cm, girar(90) ~90°,
+  Ctrl-C 5/5, luces vistas, distancia_frontal a 1,1 cm de la cinta. ⏳ Queda solo la práctica 63
+  (no había línea).
+- ⚠️ **El barrido queda APAGADO al parar la navegación** (medido en las dos vueltas de B2):
+  el conflicto 2 de `ARRANQUE_NAVEGACION.md` sigue **abierto**, y con el botón en la web lo
+  dispara un alumno.
+
+⏳ **Lo que el día NO tocó:** el **mapa del aula** (no se llegó a mapear; Bloque C entero
+pendiente) y la batería quedó en 7,98 V (umbral 7,0).
 
 ---
 
@@ -1570,7 +1603,7 @@ está probado que **no estorban**, no que **sirvan**.
 
 | Repo | Rama | Estado |
 |---|---|---|
-| `Atriz_migracion_ros2` | `main` | este; privado |
+| `Atriz_migracion_ros2` | `main` | este; ~~privado~~ **público desde el 2026-08-11** (👤 decisión: no repartir un PAT en 16 microSD) |
 | `Atriz_rvr` | **`ros2`** ← por defecto desde el 2026-08-04 | público. Solo quedan **dos** ramas: `ros2` y `main` (ROS 1, 75 commits detrás). `migracion-ros2` y `wip/scripts-estudiantes` **borradas** el 2026-08-03 |
 | `atriz-lab` | `main` | **el** repositorio de la web; privado. `cliente-rosbridge` fusionada (PR #1) y borrada |
 | `Atriz_web_server` | `pruebas` | el viejo. **ARCHIVADO** el 2026-08-04, después de rotar. Público y en solo lectura; los secretos siguen en su historial pero **ya no valen** |
@@ -1792,7 +1825,7 @@ muerto, así que un `git clone --recursive` repartía ROS 1 y la web abandonada.
 | **`~/.ssh/authorized_keys` vacío** | 👤 tuyo, desde el PC |
 | **La FOTO del conector USB del LIDAR** | 👤 tuyo, y **obligatoria** desde que se decidió puerto fijo en los 16 (2026-08-04). Es lo único que le dirá a quien monte el robot 7 dónde va el cable. Con el cable en el conector equivocado, el launch **muere en 1 s sin imprimir nada**. Sigue sin existir |
 | 🔴 **Que el LIDAR se recupere solo tras re-enumerar el USB** | Hoy se arregla con `systemctl restart atriz-robot`, y **cualquier apagado del RVR con la Pi viva lo provoca** — o sea, algo cotidiano. Con 16 robots volverá. Evidencia 69, apartado 6: dos opciones y sin decidir |
-| ⏳ **El aula, entero: `05-atriz-lab.network` nunca ha casado con nada** | El fichero está bien escrito y **nada más**. Si el SSID real difiere en un carácter, el robot cae al netplan genérico **sin dirección estática**; si `10.14.0.1` no es la puerta buena, habrá dirección pero sin salida ni NTP — y esta Pi no tiene RTC |
+| ✅ ~~**El aula, entero: `05-atriz-lab.network` nunca ha casado con nada**~~ | **CERRADO el 2026-08-12, en el laboratorio** (evidencia 102): rvr-01 asoció a `Atriz-server` a la primera, `Address: 10.14.7.7`, `routable` y con salida a NTP. ⏳ n=1: falta rvr-02 y la imagen dorada |
 | ✅ ~~**Que el direccionamiento sobreviva a un ARRANQUE EN FRÍO**~~ | **CERRADO el 2026-08-11 con rvr-02**, y era «exactamente lo que hará el robot 7». Se escribió `red.txt`, se generaron los `.network` con `first-boot.sh --solo-red` y se aplicaron **desde un arranque en frío** — nunca en caliente. Resultado: `✓ wlan0 con UNA sola dirección IPv4: 192.168.1.201/24`, `✓ wlan0 sin dirección del DHCP`, `✓ el .network de «…» está aplicado`. **El emparejamiento por SSID ocurre en el arranque.** ⏳ Lo que NO cierra: `05-atriz-lab.network` **sigue sin haber casado con nada** — rvr-02 está en casa y casó el perfil de casa. El del aula se prueba en el aula |
 
 ## Marcado NO VERIFICADO
@@ -1802,8 +1835,11 @@ muerto, así que un `git clone --recursive` repartía ROS 1 y la web abandonada.
 - **El parser de `robot_id.txt`** no se puede probar con `ROBOT_ID=01`: los dos parsers coinciden por
   casualidad.
 - **El encargo por SSH desde el PC** — probado solo dentro de la Pi.
-- **`atriz-nav.service`** nunca se ha arrancado bajo systemd: exige un mapa.
-- **Las diez prácticas** de `estudiantes/` no se han ejecutado con el robot moviéndose.
+- ~~**`atriz-nav.service`** nunca se ha arrancado bajo systemd: exige un mapa.~~ ✅ **Arrancada
+  bajo systemd el 2026-08-13** (evidencia 107): 27,8 s hasta aceptar objetivos, n=2.
+- ~~**Las diez prácticas** de `estudiantes/` no se han ejecutado con el robot moviéndose.~~
+  ✅ Ocho corridas el 2026-08-08 (evidencia 85) y la sesión física en verde el 2026-08-13
+  (evidencia 108). ⏳ Queda la práctica 63 (seguidor de línea, espera a la línea del aula).
 
 ## Suelto, sin dueño claro
 

@@ -5,7 +5,41 @@
 > contexto desde cero.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-13 · SEGUNDO DÍA EN EL LABORATORIO: EL BLOQUE ROJO DE ABAJO QUEDÓ CERRADO**
+> ═══════════════════════════════════════════════════════════════════════════════
+> Cinco evidencias (104-108) cierran casi todo lo que el bloque rojo de abajo tenía abierto:
+>
+> - ✅ **El arranque en frío real, visto entero** (evidencia 104): el reloj saltó **+22 h 15 min**
+>   y las dos esperas acotadas de `atriz-robot.sh` **actuaron** (red tras 2 s, reloj antes del
+>   launch) — DDS cruzó. n=1 sin contrafactual, pero es justo el escenario del incidente mudo.
+> - ✅ **A11 CERRADO** (evidencia 105): «Ignoring the source» es **transitorio y con aritmética
+>   exacta** — solo aparece cuando el último `/scan` es viejo porque el barrido está apagado
+>   a propósito, que es el reposo normal. Con nav activa y barrido encendido: **0**. Y sin
+>   `/scan` el monitor **bloquea**, no deja pasar: la capa de seguridad no está inerte.
+> - ✅ **M10 MEDIDO** (evidencia 106): `PartOf=`+`Requires=` **vuelve con timestamp nuevo tras
+>   `kill -9`** del proceso base; `BindsTo` (y «ambas») no vuelven. La unidad instalada ya era
+>   `PartOf=`+`Requires=` desde el 2026-08-07 — el «sigue con BindsTo=» de abajo estaba rancio.
+> - ✅ **B2/B3 CERRADOS — `atriz-nav` corrió BAJO SYSTEMD por primera vez** (evidencia 107):
+>   **27,80 y 27,84 s** desde `systemctl start` hasta aceptar objetivos (n=2, Δ 0,04 s; holgura
+>   4,3× sobre `TimeoutStartSec=120`). Y el **botón muerto confirmado n=2**: un start sin mapa
+>   quema el `StartLimitBurst` — con el agravante de que `systemctl start` **devuelve 0** y la
+>   unidad llega a `Started` antes de que el wrapper vea que no hay mapa. 🔴 Consecuencia de
+>   diseño decidida y **sin implementar**: el servicio ROS debe **negarse antes** de llamar a
+>   systemctl si no hay mapa.
+> - ✅ **La sesión física docente, EN VERDE** (evidencia 108): `avanzar()` 58/59 cm, `girar(90)`
+>   ~90° con transportador, Ctrl-C **5 de 5** (~1 cm de arrastre), `luces()` visto, y
+>   `distancia_frontal()` a 1,1 cm de la cinta. ⏳ Solo queda la **práctica 63** (no había línea);
+>   `mediciones_banco/calibrar_claro.py` quedó listo para ese día.
+>
+> ⏳ **Lo que el día dejó abierto:** el **mapa del aula** (no se llegó a mapear — Bloque C entero
+> pendiente), la decisión del **barrido-apagado-al-parar-nav** (conflicto 2, ahora con dato),
+> el «negarse sin mapa» del servicio ROS, y si `StartLimitIntervalSec=300` limpia solo el
+> contador. Y los cuatro fallos del instrumento de medida están contados en la evidencia 107 y
+> arreglados en `scripts/medir_arranque_nav.sh`.
+>
+> ═══════════════════════════════════════════════════════════════════════════════
 > 🔴 **LO PRIMERO: ejecuta `bash scripts/medir_recuperacion.sh` EN LA PI**
+> ✅ *(pasado el 2026-08-13 sin hallazgos nuevos; el bloque se conserva como historia)*
 > ═══════════════════════════════════════════════════════════════════════════════
 > El **2026-08-06**, al poner el RVR a cargar con la Pi viva, el robot se quedó **sano por todos
 > los indicadores habituales y mudo en lo que importaba**: `/odom` 95 msg en 6 s, `/estado_robot`
@@ -31,17 +65,26 @@
 > **A11** · el `collision_monitor` escribe «Ignoring the source» sobre el LIDAR. Si es
 > sostenido, **la capa de seguridad está inerte**. Medido después: el reloj está bien (0,5 s de
 > desfase) y `/scan` va a 11,7 Hz, así que la hipótesis es un salto de reloj al sincronizar NTP
-> —la Pi no tiene RTC—. **SIN CONFIRMAR**, y el discriminante es un comando (ver el plan).
-> **Va por delante de M10.**
+> —la Pi no tiene RTC—. ~~**SIN CONFIRMAR**, y el discriminante es un comando (ver el plan).
+> **Va por delante de M10.**~~ ✅ **CERRADO el 2026-08-13 (evidencia 105): es transitorio, con
+> aritmética exacta** — cada aparición cae en el instante en que la última muestra de `/scan`
+> era vieja porque el barrido estaba apagado a propósito. Con nav activa y barrido encendido:
+> 0 apariciones. Y la hipótesis del NTP era falsa: era la edad del `/scan`, no el reloj.
 > **A12** · con 32 MB este robot no conserva un incidente ni dos días. ⚠️ Y subir el tope **no
 > garantiza retención**: eso lo dan `SystemMaxFiles` o `MaxRetentionSec`.
 >
-> **M10 sigue en pie y NO caduca:** ese guion mide si systemd propaga un **reinicio** a una
+> ~~**M10 sigue en pie y NO caduca:** ese guion mide si systemd propaga un **reinicio** a una
 > unidad atada, de lo que depende que
-> `atriz-nav.service` —que hoy usa `BindsTo=` + `Restart=on-failure`— no se quede muerta.
+> `atriz-nav.service` —que hoy usa `BindsTo=` + `Restart=on-failure`— no se quede muerta.~~
+> ✅ **M10 MEDIDO el 2026-08-13 (evidencia 106):** `partof`+`Requires` **vuelve con timestamp
+> nuevo** tras `kill -9`; `bindsto` y «ambas» quedan `inactive`. Y el «hoy usa `BindsTo=`»
+> llevaba rancio desde el **2026-08-07**: la unidad instalada es byte-idéntica a la del repo,
+> con `PartOf=` + `Requires=`.
 >
-> ⚠️ **NO levantes `atriz-nav` antes de M10.** Si el driver se reinicia a mitad, la navegación se
-> para, **no vuelve**, y apaga el barrido de camino. La web no puede levantarla.
+> ~~⚠️ **NO levantes `atriz-nav` antes de M10.** Si el driver se reinicia a mitad, la navegación se
+> para, **no vuelve**, y apaga el barrido de camino. La web no puede levantarla.~~
+> ✅ **OBSOLETO desde el 2026-08-13:** M10 pasó y `atriz-nav` **ya corrió bajo systemd** (B2/B3,
+> evidencia 107) — 27,8 s hasta aceptar objetivos, n=2.
 >
 > El análisis entero, con cuatro decisiones que son tuyas, en
 > [`00_auditoria/planes/2026-08-06-plan-slam-color-arranque.md`](00_auditoria/planes/2026-08-06-plan-slam-color-arranque.md).
@@ -347,7 +390,7 @@
 > rotar» **se rotó el 2026-08-04**. Lo que sigue abierto es el histórico de git, que es higiene y
 > no exposición.
 >
-> Última actualización: **2026-08-08**.
+> Última actualización: **2026-08-13** (el día en el laboratorio: bloque nuevo arriba del todo).
 >
 > Antes de esta sesión, el **2026-08-04** se cerró **el direccionamiento de la flota**
 > —una dirección por red, aplicada en rvr-01 y verificada desde el navegador (evidencias 74 y
@@ -367,7 +410,9 @@
 >    así que ni `sudo` ni reinicio. Corridas ese día con arnés que mide el efecto:
 >    **05** lectura estable y **sin mover el robot** (que es lo que promete), **11** detectó negro
 >    a `claro=396` tras **46,5 cm** y paró. Evidencia 85.
->    ⏳ **Solo queda la 63, el seguidor de línea.**
+>    ⏳ **Solo queda la 63, el seguidor de línea.** *(Sigue siendo cierto el 2026-08-13: la
+>    sesión física del resto quedó EN VERDE —evidencia 108— y la 63 no se corrió porque no
+>    había línea en el aula.)*
 >    🔴 **DECISIÓN del usuario, 2026-08-09: se aparca hasta el AULA, y no por la cinta.** Una
 >    línea pegada en el suelo de una habitación no reproduce lo que la práctica tiene que
 >    validar: el recorrido real, su iluminación y su contraste sobre el suelo del laboratorio.
@@ -416,9 +461,10 @@
 >
 > 🆕 **Y desde el 2026-08-03 hay una tercera cosa, a medias:** el arranque de la navegación.
 > `atriz-nav.service` está **escrita, INSTALADA y sin habilitar** (tareas 1, 2, 3 y 5 del plan
-> `00_auditoria/planes/2026-08-03-arranque-navegacion.md`), pero **nunca se ha arrancado bajo
-> systemd**. La verificación exige **un mapa válido** — y puede ser cualquiera, apuntado con
-> `ATRIZ_MAPA`: comprueba el mecanismo, no el contenido. El `aula.yaml` de verdad sí espera al
+> `00_auditoria/planes/2026-08-03-arranque-navegacion.md`), ~~pero **nunca se ha arrancado bajo
+> systemd**~~ ✅ **arrancada bajo systemd el 2026-08-13** (evidencia 107): 27,80/27,84 s hasta
+> aceptar objetivos, `active/success` las dos vueltas, con `cuarto3.yaml` como mapa de mecanismo.
+> El `aula.yaml` de verdad sí espera al
 > laboratorio. Detalle en `03_operacion/ARRANQUE_NAVEGACION.md`.
 
 ---
@@ -559,7 +605,11 @@ era de ~1 cm y apareció el fallo de 12–56 cm que lo entierra.
 ✅ ~~Lo siguiente es el fallo bimodal a 2.3 m~~ — **cerrado el 2026-07-31** con
 `referenciar_posicion.py`: 0 fallos de 12 y peor caso 4.4 cm.
 
-🔴 **LO SIGUIENTE DE VERDAD, HOY: la SESIÓN FÍSICA del material docente.** El código de las diez
+✅ **CERRADO EN DOS TIEMPOS — 2026-08-08 (ocho prácticas corridas, evidencia 85) y 2026-08-13
+(los cinco ensayos con el usuario midiendo, evidencia 108). Solo queda la práctica 63.** El
+párrafo se conserva porque explica qué había que medir y por qué:
+
+🔴 ~~**LO SIGUIENTE DE VERDAD, HOY: la SESIÓN FÍSICA del material docente.**~~ El código de las diez
 prácticas y `atriz.py` está escrito, revisado y con 89 tests — pero **nada de lo que depende de
 mover el robot está medido**: ni los ~60 cm de `avanzar()`, ni los ángulos de `girar()` con
 transportador, ni las cinco corridas de Ctrl-C, ni que los faros enciendan, ni que
@@ -739,6 +789,14 @@ escrito, ejecutado por partes y con sus arreglos commiteados.
 ---
 
 ## 🔴 Material docente: `atriz.py` y las diez prácticas — escrito, pendiente de la sesión física (2026-08-02)
+
+> ✅ **CERRADO SALVO LA 63 (2026-08-13).** Todo lo que esta sección lista como «NO verificado»
+> se midió después: ocho prácticas corridas el 2026-08-08 (evidencia 85, con cuatro fallos
+> reales arreglados), y los cinco ensayos físicos —avanzar, girar, Ctrl-C ×5, luces,
+> distancia_frontal— **en banda el 2026-08-13 con el usuario midiendo** (evidencia 108).
+> ⏳ Falta únicamente la **práctica 63** (seguidor de línea), que espera a que haya línea en el
+> aula; el calibrador de umbral (`calibrar_claro.py`) ya está en el banco. La sección se
+> conserva como estaba porque documenta el plan de la sesión.
 
 Las diez prácticas y los cinco documentos del curso estaban en **ROS 1** y no arrancaban
 (`import rospy` → `ModuleNotFoundError` en la primera línea, 0 de 10), y hacían **15

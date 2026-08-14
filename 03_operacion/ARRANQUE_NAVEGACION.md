@@ -82,6 +82,13 @@ fue `hay_mapa: false` sobre un robot que sí podía navegar — y el caso invers
 habilita el botón, la unidad falla al arrancar y **gasta su presupuesto de reintentos hasta quedar
 latcheada**, que solo se recupera con `reset-failed`. Evidencia 80.
 
+✅ **Ese caso inverso quedó MEDIDO el 2026-08-13 (B3, evidencia 107, n=2):** un solo `start` sin
+mapa quema el `StartLimitBurst=3` —entre reintentos automáticos y pulsaciones humanas, en
+cualquier combinación— y el botón queda muerto («repeated too quickly»). Con el agravante de que
+`systemctl start` **devuelve 0** y la unidad llega a `Started` **antes** de que el wrapper
+detecte el mapa ausente. 🔴 **Consecuencia de diseño decidida y SIN implementar: el servicio ROS
+(`/pedir_nav`) tiene que negarse ANTES de llamar a systemctl si no hay mapa legible.**
+
 📝 **No está en el manifiesto**, y es a propósito: el manifiesto es para ficheros idénticos en los
 16 comprobados con `cmp`, y este lo edita el operador. `fase_7` **no lo sobrescribe si ya existe**
 y `--quitar` **no lo borra** — puede llevar la ruta de un mapa que costó una sesión entera.
@@ -207,7 +214,8 @@ pide un cerrojo en el supervisor, no en un launch.
 
 ### Si el driver se cae, la navegación cae con él — y ahora TAMBIÉN VUELVE
 
-Hoy la unidad usa `BindsTo=atriz-robot.service`. Sin eso quedaría un Nav2 publicando sobre una
+La unidad ata su vida a `atriz-robot.service` (hoy con `PartOf=` + `Requires=`; hasta el
+2026-08-07 con `BindsTo=`). Sin eso quedaría un Nav2 publicando sobre una
 odometría muerta — otra vez algo que parece vivo y no lo está, que es lo que `on_exit=Shutdown()`
 vino a resolver en `robot.launch.py`.
 
@@ -248,9 +256,13 @@ atriz-nav`, un segundo**, en lugar de en un rediseño.
 
 Y deja de pie una medida que hará falta para tomarla y que **nadie ha tomado**:
 
-⏳ **Cuánto tarda Nav2 en estar listo** (desde `systemctl start` hasta el lifecycle activo y
+~~⏳ **Cuánto tarda Nav2 en estar listo** (desde `systemctl start` hasta el lifecycle activo y
 `/navigate_to_pose` aceptando objetivos). Si son 5 s, arrancar a demanda es gratis. Si son 40, no.
-**NO MEDIDO.**
+**NO MEDIDO.**~~
+✅ **MEDIDO dos veces:** 18-26 s lanzando los launch a mano (2026-08-07, evidencia 79) y
+**27,80 / 27,84 s bajo systemd** con `systemctl start` (2026-08-13, evidencia 107, n=2,
+Δ 0,04 s). Arrancar a demanda cuesta ~28 s: la web pinta «arrancando» ese rato, en segundos
+transcurridos y no en porcentaje.
 
 ---
 
@@ -261,16 +273,21 @@ documentada.
 
 1. **Arranca y navega de verdad.** `systemctl start atriz-nav`, y después un objetivo por
    `/navigate_to_pose` que el robot cumpla. Que la unidad diga `active` no prueba nada.
+   ✅ *Parcial el 2026-08-13 (evidencia 107): arrancó bajo systemd y **acepta objetivos** en
+   27,8 s (n=2). ⏳ No se mandó ningún objetivo — el mapa (`cuarto3`) no era del sitio.*
 2. 🔴 **El barrido se enciende solo.** Con el robot recién arrancado (barrido apagado por diseño),
    `systemctl start atriz-nav` tiene que dejar `/scan` publicando **sin que nadie lo toque**.
+   ✅ *Medido el 2026-08-13: encendido tras arrancar nav, en las dos vueltas.*
 3. 🔴 **Y un script de alumno NO deja ciega la navegación.** Con `atriz-nav` corriendo, ejecutar
    un guion del curso de principio a fin y comprobar que `/scan` **sigue publicando** al terminar.
    Es el conflicto 2, y hay que provocarlo, no razonarlo.
 4. **`restart` no toca el driver.** `systemctl restart atriz-nav` y comprobar que `/odom` no se
    interrumpe y que `NRestarts` de `atriz-robot` no sube.
-5. **`BindsTo` funciona:** parar `atriz-robot` tiene que parar `atriz-nav`.
+5. **La atadura funciona:** parar `atriz-robot` tiene que parar `atriz-nav`. *(Desde el
+   2026-08-07 la propagan `PartOf=` + `Requires=`, ya no `BindsTo=`; ver arriba.)*
 6. 🔴 **Tras un reinicio de verdad, la navegación NO vuelve** y el driver sí.
-7. **Medir el tiempo de arranque** y anotarlo, que es el dato que falta para la decisión futura.
+7. ✅ **Medir el tiempo de arranque** — hecho: 18-26 s a mano (evidencia 79) y **27,8 s bajo
+   systemd** (evidencia 107, n=2).
 
 📝 **Todo lo de arriba se puede comprobar con CUALQUIER mapa válido**, apuntándolo con
 `ATRIZ_MAPA`: verifica el **mecanismo**, no el contenido. Solo el `aula.yaml` de verdad tiene que

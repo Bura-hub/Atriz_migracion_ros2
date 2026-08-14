@@ -39,6 +39,12 @@ El procedimiento completo de alta de un robot está en
 | `atriz-robot.sh` + `atriz-robot.service` | 7 | sí (instalarlos) | ✅ **funcionando bajo systemd**, comprobado por efecto. 📝 Sin ejercitar: la espera de puertos (siempre `tras 0s`) y `Restart=always` |
 | `atriz-escaneo.sh` | 7 | no | ✅ **verificado instalado**: `on`, `off` y `estado` (3 de 3 en cada estado). Tuvo **tres fallos propios** antes de funcionar |
 | `fase_6_preparar_imagen_dorada.sh` | 6 · F6 | sí | ⏳ **pendiente**, y 📝 **NO VERIFICADO** |
+| `atriz-nav.sh` + `atriz-nav.service` · `atriz-slam.sh` + `atriz-slam.service` | operación | sí (instalarlas) | ✅ instaladas, **sin habilitar** a propósito. `atriz-nav` **corrió bajo systemd el 2026-08-13**: acepta objetivos en 27,8 s (n=2). Detalle: `03_operacion/ARRANQUE_NAVEGACION.md`, evidencia 107 |
+| `medir_recuperacion.sh` | diagnóstico | no | ✅ ejecutado 2026-08-06 y **2026-08-13** (sin hallazgos nuevos la segunda vez). Separa por el journal las explicaciones del incidente del robot mudo |
+| `medir_partof.sh` | diagnóstico | sí | ✅ **M10 medido con él** (2026-08-07 con unidades de juguete, réplica 2026-08-13 con el guion corregido): `PartOf=`+`Requires=` vuelve tras `kill -9`; `BindsTo` no. Evidencias 78 y 106 |
+| `medir_arranque_nav.sh` | diagnóstico | sí (👤) | ✅ **B2/B3 medidos con él el 2026-08-13** (evidencia 107). 🔴 Costó **cuatro fallos del instrumento** —heredoc sin expandir, ^C sin limpieza, `Environment=` pisado por `EnvironmentFile=`, TMP de root no escribible— los cuatro arreglados en el guion |
+| `diagnosticar_mudo.sh` | diagnóstico | no | ✅ «sale sin señal de vida en la web», en un comando y solo lectura. Reinicia el demonio del CLI **antes** de preguntar. Evidencia 102 |
+| `sesion_fisica.py` | material docente | no | ✅ **corrido entero el 2026-08-13** (evidencia 108): los cinco ensayos guiados con el usuario midiendo con cinta y transportador |
 
 > ⚠️ **`verificar_robot.sh` comprueba el EFECTO, no la intención**, y las dos aserciones que se
 > le añadieron el 2026-07-30/31 explican por qué:

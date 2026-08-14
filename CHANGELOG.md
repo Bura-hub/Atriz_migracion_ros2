@@ -4,6 +4,61 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14 (Pi, remoto) — Auditoría de alineación: la documentación se pone al día con el día de laboratorio
+
+Sin robot de por medio: pasada de alineación de toda la documentación viva contra el estado real
+tras la sesión del 13 (evidencias 104-108), incluidos los README de los dos repositorios
+disponibles en esta máquina.
+
+### Lo que estaba rancio y se corrigió
+
+- **`TRASPASO.md`**: bloque nuevo del 2026-08-13 arriba del todo, y el bloque rojo de cabecera
+  anotado en sitio — A11 ~~«SIN CONFIRMAR, va por delante de M10»~~ (cerrado, evidencia 105),
+  M10 ~~«sigue en pie»~~ (medido, 106), ~~«NO levantes atriz-nav antes de M10»~~ (obsoleto:
+  corrió bajo systemd, 107), ~~«nunca se ha arrancado bajo systemd»~~, y la sección entera del
+  material docente marcada **cerrada salvo la práctica 63** (85 y 108). «Última actualización»
+  llevaba seis días atrás.
+- **`ESTADO_ACTUAL.md`**: bloque nuevo para el PC con los dos datos que su pantalla necesita —
+  «arrancando» dura **~28 s** (n=2, Δ 0,04 s) y **el botón sin mapa queda muerto** con
+  `systemctl start` devolviendo 0 (el servicio ROS debe negarse antes: decidido, sin
+  implementar). Y tres tachaduras abajo: atriz-nav ya corrió bajo systemd, las prácticas ya se
+  ejecutaron, `05-atriz-lab.network` ya casó (102), el repo ya no es privado.
+- **`ARRANQUE_NAVEGACION.md`**: «Hoy la unidad usa `BindsTo=`» corregido (es `PartOf=` +
+  `Requires=` desde el 2026-08-07), el «⏳ cuánto tarda Nav2 — NO MEDIDO» cerrado con los dos
+  números (79 y 107), B3 anotado en la sección del mapa, y la lista de verificación con lo que
+  el 13 dejó medido (puntos 1, 2, 5 y 7).
+- **`CLAUDE.md`**: las dos filas de decisiones (atriz-nav y material docente) actualizadas, y
+  **dos trampas nuevas** de la evidencia 107: `EnvironmentFile=` pisa a `Environment=` incluso
+  desde un drop-in, y un Ctrl-C mata al `tee` de `exec > >(tee …)` sin ejecutar el trap EXIT
+  (con los dos papercuts: `$HOME` bajo `sudo` y el TMP de root).
+- **`API_LABORATORIO.md`**: la sección «Verificación» (foto del 2026-08-03, casi toda en 🔴)
+  encabezada con el cierre en tres tandas; solo queda la 63.
+- **`README.md`** (este repo): fila nueva en la tabla de estado con el 2026-08-13, y corregida
+  la frase «cada carpeta de evidencia tiene su README» — `evidencia/` nunca lo tuvo.
+- **`scripts/README.md`**: siete guiones que no estaban en la tabla (`atriz-nav`/`atriz-slam`,
+  `medir_recuperacion.sh`, `medir_partof.sh`, `medir_arranque_nav.sh`, `diagnosticar_mudo.sh`,
+  `sesion_fisica.py`).
+- **`Atriz_rvr/README.md`** (rama `ros2`): el bloque de referencia estaba fechado 2026-07-31 —
+  añadidos los seis topics que faltaban (`/estado_robot` con `conduciendo_por_ir`, `/encoders`,
+  `/motor_status`, `/estado_ir`, `/infrared_messages`, `/ambient_light` con su 🔴 «no lo uses»),
+  la sección del material docente con su estado físico, y quitado el «repositorio privado»
+  (público desde el 2026-08-11). La lista de 19 servicios se contrastó contra
+  `rvr_driver_node.py` y **sí estaba al día**.
+
+### Método
+
+Cada corrección se contrastó antes de escribirse: los topics y servicios contra el fuente del
+driver, los estados contra las evidencias 104-108, y las fechas contra el journal de git. Lo
+rancio se tachó en sitio conservando el texto original, que es la convención del proyecto.
+
+### Pendiente (sin cambios)
+
+El mapa del aula (Bloque C entero), la práctica 63, la decisión del barrido-al-parar-nav
+(conflicto 2), el «negarse sin mapa» de `/pedir_nav`, y si `StartLimitIntervalSec=300` limpia
+solo el contador.
+
+---
+
 ## 2026-08-13 (Pi, laboratorio) — El arranque en frío que faltaba llegó solo: el reloj saltó 22 h y DDS cruzó
 
 El pendiente central de la evidencia 102 §7 —«NO VERIFICADO que las esperas impidan el fallo en un
