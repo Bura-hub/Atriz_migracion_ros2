@@ -196,7 +196,8 @@ la reaparición exacta del incidente del 2026-08-12. Evidencia 109.
   arranques fríos con salto grande).
 - **Para tu pantalla**: cuando un robot salga «sin señal de vida» con todo en verde, esto ya
   tiene detector (`diagnosticar_mudo.sh`) y remedio (`sudo systemctl restart atriz-robot`,
-  👤). ⏳ **Sin decidir**: recuperación automática (un `ExecStartPost` que compruebe que DDS
+  👤). ~~⏳ **Sin decidir**: recuperación automática~~ *(decidida y hecha ese mismo día — el
+  vigía, bloque de las 16:40 y evidencia 113)* (un `ExecStartPost` que compruebe que DDS
   cruza y reinicie una vez) — con 16 robots encendiéndose a la vez, esto pasará cada clase.
 - ⏳ **Tu caudal llega en el siguiente commit**: se mide justo después del reinicio, sobre un
   robot sano, con `/motor_status` (0,45) y `/battery_state` (0,03) de controles del
