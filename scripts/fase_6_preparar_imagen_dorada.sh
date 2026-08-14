@@ -98,6 +98,23 @@ case $SALIDA_VERIF in
         exit 1 ;;
 esac
 
+# 🔴 AÑADIDO el 2026-08-14, antes de la PRIMERA ejecución real: el driver se
+#    comprueba AQUÍ, en la puerta, y no solo en el paso 4. El orden viejo
+#    borraba la identidad (pasos 1-3: profile.d, machine-id, claves de host)
+#    y SOLO ENTONCES descubría el driver corriendo y abortaba — dejando un
+#    robot a MEDIO preparar, con el error en pantalla y la identidad ya
+#    borrada. La puerta se cruza entera o no se cruza.
+if systemctl is-active --quiet atriz-robot 2>/dev/null; then
+    echo >&2
+    echo "  ✗ atriz-robot está ACTIVO. La imagen se hace de un robot PARADO y" >&2
+    echo "    parado LIMPIO (el apagado ordenado apaga LEDs y luz del sensor):" >&2
+    echo "        sudo systemctl stop atriz-robot" >&2
+    echo "        systemctl is-failed atriz-robot   # debe decir 'inactive', no 'failed'" >&2
+    echo "    y vuelve a lanzar este script." >&2
+    exit 1
+fi
+ok "atriz-robot está parada: se puede preparar la imagen"
+
 # ─────────────────────────────────────────────────────────────────────────────
 say "1/6 · Instalar el servicio de personalización de primer arranque"
 
