@@ -4,6 +4,33 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14, 16:40 (Pi, remoto) — El vigía de DDS: el robot mudo se cura solo, y sus dos primeros disparos fueron falsos positivos que la marca contuvo
+
+Decisión del usuario («hagámoslo de una vez») sobre la evidencia 109. Pieza nueva:
+**`atriz-vigia-dds`**, ExecStartPost=- de `atriz-robot` — espera `/estado_robot` hasta 90 s; si
+no llega, marca en `/run/atriz` (RuntimeDirectory+Preserve) y **SIGINT al proceso principal**
+(`Restart=always` hace el resto, sin ampliar polkit y sin unidades nuevas); **una sola vez por
+arranque** y fallo abierto en todos los bordes. Lógica pura con 4 tests (suite en 115),
+`TimeoutStartSec` 180→300, `fase_7` y el MANIFIESTO lo llevan a la imagen dorada.
+
+🔴 **El estreno cobró la lección cara: el primer arranque armado disparó DOS falsos positivos
+sobre un robot sano** — el lanzador no cargaba la identidad (`/etc/profile.d/atriz-robot.sh`) y
+el vigía escuchaba en el **dominio 0** con el robot en el 1. La trampa estaba escrita en la
+cabecera de `atriz-robot.sh` y se repitió igual. **La garantía de una-sola-vez contuvo el daño a
+un único reinicio de más** — su primer trabajo real fue protegernos de su propio bug. Y el
+porqué la prueba previa no lo cazó: la corrida manual **heredó el entorno de la shell** (dominio
+1) y pasó — la prueba fiel de un ExecStartPost es con `env -i` (tras el arreglo: detecta en
+0,5 s). Guardia nuevo de regalo: sin `ROS_DOMAIN_ID` el vigía no actúa («mi silencio no
+probaría nada»).
+
+✅ **Las tres ramas verificadas en producción** (fase_7 + restart, 👤): sana («✓ DDS cruza a los
+0,1 s»), reinicio forzado (marca + SIGINT + vuelta sola en ~40 s, PID nuevo, arranque post-cura
+sano en 2,5 s) y rendición (marca puesta → no toca nada, PID intacto — comprobado). ⏳ La
+detección del mudo REAL queda escrita, no prometida: es intermitente y no se sabe provocar.
+**Evidencia 113.**
+
+---
+
 ## 2026-08-14, 16:05 (Pi, remoto) — El latch de atriz-nav se limpia solo a los ~5 min, y nav_latcheado=true visto por primera vez
 
 Cierra el último ⏳ de B3: con un drop-in sin mapa (👤 sudo), **latch a los 92 s** del primer

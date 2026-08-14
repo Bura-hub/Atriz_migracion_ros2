@@ -115,6 +115,18 @@ la misma corrida (`/motor_status` 0,44 vs 0,45 · `/battery_state` ~0,02 vs 0,03
 
 Todo el detalle, condiciones y límites: **evidencia 110**.
 
+**Y a las 16:40, la pieza nueva que te cambia el muro (evidencia 113): el robot mudo ya se cura
+solo — UNA vez por arranque.** `atriz-vigia-dds` (ExecStartPost de atriz-robot, instalado por
+fase_7, irá en la imagen dorada): espera `/estado_robot` hasta 90 s; si no llega, SIGINT al
+proceso principal y `Restart=always` lo levanta; si tras la cura sigue mudo, **falla abierto** y
+lo grita al journal. Las tres ramas verificadas en producción. Para tu pantalla: un robot que
+nazca mudo ahora **parpadea** (~90 s sin señal + ~40 s de reinicio) y aparece solo — antes era
+mudo para siempre hasta un SSH. Si lo ves desaparecer ~40 s tras un arranque, puede ser el vigía
+curándolo: el journal lo dice con todas las letras. ⚠️ Y la lección del estreno: sus dos
+primeros disparos fueron **falsos positivos** (el lanzador no cargaba `ROS_DOMAIN_ID` y escuchaba
+en el dominio 0) — la garantía de una-sola-vez los contuvo a un único reinicio de más, arreglado
+y re-verificado con `env -i`.
+
 **Y a las 16:05, el número que le faltaba a tu mensaje de recuperación (evidencia 112): el latch
 SE LIMPIA SOLO.** Provocado con un drop-in sin mapa: latch a los 92 s (n=3 con B3), un start en
 caliente **rechazado** (control), y a los **355 s del último arranque real** el `start` entra con

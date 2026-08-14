@@ -1,0 +1,92 @@
+═══════════════════════════════════════════════════════════════════════════════
+113 · EL VIGÍA DE DDS: INSTALADO Y VERIFICADO EN SUS TRES RAMAS — DESPUÉS DE
+      QUE SUS DOS PRIMEROS DISPAROS FUERAN FALSOS POSITIVOS QUE LA GARANTÍA
+      DE UNA-SOLA-VEZ CONTUVO
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-14, remoto · batería 7,93 → 7,91 V
+Robot:   rvr-01 · 👤 el usuario ejecutó fase_7 (dos veces) y los restart
+Origen:  Evidencia 109: el robot puede nacer MUDO en DDS (intermitente, causa
+         sin conocer, remedio medido: reiniciar). Decisión del usuario:
+         recuperación automática, «hagámoslo de una vez».
+
+RESUMEN
+  Nueva pieza: `atriz-vigia-dds` (ExecStartPost=- de atriz-robot). Espera un
+  mensaje de /estado_robot hasta 90 s; si no llega, deja una marca en
+  /run/atriz y manda SIGINT al proceso principal — Restart=always hace el
+  resto. UNA vez por arranque; con marca puesta, falla ABIERTO. Sin tocar
+  polkit (sphero es dueño del proceso) y sin unidades nuevas. Las tres ramas
+  verificadas en producción… tras pagar una lección: el primer arranque
+  armado disparó DOS falsos positivos —el lanzador no cargaba ROS_DOMAIN_ID
+  y escuchaba en el dominio 0— y **la marca contuvo el daño a un solo
+  reinicio de más**, que es exactamente el caso para el que se diseñó.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · EL DISEÑO, EN CINCO LÍNEAS
+───────────────────────────────────────────────────────────────────────────────
+  · Detección: suscriptor BEST_EFFORT+VOLATILE a /estado_robot (1 Hz, el
+    canal barato — evidencia 110). En el estado mudo medido, ni un suscriptor
+    local recibe nada: se detecta desde dentro.
+  · Acción: SIGINT al MainPID (= ros2 launch, el wrapper hace exec) → el
+    MISMO cierre limpio que un stop de systemd → Restart=always levanta el
+    stack de cero. Sin ampliar la regla de polkit (solo concede slam/nav) y
+    sin `+` en ningún Exec* (el invariante User=sphero se conserva).
+  · Una sola vez: marca en /run/atriz (RuntimeDirectory + Preserve —
+    sobrevive al reinicio de la unidad, muere sola al reiniciar la Pi). La
+    marca se escribe ANTES del disparo, y NO se rearma tras una cura: un
+    ping-pong mudo→cura→mudo quemaría el StartLimitBurst (5/300 s) y
+    convertiría un robot mudo en uno MUERTO.
+  · Fallo abierto en todos los bordes: sin marca escribible no dispara; con
+    marca puesta no dispara; sin ROS_DOMAIN_ID no dispara.
+  · Lógica pura en `decidir()` con 4 tests (scripts/pruebas/test_vigia_dds.py,
+    la suite queda en 115). TimeoutStartSec de atriz-robot: 180 → 300 s.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · 🔴 LOS DOS FALSOS POSITIVOS DEL PRIMER ARRANQUE ARMADO — la mitad instructiva
+───────────────────────────────────────────────────────────────────────────────
+  16:18  restart (👤) con el vigía v1 armado
+  16:20:09  [vigia-dds] 🔴 MUDO … SIGINT al PID 6024      ← FALSO: el robot
+  16:20:10  Started (Restart=always)                        estaba sano
+  16:22:11  [vigia-dds] 🔴🔴 SIGUE MUDO … NO se reinicia  ← FALSO también, y
+            (contraste independiente: /odom a 16,66 Hz)     la MARCA contuvo
+                                                            el bucle aquí
+  CAUSA: el lanzador sourceaba ROS y el workspace pero NO la identidad
+  (/etc/profile.d/atriz-robot.sh) → sin ROS_DOMAIN_ID, el vigía escuchaba en
+  el DOMINIO 0 con el robot en el 1. Silencio garantizado, «mudo» declarado.
+  🔴 La trampa estaba ESCRITA en la cabecera de atriz-robot.sh («si se pone la
+     ruta absoluta arranca SIN ROS_DOMAIN_ID … falla en silencio») y se
+     repitió igual: systemd no lee /etc/profile.d.
+  🔴 Y por qué la prueba previa no lo cazó: la corrida manual del vigía
+     HEREDÓ el entorno de la shell (con dominio 1) y pasó en 1,8 s. **Una
+     prueba manual que hereda tu entorno no verifica un ExecStartPost** — la
+     fiel es con `env -i`, que tras el arreglo detecta en 0,5 s.
+  ✅ El diseño pagó su prima: dos disparos falsos costaron UN reinicio de más
+     y cero bucles. La marca hizo su trabajo la primera vez que existió.
+  ✅ Arreglo: el lanzador sourcea la misma identidad que el wrapper + guardia
+     nuevo «sin ROS_DOMAIN_ID no actúo: mi silencio no probaría nada».
+
+───────────────────────────────────────────────────────────────────────────────
+3 · LAS TRES RAMAS, VERIFICADAS EN PRODUCCIÓN (v2, tras fase_7 + restart 👤)
+───────────────────────────────────────────────────────────────────────────────
+  SANA       16:27:58  «✓ DDS cruza: /estado_robot a los 0.1 s» · sin marca ·
+             NRestarts=0. (Y a los 2,5 s en el arranque post-cura de abajo.)
+  REINICIAR  forzada con ATRIZ_VIGIA_FORZAR_MUDO=1: marca escrita, SIGINT al
+             PID 11080, Restart=always lo devuelve (PID nuevo 14852) y el
+             arranque nuevo da «✓ DDS cruza a los 2,5 s». Ciclo completo
+             ~40 s (15 s de RestartSec + arranque).
+  RENDIRSE   forzada otra vez con la marca puesta: «NO se reinicia otra vez
+             (fallo abierto)», rc=0, **PID 14852 intacto** — comprobado.
+  Limpieza: marca borrada; active, NRestarts=1 (la corrida forzada), 7,91 V.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ⏳ LA DETECCIÓN REAL: el mudo auténtico es intermitente y no se sabe
+     provocar. Las ramas están verificadas por inyección; la próxima vez que
+     el robot nazca mudo de verdad, el journal dirá si el vigía lo curó solo.
+     Queda escrito, no prometido.
+  📝 Para el muro de la web: un robot que nace mudo ahora «parpadea» —
+     ~90 s sin señal + ~40 s de reinicio— y aparece solo. Sin vigía era
+     mudo para siempre hasta un SSH.
+  ⏳ El mudo de las 16:18 fue un restart EN CALIENTE… declarado por un vigía
+     sin dominio: NO cuenta como ocurrencia del fenómeno. El recuento real
+     sigue en 2 de 3 arranques fríos (evidencia 109).
