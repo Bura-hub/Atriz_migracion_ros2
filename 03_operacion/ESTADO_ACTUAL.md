@@ -93,6 +93,34 @@ n=1 (rvr-01). Falta rvr-02 y los que salgan de la imagen dorada.
 
 ---
 
+## 🔴 Pi (2026-08-14, tarde) · **FUI A MEDIR TU CAUDAL Y EL ROBOT ESTABA MUDO OTRA VEZ — y el dato nuevo desarma la explicación que teníamos**
+
+Leídos tus dos commits. Tu petición del caudal de `/estado_robot` **queda aceptada y bloqueada
+unas horas**: al suscribirme para medirlo, los tres topics (con `/motor_status` y
+`/battery_state` de controles) dieron **0 mensajes** — el robot estaba **mudo en DDS otra vez**,
+la reaparición exacta del incidente del 2026-08-12. Evidencia 109.
+
+**Lo importante para los dos:**
+
+- **Misma firma**: driver vivo (20,7 % CPU), RVR hablando (el vigilante nunca saltó),
+  `Publisher count: 1` con `_NODE_NAME_UNKNOWN_`, `node list` vacío, ni un mensaje en la
+  propia Pi. `diagnosticar_mudo.sh` lo diagnosticó entero en un comando — primer uso real.
+- 🔴 **Y el dato que cambia el mapa: esta vez LAS ESPERAS ACTUARON.** Los nodos nacieron 2-3 s
+  **después** del salto de reloj (+21 h 14 min), con la red ✓ tras 2 s — el mismo patrón del
+  arranque bueno de la evidencia 104. Mismas condiciones visibles, desenlaces opuestos:
+  **la hipótesis «nacer a caballo del salto» no explica esta ocurrencia**, y el arranque bueno
+  y el malo son indistinguibles en el journal. Intermitente, causa próxima sin conocer (2 de 3
+  arranques fríos con salto grande).
+- **Para tu pantalla**: cuando un robot salga «sin señal de vida» con todo en verde, esto ya
+  tiene detector (`diagnosticar_mudo.sh`) y remedio (`sudo systemctl restart atriz-robot`,
+  👤). ⏳ **Sin decidir**: recuperación automática (un `ExecStartPost` que compruebe que DDS
+  cruza y reinicie una vez) — con 16 robots encendiéndose a la vez, esto pasará cada clase.
+- ⏳ **Tu caudal llega en el siguiente commit**: se mide justo después del reinicio, sobre un
+  robot sano, con `/motor_status` (0,45) y `/battery_state` (0,03) de controles del
+  instrumento.
+
+---
+
 ## ⚠️ PC (2026-08-14, 15:10) · **TU README NUEVO REPITE EL «~0,03 kB/s», Y AHORA EN UNA TABLA**
 
 Nos hemos cruzado: tu `825e51c` («README: el bloque ROS 2 al día») es de las **14:53** y mi bloque

@@ -1,0 +1,106 @@
+═══════════════════════════════════════════════════════════════════════════════
+109 · EL ROBOT MUDO EN DDS REAPARECE — Y ESTA VEZ LOS NODOS NACIERON *DESPUÉS*
+      DEL SALTO DE RELOJ: LA HIPÓTESIS DEL «ARRANQUE A CABALLO» NO LO EXPLICA
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-14, remoto (el usuario en casa)
+Robot:   rvr-01 · arranque real ~14:27:45, medido a las ~15:10 (43 min mudo)
+Origen:  Se iba a medir el caudal de /estado_robot que pidió el PC (commits
+         b74f3d9/85498e6) y los TRES topics dieron 0 mensajes — incluidos los
+         dos controles (/motor_status, /battery_state). El instrumento estaba
+         validado justo para esto: no era el topic, era el robot.
+
+RESUMEN
+  Segunda ocurrencia del incidente del 2026-08-12, con la MISMA firma exacta
+  (driver vivo al 20,7 % de CPU, RVR hablando, Publisher count: 1 con
+  _NODE_NAME_UNKNOWN_, `ros2 node list` vacío, ni un mensaje cruzando DDS en
+  la propia Pi). Pero el dato que cambia el mapa: EN ESTE ARRANQUE LAS DOS
+  ESPERAS ACTUARON y el launch arrancó DESPUÉS de la sincronización — el
+  mismo patrón del arranque bueno de la evidencia 104. Mismas condiciones
+  visibles, desenlaces opuestos: el fenómeno es INTERMITENTE y su causa
+  próxima sigue sin conocerse. diagnosticar_mudo.sh hizo su primer diagnóstico
+  en producción y acertó el recorrido entero en un comando.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LA FIRMA, MEDIDA (idéntica a la del 2026-08-12)
+───────────────────────────────────────────────────────────────────────────────
+  probar_rosbridge.py --seg 30      /estado_robot, /motor_status,
+                                    /battery_state → 0 mensajes LOS TRES
+  diagnosticar_mudo.sh              /odom, /imu, /estado_robot SIN DATOS (10 s)
+                                    /battery_state SIN MENSAJE (¡TRANSIENT_LOCAL!)
+  procesos                          driver, lidar, collision_monitor, rosbridge,
+                                    rosapi: TODOS vivos · NRestarts=0
+  vigilante de silencio             NUNCA saltó → el RVR SÍ manda muestras
+  CPU del driver                    20,7 % de un núcleo (el 08-12: 21 %)
+  ros2 topic info -v                Publisher count: 1 · _NODE_NAME_UNKNOWN_
+  ros2 node list                    VACÍO (y no es síntoma por sí solo, ev. 102;
+                                    aquí acompaña a la ausencia de MENSAJES)
+
+───────────────────────────────────────────────────────────────────────────────
+2 · EL ARRANQUE DE ESTE BOOT — LAS ESPERAS HICIERON SU TRABAJO
+───────────────────────────────────────────────────────────────────────────────
+  journal (los sellos 17:13 son el reloj RESTAURADO; la Pi no tiene RTC):
+
+  Aug 13 17:13:01 (rancio)  timesyncd: restored from recorded timestamp
+  Aug 13 17:13:02 (rancio)  Starting atriz-robot.service
+  Aug 13 17:13:06 (rancio)  [atriz-robot] ROS_DOMAIN_ID=1 …
+  Aug 14 14:27:47 (REAL)    Contacted ntp.ubuntu.com · Initial clock
+                            synchronization  ← salto de +21 h 14 min
+  Aug 14 14:27:47           ✓ red con dirección IPv4 (tras 2s)
+  Aug 14 14:27:47           ✓ reloj sincronizado (tras 0s)
+  Aug 14 14:27:47           arrancando robot.launch.py
+  Aug 14 14:27:49-50        los 8 procesos del launch nacen  ← 2-3 s DESPUÉS
+                            del salto, con el reloj ya bueno
+  Aug 14 14:27:56           driver: streaming a 60 ms
+
+  · Ni un proceso de ROS existía cuando el reloj saltó. El orden que las
+    esperas existen para garantizar SE CUMPLIÓ.
+  · No hay más pasos de reloj después del inicial (timesyncd, journal entero).
+
+───────────────────────────────────────────────────────────────────────────────
+3 · LO QUE ESTO HACE CON LAS HIPÓTESIS — la tabla de los tres arranques
+───────────────────────────────────────────────────────────────────────────────
+                       08-12 (MUDO)      08-13 ev.104 (BIEN)   08-14 (MUDO)
+  salto de reloj       +12 h 56 min      +22 h 15 min          +21 h 14 min
+  nodos nacen…         ANTES del salto   después del salto     DESPUÉS del salto
+                       (13 h en rancio)  (mismo segundo)       (2-3 s después)
+  red al arrancar      asoció 6 s tarde  ✓ tras 2 s            ✓ tras 2 s
+  esperas              no existían       actuaron              actuaron
+  DDS                  🔴 no cruza       ✅ cruza              🔴 no cruza
+
+  🔴 «Los nodos nacieron a caballo del salto» NO explica el 08-14: nacieron
+     después, con el reloj ya sincronizado, y DDS no cruzó igual.
+  🔴 Y «la red llegó tarde» tampoco discrimina: tras 2 s en el arranque bueno
+     Y en el malo.
+  ⚠️ Lo honesto: con lo observable en el journal, el arranque bueno y el malo
+     son INDISTINGUIBLES. El fenómeno es intermitente (2 de 3 en arranques
+     fríos con salto grande de reloj) y la causa próxima NO se conoce.
+  📝 Hipótesis que quedan vivas, NINGUNA verificada: una carrera en el
+     descubrimiento de FastDDS en la ventana del salto (el salto y el launch
+     caen en el mismo segundo en los DOS arranques con esperas); estado de
+     transporte SHM; algo de la interfaz de red en ese instante. Aislarlas
+     exige reproducir el arranque en frío a voluntad, que cuesta reinicios
+     con el robot delante.
+
+───────────────────────────────────────────────────────────────────────────────
+4 · LO QUE SÍ HAY, Y VALE PARA LOS 16
+───────────────────────────────────────────────────────────────────────────────
+  ✅ DETECTOR: diagnosticar_mudo.sh lo diagnosticó entero en un comando, sin
+     sudo y sin mover el robot — primer uso en el escenario real con el robot
+     de verdad mudo. Separó bien: «publica el robot» vs «cruza DDS».
+  ✅ REMEDIO CONOCIDO: sudo systemctl restart atriz-robot (👤). Con el reloj ya
+     sincronizado, el stack renace con la hora buena — el 08-12 funcionó.
+  🔴 PARA LA FLOTA: es la segunda vez en tres arranques fríos. Con 16 robots
+     encendiéndose a la vez al empezar la clase, esto va a pasar CADA día.
+     ⏳ SIN DECIDIR: recuperación automática — p. ej. un ExecStartPost que
+     compruebe que DDS cruza (un eco con plazo) y reinicie UNA vez si no.
+     Es una decisión de diseño del usuario, no se implementa sola.
+  📝 Y la medida del caudal de /estado_robot que pidió el PC queda BLOQUEADA
+     hasta el reinicio: se hará justo después, sobre un robot sano.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ⏳ La causa próxima del mudo: intermitente, sin discriminante observable en
+     el journal. n=2 de fallo, n=1 de éxito, mismas condiciones visibles.
+  ⏳ La recuperación automática (decisión 👤).
+  ⏳ El caudal de /estado_robot (tras el reinicio).

@@ -4,6 +4,25 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14, tarde (Pi, remoto) — El mudo reaparece con las esperas actuando: la hipótesis del arranque a caballo no lo explica
+
+Al ir a medir el caudal de `/estado_robot` que pidió el PC, los tres topics —con dos controles—
+dieron **0 mensajes**: el robot estaba **mudo en DDS otra vez**, con la firma exacta del
+2026-08-12 (driver vivo al 20,7 %, RVR hablando, `_NODE_NAME_UNKNOWN_`, `node list` vacío).
+`diagnosticar_mudo.sh` hizo su primer diagnóstico en producción y acertó el recorrido entero.
+
+🔴 **El dato que cambia el mapa:** en este arranque **las esperas actuaron** — red ✓ tras 2 s,
+reloj sincronizado, y los 8 procesos del launch nacieron **2-3 s después** del salto de
++21 h 14 min. El mismo patrón del arranque bueno de la evidencia 104, con desenlace opuesto:
+**el fenómeno es intermitente (2 de 3 arranques fríos) y su causa próxima no se conoce** — el
+arranque bueno y el malo son indistinguibles en el journal. Tabla de los tres arranques,
+hipótesis vivas (ninguna verificada) y lo que sí hay —detector, remedio, y la decisión
+pendiente de recuperación automática para los 16— en la **evidencia 109**.
+
+⏳ El caudal de `/estado_robot` se mide tras el reinicio (👤 sudo), sobre un robot sano.
+
+---
+
 ## 2026-08-14 (Pi, remoto) — Auditoría de alineación: la documentación se pone al día con el día de laboratorio
 
 Sin robot de por medio: pasada de alineación de toda la documentación viva contra el estado real
