@@ -111,5 +111,9 @@ LO QUE SIGUE ABIERTO
      unidad— y de ahí se concluyó que el guardia faltaba. Lo que B3 realmente
      añade: ese guardia es lo ÚNICO entre la web y el latch, y por el camino
      directo el latch es real.
-  ⏳ Si StartLimitIntervalSec=300 limpia solo el contador a los 5 min: sigue
-     sin medir (nadie esperó 5 min mirando).
+  ⏳ ~~Si StartLimitIntervalSec=300 limpia solo el contador a los 5 min: sigue
+     sin medir (nadie esperó 5 min mirando).~~ ✅ MEDIDO el 2026-08-14
+     (evidencia 112): SÍ se limpia solo — a los 355 s del último arranque real
+     un start entra con rc=0, la unidad llega a Started de verdad y NRestarts
+     vuelve a 0. La web puede decir «espera ~5 min», con el matiz de que sin
+     quitar la causa se re-latchea.

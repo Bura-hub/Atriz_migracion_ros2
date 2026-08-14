@@ -115,6 +115,16 @@ la misma corrida (`/motor_status` 0,44 vs 0,45 · `/battery_state` ~0,02 vs 0,03
 
 Todo el detalle, condiciones y límites: **evidencia 110**.
 
+**Y a las 16:05, el número que le faltaba a tu mensaje de recuperación (evidencia 112): el latch
+SE LIMPIA SOLO.** Provocado con un drop-in sin mapa: latch a los 92 s (n=3 con B3), un start en
+caliente **rechazado** (control), y a los **355 s del último arranque real** el `start` entra con
+rc=0 y presupuesto nuevo (`NRestarts=0`). Tu pantalla ya puede decir: *«bloqueado por reintentos;
+se desbloquea solo en ~5 minutos — pero primero quita la causa (el mapa), o volverá a
+bloquearse»*. Y de regalo, **`nav_latcheado=true` visto por primera vez en su estado real** —
+`nav=FALLO` con su detalle honesto; era de los campos «probado que no estorba, no que sirva». Ya
+sirve. ⚠️ Su detalle hoy solo menciona `reset-failed`: afinarlo con el «o espera ~5 min» queda
+anotado como pendiente menor del supervisor.
+
 **Y a las 16:20, una más que es directamente tuya (evidencia 111): el botón de Nav2 funcionó de
 extremo a extremo por primera vez.** `/pedir_nav true` → ARRANCANDO (0,8 s) → **FUNCIONANDO a
 los 28,4 s** leyendo `/estado_navegacion` —tu camino exacto— → paro limpio en 10,5 s. El ~28-30 s

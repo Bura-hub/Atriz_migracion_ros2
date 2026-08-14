@@ -37,9 +37,11 @@
 >
 > ⏳ **Lo que el día dejó abierto:** el **mapa del aula** (no se llegó a mapear — Bloque C entero
 > pendiente), la decisión del **barrido-apagado-al-parar-nav** (conflicto 2, ahora con dato),
-> el «negarse sin mapa» del servicio ROS, y si `StartLimitIntervalSec=300` limpia solo el
-> contador. Y los cuatro fallos del instrumento de medida están contados en la evidencia 107 y
-> arreglados en `scripts/medir_arranque_nav.sh`.
+> ~~el «negarse sin mapa» del servicio ROS~~ (✅ retirado el 14: ya existía desde el 07,
+> evidencia 80), y ~~si `StartLimitIntervalSec=300` limpia solo el contador~~ (✅ medido el 14,
+> evidencia 112: **sí se limpia solo** a los ~5 min del último arranque). Y los cuatro fallos
+> del instrumento de medida están contados en la evidencia 107 y arreglados en
+> `scripts/medir_arranque_nav.sh`.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
 > 🔴 **LO PRIMERO: ejecuta `bash scripts/medir_recuperacion.sh` EN LA PI**

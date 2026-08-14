@@ -1,0 +1,84 @@
+═══════════════════════════════════════════════════════════════════════════════
+112 · EL LATCH DE atriz-nav SE LIMPIA SOLO: A LOS 355 s DEL ÚLTIMO ARRANQUE,
+      `systemctl start` VUELVE A ENTRAR SIN `reset-failed` — Y LA PRIMERA
+      OBSERVACIÓN DE `nav_latcheado=true` EN SU ESTADO DE FALLO
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-14, remoto · batería ~7,9 V
+Robot:   rvr-01 · drop-in de prueba sin mapa (EnvironmentFile=, el mecanismo
+         corregido en la evidencia 107; 👤 lo instaló y lo retiró el usuario)
+Origen:  El ⏳ de B3 (evidencia 107): «si StartLimitIntervalSec=300 limpia solo
+         el contador a los 5 min: sigue sin medir (nadie esperó 5 min
+         mirando)». Decide el texto de recuperación de la web: «espera 5
+         minutos» contra «solo por SSH».
+
+RESUMEN
+  ✅ El latch NO es permanente. Cronología medida: latch a los 92 s del primer
+  start (3 arranques reales, ciclo ~31 s) → un start en caliente RECHAZADO
+  (control) → a los **355 s del último arranque real**, `systemctl start`
+  devuelve 0, la unidad llega a `Started` DE VERDAD (el wrapper corre) y
+  `NRestarts` vuelve a 0. **La web puede decir «espera ~5 minutos y
+  reintenta»** — con el matiz de que reintentar sin arreglar la causa quema
+  otro presupuesto entero y re-latchea. De regalo: `nav_latcheado=true` visto
+  por primera vez en su estado real, con su detalle honesto.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LA CRONOLOGÍA ENTERA (journal, reloj ya sincronizado)
+───────────────────────────────────────────────────────────────────────────────
+  15:53:21  start humano nº1 (--no-block, rc=0)
+  15:53:33  Started → 15:53:35 «🔴 no hay mapa legible» → :41 Failed
+  15:54:04  Started (restart 1) → falla igual
+  15:54:35  Started (restart 2) → falla igual          ← ÚLTIMO arranque real
+  15:54:52  restart counter is at 3 · «Start request repeated too quickly»
+            → LATCH, a los 92 s del start humano
+  15:55:21  CONTROL: start en caliente → RECHAZADO («repeated too quickly»,
+            el wrapper NO corre, ExecMainStartTimestamp intacto)
+  16:00:30  REINTENTO (+355 s del último arranque real): rc=0
+  16:00:42  Started — el wrapper CORRE otra vez («no hay mapa» en el journal)
+            · NRestarts=0: presupuesto NUEVO
+  16:00:49  Failed (la causa seguía puesta) → habría re-latcheado; se paró
+            con `systemctl stop` para no dar vueltas de más
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LO QUE RESPONDE, Y SUS MATICES HONESTOS
+───────────────────────────────────────────────────────────────────────────────
+  ✅ La ventana de StartLimitIntervalSec=300 es DESLIZANTE y el estado `failed`
+     no bloquea por sí solo: cuando los 3 arranques quedan fuera de la
+     ventana, un start nuevo entra sin `reset-failed`.
+  📝 Para la web, el texto que faltaba: «bloqueado por reintentos; se
+     desbloquea solo en ~5 minutos — pero PRIMERO quita la causa (el mapa), o
+     volverá a bloquearse». Es la frase del ExecStartPre de la evidencia del
+     08-08, ahora con las dos mitades medidas.
+  ⚠️ Lo que esta medida NO separa: si las PETICIONES rechazadas (15:55:21)
+     cuentan en la ventana — el reintento quedó a +309 s de la petición y a
+     +355 s del arranque, los dos fuera de los 300. Para separarlo habría que
+     reintentar entre +300 y +309, y no cambia el consejo operativo.
+  ⚠️ n=1 en la parte del desbloqueo (el latch y el rechazo en caliente van
+     n=3 contando B3). Suficiente para el texto de la web; si algún día
+     importa el borde exacto de la ventana, se replica.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · LA PRIMERA OBSERVACIÓN DE nav_latcheado, Y UNA TRAMPA DE INSTRUMENTO
+───────────────────────────────────────────────────────────────────────────────
+  ✅ Durante el latch, /estado_navegacion publicó por primera vez su estado de
+     fallo real:
+       nav=FALLO · nav_latcheado=True
+       detalle: «bloqueada por reintentos agotados: hace falta
+                 “sudo systemctl reset-failed atriz-nav.service” desde el robot»
+     El campo existía desde el 2026-08-07 y NUNCA se había visto en true —
+     era de los «probado que no estorba, no que sirva». Ya sirve.
+     📝 Con lo de arriba, ese detalle se queda corto: reset-failed O esperar
+     ~5 min. ⏳ Ajustar el texto del supervisor: pendiente, decisión menor.
+  🔴 TRAMPA DE INSTRUMENTO (va a la colección): con el latch puesto,
+     `systemctl start` imprime «Job … failed because the CONTROL PROCESS
+     EXITED with error code» — sugiere que el proceso corrió y falló. FALSO:
+     el journal dice «repeated too quickly» y el wrapper nunca corrió. El
+     stderr de systemctl no distingue «rechazado por rate-limit» de «corrió y
+     murió»; el journal sí.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ✅ El ⏳ de B3 sobre StartLimitIntervalSec: CERRADO.
+  ⏳ Afinar el detalle de nav_latcheado en el supervisor («o espera ~5 min»).
+  ⏳ Si las peticiones rechazadas cuentan en la ventana: sin separar, sin
+     consecuencia operativa.

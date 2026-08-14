@@ -4,6 +4,21 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14, 16:05 (Pi, remoto) — El latch de atriz-nav se limpia solo a los ~5 min, y nav_latcheado=true visto por primera vez
+
+Cierra el último ⏳ de B3: con un drop-in sin mapa (👤 sudo), **latch a los 92 s** del primer
+start (3 arranques reales, ciclo ~31 s), un start en caliente **rechazado** (control positivo), y
+a los **355 s del último arranque real** el `systemctl start` entra con **rc=0**, la unidad llega
+a `Started` de verdad y `NRestarts` vuelve a 0. **La ventana de `StartLimitIntervalSec=300` es
+deslizante y el estado `failed` no bloquea por sí solo.** El texto de recuperación de la web
+queda: «se desbloquea solo en ~5 minutos — pero primero quita la causa, o vuelve a bloquearse».
+De regalo: primera observación de **`nav_latcheado=true`** en su estado real (`nav=FALLO`, con su
+detalle honesto) — era de los campos nunca vistos en fallo. Y una trampa de instrumento para la
+colección: con el latch, el stderr de `systemctl start` dice «control process exited with error
+code» **sin que el proceso haya corrido** — el discriminante es el journal. **Evidencia 112.**
+
+---
+
 ## 2026-08-14, 16:20 (Pi, remoto) — El botón de Nav2, de extremo a extremo por primera vez: FUNCIONANDO en 28,4 s y paro limpio
 
 Cierra el ⏳ que la evidencia 80 dejó el 2026-08-07 («los rechazos sí están verificados; el

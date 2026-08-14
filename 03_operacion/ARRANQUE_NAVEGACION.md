@@ -97,6 +97,16 @@ a propósito. Lo que B3 aporta de verdad: **el guardia del supervisor es lo úni
 el latch** — el camino directo (SSH, un script) sigue latcheando, y eso no lo arregla ningún
 servicio ROS.
 
+✅ **Y el latch NO es permanente, medido el 2026-08-14 (evidencia 112):** la ventana de
+`StartLimitIntervalSec=300` es deslizante — a los **355 s del último arranque real**, un
+`systemctl start` entra con rc=0, la unidad llega a `Started` de verdad y `NRestarts` vuelve
+a 0 (presupuesto nuevo). El texto de recuperación para la web es: *«bloqueado por reintentos;
+se desbloquea solo en ~5 minutos — pero primero quita la causa, o volverá a bloquearse»*.
+`reset-failed` sigue siendo el atajo inmediato, y sigue siendo solo-SSH. ⚠️ Trampa de
+instrumento: con el latch puesto, el stderr de `systemctl start` dice «control process exited
+with error code» como si el proceso hubiera corrido — **no corrió**; el discriminante es el
+journal («Start request repeated too quickly»).
+
 📝 **No está en el manifiesto**, y es a propósito: el manifiesto es para ficheros idénticos en los
 16 comprobados con `cmp`, y este lo edita el operador. `fase_7` **no lo sobrescribe si ya existe**
 y `--quitar` **no lo borra** — puede llevar la ruta de un mapa que costó una sesión entera.
