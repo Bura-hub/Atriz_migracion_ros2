@@ -4,6 +4,21 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14, 17:50 (Pi, 👤 reboot real) — El arranque en frío con TODO lo nuevo armado: cada pieza en verde
+
+`sudo reboot` (👤) para la única verificación que faltaba de la jornada: ningún boot completo
+había visto el conjunto. Resultado, pieza a pieza: el kernel arrancó con el reloj en junio (la
+firma del sin-RTC), las esperas actuaron (red tras 2 s, reloj antes del launch), **el vigía dio
+«✓ DDS cruza a los 1,2 s» en un frío de verdad** (el dado del mudo salió sano: va 2 de 4 en
+fríos con esperas), y **el guardia de arranque del reenganche quedó verificado por efecto** —
+el `add` de udev disparó la oneshot ANTES de que atriz-robot estuviera activa y respondió
+«no está activa: nada que reenganchar», la única rama que estaba solo por lógica. `/run/atriz`
+nació limpio de `sphero`, `NRestarts=0`, y el yaw se re-referenció solo (aviso fuera).
+**Verificador tras el boot: 159 correctas · 3 avisos (los tres aplazados con dueño: mDNS-wlan0,
+authorized_keys, credenciales) · 0 fallos.** Batería 7,87 V.
+
+---
+
 ## 2026-08-14, 17:45 (Pi, remoto) — Falso positivo nº 11 del verificador: `grep -q` + pipefail, no el daemon — y el aviso del ttyUSB0 a fuego
 
 Al pasar el verificador de cierre: «`/infrared_messages` sin publicador» con el publicador
