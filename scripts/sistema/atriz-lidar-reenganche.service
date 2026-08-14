@@ -1,0 +1,21 @@
+# atriz-lidar-reenganche.service — el reenganche del LIDAR tras re-enumerar
+#
+# La dispara udev (98-atriz-lidar-reenganche.rules) cada vez que el adaptador
+# USB-serie del X2 APARECE. El guion decide si hay algo que hacer — casi
+# siempre no: solo reinicia atriz-robot cuando el nodo quedó con el descriptor
+# muerto (evidencia 69 §6). Sin [Install] a propósito: nadie la habilita, solo
+# udev la quiere.
+#
+# Corre como root (el reinicio de atriz-robot lo exige y udev ya es root);
+# NO toca ROS ni DDS — mira /proc y llama a systemctl, nada más.
+
+[Unit]
+Description=Atriz — reengancha el LIDAR si el nodo quedó con el descriptor muerto
+Documentation=file:///home/sphero/atriz_migracion/00_auditoria/evidencia/69_apagar_rvr_con_pi_viva.txt
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/atriz-lidar-reenganche
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=atriz-lidar-reenganche

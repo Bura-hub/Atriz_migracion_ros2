@@ -42,3 +42,6 @@ scripts/first-boot.sh	/usr/local/sbin/atriz-first-boot.sh	755	fase_6_preparar_im
 scripts/first-boot.service	/etc/systemd/system/atriz-first-boot.service	644	fase_6_preparar_imagen_dorada.sh	opcional
 scripts/atriz-vigia-dds.sh	/usr/local/bin/atriz-vigia-dds	755	fase_7_systemd.sh	-
 scripts/sistema/vigia_dds.py	/usr/local/bin/vigia_dds.py	755	fase_7_systemd.sh	-
+scripts/sistema/atriz-lidar-reenganche.sh	/usr/local/bin/atriz-lidar-reenganche	755	fase_7_systemd.sh	-
+scripts/sistema/atriz-lidar-reenganche.service	/etc/systemd/system/atriz-lidar-reenganche.service	644	fase_7_systemd.sh	-
+scripts/sistema/98-atriz-lidar-reenganche.rules	/etc/udev/rules.d/98-atriz-lidar-reenganche.rules	644	fase_7_systemd.sh	-

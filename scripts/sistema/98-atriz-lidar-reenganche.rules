@@ -1,0 +1,14 @@
+# 98-atriz-lidar-reenganche.rules — cuando el adaptador del LIDAR (re)aparece,
+# systemd arranca la unidad que decide si hay que reenganchar.
+#
+# Casa por vendor/modelo (10c4:ea60, el CP2102) y NO por ID_PATH a propósito:
+# el disparador debe sonar aunque el cable esté en el puerto equivocado — en
+# ese caso el guion no hará nada (el guardia «atriz-robot activa» o el del
+# nodo lo paran), pero la regla del symlink (99-ydlidar.rules, generada por
+# provision.sh) sigue siendo la única autoridad sobre /dev/ydlidar.
+#
+# `TAG+="systemd"` es obligatorio: sin él systemd no modela el dispositivo y
+# SYSTEMD_WANTS no hace nada — otra config que existe y no actúa, la familia
+# de fallos favorita de este proyecto.
+SUBSYSTEM=="tty", ACTION=="add", ENV{ID_VENDOR_ID}=="10c4", ENV{ID_MODEL_ID}=="ea60", \
+  TAG+="systemd", ENV{SYSTEMD_WANTS}+="atriz-lidar-reenganche.service"

@@ -117,6 +117,10 @@ if [[ $MODO == quitar ]]; then
     rm -f /usr/local/bin/atriz-nav.sh /usr/local/bin/atriz-slam.sh \
           /usr/local/bin/atriz-exclusion
     rm -f /usr/local/bin/atriz-vigia-dds /usr/local/bin/vigia_dds.py
+    rm -f /usr/local/bin/atriz-lidar-reenganche \
+          /etc/systemd/system/atriz-lidar-reenganche.service \
+          /etc/udev/rules.d/98-atriz-lidar-reenganche.rules
+    udevadm control --reload-rules 2>/dev/null || true
     rm -f /etc/polkit-1/rules.d/49-atriz-unidades.rules
     # /etc/default/atriz NO se borra: lo edita el operador y puede llevar la
     # ruta de un mapa que costó una sesión de mapeo. Se avisa y se deja.
@@ -157,6 +161,9 @@ comprobar "existe atriz-slam.service en el repo" "[[ -f $SCRIPTS_DIR/atriz-slam.
 comprobar "existe atriz-exclusion.sh en el repo" "[[ -f $SCRIPTS_DIR/atriz-exclusion.sh ]]"
 comprobar "existe atriz-vigia-dds.sh en el repo" "[[ -f $SCRIPTS_DIR/atriz-vigia-dds.sh ]]"
 comprobar "existe vigia_dds.py en el repo"       "[[ -f $SCRIPTS_DIR/sistema/vigia_dds.py ]]"
+comprobar "existe atriz-lidar-reenganche.sh en el repo" "[[ -f $SCRIPTS_DIR/sistema/atriz-lidar-reenganche.sh ]]"
+comprobar "existe atriz-lidar-reenganche.service en el repo" "[[ -f $SCRIPTS_DIR/sistema/atriz-lidar-reenganche.service ]]"
+comprobar "existe 98-atriz-lidar-reenganche.rules en el repo" "[[ -f $SCRIPTS_DIR/sistema/98-atriz-lidar-reenganche.rules ]]"
 comprobar "existe la regla de polkit en el repo" \
           "[[ -f $SCRIPTS_DIR/sistema/49-atriz-unidades.rules ]]"
 comprobar "existe la plantilla de ajustes en el repo" \
@@ -368,6 +375,20 @@ hacer install -m 755 "$SCRIPTS_DIR/atriz-vigia-dds.sh"    /usr/local/bin/atriz-v
 hecho "/usr/local/bin/atriz-vigia-dds"
 hacer install -m 755 "$SCRIPTS_DIR/sistema/vigia_dds.py"  /usr/local/bin/vigia_dds.py
 hecho "/usr/local/bin/vigia_dds.py"
+
+# El reenganche del LIDAR tras re-enumerar el USB (evidencia 69 §6, decisión A
+# del 2026-08-14): udev dispara una oneshot que reinicia atriz-robot SOLO si el
+# nodo quedó con el descriptor muerto. Casi siempre es un no-op con guardias.
+hacer install -m 755 "$SCRIPTS_DIR/sistema/atriz-lidar-reenganche.sh" /usr/local/bin/atriz-lidar-reenganche
+hecho "/usr/local/bin/atriz-lidar-reenganche"
+hacer install -m 644 "$SCRIPTS_DIR/sistema/atriz-lidar-reenganche.service" /etc/systemd/system/atriz-lidar-reenganche.service
+hecho "/etc/systemd/system/atriz-lidar-reenganche.service"
+hacer install -m 644 "$SCRIPTS_DIR/sistema/98-atriz-lidar-reenganche.rules" /etc/udev/rules.d/98-atriz-lidar-reenganche.rules
+# ⚠️ Sin el reload, la regla existe y no actúa — la familia de siempre. NO se
+#    hace `udevadm trigger`: re-dispararía eventos add y con ellos el
+#    reenganche (inofensivo por los guardias, pero ruido gratis en el journal).
+hacer udevadm control --reload-rules
+hecho "/etc/udev/rules.d/98-atriz-lidar-reenganche.rules (+ reload de udev)"
 
 # La regla de polkit: sin ella, `supervisor_navegacion` recibe «Interactive
 # authentication required» al llamar a systemctl (verificado el 2026-08-07) y
