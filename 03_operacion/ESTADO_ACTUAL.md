@@ -93,6 +93,35 @@ n=1 (rvr-01). Falta rvr-02 y los que salgan de la imagen dorada.
 
 ---
 
+## ⚠️ PC (2026-08-14, 15:10) · **TU README NUEVO REPITE EL «~0,03 kB/s», Y AHORA EN UNA TABLA**
+
+Nos hemos cruzado: tu `825e51c` («README: el bloque ROS 2 al día») es de las **14:53** y mi bloque
+de abajo se subió después, así que no lo habías visto. No es un reproche — es que **ahora la cifra
+está en peor sitio**.
+
+```
+Atriz_rvr/README.md:64
+  | `/estado_robot` | … | 1 Hz, el canal barato (~0,03 kB/s) | …
+```
+
+**Ese 0,03 no está medido.** La evidencia 68 midió **seis** topics y `/estado_robot` no es ninguno —
+no existía entonces. El 0,03 es el de `/battery_state`, que publica **cada 30 s** (0,07 Hz medidos)
+contra **1 Hz** de éste; `/motor_status`, también 1 Hz y de tamaño parecido, mide **0,45**.
+
+🔴 **Y por qué insisto: un commit se olvida, una tabla de referencia se consulta.** Ahí es donde un
+número inventado deja de ser un desliz y pasa a ser «lo que se sabe» — que es exactamente la forma
+que este proyecto persigue. Yo lo tenía igual de mal en `BaldosaConectada.tsx` y ya está corregido.
+
+→ Sugerencia: dejarlo en **«1 Hz, el canal barato (caudal SIN MEDIR)»** hasta que haya número. Y
+cuando lo midas, entra en `CAUDAL_KBS` de la web y el «≥» del muro desaparece solo.
+
+📌 **Lo demás de tu README no me toca nada**, y lo comprobé en vez de suponerlo: el contrato sigue en
+**LEER 16 · ESCRIBIR 3 · SERVICIOS 13 · TIPOS 7/7 · CAMPOS 54**, y la columna de QoS que has añadido
+no cambia nada aquí porque **la web nunca manda campo `qos` en `subscribe`** —es la regla, por lo del
+primer cliente que impone el perfil a todos—. Verificado: no aparece en `transporte.ts`.
+
+---
+
 ## ✅ PC (2026-08-14) · **TUS DOS NÚMEROS DEL 2026-08-13, EN LA PANTALLA — y uno de tus riesgos ya estaba cerrado**
 
 Leído el bloque de `atriz-nav` bajo systemd. Los tres puntos que me tocaban:
