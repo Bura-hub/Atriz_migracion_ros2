@@ -426,6 +426,55 @@ estática está mal, sigues llegando al robot. Evidencia 39.
 
 ---
 
+## 🟡 LA IMAGEN DORADA ESTÁ LISTA — Y EN ESPERA DE AUTORIZACIÓN EXPLÍCITA (2026-08-14)
+
+> 👤 **Decisión del usuario: la Fase 6 NO se ejecuta hasta que él lo autorice.** Todo el
+> pre-vuelo está hecho y el procedimiento queda aquí para que ese día sea ejecutar, no
+> reconstruir. **Nadie —agente incluido— lanza `fase_6` sin esa autorización.**
+
+**El pre-vuelo, ya hecho el 2026-08-14:**
+
+- ✅ Los dos repos al día y empujados; el proceso vivo ejecuta el código del repo (md5).
+- ✅ El robot pasó el verificador **tras un arranque en frío real**: 159 ✓ · 3 avisos · 0 fallos.
+- ✅ `fase_6` **endurecido antes de su estreno**: la puerta del driver-activo se cruza ANTES de
+  borrar la identidad (el orden viejo dejaba un robot a medio preparar); `--breve` existe;
+  `first-boot.sh/.service` en el repo.
+- ✅ Sin credenciales sorpresa: la búsqueda recursiva solo encontrará `~/.git-credentials` (se
+  hace `shred -u` en el momento) y `~/.claude/.credentials.json` (la borra el propio guion).
+  La copia vieja de `respaldo_pre_migracion` ya no existe.
+- 📝 Tarjeta: 8 GB usados de 29 — el `dd` crudo pesa ~30 GB; con `pishrink` baja a ~8.
+
+**Las cuatro consecuencias que se aceptan a sabiendas al ejecutarla:**
+
+1. **Claude Code se borra de la Pi** (decisión del 2026-08-03): memoria y transcriptos mueren;
+   todo lo durable ya vive en los repos. El trabajo posterior del lado robot: SSH desde el PC.
+2. **El token de git muere** (`shred -u`): rvr-01 no podrá hacer *push* hasta re-teclearlo
+   (clonar/pull sí — repos públicos).
+3. **Los mapas mueren** (`cuarto3` incluido) y `ATRIZ_MAPA` queda vacío — a propósito: cada
+   aula mapea el suyo (evidencia 84).
+4. **La identidad muere**: huella SSH nueva al renacer como robot 01, y ⚠️ **no arrancar la
+   tarjeta entre `fase_6` y el `dd`** — el first-boot regeneraría la identidad en la imagen.
+
+**El procedimiento, el día autorizado:**
+
+```bash
+sudo systemctl stop atriz-robot
+systemctl is-failed atriz-robot          # debe decir 'inactive', no 'failed'
+sudo bash ~/atriz_migracion/scripts/fase_6_preparar_imagen_dorada.sh
+#   → 'si' · avisos del verificador → 'si' · Claude Code → 'si'
+#   → cuando señale el token:  shred -u /home/sphero/.git-credentials
+sudo poweroff
+
+# En el PC, con la tarjeta fuera:
+sudo dd if=/dev/mmcblk0 of=atriz_jazzy_v1.img bs=4M status=progress conv=fsync
+sha256sum atriz_jazzy_v1.img > atriz_jazzy_v1.img.sha256
+sudo pishrink.sh -Z atriz_jazzy_v1.img   # opcional, ~30 GB → ~8
+git tag -a v1.0-jazzy -m "Primera imagen dorada validada" && git push origin v1.0-jazzy
+# Por robot: grabar · editar robot_id.txt · reserva DHCP · arrancar · verificar_robot.sh
+```
+
+---
+
 ## Cómo NO repetir el proceso 16 veces
 
 **El trabajo se hace UNA vez.** Perfeccionas un robot, conviertes su tarjeta en imagen, y

@@ -4,6 +4,20 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14, 18:10 (Pi) — La Fase 6 queda LISTA y EN ESPERA DE AUTORIZACIÓN — decisión del usuario
+
+Pre-vuelo de la imagen dorada hecho entero: repos y proceso vivo alineados (md5), verificador en
+verde tras un boot real, `--breve` y `first-boot` confirmados, credenciales inventariadas (solo
+las dos esperadas), y **`fase_6` endurecido antes de su estreno** — la puerta del driver-activo
+se cruza ahora ANTES de borrar la identidad; el orden viejo habría dejado un robot a medio
+preparar en su primera ejecución. 👤 **Decisión: NO se ejecuta hasta autorización explícita del
+usuario.** El procedimiento completo, con las cuatro consecuencias que se aceptan a sabiendas
+(Claude Code fuera, token de git muerto, mapas borrados, identidad nueva), queda en
+`03_operacion/FLOTA.md` («la imagen dorada está lista») para que el día autorizado sea ejecutar,
+no reconstruir.
+
+---
+
 ## 2026-08-14, 17:50 (Pi, 👤 reboot real) — El arranque en frío con TODO lo nuevo armado: cada pieza en verde
 
 `sudo reboot` (👤) para la única verificación que faltaba de la jornada: ningún boot completo

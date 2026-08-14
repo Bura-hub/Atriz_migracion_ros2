@@ -47,6 +47,12 @@
 > práctica 63, foto del conector USB, prueba de aceptación de un tirón, y la Fase 6 (imagen
 > dorada) — que ahora llevará de serie los dos vigilantes y el barrido-que-devuelve-el-estado.
 >
+> 🟡 **Y la FASE 6 quedó LISTA Y EN ESPERA DE AUTORIZACIÓN (👤 decisión del 2026-08-14):** el
+> pre-vuelo entero está hecho, `fase_6` endurecido antes de su estreno, y el procedimiento con
+> sus cuatro consecuencias escrito en **`03_operacion/FLOTA.md`** («la imagen dorada está
+> lista»). **No se ejecuta hasta que el usuario lo autorice explícitamente** — ni por agente ni
+> por inercia: ejecutarla borra Claude Code, el token de git, los mapas y la identidad de rvr-01.
+>
 > ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-13 · SEGUNDO DÍA EN EL LABORATORIO: EL BLOQUE ROJO DE ABAJO QUEDÓ CERRADO**
 > ═══════════════════════════════════════════════════════════════════════════════
