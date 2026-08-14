@@ -2000,8 +2000,11 @@ muerto.** La evidencia 68 §6 dejó abierto un `result:false` y lo atribuyó al 
 RVR nueve horas antes. Abre el puerto una vez al arrancar y no lo reabre; udev rehace
 `/dev/ydlidar` y nadie se lo dice al proceso. Un `systemctl restart atriz-robot` lo arregla, y
 medido después: `/scan` a **11,90 Hz** y `/start_scan` en **1,4-2,1 s** por WebSocket, 6 de 6.
-🔴 **Que se recupere solo sigue SIN HACER** y con 16 robots va a volver: cualquier
-re-enumeración del USB lo provoca. Evidencia 69, apartado 6, con las dos opciones y sin decidir.
+~~🔴 **Que se recupere solo sigue SIN HACER** y con 16 robots va a volver: cualquier
+re-enumeración del USB lo provoca. Evidencia 69, apartado 6, con las dos opciones y sin decidir.~~
+✅ **CERRADO el 2026-08-14** (evidencia 115): `atriz-lidar-reenganche` por udev, verificado
+desenchufando de verdad — ~22 s a robot útil. Y la re-enumeración la provoca **desenchufar el
+USB de la Pi**, no apagar el RVR (atribución corregida).
 
 🔴 **Y del mismo episodio salió un SEGUNDO fallo, ya cerrado: el puerto USB físico.** Al mover el
 cable buscando que volviera a ser `/dev/ttyUSB0` —número que **no importa**, para eso está la

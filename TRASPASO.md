@@ -5,6 +5,45 @@
 > contexto desde cero.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-14 · EL DÍA EN QUE EL ROBOT APRENDIÓ A CURARSE SOLO (evidencias 109-115)**
+> ═══════════════════════════════════════════════════════════════════════════════
+> Sesión remota (el robot en casa del usuario), tratando uno a uno los pendientes que no
+> exigían el aula. Lo que quedó:
+>
+> - 🔴 **El mudo en DDS REAPARECIÓ — y desarma la explicación que teníamos** (evidencia 109):
+>   esta vez los nodos nacieron **después** del salto de reloj, con las esperas cumplidas, y
+>   DDS no cruzó igual. El arranque bueno y el malo son **indistinguibles en el journal**:
+>   intermitente, causa próxima sin conocer (2 de 3 arranques fríos).
+> - ✅ **Y por eso existe el VIGÍA DE DDS** (evidencia 113): `atriz-vigia-dds`, ExecStartPost
+>   de atriz-robot — si `/estado_robot` no llega en 90 s, SIGINT al proceso principal y
+>   `Restart=always` lo levanta. **Una vez por arranque, fallo abierto.** Sus dos primeros
+>   disparos fueron **falsos positivos** (el lanzador sin `ROS_DOMAIN_ID` escuchaba en el
+>   dominio 0) y la marca de una-sola-vez los contuvo — la lección: **la prueba fiel de un
+>   ExecStartPost es con `env -i`**, no heredando tu shell.
+> - ✅ **El LIDAR desenchufado también se cura solo** (evidencia 115): `atriz-lidar-reenganche`
+>   por udev, verificado desenchufando de verdad — **~22 s a robot útil**. 🔴 Y cayó una
+>   atribución falsa: el adaptador se alimenta **de la Pi** (lo que re-enumera es desenchufar
+>   el cable, no apagar el RVR — testimonio del usuario + cero eventos USB medidos).
+> - ✅ **Conflicto 2 CERRADO con la decisión B** (evidencia 114): nav/slam **devuelven el
+>   barrido al estado que encontraron** (`on-recordando` + marca en `/run/atriz`). El alumno
+>   que lo tenía encendido de antes ya no se queda ciego al pararse la nav. ⚠️ No cubre a
+>   quien enciende *después* de arrancada la nav: para ese sigue el aviso de la web.
+> - ✅ **El botón de Nav2, de extremo a extremo por primera vez** (evidencia 111): FUNCIONANDO
+>   a los 28,4 s por `/estado_navegacion` (n=3 con B2), paro limpio en 10,5 s. Y el **latch se
+>   limpia solo a los ~5 min** (evidencia 112) — la web puede decir «espera 5 minutos», y
+>   `nav_latcheado=true` se vio por primera vez en su estado real.
+> - ✅ **El caudal de `/estado_robot`, medido: 0,35 kB/s** (evidencia 110) — el «0,03» que
+>   circulaba era el de `/battery_state` copiado, doce veces corto. El muro del PC queda con
+>   los tres topics medidos (~0,83 kB/s por robot).
+> - 🔴 **Dos retractaciones mías, corregidas en sitio:** el «negarse sin mapa: sin implementar»
+>   (el guardia existía desde el 07, evidencia 80) y la atribución del LIDAR de arriba.
+>
+> ⏳ **Del día quedan:** el punto 6 de la tabla (logs honestos del driver: «streaming
+> reanudado» miente con el RVR apagado, sin espera creciente — evidencia 52), y todo lo que
+> espera al aula (Bloque C entero, práctica 63, foto del conector, prueba de aceptación de un
+> tirón, Fase 6).
+>
+> ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-13 · SEGUNDO DÍA EN EL LABORATORIO: EL BLOQUE ROJO DE ABAJO QUEDÓ CERRADO**
 > ═══════════════════════════════════════════════════════════════════════════════
 > Cinco evidencias (104-108) cierran casi todo lo que el bloque rojo de abajo tenía abierto:

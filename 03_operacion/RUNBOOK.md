@@ -222,6 +222,20 @@ queremos. Para que deje de hacerlo —solo si algo va mal— hace falta
 
 ## Cuando algo falla
 
+### 🩹 Antes de nada: el robot se cura SOLO de dos fallos (desde el 2026-08-14)
+
+Si el robot «parpadeó» —desapareció de la web ~30-40 s y volvió— probablemente no falló nada:
+uno de los dos vigilantes hizo su trabajo. Los dos escriben su decisión en el journal:
+
+| Vigilante | Cubre | Cómo se ve |
+|---|---|---|
+| **`vigia-dds`** (dentro de atriz-robot) | El robot que **nace mudo en DDS** (driver vivo, ni un mensaje cruzando — evidencia 109; intermitente, causa sin conocer) | `journalctl -u atriz-robot \| grep vigia-dds` → «✓ DDS cruza» (sano) o «🔴 MUDO … SIGINT» (curó). **Una vez por arranque**: si tras la cura sigue mudo dice «SIGUE MUDO … NO se reinicia» y ahí sí te toca a ti: `diagnosticar_mudo.sh` + `sudo systemctl restart atriz-robot` |
+| **`atriz-lidar-reenganche`** (udev) | El **USB del LIDAR desenchufado y vuelto a enchufar** (el nodo se queda con el descriptor muerto — evidencia 69; ojo: lo que re-enumera es **desenchufar el cable de la Pi**, no apagar el RVR) | `journalctl -u atriz-lidar-reenganche` → «sano, no toco nada» o «descriptor MUERTO … reiniciando». Anti-aleteo: no reinicia dos veces en <120 s |
+
+📝 Los dos fallan **abierto**: ante cualquier duda no tocan nada y lo dicen. Si el journal
+muestra al vigía rindiéndose o al reenganche negándose por aleteo, el remedio manual de siempre
+sigue siendo `sudo systemctl restart atriz-robot`. Evidencias 113 y 115.
+
 ### 🔴 El robot está «vivo» pero no publica nada — EMPIEZA POR AQUÍ
 
 Es el fallo más traicionero del sistema, porque **todo parece correcto**: el proceso vive, el
