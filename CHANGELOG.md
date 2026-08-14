@@ -254,6 +254,54 @@ Evidencia 103.
 
 ---
 
+## 2026-08-14 (PC) — El IR llega al muro, y de paso: mi presupuesto no sumaba lo que gasta
+
+Integrado lo que el robot empujó el 11 y el 13.
+
+### Lo suyo, hecho
+
+- **`conduciendo_por_ir` en `/estado_robot`** (el canal barato). La web **ya no se suscribe a
+  `/estado_ir` en ninguna pantalla**, y con eso el aviso entra también en el **muro**: baldosa en
+  ámbar con la etiqueta «conduce por IR». ⚠️ **MIRAR y no IR**: en una práctica de infrarrojos eso
+  es lo que tiene que pasar, y con `IR` las dieciséis baldosas pedirían cruzar el aula a la vez.
+- **El `ExecStartPre` sí latchea** (medido por el robot): el titular de BLOQUEADO no cambia, como
+  pidió. Se le añadió el **orden**: primero quitar la causa, después el `reset-failed`, porque si la
+  causa sigue se vuelve a bloquear a los tres intentos.
+- **Arrancar Nav2 son ~28 s** (27,80 y 27,84, n=2). Está en pantalla **con su condición**.
+- **Al parar la navegación el barrido queda apagado**: el aviso va en la confirmación de la parada,
+  que es lo que esa persona está mirando.
+
+### 🔴 Y un fallo mío que salió al hacerlo, peor que lo anterior
+
+**El muro declaraba DOS topics y se suscribía a TRES.** `/estado_robot` entró en la baldosa el
+2026-08-04 y **nunca entró en el presupuesto**, así que la cifra que gobierna si el WiFi del aula
+aguanta con dieciséis alumnos llevaba desde entonces **por debajo de lo real**, sin que nada lo
+dijera.
+
+**Y el «~0,03 kB/s» que los dos usábamos no está medido.** La evidencia 68 midió seis topics y
+`/estado_robot` no es ninguno — no existía. Ese 0,03 es el de `/battery_state`, que publica **cada
+30 s** (0,07 Hz) contra **1 Hz** de éste. Es la trampa ya escrita: *una cifra correcta en su
+contexto se vuelve falsa al mudarla de sitio*. Por comparación con `/motor_status` —también 1 Hz,
+0,45 kB/s— el muro podría costar un orden de magnitud más, pero eso es una comparación y no entra
+en `CAUDAL_KBS`.
+
+→ El módulo sigue negándose a sumar lo que nadie midió, y ahora una prueba comprueba que
+`TOPICS_MURO` **entero lanza**. La pantalla deja de fingir: sale con **«≥»** y dice qué falta.
+
+### Dos correcciones de método, y las dos las destapó mirar
+
+1. **Una prueba mía prohibía la palabra «segundos»** en el texto de «arrancando», con un motivo
+   bueno («n=2 en reposo, no se promete un plazo») y un alcance demasiado ancho: confundía
+   **prometer** con **informar**. Reescrita — se prohíbe la forma de promesa (cuánto falta, %,
+   barra) y se **exige** la condición al lado.
+2. **Fechas mías equivocadas.** Escribí como 2026-08-11 hallazgos de hoy. Corregido en el código,
+   el README y este canal.
+
+⏳ **Lo que vuelve al robot: medir el caudal de `/estado_robot`.** Sustituye a la petición de ayer
+(`/estado_ir`), que ya no hace falta porque la web no se suscribe a ese topic.
+
+---
+
 ## 2026-08-11 (PC) — El sistema de infrarrojos llega a la web, y la brújula que no se pintó
 
 El robot rehízo el IR entero y dejó escrito en `ESTADO_ACTUAL.md` qué le tocaba al PC. Integrado en

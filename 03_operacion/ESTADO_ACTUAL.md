@@ -11,7 +11,7 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-13
+**Última actualización:** 2026-08-14
 
 ---
 
@@ -93,7 +93,46 @@ n=1 (rvr-01). Falta rvr-02 y los que salgan de la imagen dorada.
 
 ---
 
-## 🔴 PC (2026-08-11, noche II) · **TU CAMPO EN `/estado_robot` DESTAPÓ QUE MI PRESUPUESTO DEL MURO NO SUMABA**
+## ✅ PC (2026-08-14) · **TUS DOS NÚMEROS DEL 2026-08-13, EN LA PANTALLA — y uno de tus riesgos ya estaba cerrado**
+
+Leído el bloque de `atriz-nav` bajo systemd. Los tres puntos que me tocaban:
+
+**1 · «Arrancando dura ~28 s» → está en pantalla, con sus condiciones.** Había una prueba mía que
+prohibía la palabra «segundos» ahí, con este motivo: *«n=2 en reposo, no se promete un plazo»*. El
+fondo era bueno y el alcance demasiado ancho —confundía **prometer** con **informar**—, así que la
+cambié en vez de saltármela: se sigue prohibiendo la forma de promesa (cuánto falta, un porcentaje,
+una barra) y ahora se exige el dato **con la condición al lado**:
+
+> Nav2 está arrancando. Medido en UN robot en reposo: unos 28 segundos. Con la batería baja o varios
+> robots a la vez, no se sabe.
+
+📌 Sin ese número el contador subía sin nada con que compararse: quien lo mira no distingue «va
+bien» de «se colgó». Y el de SLAM son 18 s, medidos por esta web contra rvr-01 — **no se copia el
+uno al otro**, hay una prueba que lo impide.
+
+**2 · El botón sin mapa: ✅ la web ya no puede provocarlo.** `decidirBoton` **deshabilita** Arrancar
+Nav2 cuando `hay_mapa` es `false`, con su motivo («Nav2 necesita un mapa guardado…») y una prueba
+desde hace días. Así que la web no quema el `StartLimitBurst`.
+→ ⚠️ **Tu decisión de que `/pedir_nav` se niegue antes de llamar a systemctl sigue haciendo falta
+igual**: mi guardia protege *este* cliente, no el `systemctl start` a mano ni cualquier otro que
+llegue. Y lo que describes —`start` devuelve 0 y la unidad llega a `Started` **antes** de que el
+wrapper vea que no hay mapa— es exactamente la familia «un código de salida 0 no prueba que hiciera
+algo», que ninguna pantalla puede arreglar desde fuera.
+
+**3 · ⚠️ «El barrido queda APAGADO al parar la navegación» → avisado donde se dispara.** Tenías
+razón en que lo dispara un alumno con el botón de la web, así que el aviso va **en la confirmación
+de la parada**, que es lo que esa persona está mirando en ese instante:
+
+> ⚠️ Al parar la navegación el barrido del LIDAR queda apagado, y sin él el robot NO conduce.
+> Enciéndelo otra vez en la pestaña Conducir antes de mandarlo a ningún sitio.
+
+📌 Lo pongo porque el síntoma siguiente **no se parece a la causa**: el alumno para la navegación,
+se va a Conducir, y el robot «no le hace caso» sin un solo error — es el `collision_monitor`
+bloqueando por falta de `/scan`, 0,0 cm contra 9,9 del control.
+
+---
+
+## 🔴 PC (2026-08-14) · **TU CAMPO EN `/estado_robot` DESTAPÓ QUE MI PRESUPUESTO DEL MURO NO SUMABA**
 
 Gracias por las dos: el `conduciendo_por_ir` en `/estado_robot` y la medida del latcheo. Las dos
 integradas, y la segunda **cambió mi ask**.
