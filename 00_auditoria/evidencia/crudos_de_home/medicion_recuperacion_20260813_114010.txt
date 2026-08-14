@@ -1,0 +1,450 @@
+═══════════════════════════════════════════════════════════════════
+ medir_recuperacion.sh   ·   2026-08-13T11:40:10-05:00   ·   rvr-01
+ salida: /home/sphero/medicion_recuperacion_20260813_114010.txt
+═══════════════════════════════════════════════════════════════════
+
+── M6 · el journal de atriz-robot, ACOTADO POR ARRANQUE ────────────
+
+· ¿es el journal persistente? (si no lo fuera, solo habría el arranque actual)
+  ✅ /var/log/journal existe -> PERSISTENTE. Hay historial de arranques anteriores.
+Archived and active journals take up 35.8M in the file system.
+
+· los arranques que conserva la Pi:
+IDX BOOT ID                          FIRST ENTRY                 LAST ENTRY
+-10 900392d63eef4434bab43f2042f81210 Sun 2026-08-09 19:17:06 -05 Sun 2026-08-09 21:28:13 -05
+ -9 e4c35f3280e74a65bde8a2e36bf3f408 Sun 2026-08-09 21:45:15 -05 Sun 2026-08-09 23:41:46 -05
+ -8 8a4dc0356db1463e97cab61e9e5787d9 Sun 2026-08-09 23:42:15 -05 Mon 2026-08-10 09:36:06 -05
+ -7 4780fab3c7b548109ed1ed664f493ff7 Mon 2026-08-10 09:42:17 -05 Tue 2026-08-11 11:30:06 -05
+ -6 623547791d924b9c9d779a8fe8edb9b6 Tue 2026-08-11 11:36:25 -05 Tue 2026-08-11 12:42:00 -05
+ -5 029d892511d847fe869d52f65150e347 Tue 2026-08-11 12:50:11 -05 Tue 2026-08-11 16:16:37 -05
+ -4 d58edd79a64945c28cdc9a3fa810e616 Tue 2026-08-11 16:16:33 -05 Tue 2026-08-11 16:44:54 -05
+ -3 e924d24898264960824a0f211f40d452 Tue 2026-08-11 16:48:16 -05 Tue 2026-08-11 17:49:42 -05
+ -2 070d810f514c4371ad6af43e6547a85c Tue 2026-08-11 17:59:02 -05 Tue 2026-08-11 19:59:53 -05
+ -1 05ec8458e6e148968629be80d0e8b066 Tue 2026-08-11 20:00:44 -05 Wed 2026-08-12 12:49:21 -05
+  0 5ee6e56e66414ecdab0a093eabf954fd Wed 2026-08-12 12:50:07 -05 Thu 2026-08-13 11:40:00 -05
+
+· NRestarts del arranque ACTUAL:
+NRestarts=0
+ActiveEnterTimestamp=Thu 2026-08-13 11:05:30 -05
+  la Pi arrancó (este arranque): 2026-08-13 11:05:06
+
+· qué pasó en CADA uno de los arranques conservados:
+
+  ┌─ arranque IDX ────────────────────────────────────────────────
+  │  desde: 
+  │  hasta: 
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │  · el barrido:
+  └──
+
+  ┌─ arranque -10 ────────────────────────────────────────────────
+  │  desde: 2026-08-09T21:28:13-05:00
+  │  hasta: 2026-08-09T21:28:13-05:00
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │      2026-08-09T19:18:21-05:00 rvr-01 atriz-robot[15221]: [INFO] [ydlidar_ros2_driver_node-3]: process started with pid [15336]
+  │      2026-08-09T19:18:21-05:00 rvr-01 atriz-robot[15221]: [INFO] [collision_monitor-4]: process started with pid [15337]
+  │      2026-08-09T19:18:21-05:00 rvr-01 atriz-robot[15221]: [INFO] [lifecycle_manager-5]: process started with pid [15338]
+  │      2026-08-09T19:18:21-05:00 rvr-01 atriz-robot[15221]: [INFO] [supervisor_navegacion-6]: process started with pid [15339]
+  │      2026-08-09T19:18:21-05:00 rvr-01 atriz-robot[15221]: [INFO] [rosbridge_websocket-7]: process started with pid [15340]
+  │      2026-08-09T19:18:21-05:00 rvr-01 atriz-robot[15221]: [INFO] [rosapi_node-8]: process started with pid [15341]
+  │      2026-08-09T19:18:22-05:00 rvr-01 atriz-robot[15221]: [lifecycle_manager-5] [INFO] [1786321102.435492474] [lifecycle_manager_seguridad]: Starting managed nodes bringup...
+  │      2026-08-09T19:18:23-05:00 rvr-01 atriz-robot[15221]: [ydlidar_ros2_driver_node-3] [2026-08-09 19:18:23][info] Lidar has started!
+  │      2026-08-09T19:18:25-05:00 rvr-01 atriz-robot[15221]: [ydlidar_ros2_driver_node-3] [2026-08-09 19:18:25][info] Lidar has stopped!
+  │      2026-08-09T19:18:26-05:00 rvr-01 atriz-robot[15221]: [rosbridge_websocket-7] [INFO] [1786321106.275800828] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
+  │      2026-08-09T19:19:31-05:00 rvr-01 atriz-robot[15221]: [ydlidar_ros2_driver_node-3] [2026-08-09 19:19:31][info] Lidar has started!
+  │      2026-08-09T20:31:31-05:00 rvr-01 atriz-robot[15221]: [ydlidar_ros2_driver_node-3] [2026-08-09 20:31:31][info] Lidar has stopped!
+  │      2026-08-09T20:31:54-05:00 rvr-01 atriz-robot[15221]: [ydlidar_ros2_driver_node-3] [2026-08-09 20:31:54][info] Lidar has started!
+  │      2026-08-09T20:41:46-05:00 rvr-01 atriz-robot[15221]: [ydlidar_ros2_driver_node-3] [2026-08-09 20:41:46][info] Lidar has stopped!
+  │      2026-08-09T20:44:03-05:00 rvr-01 atriz-robot[15221]: [ydlidar_ros2_driver_node-3] [2026-08-09 20:44:03][info] Lidar has started!
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │      2026-08-09T19:18:27-05:00 rvr-01 atriz-robot[15221]: [rvr_driver_node-1] [INFO] [1786321107.095817226] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │  · el barrido:
+  │      2026-08-09T19:18:26-05:00 rvr-01 atriz-robot[15223]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-09T19:18:26-05:00 rvr-01 atriz-robot[15223]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  └──
+
+  ┌─ arranque -9 ────────────────────────────────────────────────
+  │  desde: 2026-08-09T23:41:46-05:00
+  │  hasta: 2026-08-09T23:41:46-05:00
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │      2026-08-09T21:45:20-05:00 rvr-01 atriz-robot[718]: [INFO] [rosbridge_websocket-7]: process started with pid [847]
+  │      2026-08-09T21:45:20-05:00 rvr-01 atriz-robot[718]: [INFO] [rosapi_node-8]: process started with pid [848]
+  │      2026-08-09T21:45:21-05:00 rvr-01 atriz-robot[718]: [lifecycle_manager-5] [INFO] [1786329921.420677438] [lifecycle_manager_seguridad]: Starting managed nodes bringup...
+  │      2026-08-09T21:45:22-05:00 rvr-01 atriz-robot[718]: [ydlidar_ros2_driver_node-3] [2026-08-09 21:45:22][info] Lidar has started!
+  │      2026-08-09T21:45:23-05:00 rvr-01 atriz-robot[718]: [ydlidar_ros2_driver_node-3] [2026-08-09 21:45:23][info] Lidar has stopped!
+  │      2026-08-09T21:45:24-05:00 rvr-01 atriz-robot[718]: [rosbridge_websocket-7] [INFO] [1786329924.955977065] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
+  │      2026-08-09T23:14:11-05:00 rvr-01 atriz-robot[718]: [ydlidar_ros2_driver_node-3] [2026-08-09 23:14:11][info] Lidar has started!
+  │      2026-08-09T23:15:35-05:00 rvr-01 atriz-robot[718]: [ydlidar_ros2_driver_node-3] [2026-08-09 23:15:35][info] Lidar has stopped!
+  │      2026-08-09T23:16:42-05:00 rvr-01 atriz-robot[718]: [ydlidar_ros2_driver_node-3] [2026-08-09 23:16:42][info] Lidar has started!
+  │      2026-08-09T23:19:14-05:00 rvr-01 atriz-robot[718]: [ydlidar_ros2_driver_node-3] [2026-08-09 23:19:14][info] Lidar has stopped!
+  │      2026-08-09T23:35:00-05:00 rvr-01 atriz-robot[718]: [ydlidar_ros2_driver_node-3] [2026-08-09 23:35:00][info] Lidar has started!
+  │      2026-08-09T23:35:04-05:00 rvr-01 atriz-robot[718]: [ydlidar_ros2_driver_node-3] [2026-08-09 23:35:04][info] Lidar has stopped!
+  │      2026-08-09T23:35:05-05:00 rvr-01 atriz-robot[718]: [rosbridge_websocket-7] [ERROR] [1786336505.872013196] [rosbridge_websocket]: [Client e2d7b361-d32e-4bf6-8ffa-348199e08726] send_action_goal to '/navigate_to_pose' failed: No action server available [id: atriz-act-1]
+  │      2026-08-09T23:36:21-05:00 rvr-01 atriz-robot[718]: [ydlidar_ros2_driver_node-3] [2026-08-09 23:36:21][info] Lidar has started!
+  │      2026-08-09T23:36:26-05:00 rvr-01 atriz-robot[718]: [ydlidar_ros2_driver_node-3] [2026-08-09 23:36:26][info] Lidar has stopped!
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │      2026-08-09T22:40:39-05:00 rvr-01 atriz-robot[718]: [rvr_driver_node-1] [INFO] [1786333239.423361769] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │  · el barrido:
+  │      2026-08-09T21:45:24-05:00 rvr-01 atriz-robot[719]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-09T21:45:24-05:00 rvr-01 atriz-robot[719]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  └──
+
+  ┌─ arranque -8 ────────────────────────────────────────────────
+  │  desde: 2026-08-10T09:36:06-05:00
+  │  hasta: 2026-08-10T09:36:06-05:00
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │      2026-08-10T09:07:35-05:00 rvr-01 atriz-robot[722]: [INFO] [rvr_driver_node-1]: process started with pid [872]
+  │      2026-08-10T09:07:35-05:00 rvr-01 atriz-robot[722]: [INFO] [robot_state_publisher-2]: process started with pid [873]
+  │      2026-08-10T09:07:35-05:00 rvr-01 atriz-robot[722]: [INFO] [ydlidar_ros2_driver_node-3]: process started with pid [874]
+  │      2026-08-10T09:07:35-05:00 rvr-01 atriz-robot[722]: [INFO] [collision_monitor-4]: process started with pid [875]
+  │      2026-08-10T09:07:35-05:00 rvr-01 atriz-robot[722]: [INFO] [lifecycle_manager-5]: process started with pid [876]
+  │      2026-08-10T09:07:35-05:00 rvr-01 atriz-robot[722]: [INFO] [supervisor_navegacion-6]: process started with pid [877]
+  │      2026-08-10T09:07:35-05:00 rvr-01 atriz-robot[722]: [INFO] [rosbridge_websocket-7]: process started with pid [878]
+  │      2026-08-10T09:07:35-05:00 rvr-01 atriz-robot[722]: [INFO] [rosapi_node-8]: process started with pid [879]
+  │      2026-08-10T09:07:36-05:00 rvr-01 atriz-robot[722]: [lifecycle_manager-5] [INFO] [1786370856.927688165] [lifecycle_manager_seguridad]: Starting managed nodes bringup...
+  │      2026-08-10T09:07:38-05:00 rvr-01 atriz-robot[722]: [ydlidar_ros2_driver_node-3] [2026-08-10 09:07:38][info] Lidar has started!
+  │      2026-08-10T09:07:39-05:00 rvr-01 atriz-robot[722]: [ydlidar_ros2_driver_node-3] [2026-08-10 09:07:39][info] Lidar has stopped!
+  │      2026-08-10T09:07:39-05:00 rvr-01 atriz-robot[722]: [rosbridge_websocket-7] [INFO] [1786370859.827535497] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
+  │      2026-08-10T09:07:40-05:00 rvr-01 systemd[1]: Started atriz-robot.service - Atriz — robot RVR (driver, LIDAR, TF, collision_monitor).
+  │      2026-08-10T09:16:31-05:00 rvr-01 atriz-robot[722]: [ydlidar_ros2_driver_node-3] [2026-08-10 09:16:31][info] Lidar has started!
+  │      2026-08-10T09:35:51-05:00 rvr-01 atriz-robot[722]: [ydlidar_ros2_driver_node-3] [2026-08-10 09:35:51][info] Lidar has stopped!
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │      2026-08-10T09:07:41-05:00 rvr-01 atriz-robot[722]: [rvr_driver_node-1] [INFO] [1786370861.256872718] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │  · el barrido:
+  │      2026-08-10T09:07:40-05:00 rvr-01 atriz-robot[723]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-10T09:07:40-05:00 rvr-01 atriz-robot[723]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  └──
+
+  ┌─ arranque -7 ────────────────────────────────────────────────
+  │  desde: 2026-08-11T11:30:06-05:00
+  │  hasta: 2026-08-11T11:30:06-05:00
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │      2026-08-11T11:16:19-05:00 rvr-01 atriz-robot[724]: [INFO] [rvr_driver_node-1]: process started with pid [871]
+  │      2026-08-11T11:16:19-05:00 rvr-01 atriz-robot[724]: [INFO] [robot_state_publisher-2]: process started with pid [872]
+  │      2026-08-11T11:16:19-05:00 rvr-01 atriz-robot[724]: [INFO] [ydlidar_ros2_driver_node-3]: process started with pid [873]
+  │      2026-08-11T11:16:19-05:00 rvr-01 atriz-robot[724]: [INFO] [collision_monitor-4]: process started with pid [874]
+  │      2026-08-11T11:16:19-05:00 rvr-01 atriz-robot[724]: [INFO] [lifecycle_manager-5]: process started with pid [875]
+  │      2026-08-11T11:16:19-05:00 rvr-01 atriz-robot[724]: [INFO] [supervisor_navegacion-6]: process started with pid [876]
+  │      2026-08-11T11:16:19-05:00 rvr-01 atriz-robot[724]: [INFO] [rosbridge_websocket-7]: process started with pid [877]
+  │      2026-08-11T11:16:19-05:00 rvr-01 atriz-robot[724]: [INFO] [rosapi_node-8]: process started with pid [878]
+  │      2026-08-11T11:16:21-05:00 rvr-01 atriz-robot[724]: [lifecycle_manager-5] [INFO] [1786464981.226932154] [lifecycle_manager_seguridad]: Starting managed nodes bringup...
+  │      2026-08-11T11:16:21-05:00 rvr-01 atriz-robot[724]: [ydlidar_ros2_driver_node-3] [2026-08-11 11:16:21][info] Lidar has started!
+  │      2026-08-11T11:16:23-05:00 rvr-01 atriz-robot[724]: [ydlidar_ros2_driver_node-3] [2026-08-11 11:16:23][info] Lidar has stopped!
+  │      2026-08-11T11:16:24-05:00 rvr-01 atriz-robot[724]: [rosbridge_websocket-7] [INFO] [1786464984.831910745] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │      2026-08-11T11:16:25-05:00 rvr-01 atriz-robot[724]: [rvr_driver_node-1] [INFO] [1786464985.575175596] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │  · el barrido:
+  │      2026-08-11T11:16:24-05:00 rvr-01 atriz-robot[727]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-11T11:16:24-05:00 rvr-01 atriz-robot[727]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  └──
+
+  ┌─ arranque -6 ────────────────────────────────────────────────
+  │  desde: 2026-08-11T12:42:00-05:00
+  │  hasta: 2026-08-11T12:42:00-05:00
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │      2026-08-11T11:36:29-05:00 rvr-01 atriz-robot[715]: [INFO] [rvr_driver_node-1]: process started with pid [843]
+  │      2026-08-11T11:36:29-05:00 rvr-01 atriz-robot[715]: [INFO] [robot_state_publisher-2]: process started with pid [844]
+  │      2026-08-11T11:36:29-05:00 rvr-01 atriz-robot[715]: [INFO] [ydlidar_ros2_driver_node-3]: process started with pid [845]
+  │      2026-08-11T11:36:29-05:00 rvr-01 atriz-robot[715]: [INFO] [collision_monitor-4]: process started with pid [846]
+  │      2026-08-11T11:36:29-05:00 rvr-01 atriz-robot[715]: [INFO] [lifecycle_manager-5]: process started with pid [847]
+  │      2026-08-11T11:36:29-05:00 rvr-01 atriz-robot[715]: [INFO] [supervisor_navegacion-6]: process started with pid [848]
+  │      2026-08-11T11:36:29-05:00 rvr-01 atriz-robot[715]: [INFO] [rosbridge_websocket-7]: process started with pid [849]
+  │      2026-08-11T11:36:29-05:00 rvr-01 atriz-robot[715]: [INFO] [rosapi_node-8]: process started with pid [850]
+  │      2026-08-11T11:36:30-05:00 rvr-01 atriz-robot[715]: [lifecycle_manager-5] [INFO] [1786466190.656126086] [lifecycle_manager_seguridad]: Starting managed nodes bringup...
+  │      2026-08-11T11:36:32-05:00 rvr-01 atriz-robot[715]: [ydlidar_ros2_driver_node-3] [2026-08-11 11:36:32][info] Lidar has started!
+  │      2026-08-11T11:36:32-05:00 rvr-01 atriz-robot[715]: [ydlidar_ros2_driver_node-3] [2026-08-11 11:36:32][info] Lidar has stopped!
+  │      2026-08-11T11:36:33-05:00 rvr-01 atriz-robot[715]: [rosbridge_websocket-7] [INFO] [1786466193.944946287] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
+  │      2026-08-11T12:02:33-05:00 rvr-01 atriz-robot[715]: [ydlidar_ros2_driver_node-3] [2026-08-11 12:02:33][info] Lidar has started!
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │      2026-08-11T11:57:49-05:00 rvr-01 atriz-robot[715]: [rvr_driver_node-1] [INFO] [1786467469.315540079] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │  · el barrido:
+  │      2026-08-11T11:36:33-05:00 rvr-01 atriz-robot[719]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-11T11:36:33-05:00 rvr-01 atriz-robot[719]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  └──
+
+  ┌─ arranque -5 ────────────────────────────────────────────────
+  │  desde: 2026-08-11T16:16:37-05:00
+  │  hasta: 2026-08-11T16:16:37-05:00
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │      2026-08-11T12:52:11-05:00 rvr-01 atriz-robot[719]: [INFO] [rvr_driver_node-1]: process started with pid [845]
+  │      2026-08-11T12:52:11-05:00 rvr-01 atriz-robot[719]: [INFO] [robot_state_publisher-2]: process started with pid [846]
+  │      2026-08-11T12:52:11-05:00 rvr-01 atriz-robot[719]: [INFO] [ydlidar_ros2_driver_node-3]: process started with pid [847]
+  │      2026-08-11T12:52:11-05:00 rvr-01 atriz-robot[719]: [INFO] [collision_monitor-4]: process started with pid [848]
+  │      2026-08-11T12:52:11-05:00 rvr-01 atriz-robot[719]: [INFO] [lifecycle_manager-5]: process started with pid [849]
+  │      2026-08-11T12:52:11-05:00 rvr-01 atriz-robot[719]: [INFO] [supervisor_navegacion-6]: process started with pid [850]
+  │      2026-08-11T12:52:11-05:00 rvr-01 atriz-robot[719]: [INFO] [rosbridge_websocket-7]: process started with pid [851]
+  │      2026-08-11T12:52:11-05:00 rvr-01 atriz-robot[719]: [INFO] [rosapi_node-8]: process started with pid [852]
+  │      2026-08-11T12:52:12-05:00 rvr-01 atriz-robot[719]: [lifecycle_manager-5] [INFO] [1786470732.632810487] [lifecycle_manager_seguridad]: Starting managed nodes bringup...
+  │      2026-08-11T12:52:13-05:00 rvr-01 atriz-robot[719]: [ydlidar_ros2_driver_node-3] [2026-08-11 12:52:13][info] Lidar has started!
+  │      2026-08-11T12:52:14-05:00 rvr-01 atriz-robot[719]: [ydlidar_ros2_driver_node-3] [2026-08-11 12:52:14][info] Lidar has stopped!
+  │      2026-08-11T12:52:15-05:00 rvr-01 atriz-robot[719]: [rosbridge_websocket-7] [INFO] [1786470735.969256522] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │      2026-08-11T12:52:17-05:00 rvr-01 atriz-robot[719]: [rvr_driver_node-1] [INFO] [1786470737.230772762] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │      2026-08-11T16:16:33-05:00 rvr-01 atriz-robot[719]: [rvr_driver_node-1] [WARN] [1786482993.234270648] [rvr_driver]: el RVR lleva 3.5 s sin enviar telemetría (se esperan ~16.7 muestras/s). Lo más probable es que se haya dormido. Intentando reanudar (intento nº 1)…
+  │      2026-08-11T16:16:33-05:00 rvr-01 atriz-robot[719]: [rvr_driver_node-1] [INFO] [1786482993.245205491] [rvr_driver]: streaming reanudado. Si esto se repite cada pocos minutos, el keepalive no está llegando: revisa keepalive_period y el enlace.
+  │      2026-08-11T16:16:37-05:00 rvr-01 atriz-robot[719]: [rvr_driver_node-1] [WARN] [1786482997.235015375] [rvr_driver]: el RVR lleva 4.0 s sin enviar telemetría (se esperan ~16.7 muestras/s). Lo más probable es que se haya dormido. Intentando reanudar (intento nº 2)…
+  │      2026-08-11T16:16:37-05:00 rvr-01 atriz-robot[719]: [rvr_driver_node-1] [INFO] [1786482997.245698146] [rvr_driver]: streaming reanudado. Si esto se repite cada pocos minutos, el keepalive no está llegando: revisa keepalive_period y el enlace.
+  │  · el barrido:
+  │      2026-08-11T12:52:15-05:00 rvr-01 atriz-robot[722]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-11T12:52:15-05:00 rvr-01 atriz-robot[722]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  └──
+
+  ┌─ arranque -4 ────────────────────────────────────────────────
+  │  desde: 2026-08-11T16:44:54-05:00
+  │  hasta: 2026-08-11T16:44:54-05:00
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │      2026-08-11T16:44:12-05:00 rvr-01 atriz-robot[13347]: [rvr_driver_node-1] rclpy._rclpy_pybind11.RCLError: Failed to publish: publisher's context is invalid, at ./src/rcl/publisher.c:423
+  │      2026-08-11T16:44:12-05:00 rvr-01 atriz-robot[13347]: [rvr_driver_node-1] Failed to publish log message to rosout: publisher's context is invalid, at ./src/rcl/publisher.c:423
+  │      2026-08-11T16:44:13-05:00 rvr-01 atriz-robot[13347]: [rvr_driver_node-1] The following exception was never retrieved: Failed to publish: publisher's context is invalid, at ./src/rcl/publisher.c:423
+  │      2026-08-11T16:44:18-05:00 rvr-01 atriz-robot[14731]: [INFO] [rvr_driver_node-1]: process started with pid [14825]
+  │      2026-08-11T16:44:18-05:00 rvr-01 atriz-robot[14731]: [INFO] [robot_state_publisher-2]: process started with pid [14826]
+  │      2026-08-11T16:44:18-05:00 rvr-01 atriz-robot[14731]: [INFO] [ydlidar_ros2_driver_node-3]: process started with pid [14827]
+  │      2026-08-11T16:44:18-05:00 rvr-01 atriz-robot[14731]: [INFO] [collision_monitor-4]: process started with pid [14828]
+  │      2026-08-11T16:44:18-05:00 rvr-01 atriz-robot[14731]: [INFO] [lifecycle_manager-5]: process started with pid [14829]
+  │      2026-08-11T16:44:18-05:00 rvr-01 atriz-robot[14731]: [INFO] [supervisor_navegacion-6]: process started with pid [14830]
+  │      2026-08-11T16:44:18-05:00 rvr-01 atriz-robot[14731]: [INFO] [rosbridge_websocket-7]: process started with pid [14831]
+  │      2026-08-11T16:44:18-05:00 rvr-01 atriz-robot[14731]: [INFO] [rosapi_node-8]: process started with pid [14832]
+  │      2026-08-11T16:44:19-05:00 rvr-01 atriz-robot[14731]: [lifecycle_manager-5] [INFO] [1786484659.763265494] [lifecycle_manager_seguridad]: Starting managed nodes bringup...
+  │      2026-08-11T16:44:20-05:00 rvr-01 atriz-robot[14731]: [ydlidar_ros2_driver_node-3] [2026-08-11 16:44:20][info] Lidar has started!
+  │      2026-08-11T16:44:22-05:00 rvr-01 atriz-robot[14731]: [ydlidar_ros2_driver_node-3] [2026-08-11 16:44:22][info] Lidar has stopped!
+  │      2026-08-11T16:44:24-05:00 rvr-01 atriz-robot[14731]: [rosbridge_websocket-7] [INFO] [1786484664.382050189] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │      2026-08-11T16:17:39-05:00 rvr-01 atriz-robot[719]: [rvr_driver_node-1] [INFO] [1786483059.074471424] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │      2026-08-11T16:38:21-05:00 rvr-01 atriz-robot[11317]: [rvr_driver_node-1] [INFO] [1786484301.942118891] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │      2026-08-11T16:42:04-05:00 rvr-01 atriz-robot[13347]: [rvr_driver_node-1] [INFO] [1786484524.252899872] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │      2026-08-11T16:44:24-05:00 rvr-01 atriz-robot[14731]: [rvr_driver_node-1] [INFO] [1786484664.613811235] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │  · el barrido:
+  │      2026-08-11T16:17:37-05:00 rvr-01 atriz-robot[720]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-11T16:17:37-05:00 rvr-01 atriz-robot[720]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  │      2026-08-11T16:38:17-05:00 rvr-01 atriz-robot[11319]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-11T16:38:17-05:00 rvr-01 atriz-robot[11319]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  │      2026-08-11T16:42:00-05:00 rvr-01 atriz-robot[13349]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-11T16:42:00-05:00 rvr-01 atriz-robot[13349]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  │      2026-08-11T16:44:23-05:00 rvr-01 atriz-robot[14732]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-11T16:44:23-05:00 rvr-01 atriz-robot[14732]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  └──
+
+  ┌─ arranque -3 ────────────────────────────────────────────────
+  │  desde: 2026-08-11T17:49:42-05:00
+  │  hasta: 2026-08-11T17:49:42-05:00
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │      2026-08-11T17:49:00-05:00 rvr-01 atriz-robot[2108]: [rvr_driver_node-1] Failed to publish log message to rosout: publisher's context is invalid, at ./src/rcl/publisher.c:423
+  │      2026-08-11T17:49:00-05:00 rvr-01 atriz-robot[2108]: [rvr_driver_node-1] rclpy._rclpy_pybind11.RCLError: Failed to publish: publisher's context is invalid, at ./src/rcl/publisher.c:423
+  │      2026-08-11T17:49:00-05:00 rvr-01 atriz-robot[2108]: [rvr_driver_node-1] Failed to publish log message to rosout: publisher's context is invalid, at ./src/rcl/publisher.c:423
+  │      2026-08-11T17:49:06-05:00 rvr-01 atriz-robot[37078]: [INFO] [rvr_driver_node-1]: process started with pid [37172]
+  │      2026-08-11T17:49:06-05:00 rvr-01 atriz-robot[37078]: [INFO] [robot_state_publisher-2]: process started with pid [37173]
+  │      2026-08-11T17:49:06-05:00 rvr-01 atriz-robot[37078]: [INFO] [ydlidar_ros2_driver_node-3]: process started with pid [37174]
+  │      2026-08-11T17:49:06-05:00 rvr-01 atriz-robot[37078]: [INFO] [collision_monitor-4]: process started with pid [37175]
+  │      2026-08-11T17:49:06-05:00 rvr-01 atriz-robot[37078]: [INFO] [lifecycle_manager-5]: process started with pid [37176]
+  │      2026-08-11T17:49:06-05:00 rvr-01 atriz-robot[37078]: [INFO] [supervisor_navegacion-6]: process started with pid [37177]
+  │      2026-08-11T17:49:06-05:00 rvr-01 atriz-robot[37078]: [INFO] [rosbridge_websocket-7]: process started with pid [37178]
+  │      2026-08-11T17:49:06-05:00 rvr-01 atriz-robot[37078]: [INFO] [rosapi_node-8]: process started with pid [37179]
+  │      2026-08-11T17:49:07-05:00 rvr-01 atriz-robot[37078]: [lifecycle_manager-5] [INFO] [1786488547.437798017] [lifecycle_manager_seguridad]: Starting managed nodes bringup...
+  │      2026-08-11T17:49:08-05:00 rvr-01 atriz-robot[37078]: [ydlidar_ros2_driver_node-3] [2026-08-11 17:49:08][info] Lidar has started!
+  │      2026-08-11T17:49:10-05:00 rvr-01 atriz-robot[37078]: [ydlidar_ros2_driver_node-3] [2026-08-11 17:49:10][info] Lidar has stopped!
+  │      2026-08-11T17:49:10-05:00 rvr-01 atriz-robot[37078]: [rosbridge_websocket-7] [INFO] [1786488550.831151356] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │      2026-08-11T16:50:30-05:00 rvr-01 atriz-robot[721]: [rvr_driver_node-1] [INFO] [1786485030.580726751] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │      2026-08-11T16:50:30-05:00 rvr-01 atriz-robot[721]: [rvr_driver_node-1] [INFO] [1786485030.616164713] [rvr_driver]: notificaciones IR robot-a-robot registradas -> /infrared_messages (en silencio mientras nadie emita: NO es un fallo)
+  │      2026-08-11T16:52:06-05:00 rvr-01 atriz-robot[2108]: [rvr_driver_node-1] [INFO] [1786485126.040735211] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │      2026-08-11T16:52:06-05:00 rvr-01 atriz-robot[2108]: [rvr_driver_node-1] [INFO] [1786485126.081705494] [rvr_driver]: notificaciones IR robot-a-robot registradas -> /infrared_messages (en silencio mientras nadie emita: NO es un fallo)
+  │      2026-08-11T17:49:12-05:00 rvr-01 atriz-robot[37078]: [rvr_driver_node-1] [INFO] [1786488552.683965969] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │      2026-08-11T17:49:12-05:00 rvr-01 atriz-robot[37078]: [rvr_driver_node-1] [INFO] [1786488552.731226260] [rvr_driver]: notificaciones IR robot-a-robot registradas -> /infrared_messages (en silencio mientras nadie emita: NO es un fallo)
+  │  · el barrido:
+  │      2026-08-11T16:50:28-05:00 rvr-01 atriz-robot[722]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-11T16:50:28-05:00 rvr-01 atriz-robot[722]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  │      2026-08-11T16:52:03-05:00 rvr-01 atriz-robot[2109]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-11T16:52:03-05:00 rvr-01 atriz-robot[2109]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  │      2026-08-11T17:49:11-05:00 rvr-01 atriz-robot[37080]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-11T17:49:11-05:00 rvr-01 atriz-robot[37080]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  └──
+
+  ┌─ arranque -2 ────────────────────────────────────────────────
+  │  desde: 2026-08-11T19:59:53-05:00
+  │  hasta: 2026-08-11T19:59:53-05:00
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │      2026-08-11T19:18:02-05:00 rvr-01 atriz-robot[46672]: [INFO] [collision_monitor-4]: process started with pid [46760]
+  │      2026-08-11T19:18:02-05:00 rvr-01 atriz-robot[46672]: [INFO] [lifecycle_manager-5]: process started with pid [46761]
+  │      2026-08-11T19:18:02-05:00 rvr-01 atriz-robot[46672]: [INFO] [supervisor_navegacion-6]: process started with pid [46762]
+  │      2026-08-11T19:18:02-05:00 rvr-01 atriz-robot[46672]: [INFO] [rosbridge_websocket-7]: process started with pid [46763]
+  │      2026-08-11T19:18:02-05:00 rvr-01 atriz-robot[46672]: [INFO] [rosapi_node-8]: process started with pid [46764]
+  │      2026-08-11T19:18:03-05:00 rvr-01 atriz-robot[46672]: [lifecycle_manager-5] [INFO] [1786493883.125548497] [lifecycle_manager_seguridad]: Starting managed nodes bringup...
+  │      2026-08-11T19:18:04-05:00 rvr-01 atriz-robot[46672]: [ydlidar_ros2_driver_node-3] [2026-08-11 19:18:04][info] Lidar has started!
+  │      2026-08-11T19:18:04-05:00 rvr-01 atriz-robot[46672]: [ydlidar_ros2_driver_node-3] [2026-08-11 19:18:04][info] Lidar has stopped!
+  │      2026-08-11T19:18:05-05:00 rvr-01 atriz-robot[46672]: [rosbridge_websocket-7] [INFO] [1786493885.944669421] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
+  │      2026-08-11T19:47:30-05:00 rvr-01 atriz-robot[46672]: [ydlidar_ros2_driver_node-3] [2026-08-11 19:47:30][info] Lidar has started!
+  │      2026-08-11T19:48:24-05:00 rvr-01 atriz-robot[46672]: [ydlidar_ros2_driver_node-3] [2026-08-11 19:48:24][info] Lidar has stopped!
+  │      2026-08-11T19:52:57-05:00 rvr-01 atriz-robot[46672]: [ydlidar_ros2_driver_node-3] [2026-08-11 19:52:57][info] Lidar has started!
+  │      2026-08-11T19:53:23-05:00 rvr-01 atriz-robot[46672]: [ydlidar_ros2_driver_node-3] [2026-08-11 19:53:23][info] Lidar has stopped!
+  │      2026-08-11T19:55:09-05:00 rvr-01 atriz-robot[46672]: [ydlidar_ros2_driver_node-3] [2026-08-11 19:55:09][info] Lidar has started!
+  │      2026-08-11T19:55:23-05:00 rvr-01 atriz-robot[46672]: [ydlidar_ros2_driver_node-3] [2026-08-11 19:55:23][info] Lidar has stopped!
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │      2026-08-11T18:01:05-05:00 rvr-01 atriz-robot[703]: [rvr_driver_node-1] [INFO] [1786489265.258497854] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │      2026-08-11T18:01:05-05:00 rvr-01 atriz-robot[703]: [rvr_driver_node-1] [INFO] [1786489265.294601780] [rvr_driver]: notificaciones IR robot-a-robot registradas -> /infrared_messages (en silencio mientras nadie emita: NO es un fallo)
+  │      2026-08-11T19:18:07-05:00 rvr-01 atriz-robot[46672]: [rvr_driver_node-1] [INFO] [1786493887.786339137] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │      2026-08-11T19:18:07-05:00 rvr-01 atriz-robot[46672]: [rvr_driver_node-1] [INFO] [1786493887.822042295] [rvr_driver]: notificaciones IR robot-a-robot registradas -> /infrared_messages (en silencio mientras nadie emita: NO es un fallo)
+  │  · el barrido:
+  │      2026-08-11T18:01:04-05:00 rvr-01 atriz-robot[708]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-11T18:01:04-05:00 rvr-01 atriz-robot[708]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  │      2026-08-11T19:18:05-05:00 rvr-01 atriz-robot[46674]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-11T19:18:05-05:00 rvr-01 atriz-robot[46674]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  └──
+
+  ┌─ arranque -1 ────────────────────────────────────────────────
+  │  desde: 2026-08-12T12:49:21-05:00
+  │  hasta: 2026-08-12T12:49:21-05:00
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │      2026-08-12T09:22:30-05:00 rvr-01 atriz-robot[11794]: [INFO] [ydlidar_ros2_driver_node-3]: process started with pid [11849]
+  │      2026-08-12T09:22:30-05:00 rvr-01 atriz-robot[11794]: [INFO] [collision_monitor-4]: process started with pid [11850]
+  │      2026-08-12T09:22:30-05:00 rvr-01 atriz-robot[11794]: [INFO] [lifecycle_manager-5]: process started with pid [11851]
+  │      2026-08-12T09:22:30-05:00 rvr-01 atriz-robot[11794]: [INFO] [supervisor_navegacion-6]: process started with pid [11852]
+  │      2026-08-12T09:22:30-05:00 rvr-01 atriz-robot[11794]: [INFO] [rosbridge_websocket-7]: process started with pid [11853]
+  │      2026-08-12T09:22:30-05:00 rvr-01 atriz-robot[11794]: [INFO] [rosapi_node-8]: process started with pid [11854]
+  │      2026-08-12T09:22:31-05:00 rvr-01 atriz-robot[11794]: [lifecycle_manager-5] [INFO] [1786544551.134701377] [lifecycle_manager_seguridad]: Starting managed nodes bringup...
+  │      2026-08-12T09:22:32-05:00 rvr-01 atriz-robot[11794]: [ydlidar_ros2_driver_node-3] [2026-08-12 09:22:32][info] Lidar has started!
+  │      2026-08-12T09:22:33-05:00 rvr-01 atriz-robot[11794]: [ydlidar_ros2_driver_node-3] [2026-08-12 09:22:33][info] Lidar has stopped!
+  │      2026-08-12T09:22:34-05:00 rvr-01 atriz-robot[11794]: [rosbridge_websocket-7] [INFO] [1786544554.824470680] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
+  │      2026-08-12T09:24:38-05:00 rvr-01 atriz-robot[11794]: [ydlidar_ros2_driver_node-3] [2026-08-12 09:24:38][info] Lidar has started!
+  │      2026-08-12T09:25:35-05:00 rvr-01 atriz-robot[11794]: [ydlidar_ros2_driver_node-3] [2026-08-12 09:25:35][info] Lidar has stopped!
+  │      2026-08-12T10:30:29-05:00 rvr-01 atriz-robot[11794]: [ydlidar_ros2_driver_node-3] [2026-08-12 10:30:29][info] Lidar has started!
+  │      2026-08-12T10:30:38-05:00 rvr-01 atriz-robot[11794]: [ydlidar_ros2_driver_node-3] [2026-08-12 10:30:38][info] Lidar has stopped!
+  │      2026-08-12T12:29:43-05:00 rvr-01 atriz-robot[11794]: [ydlidar_ros2_driver_node-3] [2026-08-12 12:29:43][info] Lidar has started!
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │      2026-08-12T08:56:56-05:00 rvr-01 atriz-robot[701]: [rvr_driver_node-1] [INFO] [1786543016.490117772] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │      2026-08-12T08:56:56-05:00 rvr-01 atriz-robot[701]: [rvr_driver_node-1] [INFO] [1786543016.524542217] [rvr_driver]: notificaciones IR robot-a-robot registradas -> /infrared_messages (en silencio mientras nadie emita: NO es un fallo)
+  │      2026-08-12T09:22:35-05:00 rvr-01 atriz-robot[11794]: [rvr_driver_node-1] [INFO] [1786544555.413566454] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │      2026-08-12T09:22:35-05:00 rvr-01 atriz-robot[11794]: [rvr_driver_node-1] [INFO] [1786544555.448863265] [rvr_driver]: notificaciones IR robot-a-robot registradas -> /infrared_messages (en silencio mientras nadie emita: NO es un fallo)
+  │  · el barrido:
+  │      2026-08-12T08:56:55-05:00 rvr-01 atriz-robot[707]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-12T08:56:55-05:00 rvr-01 atriz-robot[707]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  │      2026-08-12T09:22:34-05:00 rvr-01 atriz-robot[11795]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-12T09:22:34-05:00 rvr-01 atriz-robot[11795]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  └──
+
+  ┌─ arranque 0 ────────────────────────────────────────────────
+  │  desde: 2026-08-13T11:40:00-05:00
+  │  hasta: 2026-08-13T11:40:00-05:00
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │      2026-08-13T11:05:26-05:00 rvr-01 atriz-robot[723]: [INFO] [ydlidar_ros2_driver_node-3]: process started with pid [879]
+  │      2026-08-13T11:05:26-05:00 rvr-01 atriz-robot[723]: [INFO] [collision_monitor-4]: process started with pid [880]
+  │      2026-08-13T11:05:26-05:00 rvr-01 atriz-robot[723]: [INFO] [lifecycle_manager-5]: process started with pid [881]
+  │      2026-08-13T11:05:26-05:00 rvr-01 atriz-robot[723]: [INFO] [supervisor_navegacion-6]: process started with pid [882]
+  │      2026-08-13T11:05:26-05:00 rvr-01 atriz-robot[723]: [INFO] [rosbridge_websocket-7]: process started with pid [883]
+  │      2026-08-13T11:05:26-05:00 rvr-01 atriz-robot[723]: [INFO] [rosapi_node-8]: process started with pid [884]
+  │      2026-08-13T11:05:28-05:00 rvr-01 atriz-robot[723]: [lifecycle_manager-5] [INFO] [1786637128.271207322] [lifecycle_manager_seguridad]: Starting managed nodes bringup...
+  │      2026-08-13T11:05:29-05:00 rvr-01 atriz-robot[723]: [ydlidar_ros2_driver_node-3] [2026-08-13 11:05:29][info] Lidar has started!
+  │      2026-08-13T11:05:29-05:00 rvr-01 atriz-robot[723]: [ydlidar_ros2_driver_node-3] [2026-08-13 11:05:29][info] Lidar has stopped!
+  │      2026-08-13T11:05:30-05:00 rvr-01 systemd[1]: Started atriz-robot.service - Atriz — robot RVR (driver, LIDAR, TF, collision_monitor).
+  │      2026-08-13T11:05:31-05:00 rvr-01 atriz-robot[723]: [rosbridge_websocket-7] [INFO] [1786637131.541589338] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
+  │      2026-08-13T11:31:14-05:00 rvr-01 atriz-robot[723]: [ydlidar_ros2_driver_node-3] [2026-08-13 11:31:14][info] Lidar has started!
+  │      2026-08-13T11:31:58-05:00 rvr-01 atriz-robot[723]: [collision_monitor-4] [ERROR] [1786638718.697906502] [getTransform]: Failed to get "laser"->"base_footprint" frame transform: Lookup would require extrapolation into the future.  Requested time 1786638718.493757 but the latest data is at time 1786638718.477751, when looking up transform from frame [odom] to frame [base_footprint]
+  │      2026-08-13T11:32:35-05:00 rvr-01 atriz-robot[723]: [collision_monitor-4] [ERROR] [1786638755.844514517] [getTransform]: Failed to get "laser"->"base_footprint" frame transform: Lookup would require extrapolation into the future.  Requested time 1786638755.639227 but the latest data is at time 1786638755.555912, when looking up transform from frame [odom] to frame [base_footprint]
+  │      2026-08-13T11:34:28-05:00 rvr-01 atriz-robot[723]: [ydlidar_ros2_driver_node-3] [2026-08-13 11:34:28][info] Lidar has stopped!
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │      2026-08-13T11:05:32-05:00 rvr-01 atriz-robot[723]: [rvr_driver_node-1] [INFO] [1786637132.508573949] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │      2026-08-13T11:05:32-05:00 rvr-01 atriz-robot[723]: [rvr_driver_node-1] [INFO] [1786637132.545344986] [rvr_driver]: notificaciones IR robot-a-robot registradas -> /infrared_messages (en silencio mientras nadie emita: NO es un fallo)
+  │  · el barrido:
+  │      2026-08-13T11:05:30-05:00 rvr-01 atriz-robot[724]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-13T11:05:30-05:00 rvr-01 atriz-robot[724]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  └──
+
+· el descriptor del LIDAR, ahora mismo:
+lrwx------ 1 sphero sphero 64 Aug 13 11:40 25 -> /dev/ttyUSB0
+
+── M10 · propagación de systemd, con unidades de JUGUETE ───────────
+
+  Dos unidades que no hacen nada (sleep infinity). Se prueban los DOS
+  caminos, porque no son el mismo:
+    caso 1 · systemctl restart  -> un job EXPLÍCITO del operador
+    caso 2 · matar el proceso   -> lo que pasó de verdad (Restart=always)
+
+  ┌── dependencia: bindsto
+  │  inicial                       atada=active     arrancó: Thu 2026-08-13 11:40:26 -05
+  │  tras 'restart base'           atada=active     arrancó: Thu 2026-08-13 11:40:29 -05
+  │  tras MATAR el proceso de base atada=inactive   arrancó: —
+  └──
+  ┌── dependencia: partof
+  │  inicial                       atada=active     arrancó: Thu 2026-08-13 11:40:42 -05
+  │  tras 'restart base'           atada=active     arrancó: Thu 2026-08-13 11:40:44 -05
+  │  tras MATAR el proceso de base atada=active     arrancó: Thu 2026-08-13 11:40:51 -05
+  └──
+  ┌── dependencia: ambas
+  │  inicial                       atada=active     arrancó: Thu 2026-08-13 11:40:57 -05
+  │  tras 'restart base'           atada=active     arrancó: Thu 2026-08-13 11:40:59 -05
+  │  tras MATAR el proceso de base atada=inactive   arrancó: —
+  └──
+  ┌── dependencia: bindsto + Upholds= (el diseño propuesto)
+  │  arrancando SOLO el deseo      atada=active     arrancó: Thu 2026-08-13 11:41:15 -05
+  │  tras 'restart base'           atada=active     arrancó: Thu 2026-08-13 11:41:18 -05
+  │  tras MATAR el proceso de base atada=active     arrancó: Thu 2026-08-13 11:41:25 -05
+  │  (unidad que siempre falla; observando 40 s…)
+  │  con una unidad que SIEMPRE falla:
+  │     estado=failed  NRestarts=3
+  │     🔴 si NRestarts sigue subiendo sin parar, Upholds= IGNORA el
+  │        StartLimit y Nav2 sin mapa entraría en bucle indefinido.
+  └──
+
+  limpiando las unidades de juguete…
+  quedan vivas (debe estar vacío): 0 unidades
+  hecho.
+
+── cómo se lee esto ───────────────────────────────────────────────
+  M10 (los cuatro casos) — LEE EL TIMESTAMP, no solo el estado:
+
+       active + timestamp CAMBIADO  -> murió y VOLVIÓ
+       active + timestamp IGUAL     -> ni se enteró (siguió viva todo el rato)
+       inactive                     -> se paró y NO volvió
+
+       🔴 `is-active` da `active` en dos de los tres casos. Por sí solo NO VALE,
+          y por eso la tabla anterior no se podía leer.
+
+  M10 · caso 4 (`Upholds=`) — tres cosas que decide de golpe:
+
+       1. ¿arrancó la atada al arrancar SOLO el deseo?  -> `Upholds=` funciona
+       2. ¿volvió tras el restart Y tras el kill?       -> resuelve el problema
+          que `BindsTo=` deja abierto, que es TODO el motivo de este diseño
+       3. con una unidad que SIEMPRE falla, ¿se planta NRestarts o sigue
+          subiendo?  -> si sigue subiendo, Nav2 sin mapa entra en bucle y hace
+          falta la salvaguarda ANTES de poner el deseo, no después
+
+  M6 — busca el arranque cuya ventana CONTENGA la hora en que se cargó el RVR,
+       y lee SOLO ese bloque. Los demás no dicen nada del suceso.
+
+    🔴 NRestarts NO sirve para juzgar el pasado: es del arranque ACTUAL. Un 0
+       solo dice «no se ha reiniciado desde que la Pi arrancó esta vez».
+
+    Dentro del arranque del suceso, hay CUATRO desenlaces y son distintos:
+
+    (a) un «Started» a la hora de la carga, y NADA de «reanudado»
+        -> el proceso del driver se fue y systemd lo repuso.
+
+    (b) «streaming reanudado» / «silencio» y NINGÚN «Started»
+        -> el driver SOBREVIVIÓ y se recuperó solo, que es lo que su código
+           dice que hace. Entonces el barrido apagado tiene OTRA causa, y hay
+           que buscar quién llamó a stop_scan.
+
+    (c) el arranque TERMINA a la hora de la carga y empieza otro
+        -> 🔴 NO se reinició el driver: SE REINICIÓ LA PI ENTERA. Es el caso
+           que explica de golpe el barrido apagado, la odometría a cero, el
+           slam_toolbox muerto (se lo lleva la sesión SSH) y NRestarts = 0.
+           La Pi se alimenta del USB del RVR: es una explicación física, no
+           una conjetura.
+
+    (d) nada de lo anterior en ningún arranque
+        -> el suceso no dejó rastro en esta unidad. Mira `journalctl -b <id>`
+           sin `-u` a esa hora.
+
+    Y aparte, en cualquier caso:
+    fd con «(deleted)» -> el descriptor del LIDAR murió: es OTRO fallo, con su
+                          propio remedio (`systemctl restart atriz-robot`).
+
+  M10, para cada dependencia, mirando la columna `atada`:
+    active   -> la unidad atada SOBREVIVIÓ o volvió sola
+    inactive -> se paró y NO volvió   🔴 es el caso que deja la navegación muerta
+    failed   -> se paró y su Restart intentó volver sin conseguirlo
+
+  🔴 Lo que decide el diseño es el CASO 2 (matar el proceso), no el caso 1:
+     el incidente real fue `Restart=always`, no un `systemctl restart`.
+
+═══ fin · salida guardada en /home/sphero/medicion_recuperacion_20260813_114010.txt ═══

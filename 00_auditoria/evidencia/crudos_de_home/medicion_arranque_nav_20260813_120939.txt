@@ -1,0 +1,109 @@
+═══════════════════════════════════════════════════════════════════
+ medir_arranque_nav.sh   ·   2026-08-13T12:09:39-05:00   ·   rvr-01
+ mapa: /home/sphero/mapas/cuarto3.yaml
+═══════════════════════════════════════════════════════════════════
+
+── 0 · antes de tocar nada ────────────────────────────────────────
+  atriz-robot:        active
+  atriz-nav:          inactive / inactive
+  slam_toolbox vivo:  0
+  barrido:            escaneo: apagado o el driver no está corriendo
+  mapa legible:       sí
+  imagen del mapa:    /home/sphero/mapas/cuarto3.pgm (6807 bytes)
+
+── B2 · arranque real, cronometrado ───────────────────────────────
+  ⚠️ ENCIENDE EL BARRIDO (11,8 Hz) y ~58 % de un núcleo. NO mueve el robot.
+
+  ┌── vuelta 1 ─────────────────────────────────────────────────
+  systemctl start --no-block devolvió en .061243357 s
+      (observador en pie)
+      EPOCH_NODO amcl 1786641017.793
+      EPOCH_NODO bt_navigator 1786641017.994
+      EPOCH_NODO map_server 1786641020.613
+      EPOCH_NODO controller_server 1786641021.418
+      EPOCH_NODO behavior_server 1786641021.620
+      EPOCH_NODO planner_server 1786641022.225
+  🎯 ACEPTA OBJETIVOS a los 27.798273877 s del systemctl start
+  estado de la unidad:  active / success
+  barrido tras arrancar: escaneo: ENCENDIDO  (/scan publica)
+
+  ── al parar: ¿qué pasa con el barrido? (conflicto 2 de ARRANQUE_NAVEGACION) ──
+  barrido tras parar:    escaneo: apagado o el driver no está corriendo
+  🔴 si dice APAGADO, parar la navegación deja ciego a cualquier otro
+     consumidor de /scan — y con el botón en la web eso lo hace un alumno.
+  └──
+
+  ┌── vuelta 2 ─────────────────────────────────────────────────
+  systemctl start --no-block devolvió en .052256667 s
+      (observador en pie)
+      EPOCH_NODO map_server 1786641095.259
+      EPOCH_NODO amcl 1786641095.461
+      EPOCH_NODO controller_server 1786641095.864
+      EPOCH_NODO planner_server 1786641095.864
+      EPOCH_NODO bt_navigator 1786641096.468
+      EPOCH_NODO behavior_server 1786641097.877
+  🎯 ACEPTA OBJETIVOS a los 27.839741322 s del systemctl start
+  estado de la unidad:  active / success
+  barrido tras arrancar: escaneo: ENCENDIDO  (/scan publica)
+
+  ── al parar: ¿qué pasa con el barrido? (conflicto 2 de ARRANQUE_NAVEGACION) ──
+  barrido tras parar:    escaneo: apagado o el driver no está corriendo
+  🔴 si dice APAGADO, parar la navegación deja ciego a cualquier otro
+     consumidor de /scan — y con el botón en la web eso lo hace un alumno.
+  └──
+
+── B3 · sin mapa: el botón de tres pulsaciones ────────────────────
+  primer 'systemctl start' (uno solo):
+    código de salida: 0
+  observando 45 s los reintentos…
+    estado:      activating / exit-code
+    NRestarts:   1
+
+  segundo 'systemctl start' — ¿lo deja, o dice 'repeated too quickly'?
+    Job for atriz-nav.service failed because the control process exited with error code.
+    See "systemctl status atriz-nav.service" and "journalctl -xeu atriz-nav.service" for details.
+    código de salida: 1
+    estado:      failed / exit-code
+
+  lo que dijo el journal:
+    Aug 13 12:12:44 rvr-01 systemd[1]: atriz-nav.service: Failed with result 'exit-code'.
+    Aug 13 12:12:54 rvr-01 systemd[1]: atriz-nav.service: Scheduled restart job, restart counter is at 1.
+    Aug 13 12:13:08 rvr-01 atriz-nav[36126]: [atriz-nav] 🔴 no hay mapa legible en /ruta/que/no/existe/mapa.yaml
+    Aug 13 12:13:14 rvr-01 systemd[1]: atriz-nav.service: Failed with result 'exit-code'.
+    Aug 13 12:13:24 rvr-01 systemd[1]: atriz-nav.service: Scheduled restart job, restart counter is at 2.
+    Aug 13 12:13:24 rvr-01 systemd[1]: atriz-nav.service: Start request repeated too quickly.
+    Aug 13 12:13:24 rvr-01 systemd[1]: atriz-nav.service: Failed with result 'exit-code'.
+    Aug 13 12:13:24 rvr-01 systemd[1]: Failed to start atriz-nav.service - Atriz — navegación (AMCL + Nav2).
+
+── cómo se lee ────────────────────────────────────────────────────
+  B2 · el número que importa NO es lo que tarda `systemctl start` en devolver
+       —eso es encolar un job— sino los segundos hasta «ACEPTA OBJETIVOS».
+       Ese es el plazo real del estado «arrancando» que la web debe pintar.
+
+       Si supera 120 s, `TimeoutStartSec=120` está mal puesto y la unidad se
+       mataría a sí misma a mitad de arrancar.
+
+  B3 · tres desenlaces, y son distintos:
+
+       Result=exit-code + NRestarts=3 + el segundo start dice
+       «Start request repeated too quickly»
+          -> 🔴 CONFIRMADO: un solo clic quema el presupuesto y el botón queda
+             muerto hasta que alguien entre por SSH. El servicio ROS TIENE que
+             negarse ANTES de llamar a systemctl si no hay mapa.
+
+       Result=exit-code + NRestarts=0
+          -> `Restart=on-failure` no reintentó. El latch no existe y B3 se cae.
+
+       el segundo start arranca normal
+          -> el StartLimit no llegó a agotarse en esta ventana. Repetir con
+             más pulsaciones antes de concluir.
+
+  ⚠️ Y en los tres casos, mira el barrido tras parar la navegación (arriba).
+     Es una decisión pendiente, no un dato de color.
+
+═══ fin · salida en /home/sphero/medicion_arranque_nav_20260813_120939.txt ═══
+
+── dejando el sistema como estaba ─────────────────────────────────
+  atriz-nav:  inactive / inactive
+  atriz-robot:active
+  drop-in borrado, reset-failed hecho.

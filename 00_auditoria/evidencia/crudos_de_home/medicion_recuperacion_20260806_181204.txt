@@ -1,0 +1,112 @@
+═══════════════════════════════════════════════════════════════════
+ medir_recuperacion.sh   ·   2026-08-06T18:12:04-05:00   ·   rvr-01
+ salida: /home/sphero/medicion_recuperacion_20260806_181204.txt
+═══════════════════════════════════════════════════════════════════
+
+── M6 · el journal de atriz-robot, ACOTADO POR ARRANQUE ────────────
+
+· ¿es el journal persistente? (si no lo fuera, solo habría el arranque actual)
+  ✅ /var/log/journal existe -> PERSISTENTE. Hay historial de arranques anteriores.
+Archived and active journals take up 34.3M in the file system.
+
+· los arranques que conserva la Pi:
+IDX BOOT ID                          FIRST ENTRY                 LAST ENTRY
+ -6 b9013214ac274d7bb671ca418f5569e9 Tue 2026-08-04 21:25:41 -05 Tue 2026-08-04 21:54:41 -05
+ -5 e9eca532b6724ac181d4368953d49de4 Tue 2026-08-04 21:54:45 -05 Wed 2026-08-05 08:39:41 -05
+ -4 f71cd2e363b54d639241f27e2288a95a Wed 2026-08-05 08:39:26 -05 Wed 2026-08-05 08:58:09 -05
+ -3 895feccc99c94f5bb942e3b121ec9f1d Wed 2026-08-05 09:06:03 -05 Wed 2026-08-05 23:34:22 -05
+ -2 28eb47f560e84bf68ae6d6bc795cb540 Wed 2026-08-05 23:33:40 -05 Thu 2026-08-06 11:19:10 -05
+ -1 4d99cc1ac76344cbaa4ff4044e5d4ce6 Thu 2026-08-06 11:18:18 -05 Thu 2026-08-06 15:09:03 -05
+  0 c03b651cd0974376ac1d59ab351aae7e Fri 2026-06-05 10:37:47 -05 Thu 2026-08-06 18:10:54 -05
+
+· NRestarts del arranque ACTUAL:
+NRestarts=0
+ActiveEnterTimestamp=Thu 2026-08-06 16:17:30 -05
+  la Pi arrancó (este arranque): 2026-08-06 16:17:06
+
+· qué pasó en CADA uno de los arranques conservados:
+
+  ┌─ arranque IDX ────────────────────────────────────────────────
+  │  desde: 
+  │  hasta: 
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │  · el barrido:
+  └──
+
+  ┌─ arranque -6 ────────────────────────────────────────────────
+  │  desde: 
+  │  hasta: 
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │  · el barrido:
+  └──
+
+  ┌─ arranque -5 ────────────────────────────────────────────────
+  │  desde: 
+  │  hasta: 
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │  · el barrido:
+  └──
+
+  ┌─ arranque -4 ────────────────────────────────────────────────
+  │  desde: 
+  │  hasta: 
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │  · el barrido:
+  └──
+
+  ┌─ arranque -3 ────────────────────────────────────────────────
+  │  desde: 
+  │  hasta: 
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │  · el barrido:
+  └──
+
+  ┌─ arranque -2 ────────────────────────────────────────────────
+  │  desde: 
+  │  hasta: 
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │  · el barrido:
+  └──
+
+  ┌─ arranque -1 ────────────────────────────────────────────────
+  │  desde: 
+  │  hasta: 
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │  · el barrido:
+  └──
+
+  ┌─ arranque 0 ────────────────────────────────────────────────
+  │  desde: 2026-08-06T18:10:54-05:00
+  │  hasta: 2026-08-06T18:10:54-05:00
+  │  · eventos de la UNIDAD (arrancó, paró, murió):
+  │      2026-08-06T15:09:01-05:00 rvr-01 systemd[1]: Starting atriz-robot.service - Atriz — robot RVR (driver, LIDAR, TF, collision_monitor)...
+  │      2026-08-06T16:17:25-05:00 rvr-01 atriz-robot[720]: [INFO] [rvr_driver_node-1]: process started with pid [845]
+  │      2026-08-06T16:17:25-05:00 rvr-01 atriz-robot[720]: [INFO] [robot_state_publisher-2]: process started with pid [846]
+  │      2026-08-06T16:17:25-05:00 rvr-01 atriz-robot[720]: [INFO] [ydlidar_ros2_driver_node-3]: process started with pid [847]
+  │      2026-08-06T16:17:25-05:00 rvr-01 atriz-robot[720]: [INFO] [collision_monitor-4]: process started with pid [848]
+  │      2026-08-06T16:17:25-05:00 rvr-01 atriz-robot[720]: [INFO] [lifecycle_manager-5]: process started with pid [849]
+  │      2026-08-06T16:17:25-05:00 rvr-01 atriz-robot[720]: [INFO] [rosbridge_websocket-6]: process started with pid [850]
+  │      2026-08-06T16:17:25-05:00 rvr-01 atriz-robot[720]: [INFO] [rosapi_node-7]: process started with pid [851]
+  │      2026-08-06T16:17:27-05:00 rvr-01 atriz-robot[720]: [lifecycle_manager-5] [INFO] [1786051047.120104922] [lifecycle_manager_seguridad]: Starting managed nodes bringup...
+  │      2026-08-06T16:17:27-05:00 rvr-01 atriz-robot[720]: [ydlidar_ros2_driver_node-3] [2026-08-06 16:17:27][info] Lidar has started!
+  │      2026-08-06T16:17:29-05:00 rvr-01 atriz-robot[720]: [ydlidar_ros2_driver_node-3] [2026-08-06 16:17:29][info] Lidar has stopped!
+  │      2026-08-06T16:17:29-05:00 rvr-01 atriz-robot[720]: [rosbridge_websocket-6] [INFO] [1786051049.851091254] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
+  │      2026-08-06T16:17:30-05:00 rvr-01 systemd[1]: Started atriz-robot.service - Atriz — robot RVR (driver, LIDAR, TF, collision_monitor).
+  │      2026-08-06T16:19:32-05:00 rvr-01 atriz-robot[720]: [ydlidar_ros2_driver_node-3] [2026-08-06 16:19:32][info] Lidar has started!
+  │      2026-08-06T16:55:40-05:00 rvr-01 atriz-robot[720]: [ydlidar_ros2_driver_node-3] [2026-08-06 16:55:40][info] Lidar has stopped!
+  │  · lo que dijo el driver del ENLACE con el RVR:
+  │      2026-08-06T16:17:31-05:00 rvr-01 atriz-robot[720]: [rvr_driver_node-1] [INFO] [1786051051.042914975] [rvr_driver]: rvr_driver arrancando · puerto=/dev/rvr baud=115200 interval=60ms frames=odom->base_footprint keepalive=30s silencio=3s
+  │  · el barrido:
+  │      2026-08-06T16:17:30-05:00 rvr-01 atriz-robot[721]: ✅ escaneo APAGADO — el X2 baja a ~2.7 Hz
+  │      2026-08-06T16:17:30-05:00 rvr-01 atriz-robot[721]:    ⚠️ el robot NO conducirá hasta un 'atriz-escaneo on'
+  └──
+
+· el descriptor del LIDAR, ahora mismo:
+lrwx------ 1 sphero sphero 64 Aug  6 16:27 25 -> /dev/ttyUSB0
