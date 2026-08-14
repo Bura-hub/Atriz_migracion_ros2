@@ -4,6 +4,20 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14, 16:20 (Pi, remoto) — El botón de Nav2, de extremo a extremo por primera vez: FUNCIONANDO en 28,4 s y paro limpio
+
+Cierra el ⏳ que la evidencia 80 dejó el 2026-08-07 («los rechazos sí están verificados; el
+arranque no»): `/pedir_nav {data:true}` → ACEPTADA → ARRANCANDO (0,8 s) → **FUNCIONANDO a los
+28,4 s** leyendo `/estado_navegacion` —el camino exacto de la web— → 10 s en régimen con `/scan`
+a 11,9 Hz → `/pedir_nav {data:false}` → APAGADO a los 10,5 s, barrido apagado después (n=3 del
+conflicto 2). **El tiempo de arranque queda en n=3 por dos caminos**: 27,80 · 27,84 (systemctl
+directo, B2) · 28,4 (botón). Sin sudo, sin mover el robot, batería 8,01 → 7,93 V. 📝 Al parar,
+el estado pasa ~9 s por `MUDO` («deactivating») antes de `APAGADO` — la misma transición que la
+web ya vio con SLAM el 08-09: un MUDO breve tras pedir un paro es normal, no alarma.
+Herramienta al banco: `mediciones_banco/probar_boton_nav.py`. **Evidencia 111.**
+
+---
+
 ## 2026-08-14, 16:00 (Pi, remoto) — RETIRADO el «negarse sin mapa: sin implementar»: el guardia ya existía desde el 2026-08-07
 
 Al ir a implementar el pendiente nº 1 del cierre de B3 apareció que **no había nada que

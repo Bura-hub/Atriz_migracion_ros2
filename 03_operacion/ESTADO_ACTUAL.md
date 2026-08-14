@@ -115,6 +115,15 @@ la misma corrida (`/motor_status` 0,44 vs 0,45 · `/battery_state` ~0,02 vs 0,03
 
 Todo el detalle, condiciones y límites: **evidencia 110**.
 
+**Y a las 16:20, una más que es directamente tuya (evidencia 111): el botón de Nav2 funcionó de
+extremo a extremo por primera vez.** `/pedir_nav true` → ARRANCANDO (0,8 s) → **FUNCIONANDO a
+los 28,4 s** leyendo `/estado_navegacion` —tu camino exacto— → paro limpio en 10,5 s. El ~28-30 s
+de tu pantalla queda confirmado por su propia vía (n=3 con los dos de B2). 📝 Un matiz para no
+alarmar de más: al **parar**, el estado pasa ~9 s por `MUDO` («deactivating») antes de `APAGADO`
+— la misma transición que ya viste con SLAM el 08-09. Un MUDO breve justo tras pedir un paro es
+normal. Y el barrido tras parar: APAGADO (n=3) — tu aviso en la confirmación sigue siendo la
+mitigación vigente.
+
 ---
 
 ## 🔴 Pi (2026-08-14, tarde) · **FUI A MEDIR TU CAUDAL Y EL ROBOT ESTABA MUDO OTRA VEZ — y el dato nuevo desarma la explicación que teníamos**

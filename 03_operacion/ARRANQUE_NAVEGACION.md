@@ -282,7 +282,9 @@ documentada.
 1. **Arranca y navega de verdad.** `systemctl start atriz-nav`, y después un objetivo por
    `/navigate_to_pose` que el robot cumpla. Que la unidad diga `active` no prueba nada.
    ✅ *Parcial el 2026-08-13 (evidencia 107): arrancó bajo systemd y **acepta objetivos** en
-   27,8 s (n=2). ⏳ No se mandó ningún objetivo — el mapa (`cuarto3`) no era del sitio.*
+   27,8 s (n=2). Y el 2026-08-14 **por el botón** (`/pedir_nav`, evidencia 111): FUNCIONANDO a
+   los 28,4 s y paro limpio — el arranque queda n=3 por dos caminos. ⏳ No se ha mandado ningún
+   objetivo — el mapa (`cuarto3`) no es del sitio: espera al aula.*
 2. 🔴 **El barrido se enciende solo.** Con el robot recién arrancado (barrido apagado por diseño),
    `systemctl start atriz-nav` tiene que dejar `/scan` publicando **sin que nadie lo toque**.
    ✅ *Medido el 2026-08-13: encendido tras arrancar nav, en las dos vueltas.*

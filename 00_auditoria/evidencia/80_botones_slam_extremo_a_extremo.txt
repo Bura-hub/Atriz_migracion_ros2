@@ -97,6 +97,8 @@ c) 🔴 EL BARRIDO SE QUEDABA ENCENDIDO, Y ES LA TERCERA VEZ DEL MISMO PATRÓN
 ⏳ **El botón de Nav2 de extremo a extremo.** No hay mapa en la ruta que ambos
    miran (`maps/aula.yaml`); el del cuarto está en `~/mapas/cuarto.yaml`. Los
    rechazos sí están verificados; el arranque no.
+   ✅ CERRADO el 2026-08-14 (evidencia 111): /pedir_nav true → FUNCIONANDO a
+   los 28,4 s → paro limpio en 10,5 s, con ATRIZ_MAPA ya apuntando a cuarto3.
 ⏳ **`off-si-sobra` con DOS unidades activas a la vez.** La rama está verificada
    por lógica (con `atriz-robot` como unidad activa), no de extremo a extremo:
    para eso hacen falta SLAM y Nav2 arriba, y Nav2 necesita mapa.

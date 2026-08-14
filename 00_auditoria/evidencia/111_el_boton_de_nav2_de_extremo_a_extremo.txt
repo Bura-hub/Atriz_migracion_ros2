@@ -1,0 +1,65 @@
+═══════════════════════════════════════════════════════════════════════════════
+111 · EL BOTÓN DE NAV2, DE EXTREMO A EXTREMO POR PRIMERA VEZ: /pedir_nav →
+      FUNCIONANDO EN 28,4 s → PARO LIMPIO — CIERRA EL ⏳ DE LA EVIDENCIA 80
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-14, remoto · batería 8,01 V antes → 7,93 V después
+Robot:   rvr-01 · mapa cuarto3.yaml (mecanismo, no contenido: no se manda
+         ningún objetivo y el robot NO se mueve)
+Origen:  Evidencia 80 (2026-08-07): «los rechazos sí están verificados; el
+         arranque no» — aquel día no había mapa en la ruta. B2 (evidencia 107)
+         midió `systemctl start` DIRECTO, no el servicio. El camino que usa la
+         web —el botón— nunca se había recorrido entero.
+Guion:   scratchpad probar_boton_nav.py — UN solo proceso (la lección de las
+         81-84: encadenar `ros2 service call` compite por la CPU que mide),
+         sin sudo: el supervisor llama a systemctl por la regla de polkit.
+
+RESUMEN
+  ✅ El botón funciona de punta a punta: `/pedir_nav {data:true}` → ACEPTADA →
+  ARRANCANDO (0,8 s) → **FUNCIONANDO a los 28,4 s** → se sostiene (/scan
+  11,9 Hz) → `/pedir_nav {data:false}` → APAGADO a los 10,5 s → barrido
+  APAGADO. Y el 28,4 **clava** los 27,80/27,84 de B2 por el camino directo:
+  el tiempo de arranque queda en n=3 por DOS caminos distintos.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LA CORRIDA, TAL CUAL
+───────────────────────────────────────────────────────────────────────────────
+  estado previo        nav=APAGADO · hay_mapa=True · mapa=cuarto3.yaml ·
+                       barrido OFF (0 scans en 5 s)
+  /pedir_nav true      success=True · «petición ACEPTADA, no arrancado
+                       todavía: mira /estado_navegacion»  ← el contrato honesto
+     t= 0,8 s          nav=ARRANCANDO
+     t=28,2 s          nav=FUNCIONANDO      → 28,4 s desde el pedido
+  10 s en régimen      nav=FUNCIONANDO · /scan a 11,9 Hz (encendido por la
+                       unidad, sin tocar nada — ítem 2 de la verificación,
+                       ahora también por el camino del botón)
+  /pedir_nav false     success=True · «paro encolado»
+     t= 1,1 s          nav=MUDO («la unidad dice deactivating pero no hay
+                       señal de que funcione»)
+     t=10,5 s          nav=APAGADO
+  barrido tras parar   /scan a 0,0 Hz → APAGADO
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LO QUE CIERRA Y LO QUE CONFIRMA
+───────────────────────────────────────────────────────────────────────────────
+  ✅ CIERRA el ⏳ de la evidencia 80: «el botón de Nav2 de extremo a extremo».
+     Rechazos (80) + arranque (aquí): el servicio está entero.
+  ✅ El tiempo de arranque, n=3 y por dos caminos: 27,80 · 27,84 (systemctl
+     directo, B2) · 28,4 (por el botón, midiendo /estado_navegacion — que es
+     EXACTAMENTE lo que verá la web). El ~28-30 s de la pantalla del PC queda
+     confirmado por su propio camino.
+  ✅ El paro también es limpio: 10,5 s hasta APAGADO, success=True.
+  📝 Al parar, el estado pasa ~9 s por MUDO antes de APAGADO — la unidad en
+     `deactivating` sin señal de vida. Es la MISMA transición que la web ya
+     vio con SLAM el 2026-08-09 («MUDO apareció solo al parar»): conocido, no
+     nuevo. La pantalla no debe alarmar por un MUDO breve inmediatamente
+     después de pedir un paro.
+  🔴 El barrido queda APAGADO tras parar nav — TERCERA medición (B2 ×2, botón
+     ×1). El conflicto 2 (otro consumidor de /scan se queda ciego) sigue
+     siendo una decisión pendiente; el aviso de la web ya existe.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ⏳ «…y un objetivo que el robot cumpla» (ítem 1 de ARRANQUE_NAVEGACION):
+     sigue esperando un mapa DEL SITIO — es el Bloque C, en el aula.
+  ⏳ La decisión del barrido al parar (conflicto 2), ahora con n=3.
