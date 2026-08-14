@@ -252,8 +252,13 @@ creciente. Lo imprime porque `wake`+`stop`+`start` no lanzan excepción, **no po
 dato**.
 → **Un robot muerto parece sano en el log.** Misma familia que el RVR dormido con el nodo vivo y
   que el nodo muerto con systemd en verde.
-→ Y son ~46 000 líneas al día por robot sobre una **microSD**. ⏳ Pendiente: no decir «reanudado»
-  hasta que llegue una muestra de verdad, y espera creciente con tope. Evidencia 52.
+→ ~~Y son ~46 000 líneas al día por robot sobre una **microSD**. ⏳ Pendiente: no decir «reanudado»
+  hasta que llegue una muestra de verdad, y espera creciente con tope. Evidencia 52.~~
+  ✅ **HECHO Y VERIFICADO el 2026-08-14 con un apagado real (evidencia 116):** «el RVR VOLVIÓ»
+  solo se imprime al LLEGAR una muestra, y los reintentos doblan 3→6→12→24→48→60 s (progresión
+  medida en los timestamps del journal). Diagnóstico honesto desde el 2º intento: «apagado,
+  cargando o el cable fuera». ⚠️ Coste del tope: tras encender el RVR, el reenganche puede
+  tardar hasta ~1 min (necesita un intento posterior al encendido).
 
 **Que el nodo arranque NO prueba que el enlace funcione.** `rvr_fw_check_async.py` captura
 `except (asyncio.TimeoutError, Exception)` y continúa en silencio: el nodo registra sus

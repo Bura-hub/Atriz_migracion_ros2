@@ -38,10 +38,14 @@
 > - 🔴 **Dos retractaciones mías, corregidas en sitio:** el «negarse sin mapa: sin implementar»
 >   (el guardia existía desde el 07, evidencia 80) y la atribución del LIDAR de arriba.
 >
-> ⏳ **Del día quedan:** el punto 6 de la tabla (logs honestos del driver: «streaming
-> reanudado» miente con el RVR apagado, sin espera creciente — evidencia 52), y todo lo que
-> espera al aula (Bloque C entero, práctica 63, foto del conector, prueba de aceptación de un
-> tirón, Fase 6).
+> - ✅ **Y el driver dejó de mentir con el RVR apagado** (evidencia 116, cierra el ⏳ de la 52):
+>   «el RVR VOLVIÓ» solo al llegar una muestra, espera creciente 3→6→12→24→48→60 s medida en
+>   el journal con un apagado real, y el detalle de `nav_latcheado` con el «caduca sola en
+>   ~5 min». **Con esto, la tabla de pendientes del lado Pi quedó ENTERA en cero.**
+>
+> ⏳ **Lo que queda espera al aula:** Bloque C entero (mapa, AMCL con objetos, hueco 43/45),
+> práctica 63, foto del conector USB, prueba de aceptación de un tirón, y la Fase 6 (imagen
+> dorada) — que ahora llevará de serie los dos vigilantes y el barrido-que-devuelve-el-estado.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-13 · SEGUNDO DÍA EN EL LABORATORIO: EL BLOQUE ROJO DE ABAJO QUEDÓ CERRADO**

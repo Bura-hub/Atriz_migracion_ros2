@@ -4,6 +4,22 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14, 17:20 (Pi, con el usuario junto al robot) — El driver deja de mentir con el RVR apagado, y LA TABLA DEL DÍA QUEDA EN CERO
+
+El último punto: el ⏳ de la evidencia 52. Dos cambios en `rvr_driver_node.py` (repo
+`Atriz_rvr`), verificados 👤 con un apagado real del RVR de ~2 min: **«reanudado» solo cuando
+llega una muestra** («el RVR VOLVIÓ: primera muestra tras 5 intento(s)» — lo imprime el único
+testigo que no puede mentir, el contador de muestras), y **espera creciente 3→6→12→24→48→60 s**,
+con la progresión medida en los timestamps del journal y **cero** mentiras en toda la ventana
+(antes: una cada ~6 s, ~46.000 líneas/día). El diagnóstico desde el 2º intento dice la verdad:
+«apagado, cargando o el cable fuera. Próximo intento en N s». ⚠️ Coste honesto del tope: tras
+encender el RVR, el reenganche puede tardar hasta ~1 min. De propina, el detalle de
+`nav_latcheado` del supervisor incorpora la evidencia 112 («caduca sola en ~5 min, quita la
+causa antes de reintentar»). Desplegado sin sudo (`kill -INT` + `Restart=always`, el mecanismo
+del vigía). **Evidencia 116 — y con ella, los seis puntos de la tabla del lado Pi cerrados.**
+
+---
+
 ## 2026-08-14, 17:05 (Pi, con el usuario junto al robot) — El reenganche del LIDAR, verificado desenchufando de verdad — y el mecanismo del incidente estaba mal atribuido
 
 Decisión A del usuario sobre la evidencia 69 §6. Pieza nueva: **`98-atriz-lidar-reenganche.rules`**

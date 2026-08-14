@@ -1,0 +1,74 @@
+═══════════════════════════════════════════════════════════════════════════════
+116 · EL DRIVER DEJA DE MENTIR CON EL RVR APAGADO: «REANUDADO» SOLO CUANDO
+      LLEGA UNA MUESTRA, Y ESPERA CRECIENTE 3→6→12→24→48→60 s — MEDIDA EN
+      EL MUNDO REAL CON UN APAGADO DE VERDAD
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-14, con el usuario junto al robot · el último punto de la tabla
+Origen:  Evidencia 52 (2026-08-02): con el RVR apagado para cargar, el driver
+         escribió «streaming reanudado» 8 veces en 30 s con /odom a cero —
+         porque wake+stop+start NO lanzan excepción con el robot muerto — y
+         reintentaba cada ~4-6 s sin espera creciente: ~46.000 líneas/día por
+         robot sobre una microSD, ahogando los errores de verdad.
+
+RESUMEN
+  Dos cambios en `rvr_driver_node.py`, verificados con un ciclo real de
+  apagado (~2 min) y encendido del RVR (👤): (1) el mensaje de éxito se mudó
+  al ÚNICO testigo que no puede mentir — donde se comprueba que llegó una
+  muestra (`_n_muestras > _muestras_al_reanudar`) — y el viejo quedó en debug
+  con su texto honesto; (2) espera creciente timeout×2^fallidas con tope de
+  60 s. Y de propina, el texto del latch del supervisor incorpora lo medido
+  en la evidencia 112 («caduca sola en ~5 min»).
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LO MEDIDO, CON EL RVR APAGADO DE VERDAD (~2 min) Y ENCENDIDO DESPUÉS
+───────────────────────────────────────────────────────────────────────────────
+  «streaming reanudado» en toda la ventana:  **0**  (antes: cada ~6 s)
+
+  intento 1   silencio 3,0 s → «Lo más probable es que se haya dormido»
+  intento 2   +6 s   «sigue SIN llegar ni una muestra tras 2 intentos:
+  intento 3   +12 s   apagado, cargando o el cable fuera. Próximo intento
+  intento 4   +24 s   en N s.»            ← el diagnóstico HONESTO: un RVR
+  intento 5   +48 s                         dormido vuelve al PRIMER intento
+                                            (medido); esto no es una siesta
+  al encender  «el RVR VOLVIÓ: primera muestra tras 5 intento(s) de
+               reanudación sin respuesta.»  ← impreso al LLEGAR el dato
+
+  Las esperas dobladas se midieron en los timestamps del journal: +6, +12,
+  +24, +48 — la progresión exacta, en el mundo real y no en un test.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · EL DISEÑO, Y SU COSTE HONESTO
+───────────────────────────────────────────────────────────────────────────────
+  · El primer intento conserva el texto viejo («se ha dormido»): esa hipótesis
+    es la correcta para UN silencio — el RVR dormido se recupera al primer
+    intento, 3 de 3 medido. A partir del segundo, la hipótesis honesta cambia
+    y el mensaje también.
+  · Volumen: de ~14.000 intentos/día (uno cada ~6 s) a ~1.440 líneas/día en
+    el peor caso (tope 60 s). El journal deja de ahogar errores de verdad y
+    la microSD lo agradece.
+  ⚠️ EL COSTE DEL TOPE, dicho entero: el reenganche del streaming necesita un
+    intento (wake+start) DESPUÉS de que el RVR encienda. Con el tope de 60 s,
+    encender el robot puede tardar **hasta ~1 min** en reengancharse (aquí
+    fueron ~0,7 s porque el encendido coincidió con el intento 5). Es el
+    intercambio elegido: un robot apagado horas no merece un intento cada
+    6 s; un minuto de espera tras encender es visible y acotado.
+  · `reanudaciones_fallidas` de /estado_robot no cambia de semántica: la web
+    sigue viendo 0 / 1-2 / >2 igual que antes.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · Y EL TEXTO DEL LATCH DEL SUPERVISOR, AL DÍA CON LA EVIDENCIA 112
+───────────────────────────────────────────────────────────────────────────────
+  `nav_latcheado` decía solo «hace falta reset-failed». Ahora (rechazo de
+  `_pedir` y detalle de `_evaluar`): «espera ~5 minutos (el bloqueo caduca
+  solo) y QUITA LA CAUSA antes de reintentar, o reset-failed desde el robot
+  para no esperar». ⚠️ Verificado por código y compilación; la rama en vivo
+  se vio con el texto viejo en la 112 — no se re-provoca el latch solo para
+  leer un string.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ✅ El ⏳ de la evidencia 52 queda CERRADO. La tabla de pendientes del lado
+     Pi del 2026-08-14 queda ENTERA en cero.
+  📝 Si algún día molesta el minuto de reenganche tras encender, la palanca
+     es el tope (60 s) — está en una sola línea y el intercambio documentado.

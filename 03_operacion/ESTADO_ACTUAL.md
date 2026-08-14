@@ -115,6 +115,16 @@ la misma corrida (`/motor_status` 0,44 vs 0,45 · `/battery_state` ~0,02 vs 0,03
 
 Todo el detalle, condiciones y límites: **evidencia 110**.
 
+**Y a las 17:20, el cierre de la tabla (evidencia 116): el driver deja de mentir con el RVR
+apagado.** «Streaming reanudado» ya no existe: el mensaje honesto es **«el RVR VOLVIÓ: primera
+muestra tras N intento(s)»**, impreso solo al llegar el dato; con el RVR apagado el diagnóstico
+dice la verdad («apagado, cargando o el cable fuera») con **espera creciente 3→6→12→24→48→60 s**
+— medida en el journal con un apagado real de ~2 min. Para tu pantalla: `reanudaciones_fallidas`
+no cambia de semántica. ⚠️ Un matiz: tras encender el RVR, el reenganche puede tardar **hasta
+~1 min** (el tope de la espera) — un robot recién encendido que tarda un minuto en volver a dar
+señal ya no es un misterio. Y el detalle de `nav_latcheado` ahora dice «caduca sola en ~5 min»
+(lo de la evidencia 112), en vez de mandar solo al reset-failed.
+
 **Y a las 17:05, la última pieza del día (evidencia 115): el LIDAR desenchufado también se cura
 solo.** Desenchufar el USB del X2 de la Pi —gesto cotidiano de ahorro, y NO «apagar el RVR»,
 que era una atribución falsa ya corregida— dejaba al nodo con el descriptor muerto y al robot
