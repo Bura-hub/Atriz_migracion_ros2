@@ -61,11 +61,34 @@ ExecStart=/usr/local/bin/atriz-robot.sh
 # un problema de desgaste; un robot que no arranca es un problema de laboratorio.
 ExecStartPost=-/usr/local/bin/atriz-escaneo off
 
+# ── El vigía de DDS: contra el robot MUDO del arranque en frío ───────────────
+# 🔴 Evidencia 109: el stack puede nacer mudo en DDS —driver vivo, RVR
+# hablando, ni un mensaje cruzando en la propia Pi— con las esperas de red y
+# reloj CUMPLIDAS. Intermitente (2 de 3 arranques fríos), causa sin conocer,
+# remedio medido 2 de 2: reiniciar con el reloj ya bueno.
+#
+# El vigía espera un mensaje de /estado_robot (hasta 90 s); si no llega, deja
+# una marca en /run/atriz y manda SIGINT al proceso principal — Restart=always
+# hace el resto. UNA sola vez por arranque: si tras la cura sigue mudo, falla
+# ABIERTO (lo deja corriendo y lo grita al journal). Un robot mudo es malo; uno
+# latcheado por su propio vigía es peor.
+#
+# `-` al principio: un vigía roto no debe tumbar un robot sano.
+ExecStartPost=-/usr/local/bin/atriz-vigia-dds
+
+# La marca del vigía tiene que SOBREVIVIR al reinicio de la unidad (es lo que
+# garantiza «una sola vez») y morir sola al reiniciar la Pi: /run/atriz con
+# Preserve hace exactamente eso, y pertenece a `sphero` (User=).
+RuntimeDirectory=atriz
+RuntimeDirectoryPreserve=yes
+
 # 🔴 El arranque puede ser LARGO y el tope por defecto son 90 s: el envoltorio
-# espera hasta 60 s a que udev cree los puertos, el launch tarda ~10 s, y el
-# ExecStartPost espera hasta 30 s a que aparezca /stop_scan. Sumado se pasa, y
-# systemd mataría un arranque que iba bien.
-TimeoutStartSec=180
+# espera hasta 60 s a que udev cree los puertos (y hasta 90 s al reloj), el
+# launch tarda ~10 s, el ExecStartPost del barrido espera hasta 30 s a
+# /stop_scan, y el vigía de DDS hasta 90 s a /estado_robot. Sumado se pasa, y
+# systemd mataría un arranque que iba bien. (Era 180 hasta el 2026-08-14;
+# subió al añadir el vigía.)
+TimeoutStartSec=300
 
 # ── Apagado ──────────────────────────────────────────────────────────────────
 # 🔴 SIGINT, no SIGTERM. El driver apaga los LEDs y —esto importa— el LED del

@@ -40,3 +40,5 @@ scripts/sistema/99-rvr.rules	/etc/udev/rules.d/99-rvr.rules	644	fase_0_1_fix_uar
 scripts/sistema/cpu-performance.service	/etc/systemd/system/cpu-performance.service	644	fase_1_higiene_so.sh	-
 scripts/first-boot.sh	/usr/local/sbin/atriz-first-boot.sh	755	fase_6_preparar_imagen_dorada.sh	opcional
 scripts/first-boot.service	/etc/systemd/system/atriz-first-boot.service	644	fase_6_preparar_imagen_dorada.sh	opcional
+scripts/atriz-vigia-dds.sh	/usr/local/bin/atriz-vigia-dds	755	fase_7_systemd.sh	-
+scripts/sistema/vigia_dds.py	/usr/local/bin/vigia_dds.py	755	fase_7_systemd.sh	-

@@ -116,6 +116,7 @@ if [[ $MODO == quitar ]]; then
     rm -f /usr/local/bin/atriz-robot.sh /usr/local/bin/atriz-escaneo
     rm -f /usr/local/bin/atriz-nav.sh /usr/local/bin/atriz-slam.sh \
           /usr/local/bin/atriz-exclusion
+    rm -f /usr/local/bin/atriz-vigia-dds /usr/local/bin/vigia_dds.py
     rm -f /etc/polkit-1/rules.d/49-atriz-unidades.rules
     # /etc/default/atriz NO se borra: lo edita el operador y puede llevar la
     # ruta de un mapa que costó una sesión de mapeo. Se avisa y se deja.
@@ -154,6 +155,8 @@ comprobar "existe atriz-nav.service en el repo" "[[ -f $SCRIPTS_DIR/atriz-nav.se
 comprobar "existe atriz-slam.sh en el repo"    "[[ -f $SCRIPTS_DIR/atriz-slam.sh ]]"
 comprobar "existe atriz-slam.service en el repo" "[[ -f $SCRIPTS_DIR/atriz-slam.service ]]"
 comprobar "existe atriz-exclusion.sh en el repo" "[[ -f $SCRIPTS_DIR/atriz-exclusion.sh ]]"
+comprobar "existe atriz-vigia-dds.sh en el repo" "[[ -f $SCRIPTS_DIR/atriz-vigia-dds.sh ]]"
+comprobar "existe vigia_dds.py en el repo"       "[[ -f $SCRIPTS_DIR/sistema/vigia_dds.py ]]"
 comprobar "existe la regla de polkit en el repo" \
           "[[ -f $SCRIPTS_DIR/sistema/49-atriz-unidades.rules ]]"
 comprobar "existe la plantilla de ajustes en el repo" \
@@ -356,6 +359,15 @@ hacer install -m 755 "$SCRIPTS_DIR/atriz-slam.sh"      /usr/local/bin/atriz-slam
 hecho "/usr/local/bin/atriz-slam.sh"
 hacer install -m 644 "$SCRIPTS_DIR/atriz-slam.service" /etc/systemd/system/atriz-slam.service
 hecho "/etc/systemd/system/atriz-slam.service"
+
+# El vigía de DDS: contra el robot que nace MUDO en un arranque en frío
+# (evidencia 109 — intermitente, causa sin conocer, remedio medido 2 de 2).
+# Lo llama atriz-robot.service como ExecStartPost=-; reinicia UNA vez por
+# arranque (SIGINT al proceso principal + Restart=always) y falla abierto.
+hacer install -m 755 "$SCRIPTS_DIR/atriz-vigia-dds.sh"    /usr/local/bin/atriz-vigia-dds
+hecho "/usr/local/bin/atriz-vigia-dds"
+hacer install -m 755 "$SCRIPTS_DIR/sistema/vigia_dds.py"  /usr/local/bin/vigia_dds.py
+hecho "/usr/local/bin/vigia_dds.py"
 
 # La regla de polkit: sin ella, `supervisor_navegacion` recibe «Interactive
 # authentication required» al llamar a systemctl (verificado el 2026-08-07) y
