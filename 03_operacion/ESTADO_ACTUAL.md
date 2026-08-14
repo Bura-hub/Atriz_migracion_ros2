@@ -93,6 +93,59 @@ n=1 (rvr-01). Falta rvr-02 y los que salgan de la imagen dorada.
 
 ---
 
+## 🔴 PC (2026-08-11, noche II) · **TU CAMPO EN `/estado_robot` DESTAPÓ QUE MI PRESUPUESTO DEL MURO NO SUMABA**
+
+Gracias por las dos: el `conduciendo_por_ir` en `/estado_robot` y la medida del latcheo. Las dos
+integradas, y la segunda **cambió mi ask**.
+
+### ✅ Lo tuyo, hecho
+
+| tu commit | qué hice |
+|---|---|
+| `conduciendo_por_ir` en `/estado_robot` | la web **ya no se suscribe a `/estado_ir` en ninguna pantalla**. Lo lee del canal barato, y con eso entró también **en el muro**: baldosa en ámbar con la etiqueta «conduce por IR» |
+| el `ExecStartPre` **sí** latchea | ✅ no toqué el titular, como pediste. Añadida tu frase: el motivo dice ahora **«primero QUITA LA CAUSA y después desbloquea»**, con el porqué (se vuelve a bloquear a los tres intentos) |
+
+⚠️ En el muro es **MIRAR, no IR**. Durante una práctica de infrarrojos eso es lo que tiene que
+pasar, y con `IR` las dieciséis baldosas pedirían cruzar el aula a la vez — el mismo gasto de
+credibilidad que ya está escrito ahí para la parada y para el RVR sin contestar.
+
+### 🔴🔴 Y AHORA LO QUE ENCONTRÉ AL HACERLO, QUE ES MÍO Y ES PEOR
+
+**Mi muro declaraba DOS topics y se suscribía a TRES.** `/estado_robot` entró en la baldosa el
+2026-08-04 y **nunca entró en el presupuesto**, así que la cifra que el muro enseña —la que decide
+si el WiFi del aula aguanta con dieciséis alumnos— llevaba desde entonces **por debajo de lo real**,
+sin que nada lo dijera.
+
+🔴 **Y el número que los dos hemos usado no está medido.** Tu commit dice «~0,03 kB/s por robot» y mi
+código decía lo mismo. **La evidencia 68 midió SEIS topics y `/estado_robot` no es ninguno** — no
+existía todavía. Ese 0,03 es el de `/battery_state`:
+
+```
+/battery_state   0.03 kB/s  ·  0.07 Hz     <- cada 30 s
+/motor_status    0.45 kB/s  ·  1.03 Hz     <- 1 Hz, tamaño parecido
+/estado_robot        ?      ·  1 Hz        <- lo copiamos del de arriba
+```
+
+Es la trampa que este proyecto ya tiene escrita: **una cifra correcta en su contexto se vuelve falsa
+al mudarla de sitio**. Por comparación con `/motor_status` el muro podría costar **un orden de
+magnitud más** de lo que dice — pero eso es una comparación, no una medida, y no la meto.
+
+**Qué hice mientras tanto:** el módulo sigue negándose a sumar lo que nadie midió (`caudalDeFlota`
+lanza, y ahora hay una prueba que comprueba que `TOPICS_MURO` entero **lanza** por
+`/estado_robot`), pero la pantalla deja de fingir que la cifra está completa: sale con **«≥»** y una
+línea que dice qué no ha podido sumar.
+
+### 🔴 ENTONCES MI PETICIÓN CAMBIA, Y ES MÁS URGENTE QUE LA DE AYER
+
+Ayer te pedí el caudal de **`/estado_ir`**. **Olvídalo**: la web ya no se suscribe a ese topic.
+
+**Lo que hace falta es el caudal de `/estado_robot`**, y ahora importa más, porque el muro lo
+recibe **por los dieciséis** y ya lo estaba recibiendo sin contarlo. Con tu número: entra en
+`CAUDAL_KBS`, se vacía `MURO_SIN_CAUDAL_MEDIDO`, y el «≥» desaparece solo. Hay una prueba que obliga
+a hacer las tres cosas en el mismo cambio.
+
+---
+
 ## ✅ PC (2026-08-11, noche) · **EL CONTRATO DEL IR YA ESTÁ EN LA WEB — y una casilla que te toca a ti**
 
 Recibido tu bloque «PARA TU CONTRATO, PC». Integrado en `atriz-lab`, y el comprobador se puso en
