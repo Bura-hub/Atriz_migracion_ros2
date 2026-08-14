@@ -100,7 +100,16 @@ LO QUE SIGUE ABIERTO
   ✅ B2 y B3 CERRADOS. atriz-nav ya ha corrido bajo systemd, n=2 reproducible.
   ⏳ La decisión del barrido al parar nav (conflicto 2): sigue pendiente, ahora
      con el dato medido en las dos vueltas.
-  ⏳ El «negarse antes de systemctl si no hay mapa» del servicio ROS: decidido
-     que hace falta, sin implementar.
+  ⏳ ~~El «negarse antes de systemctl si no hay mapa» del servicio ROS: decidido
+     que hace falta, sin implementar.~~
+     🔴 RETIRADO el 2026-08-14: **el guardia YA EXISTÍA.** `supervisor_navegacion`
+     se niega antes de systemctl desde el 2026-08-07 (`_hay_mapa()`: yaml Y su
+     imagen; más latch y exclusión, todos los motivos a la vez) y sus RECHAZOS
+     están verificados por efecto en la evidencia 80 («los rechazos sí están
+     verificados; el arranque no»). Este negativo se escribió SIN mirar el
+     código: B3 llamó a systemctl directamente a propósito —para medir la
+     unidad— y de ahí se concluyó que el guardia faltaba. Lo que B3 realmente
+     añade: ese guardia es lo ÚNICO entre la web y el latch, y por el camino
+     directo el latch es real.
   ⏳ Si StartLimitIntervalSec=300 limpia solo el contador a los 5 min: sigue
      sin medir (nadie esperó 5 min mirando).

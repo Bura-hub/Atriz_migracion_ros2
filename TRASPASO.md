@@ -23,9 +23,13 @@
 >   **27,80 y 27,84 s** desde `systemctl start` hasta aceptar objetivos (n=2, Δ 0,04 s; holgura
 >   4,3× sobre `TimeoutStartSec=120`). Y el **botón muerto confirmado n=2**: un start sin mapa
 >   quema el `StartLimitBurst` — con el agravante de que `systemctl start` **devuelve 0** y la
->   unidad llega a `Started` antes de que el wrapper vea que no hay mapa. 🔴 Consecuencia de
+>   unidad llega a `Started` antes de que el wrapper vea que no hay mapa. ~~🔴 Consecuencia de
 >   diseño decidida y **sin implementar**: el servicio ROS debe **negarse antes** de llamar a
->   systemctl si no hay mapa.
+>   systemctl si no hay mapa.~~ ✅ **RETIRADO el 2026-08-14: ese guardia YA EXISTÍA** —
+>   `supervisor_navegacion` se niega antes de systemctl desde el 2026-08-07, con los rechazos
+>   verificados por efecto (evidencia 80). El negativo se escribió sin mirar el código (B3 midió
+>   el camino directo a propósito). Lo que B3 aporta: ese guardia es lo único entre la web y el
+>   latch.
 > - ✅ **La sesión física docente, EN VERDE** (evidencia 108): `avanzar()` 58/59 cm, `girar(90)`
 >   ~90° con transportador, Ctrl-C **5 de 5** (~1 cm de arrastre), `luces()` visto, y
 >   `distancia_frontal()` a 1,1 cm de la cinta. ⏳ Solo queda la **práctica 63** (no había línea);

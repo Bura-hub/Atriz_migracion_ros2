@@ -86,8 +86,16 @@ latcheada**, que solo se recupera con `reset-failed`. Evidencia 80.
 mapa quema el `StartLimitBurst=3` —entre reintentos automáticos y pulsaciones humanas, en
 cualquier combinación— y el botón queda muerto («repeated too quickly»). Con el agravante de que
 `systemctl start` **devuelve 0** y la unidad llega a `Started` **antes** de que el wrapper
-detecte el mapa ausente. 🔴 **Consecuencia de diseño decidida y SIN implementar: el servicio ROS
-(`/pedir_nav`) tiene que negarse ANTES de llamar a systemctl si no hay mapa legible.**
+detecte el mapa ausente. ~~🔴 Consecuencia de diseño decidida y SIN implementar: el servicio ROS
+(`/pedir_nav`) tiene que negarse ANTES de llamar a systemctl si no hay mapa legible.~~
+✅ **RETIRADO el 2026-08-14: ese guardia YA EXISTÍA** — `supervisor_navegacion._pedir()` se niega
+antes de `systemctl` desde el 2026-08-07 (`_hay_mapa()` comprueba el yaml **y** su imagen; más
+latch, unidad ausente y exclusión, con todos los motivos a la vez), corre en producción (módulo
+instalado == fuente, md5 idéntico) y sus rechazos se verificaron por efecto en la evidencia 80.
+El «sin implementar» se escribió sin mirar el código: B3 midió el camino **directo** a systemctl
+a propósito. Lo que B3 aporta de verdad: **el guardia del supervisor es lo único entre la web y
+el latch** — el camino directo (SSH, un script) sigue latcheando, y eso no lo arregla ningún
+servicio ROS.
 
 📝 **No está en el manifiesto**, y es a propósito: el manifiesto es para ficheros idénticos en los
 16 comprobados con `cmp`, y este lo edita el operador. `fase_7` **no lo sobrescribe si ya existe**

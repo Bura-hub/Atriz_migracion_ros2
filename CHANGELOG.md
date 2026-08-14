@@ -4,6 +4,33 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14, 16:00 (Pi, remoto) — RETIRADO el «negarse sin mapa: sin implementar»: el guardia ya existía desde el 2026-08-07
+
+Al ir a implementar el pendiente nº 1 del cierre de B3 apareció que **no había nada que
+implementar**: `supervisor_navegacion._pedir()` se niega **antes** de llamar a systemctl desde el
+2026-08-07 (commits `9c2ad6f`/`51b6100`), con los cuatro motivos a la vez — unidad ausente, latch
+(y el `reset-failed` que exige), **mapa yaml + su imagen legibles** (`_hay_mapa()`), y la
+exclusión SLAM/AMCL. Verificado por tres vías: el código; el módulo que ejecuta el proceso vivo
+(**md5 idéntico al fuente**); y la evidencia 80, que ya había verificado los rechazos **por
+efecto** ese mismo día («los rechazos sí están verificados; el arranque no»).
+
+🔴 **El «decidido, sin implementar» de la evidencia 107 era un negativo escrito sin mirar el
+código** — B3 llamó a `systemctl` directamente a propósito (medía la unidad, no el servicio) y de
+ahí se concluyó que el guardia faltaba. Es la forma que este proyecto persigue («un negativo
+sacado de una prueba que no podía encontrarlo»), cometida al redactar la conclusión de la propia
+evidencia. Corregido en sitio en la evidencia 107, `TRASPASO.md`, `ESTADO_ACTUAL.md`,
+`ARRANQUE_NAVEGACION.md`, `CLAUDE.md` y `README.md`.
+
+📌 **Lo que B3 sigue aportando, y no cambia:** el guardia del supervisor es **lo único** entre la
+web y el latch — por el camino directo (`systemctl start` a mano, un script) el latch es real,
+`start` devuelve 0, y la recuperación exige `reset-failed` desde el robot.
+
+⏳ **Lo que queda de verdad de ese frente:** el arranque por el botón (`/pedir_nav data:true` →
+nav funcionando) sigue **sin verificar de extremo a extremo** — la evidencia 80 no tenía mapa en
+la ruta, y B2 midió `systemctl start` directo, no el servicio.
+
+---
+
 ## 2026-08-14, 15:30 (Pi, remoto) — El caudal de /estado_robot, medido: 0,35 kB/s — doce veces el 0,03 que circulaba
 
 Tras el reinicio (👤, el remedio del mudo funciona por segunda vez), la medida que pidió el PC:
