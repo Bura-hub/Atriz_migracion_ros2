@@ -80,7 +80,9 @@ ExecStartPre=/usr/local/bin/atriz-exclusion slam
 # un slam_toolbox sin /scan queda `active`, suscrito, sin recibir un solo barrido
 # y SIN UN SOLO ERROR. `atriz-escaneo on` comprueba el EFECTO —3 mensajes de
 # /scan en 5 s— y devuelve error si no llegan.
-ExecStartPre=/usr/local/bin/atriz-escaneo on
+# 🔁 `on-recordando` desde el 2026-08-14 (decisión B del conflicto 2): si el
+#    barrido ya estaba encendido de antes, el paro lo dejará como estaba.
+ExecStartPre=/usr/local/bin/atriz-escaneo on-recordando atriz-slam.service
 
 ExecStart=/usr/local/bin/atriz-slam.sh
 
@@ -88,7 +90,7 @@ ExecStart=/usr/local/bin/atriz-slam.sh
 # 🔴 NO es `atriz-escaneo off`. Con DOS unidades que necesitan /scan, un `off`
 #    incondicional al parar SLAM dejaría CIEGA a la navegación en silencio.
 #    `off-si-sobra` solo apaga si ninguna otra sigue activa.
-ExecStopPost=-/usr/local/bin/atriz-escaneo off-si-sobra
+ExecStopPost=-/usr/local/bin/atriz-escaneo off-si-sobra atriz-slam.service
 
 # El arranque incluye esperar a que /scan publique (hasta ~7 s) más el launch y
 # las dos transiciones de ciclo de vida.

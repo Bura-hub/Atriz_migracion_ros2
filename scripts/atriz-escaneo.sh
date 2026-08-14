@@ -5,10 +5,15 @@
 #   atriz-escaneo on       # el robot puede navegar y conducir
 #   atriz-escaneo off      # reposo: el X2 baja de 11.8 a 2.7 Hz
 #   atriz-escaneo estado   # ¿está publicando /scan?
-#   atriz-escaneo off-si-sobra   # apaga SOLO si ninguna unidad de navegación
-#                                # lo necesita. Lo usan atriz-slam y atriz-nav
+#   atriz-escaneo off-si-sobra [unidad]  # apaga SOLO si ninguna unidad de
+#                                # navegación lo necesita Y (con [unidad]) si
+#                                # el barrido no estaba ya encendido cuando esa
+#                                # unidad llegó. Lo usan atriz-slam y atriz-nav
 #                                # al parar: con DOS consumidores, un `off`
 #                                # incondicional deja ciego al otro EN SILENCIO.
+#   atriz-escaneo on-recordando <unidad>  # `on` anotando si YA estaba
+#                                # encendido — la otra mitad: al parar, esa
+#                                # unidad devuelve el estado que encontró.
 #
 # Se instala en /usr/local/bin/atriz-escaneo con fase_7_systemd.sh.
 #
@@ -90,8 +95,11 @@ llamar() {
 #    Un suscriptor propio no tiene ninguno de los dos problemas: el tipo se dice,
 #    no se descubre, y el QoS se elige.
 hay_scan() {
-    timeout 15 python3 -c '
-import time
+    # $1 (opcional): ventana en segundos. 5 por defecto; `on-recordando` usa 2
+    # para no encarecer el arranque de nav cuando el barrido está apagado (el
+    # caso común) — con él encendido, los 3 mensajes llegan en ~0,3 s igual.
+    ATRIZ_VENTANA="${1:-5}" timeout 15 python3 -c '
+import os, time
 import rclpy
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
@@ -104,14 +112,57 @@ n.create_subscription(LaserScan, "scan", lambda m: c.__setitem__(0, c[0] + 1),
                       QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
 ex = SingleThreadedExecutor(); ex.add_node(n)
 t0 = time.monotonic()
-while time.monotonic() - t0 < 5.0 and c[0] < 3:
+ventana = float(os.environ.get("ATRIZ_VENTANA", "5"))
+while time.monotonic() - t0 < ventana and c[0] < 3:
     ex.spin_once(timeout_sec=0.1)
 sys.exit(0 if c[0] >= 3 else 1)
 ' 2>/dev/null
 }
 
+# La marca de «ya estaba encendido cuando llegué» — la mitad B del conflicto 2
+# (decisión del usuario, 2026-08-14). Vive en /run/atriz (lo crea atriz-robot
+# con RuntimeDirectory+Preserve: sobrevive a reinicios de unidad, muere al
+# reiniciar la Pi). Una por unidad: nav y slam no se pisan la suya.
+marca_previa() { echo "/run/atriz/barrido-previo-${1:?falta la unidad}"; }
+
 case "${1:-}" in
     on)
+        llamar start_scan
+        sleep 2
+        if hay_scan; then
+            echo "✅ escaneo ENCENDIDO — /scan publica, el robot puede conducir"
+        else
+            echo "⚠️ start_scan respondió pero /scan no publica. Mira el journal:"
+            echo "   journalctl -u atriz-robot -n 50"
+            exit 1
+        fi
+        ;;
+    on-recordando)
+        # ── `on`, PERO ANOTANDO SI YA ESTABA ENCENDIDO ───────────────────────
+        # Lo usan los ExecStartPre de atriz-nav y atriz-slam. Es la mitad que
+        # le faltaba a `off-si-sobra`: ese cubre a las UNIDADES, y esto cubre
+        # al consumidor HUMANO — el alumno con atriz.py o la teleop web que
+        # tenía el barrido encendido ANTES de que alguien arrancara la
+        # navegación. Al parar, `off-si-sobra` consume la marca y DEVUELVE EL
+        # ESTADO ENCONTRADO (el mismo principio que atriz.py:177-189).
+        #
+        # ⚠️ Lo que NO cubre, dicho desde el diseño: el orden inverso — un
+        #    alumno que enciende DESPUÉS de arrancado nav. Ese caso queda como
+        #    estaba (aviso en la web al parar).
+        UNIDAD="${2:?uso: atriz-escaneo on-recordando <unidad>}"
+        M="$(marca_previa "$UNIDAD")"
+        if hay_scan 2; then
+            # touch puede fallar si /run/atriz no existe (atriz-robot nunca
+            # arrancó este boot — imposible con Requires=, pero por si acaso):
+            # el sesgo del fallo es «sin marca», o sea el comportamiento viejo.
+            touch "$M" 2>/dev/null \
+                && echo "escaneo: ya estaba ENCENDIDO — anotado; al parar $UNIDAD se dejará como está" \
+                || echo "⚠️ no pude anotar la marca en $M: al parar se apagará (comportamiento viejo)"
+        else
+            # Marca rancia de una vida anterior (un crash entre medias): se
+            # limpia para que el paro refleje EL ESTADO DE ESTE arranque.
+            rm -f "$M"
+        fi
         llamar start_scan
         sleep 2
         if hay_scan; then
@@ -168,6 +219,18 @@ case "${1:-}" in
             echo "escaneo: se DEJA ENCENDIDO —lo necesita:$OTRAS"
             exit 0
         fi
+        # ── Y LA MARCA DEL CONSUMIDOR HUMANO (2026-08-14, decisión B) ───────
+        # Si `on-recordando` anotó que el barrido YA estaba encendido cuando
+        # esta unidad llegó, se DEVUELVE EL ESTADO ENCONTRADO: encendido. La
+        # marca se consume — el siguiente ciclo decide con su propia foto.
+        if [[ -n "${2:-}" ]]; then
+            M="$(marca_previa "$2")"
+            if [[ -f "$M" ]]; then
+                rm -f "$M"
+                echo "escaneo: se DEJA ENCENDIDO — ya lo estaba antes de que $2 lo encendiera (se devuelve el estado encontrado)"
+                exit 0
+            fi
+        fi
         llamar stop_scan
         echo "✅ escaneo APAGADO — ninguna unidad de navegación lo necesitaba"
         ;;
@@ -179,7 +242,7 @@ case "${1:-}" in
         fi
         ;;
     *)
-        sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
         exit 2
         ;;
 esac

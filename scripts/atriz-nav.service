@@ -83,7 +83,11 @@ EnvironmentFile=-/etc/default/atriz
 #    a 11,8 Hz. Antes lo comprobaba `localizacion.launch.py`, pero DESPUÉS del
 #    barrido y de ~10 s de arranque: fallaba igual, pero tarde y caro.
 ExecStartPre=/usr/local/bin/atriz-exclusion nav
-ExecStartPre=/usr/local/bin/atriz-escaneo on
+# 🔁 `on-recordando` desde el 2026-08-14 (decisión B del conflicto 2): anota si
+#    el barrido YA estaba encendido —un alumno con atriz.py, la teleop web— y en
+#    ese caso el paro lo deja como estaba. Coste: ~2 s más de arranque cuando el
+#    barrido está apagado (la ventana de la comprobación previa).
+ExecStartPre=/usr/local/bin/atriz-escaneo on-recordando atriz-nav.service
 
 ExecStart=/usr/local/bin/atriz-nav.sh
 
@@ -99,7 +103,7 @@ ExecStart=/usr/local/bin/atriz-nav.sh
 #    web** (decisión del usuario, 2026-08-06): ahora lo hace un alumno con un
 #    clic, sobre un robot que puede estar compartido, y apagar /scan deja al
 #    robot sin obedecer cmd_vel para todos los demás SIN NINGÚN ERROR.
-ExecStopPost=-/usr/local/bin/atriz-escaneo off-si-sobra
+ExecStopPost=-/usr/local/bin/atriz-escaneo off-si-sobra atriz-nav.service
 
 # Nav2 tarda en levantar sus nodos de ciclo de vida, y el arranque incluye
 # esperar a que /scan publique.
