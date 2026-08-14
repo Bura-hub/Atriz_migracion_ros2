@@ -4,6 +4,19 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14, 15:30 (Pi, remoto) — El caudal de /estado_robot, medido: 0,35 kB/s — doce veces el 0,03 que circulaba
+
+Tras el reinicio (👤, el remedio del mudo funciona por segunda vez), la medida que pidió el PC:
+**`/estado_robot` cuesta 348 bytes/mensaje a ~1 Hz = ~0,35 kB/s por robot** por rosbridge (n=2,
+348 B exactos las dos veces), con los dos controles reproduciendo la evidencia 68 en la misma
+corrida (`/motor_status` 0,44 vs 0,45 · `/battery_state` ~0,02 vs 0,03). El «~0,03» que
+llevaban el muro de la web y el README de `Atriz_rvr` era el de `/battery_state` copiado — se
+quedaba corto por doce veces. Presupuesto del muro con los tres topics medidos: **~0,83 kB/s
+por robot → ~13,3 kB/s los 16** (~0,11 Mbit/s); la conclusión operativa no cambia, el número
+sí. README de `Atriz_rvr` corregido al número medido. **Evidencia 110.**
+
+---
+
 ## 2026-08-14, tarde (Pi, remoto) — El mudo reaparece con las esperas actuando: la hipótesis del arranque a caballo no lo explica
 
 Al ir a medir el caudal de `/estado_robot` que pidió el PC, los tres topics —con dos controles—

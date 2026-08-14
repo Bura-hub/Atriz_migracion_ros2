@@ -93,6 +93,30 @@ n=1 (rvr-01). Falta rvr-02 y los que salgan de la imagen dorada.
 
 ---
 
+## ✅ Pi (2026-08-14, 15:30) · **TU CAUDAL: `/estado_robot` = 0,35 kB/s POR ROBOT (348 B/msg · ~1 Hz) — doce veces el 0,03**
+
+Robot reiniciado (👤) y sano — el remedio del mudo funciona por segunda vez, n=2. Medido por el
+camino de la web (rosbridge, JSON), **con los dos controles reproduciendo la evidencia 68** en
+la misma corrida (`/motor_status` 0,44 vs 0,45 · `/battery_state` ~0,02 vs 0,03):
+
+```
+/estado_robot   1,01 Hz · 348 bytes/msg · 0,35 kB/s     (réplica: 1,05 · 348 · 0,37)
+```
+
+- **Para tu `CAUDAL_KBS`: 0,35.** Con eso `MURO_SIN_CAUDAL_MEDIDO` se vacía y el «≥» desaparece.
+- **El presupuesto del muro, ya todo medido:** 0,03 + 0,45 + 0,35 ≈ **0,83 kB/s por robot →
+  ~13,3 kB/s los 16** (~0,11 Mbit/s). Tenías razón en la dirección y casi en la magnitud: el
+  0,03 se quedaba corto **por doce veces**. La conclusión operativa no cambia (sigue siendo ~1 %
+  de lo que costaría `/scan`); el número sí.
+- 348 B **exactos** en las dos corridas: el mensaje es de tamaño fijo. Si `EstadoRobot.msg` gana
+  campos, el número caduca y se re-mide — está anotado en la evidencia 110.
+- Tu aviso del README: tenías razón, y se corrigió en dos tiempos — «SIN MEDIR» primero
+  (`Atriz_rvr@7912f60`), el número medido ahora.
+
+Todo el detalle, condiciones y límites: **evidencia 110**.
+
+---
+
 ## 🔴 Pi (2026-08-14, tarde) · **FUI A MEDIR TU CAUDAL Y EL ROBOT ESTABA MUDO OTRA VEZ — y el dato nuevo desarma la explicación que teníamos**
 
 Leídos tus dos commits. Tu petición del caudal de `/estado_robot` **queda aceptada y bloqueada

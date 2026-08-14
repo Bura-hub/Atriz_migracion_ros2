@@ -1,0 +1,71 @@
+═══════════════════════════════════════════════════════════════════════════════
+110 · EL CAUDAL DE /estado_robot, MEDIDO POR ROSBRIDGE: 0,35 kB/s POR ROBOT —
+      DOCE VECES EL «0,03» QUE NADIE HABÍA MEDIDO
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-14, remoto · justo tras el reinicio del incidente mudo (ev. 109)
+Robot:   rvr-01 · batería 8,01 V · robot en reposo, barrido apagado
+Origen:  Petición del PC (commits b74f3d9/85498e6/0510175): su muro recibía
+         /estado_robot por los dieciséis SIN haberlo presupuestado, y el
+         «~0,03 kB/s» que circulaba —en su código Y en el README de Atriz_rvr—
+         era el de /battery_state (evidencia 68), copiado, no medido.
+Guion:   mediciones_banco/probar_rosbridge.py — el mismo camino que la web
+         (WebSocket + JSON), el mismo instrumento de la evidencia 68.
+
+RESUMEN
+  /estado_robot cuesta 348 bytes/mensaje a ~1 Hz = **~0,35 kB/s por robot**
+  por rosbridge (n=2, 348 B exactos en las dos corridas). El «0,03» inventado
+  se quedaba corto POR DOCE VECES. Para el muro del profesor los tres topics
+  baratos suman ~0,83 kB/s por robot → **~13,3 kB/s los dieciséis** (~0,11
+  Mbit/s): sigue siendo despreciable frente a los 10,3 Mbit/s de /scan, pero
+  ahora es un número medido y no una copia.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LA MEDIDA, CON SUS CONTROLES
+───────────────────────────────────────────────────────────────────────────────
+  corrida 1 · 65 s (para que /battery_state, cada 30 s, entre ≥2 veces):
+
+    topic                 Hz    bytes/msg    kB/s     control (evidencia 68)
+    ─────────────────    ────   ─────────   ─────     ──────────────────────
+    /estado_robot        1,01      348       0,35     — (lo que se mide)
+    /motor_status        1,06      434       0,44     0,45  ✅ instrumento OK
+    /battery_state       0,05      447      ~0,02     0,03  ✅ (3 msg en 65 s)
+
+  corrida 2 · 30 s, /estado_robot solo:  1,05 Hz · 348 B · 0,37 kB/s
+
+  · 348 bytes/mensaje EXACTOS en las dos corridas: el mensaje es de tamaño
+    fijo (booleanos, contadores y dos float32) y el JSON no fluctúa apenas.
+  · Los dos controles reproducen la evidencia 68 → el instrumento mide bien
+    HOY, sobre este robot — que es lo que valida el número nuevo.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LO QUE CORRIGE
+───────────────────────────────────────────────────────────────────────────────
+  🔴 El «~0,03 kB/s por robot» que llevaban el muro de atriz-lab y (durante
+     unas horas de hoy) el README de Atriz_rvr NO estaba medido: era el caudal
+     de /battery_state —que publica cada 30 s— pegado a un topic que publica
+     a 1 Hz. Doce veces de error. La forma es la de siempre: **una cifra
+     correcta en su contexto se vuelve falsa al mudarla de sitio.**
+  ✅ README de Atriz_rvr: corregido dos veces hoy — primero a «SIN MEDIR»
+     (aviso del PC), ahora al número medido.
+  📌 Presupuesto del muro, con los tres topics medidos:
+       0,03 (/battery_state) + 0,45 (/motor_status) + 0,35 (/estado_robot)
+       ≈ 0,83 kB/s por robot → ~13,3 kB/s los 16 ≈ 0,11 Mbit/s
+     (era «7,7 kB/s los 16» cuando el muro solo declaraba dos topics).
+     Sigue siendo ~1 % del coste de /scan: la conclusión operativa —el muro
+     solo con topics baratos— NO cambia; el número sí.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · CONDICIONES Y LÍMITES
+───────────────────────────────────────────────────────────────────────────────
+  · Robot en reposo, un solo cliente WebSocket, localhost (sin coste de radio).
+    Lo que mide es el CONTENIDO que sale del socket — el coste WiFi real por
+    robot se mide en el aula, como en la evidencia 68.
+  · n=2 en un robot. El tamaño fijo (348 B) hace improbable la sorpresa, pero
+    si el .msg gana campos el número caduca: se re-mide al tocar EstadoRobot.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ✅ La petición del PC queda respondida: 0,35 kB/s → CAUDAL_KBS, y el «≥»
+     del muro puede desaparecer.
+  ⏳ /estado_ir sigue sin caudal medido — ya no urge: la web no se suscribe.
