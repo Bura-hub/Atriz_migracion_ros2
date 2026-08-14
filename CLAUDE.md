@@ -2569,6 +2569,21 @@ reinstalar lo que ya funciona.
   el mismo control— **más un control negativo**: `reset-failed` tiene que seguir denegado, o
   el permiso sería general y **cualquiera que entre por rosbridge lo hereda**.
 
+🔴 **Y VAN ONCE, el 2026-08-14:** declaró «`/infrared_messages` sin publicador» con el
+publicador **existiendo** (count 1, medido en el mismo minuto). ⚠️ **Y la primera atribución
+fue mía y falsa** —«el daemon del CLI sirve un grafo rancio»— escrita antes de aislar; los
+controles la tumbaron en diez minutos. **La causa medida:** `timeout 6 ros2 … | grep -q X`
+bajo el `set -euo pipefail` del guion es una **bomba intermitente** — `grep -q` cierra el pipe
+al primer match, el proceso de ros2 se queda rezagado, `pipefail` obliga a esperarlo y
+`timeout` lo mata: pipeline a **124** = FALLO. Reproducido en miniatura con controles: el
+mismo pipe **sin** pipefail PASA, y pipefail **sin** pipe PASA.
+✅ Arreglado en los **seis** sitios del guion con ese patrón (`_ros2_cap`: capturar la salida
+  entera y grep-ear después — la sustitución de comando espera al proceso). Y de paso el aviso
+  de `/dev/ttyUSB0` a fuego (el número lo pone el kernel; tras la re-enumeración de la
+  evidencia 115 mentía «¿está enchufado?» con el LIDAR perfecto en ttyUSB1).
+→ 📌 La regla doble: **nunca `ros2 … | grep -q` bajo pipefail**, y **una corrección también es
+  una afirmación** — la del daemon se escribió sin controles y duró diez minutos.
+
 **Un verificador con falsos positivos se acaba ignorando, y eso es peor que no tenerlo.**
 Evidencia 32.
 

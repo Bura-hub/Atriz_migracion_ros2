@@ -4,6 +4,22 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-14, 17:45 (Pi, remoto) — Falso positivo nº 11 del verificador: `grep -q` + pipefail, no el daemon — y el aviso del ttyUSB0 a fuego
+
+Al pasar el verificador de cierre: «`/infrared_messages` sin publicador» con el publicador
+**existiendo** (count 1, medido en el mismo minuto). Mi primera atribución —«daemon del CLI
+rancio»— **era falsa y duró diez minutos**: los controles en miniatura la tumbaron. La causa
+medida: `timeout 6 ros2 … | grep -q` bajo el `pipefail` del guion — `grep -q` cierra el pipe al
+primer match, ros2 se queda rezagado, pipefail espera, `timeout` mata → rc **124**. El mismo
+pipe sin pipefail PASA; pipefail sin pipe PASA. **Intermitente desde el 2026-08-11** (pasó en
+sus estrenos por suerte de timing). Arreglado en los **seis** sitios con el patrón
+(`_ros2_cap`: capturar y grep-ear después), y de regalo el aviso de `/dev/ttyUSB0` a fuego —
+tras la re-enumeración de la evidencia 115 decía «¿está enchufado el LIDAR?» con el LIDAR
+perfecto en ttyUSB1; ahora busca cualquier `ttyUSB*`, que era lo que quería saber.
+**Verificador: 160 correctas · 5 avisos (los cinco legítimos) · 0 fallos.**
+
+---
+
 ## 2026-08-14, 17:20 (Pi, con el usuario junto al robot) — El driver deja de mentir con el RVR apagado, y LA TABLA DEL DÍA QUEDA EN CERO
 
 El último punto: el ⏳ de la evidencia 52. Dos cambios en `rvr_driver_node.py` (repo

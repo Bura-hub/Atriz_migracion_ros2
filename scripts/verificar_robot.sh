@@ -197,12 +197,19 @@ else
 fi
 lsmod 2>/dev/null | grep -q '^cp210x' && _ok "módulo cp210x cargado" \
     || _avi "módulo cp210x no cargado" "viene en linux-modules-*-raspi; se carga al conectar"
-if [[ -c /dev/ttyUSB0 ]]; then
-    _ok "/dev/ttyUSB0 presente"
-    IDP="$(udevadm info -q property -n /dev/ttyUSB0 2>/dev/null | sed -n 's/^ID_PATH=//p')"
+# 🔴 CORREGIDO el 2026-08-14: aquí se comprobaba `/dev/ttyUSB0` a fuego, y ese
+#    número LO ASIGNA EL KERNEL POR ORDEN DE APARICIÓN — la regla que este
+#    proyecto tiene escrita en tres sitios («el número no importa, para eso
+#    existe /dev/ydlidar»). El día que el adaptador re-enumeró (evidencia 115)
+#    el LIDAR quedó perfecto en ttyUSB1 y este aviso mintió «¿está enchufado?».
+#    Se busca CUALQUIER ttyUSB*, que es lo que el check realmente quería saber.
+TTYUSB="$(ls /dev/ttyUSB* 2>/dev/null | head -1)"
+if [[ -n "$TTYUSB" && -c "$TTYUSB" ]]; then
+    _ok "adaptador USB-serie presente ($TTYUSB — el número lo pone el kernel, no importa)"
+    IDP="$(udevadm info -q property -n "$TTYUSB" 2>/dev/null | sed -n 's/^ID_PATH=//p')"
     _nota "ID_PATH=$IDP  (el serial es genérico '0001'; para la regla udev de la flota usar ID_PATH)"
 else
-    _avi "/dev/ttyUSB0 no existe" "¿está enchufado el LIDAR?"
+    _avi "ningún /dev/ttyUSB* existe" "¿está enchufado el LIDAR?"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -372,6 +379,17 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 sec "8 · ROS 2"
 
+# ── ros2 + grep -q, SIN el pipe que muerde ───────────────────────────────
+# 🔴 FALSO POSITIVO nº 11 (2026-08-14): `timeout 6 ros2 … | grep -q X` bajo
+#    `pipefail` es una bomba INTERMITENTE. `grep -q` cierra el pipe al
+#    primer match; si el proceso de ros2 se queda rezagado, `pipefail`
+#    obliga a esperarlo, `timeout` lo mata a los 6 s y el pipeline devuelve
+#    124 — FALLO sobre un publicador que EXISTÍA. Reproducido en miniatura
+#    con controles: el mismo pipe sin pipefail PASA, y pipefail sin pipe
+#    PASA. Por eso aquí se CAPTURA la salida entera (la sustitución espera
+#    al proceso) y se grep-ea después. Si añades checks de ros2, usa esto.
+_ros2_cap() { timeout 6 ros2 "$@" 2>/dev/null || true; }
+
 if [[ -d /opt/ros/jazzy ]]; then
     # OJO: que exista /opt/ros/jazzy y que 'source setup.bash' funcione NO prueba
     # que la instalacion haya terminado. apt desempaqueta primero y configura
@@ -530,7 +548,7 @@ print(f"{c[0] / (time.monotonic() - t0):.2f}")
         # y la orientacion de /odom, que no da NINGUN error.
         #
         # ⚠️ Solo vale con el robot QUIETO y recien arrancado el driver.
-        if timeout 6 ros2 topic list 2>/dev/null | grep -qx '/odom'; then
+        if grep -qx '/odom' <<< "$(_ros2_cap topic list)"; then
             YAW="$(timeout 10 ros2 topic echo /odom --once --field pose.pose.orientation 2>/dev/null \
                    | python3 -c 'import sys,math
 d={}
@@ -556,7 +574,7 @@ if all(k in d for k in "xyzw"):
         # mensaje reciente es la prueba MAS BARATA de que el keepalive corre: sin
         # el, el RVR se duerme a los 300.6 s (medido) y el nodo no se entera.
         # Es TRANSIENT_LOCAL, asi que el ultimo valor llega al instante.
-        if timeout 6 ros2 topic list 2>/dev/null | grep -qx '/battery_state'; then
+        if grep -qx '/battery_state' <<< "$(_ros2_cap topic list)"; then
             BAT="$(timeout 10 ros2 topic echo /battery_state --once 2>/dev/null \
                    | grep -m1 -oE 'percentage: [0-9.]+' | grep -oE '[0-9.]+')"
             if [[ -n "$BAT" ]]; then
@@ -661,7 +679,7 @@ fi
 if command -v ros2 >/dev/null && [[ -n "${ROS_DISTRO:-}" ]]; then
     # slam_toolbox es un nodo de CICLO DE VIDA en Jazzy: arranca en
     # `unconfigured`, vivo y sin hacer nada. Que exista no prueba nada.
-    if timeout 6 ros2 node list 2>/dev/null | grep -q 'slam_toolbox'; then
+    if grep -q 'slam_toolbox' <<< "$(_ros2_cap node list)"; then
         ESTADO="$(timeout 8 ros2 lifecycle get /slam_toolbox 2>/dev/null | head -1)"
         case "$ESTADO" in
             active*) _ok "slam_toolbox en '$ESTADO'" ;;
@@ -674,7 +692,7 @@ if command -v ros2 >/dev/null && [[ -n "${ROS_DISTRO:-}" ]]; then
     # ── La capa de seguridad (manual, cap. 12) ───────────────────────────────
     # También es nodo de ciclo de vida, y aquí un `unconfigured` es PEOR que en
     # slam_toolbox: el robot parecería protegido y no lo estaría.
-    if timeout 6 ros2 node list 2>/dev/null | grep -q 'collision_monitor'; then
+    if grep -q 'collision_monitor' <<< "$(_ros2_cap node list)"; then
         ESTADO="$(timeout 8 ros2 lifecycle get /collision_monitor 2>/dev/null | head -1)"
         case "$ESTADO" in
             active*) _ok "collision_monitor en '$ESTADO'" ;;
@@ -965,7 +983,7 @@ fi
 
 # ── Con hardware: los servicios, preguntando a un CLIENTE ────────────────────
 if [[ $HARDWARE -eq 1 ]] && command -v ros2 >/dev/null && [[ -n "${ROS_DISTRO:-}" ]]; then
-    if timeout 6 ros2 node list 2>/dev/null | grep -q 'rvr_driver'; then
+    if grep -q 'rvr_driver' <<< "$(_ros2_cap node list)"; then
         # 🔴 CON UN CLIENTE, NO CON `ros2 service list`. La lista MIENTE POR
         # OMISIÓN: el 2026-07-31 se dejó fuera `set_drive_parameters` (17 de 18)
         # mientras un cliente lo encontraba sin problema (manual, cap. 16.5).
@@ -1493,7 +1511,24 @@ if ps -eo comm | grep -qx 'rvr_driver_node'; then
     #    publica cuando OTRO emite. Se comprueba lo único que se puede saber
     #    aquí —que el publicador exista— y se DICE que lo demás no se sabe, en
     #    vez de fingir que se ha comprobado.
-    if timeout 6 ros2 topic info /infrared_messages 2>/dev/null | grep -q 'Publisher count: [1-9]'; then
+    #
+    # 🔴 FALSO POSITIVO nº 11 (2026-08-14): este check declaró FALLO con el
+    #    publicador EXISTIENDO (count 1, medido en el mismo minuto). `ros2
+    #    topic info` pregunta al DAEMON del CLI, y ese daemon sirve un grafo
+    #    RANCIO si arrancó antes de un reinicio del stack — la trampa de la
+    #    evidencia 102, dentro del propio verificador. Si falla, se reinicia
+    #    el daemon y se pregunta OTRA vez antes de declarar nada; el camino
+    #    sano no paga el coste.
+    _hay_pub_ir() {
+        grep -q 'Publisher count: [1-9]' \
+            <<< "$(_ros2_cap topic info /infrared_messages)"
+    }
+    if ! _hay_pub_ir; then
+        ros2 daemon stop >/dev/null 2>&1
+        ros2 daemon start >/dev/null 2>&1
+        sleep 2
+    fi
+    if _hay_pub_ir; then
         _ok "/infrared_messages tiene publicador (el driver escucha el IR)"
         _nota "que LLEGUEN mensajes NO se comprueba aquí: hace falta otro robot emitiendo · 00_auditoria/evidencia/mediciones_banco/medir_ir_dos_robots.py"
     else
