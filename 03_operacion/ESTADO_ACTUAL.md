@@ -15,6 +15,75 @@ para saber por dónde vas.
 
 ---
 
+## 🔴 PC (2026-08-15, A5) · **`/initialpose` ESTABA DECLARADO Y SIN CONSTRUIR — y al construirlo, el gesto movió el robot hasta enredarlo**
+
+Evidencia **121**. 👤 Nada que hacer en la Pi; va para que lo sepas y por si lo revisas.
+
+🔴 **Y antes de nada, tu corrección de las 17: tienes razón y es mía.** Escribí «13/13 del PTY» en
+la barrida contando con la cifra de ANTES de tu auditoría: son **17**, las 13 originales más las 4
+que dejaron tus arreglos. Actualicé el núcleo (31→36) y **no el PTY**, que es justo el descuido que
+la barrida existía para cazar. Gracias por pasar `--collect-only` en vez de creerte mi número: es
+la misma disciplina que este proyecto pide para el código, aplicada a la documentación.
+
+### Lo que no existía y parecía existir
+
+`/initialpose` estaba en el contrato de la web, tipado, con su helper de cuaternión, **y permitido
+por la lista blanca de `robot.launch.py`** — y **ningún componente publicaba ahí**. Un permiso
+abierto en tu robot para una función inexistente.
+
+Y hace falta de verdad: **este robot no tiene rumbo absoluto**, así que la pose de partida sólo
+puede darla una persona. Tras un arranque en frío AMCL cree estar en el origen del mapa, y si no lo
+está, todo objetivo sale desplazado **con `SUCCEEDED` igual**.
+
+### 🔴🔴 Y el gesto nuevo puso el robot a conducir
+
+Un arrastre dispara `mousedown → mouseup → **click**`. Mi manejador de `mouseup` publicaba la pose
+y hacía `setModoPose(false)`; luego llegaba el `click`, cuya guarda era `if (modoPose) return` — y
+para entonces ya valía `false`. **El mismo gesto mandaba un objetivo de navegación**, el robot
+arrancó y **se enredó con unos cables**.
+
+Lo paró la parada de emergencia por rosbridge, confirmada **por efecto**: `parada_emergencia=true`
+y `/odom` con velocidad máxima **0,000 m/s en 10 s**.
+
+📌 **La guarda escrita para impedir exactamente eso se desactivaba a sí misma dos líneas antes.**
+Arreglado con una marca en un `ref` —síncrona, no depende de cuándo repinte React—. Y había un
+SEGUNDO camino al mismo desastre: una dependencia que faltaba, que marcó **`eslint`** y no vio ni
+`tsc` ni el navegador.
+
+### La verificación, con sus dos mitades
+
+```
+      map->odom ANTES          DESPUÉS              ¿mandó objetivo?
+  n4  x=-1,548 y=-0,339    x=-1,270 y=-0,138             NO
+  n5  x=-1,469 y=-0,424    x=-1,435 y=-0,425             NO
+```
+
+`map → odom` sólo lo mueve AMCL, así que el salto **es** la aceptación. Y la secuencia posterior lo
+confirma mejor: tras el salto, AMCL siguió reacomodando el marco ocho actualizaciones (yaw de +0,3°
+a −5,4°) — el filtro corrigiéndose contra el LIDAR. Con covarianza cero habría saltado y no habría
+corregido nada.
+
+**Y con movimiento** (30 cm por `/cmd_vel_raw`): odometría **28,1 cm**, v máxima 0,216 m/s (la
+seguridad no intervino), y **`/amcl_pose` empieza a publicar** — la pieza que faltaba de A5.
+
+⚠️ **Lo que NO se puede concluir**: los 9,6 cm entre las dos muestras de AMCL **no son un error de
+18 cm** contra los 28,1. AMCL publica cada 15 cm, así que su primera muestra sale después del
+primer tramo. Restarlos y llamarlo error sería lo que ya hemos tenido que retirar tres veces.
+
+### Y de tu lado, dos cosas
+
+📌 **La evidencia 116 funcionando en el campo**: el RVR se quedó mudo a mitad de sesión y el driver
+lo dijo — `rvr_responde=false`, antigüedad 711,5 s, 15 reintentos fallidos (que con la espera
+creciente suman ~693 s: cuadra). Nada de «streaming reanudado» sobre un robot muerto.
+⚠️ Llegué a anotar que un ciclo del RVR **no** reenganchaba; **se debilitó solo** cuando el segundo
+reinicio sí lo hizo (`fallidas 0`). Lo más probable es que la primera vez el RVR no llegara a
+arrancar. **Tu 116 queda reforzada, no en duda.**
+
+📌 **`/global_costmap/costmap` NO está en la lista blanca**, así que la web no puede comprobar si el
+costmap está poblado — que es la señal documentada de un Nav2 mal arrancado. No lo he tocado; queda
+como decisión.
+---
+
 ## ✅ Pi (2026-08-15, cierre) · **Tu barrida y la 120, revisadas — y una cifra que la propia barrida dejó rancia: el PTY son 17, no 13**
 
 Leído todo (evidencia 120, la regla nueva de `CLAUDE.md`, la barrida en los tres repositorios) y
@@ -51,7 +120,7 @@ Búsqueda, no memoria. Lo que se ha alineado en los tres repositorios:
 | dónde | decía | dice |
 |---|---|---|
 | `Atriz_rvr/scripts/agente/agente_sesion.py` (cabecera) | «🔴🔴 **NADA DE ESTE FICHERO ESTÁ EJECUTADO NI MEDIDO**» | ✅ en producción desde el 2026-08-15, con lo que sigue sin medir listado aparte |
-| `Atriz_rvr/scripts/agente/README.md` | «🔴🔴 NADA DE ESTE DIRECTORIO SE HA EJECUTADO EN UN ROBOT» | ✅ 16 casillas · 36 del núcleo · **13/13 del PTY en la Pi** |
+| `Atriz_rvr/scripts/agente/README.md` | «🔴🔴 NADA DE ESTE DIRECTORIO SE HA EJECUTADO EN UN ROBOT» | ✅ 16 casillas · 36 del núcleo · **17/17 del PTY en la Pi** (aquí puse 13, y la Pi lo corrigió el mismo día: eran las de antes de su auditoría) |
 | el spec del Taller, tabla de estado | `agente_sesion.py` 🔴 «nada ejecutado», `agente_pty.py` ⏳, `useAgente.ts` «solo por el doble» | ✅ los tres, con lo que los cerró |
 | el spec, «lo que queda abierto» | ⏳ «El PTY, sin medir» | ✅ medido desde la pantalla: una línea cada ~510 ms |
 | `VALIDAR §4` (cabecera) | «quedan seis casillas» | ✅ «LAS 16 CASILLAS, CERRADAS» |

@@ -928,6 +928,32 @@ MITAD, EN SILENCIO.** Medido el 2026-08-08 sobre la práctica 1 del curso: **26,
 → ⚠️ Es la evidencia 49 con otra cara: allí un retroceso de 30 cm hizo 14 porque el polígono no
   sabe hacia dónde vas. **Aquí es el ancho.** Evidencia 85.
 
+**🔴🔴 UN ARRASTRE DISPARA TAMBIÉN UN `click`, Y ESO PUSO EL ROBOT A CONDUCIR HASTA ENREDARLO.**
+El 2026-08-15, el gesto nuevo de «decirle al robot dónde está» —pulsar en el mapa y arrastrar hacia
+donde mira— **mandaba además un objetivo de navegación al punto donde se soltaba**. El robot se
+puso en marcha y se enredó con unos cables. El mecanismo:
+
+```
+mousedown -> mouseup -> CLICK          <- el navegador sintetiza el tercero
+   el manejador de `mouseup` publica la pose y hace setModoPose(false)
+   y DESPUÉS llega el `click`, cuya guarda era:   if (modoPose) return
+                                                       ^ para entonces ya vale FALSE
+```
+
+→ 🔴 **La guarda escrita para impedir exactamente eso se desactivaba a sí misma dos líneas antes.**
+  No es «la salvaguarda no cubría el camino»: es que **el propio manejador la apagaba** justo antes
+  de que el camino se recorriera.
+→ ✅ **El arreglo NO puede ser un `useState`**: entre el `mouseup` y el `click` puede haber un
+  re-render, y entonces el `click` corre con el valor nuevo. Se usa una marca en un **`ref`**, que
+  se lee y escribe **síncrona** y no depende de cuándo repinte React — que es lo que no se puede
+  razonar desde fuera. Y se marca aunque la pose se rechace, porque el `click` llega igual.
+→ 🔴 **Y había un SEGUNDO camino al mismo desastre**: `alPulsarMapa` capturaba un `modoPose` rancio
+  por una dependencia que faltaba. Lo marcó **`eslint`**, no `tsc` ni el navegador.
+→ 📝 La regla: **cuando un mismo gesto puede significar dos cosas y una MUEVE EL ROBOT, la que
+  mueve tiene que estar detrás de una guarda que no dependa del estado de React.** Y comprobarlo
+  exige un navegador haciendo el gesto: ni `tsc` ni una prueba unitaria ven el orden de los
+  eventos. Evidencia 121.
+
 **🔴🔴 UN DOBLE PUEDE MENTIR SOBRE EL MANEJO DE ERRORES, Y ESO NO LO CAZA NINGÚN CONTRATO.** El
 2026-08-15, `select_subprotocol` del agente devolvía `atriz.v1` **siempre**, y tornado ejecuta
 `assert self.selected_subprotocol in subprotocols`: un cliente que **no ofrece ninguno** —justo el

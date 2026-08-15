@@ -4,6 +4,30 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, A5 (PC) — `/initialpose` construido, y el gesto que movió el robot
+
+Evidencia **121**. `/initialpose` estaba **declarado y sin construir**: en el contrato de la web,
+tipado, con su helper de cuaternión y permitido por la lista blanca del robot — y nadie publicaba
+ahí. Construido en `atriz-lab` (`lib/robot/pose_inicial.ts`, 10 pruebas, y el modo «decirle al
+robot dónde está» en `PanelNavegar`).
+
+🔴 **Y la primera versión puso el robot a conducir hasta enredarlo con unos cables.** Un arrastre
+dispara `mousedown → mouseup → click`; el `mouseup` hacía `setModoPose(false)` y el `click`
+posterior encontraba la guarda ya desactivada, así que **mandaba un objetivo de navegación**. La
+guarda escrita para impedirlo se apagaba a sí misma dos líneas antes. Arreglado con un `ref`
+síncrono; un `useState` no sirve porque entre los dos eventos puede haber un re-render.
+
+✅ Verificado por efecto, n=5: `map → odom` salta 3-36 cm (sólo lo mueve AMCL) y **no se manda
+objetivo**. Con movimiento: odometría 28,1 cm y `/amcl_pose` empieza a publicar.
+⚠️ Y lo que NO se concluye: los 9,6 cm entre muestras de AMCL no son un error contra los 28,1 —
+AMCL publica cada 15 cm.
+
+📌 Trampa nueva en `CLAUDE.md`: *un arrastre dispara también un `click`*, y cuando un gesto puede
+significar dos cosas y una mueve el robot, la que mueve va detrás de una guarda que no dependa del
+estado de React.
+
+---
+
 ## 2026-08-15, alineado (PC) — Barrida de deriva documental alrededor del Taller
 
 Buscado, no recordado. Corregido lo que declaraba pendiente algo que ya no lo está: la cabecera de
