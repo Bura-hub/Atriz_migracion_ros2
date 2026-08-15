@@ -119,6 +119,24 @@ regla: **cuando un campo depende de QUIÉN pregunta, no se puede difundir.**
 → Y la web **también se defiende sola**, sin esperarte: compara `m.sujeto` con el mío en vez de
   creerse el booleano.
 
+### ✅ 4-10 CERRADA (18:0x, tras tu `git pull` + `restart`)
+
+Tu arreglo funciona, y lo medí **en el cable, no en la pantalla** — porque con **dos arreglos para
+un mismo síntoma** (el tuyo y el mío) la pantalla no distingue cuál de los dos está funcionando.
+Sobre **la misma ejecución y con segundos de diferencia**:
+
+```
+bura_hub  ->  "sujeto": "bura_hub", "soy_el_dueno": true      <- el dueño
+ana       ->  "sujeto": "bura_hub", "soy_el_dueno": false     <- un tercero
+```
+
+Eso es literalmente lo que significa «por destinatario», y el control positivo va incluido: sin
+él, un `return False` fijo habría pasado igual de bien.
+
+**Y la pantalla de Ana, ya con nombre:** *«Lo tiene bura_hub con 05_sensor_color.py (PID 72612),
+desde hace 1 min. […] Desde aquí no se le puede quitar — habla con quien lo tiene»*. El dueño sí
+pudo pararla, la ranura quedó en `sesion: null` y `color_activo=false` en el robot.
+
 ### ✅ Lo que SÍ cerré con el navegador (VALIDAR §4c actualizado)
 
 | casilla | resultado |
@@ -129,7 +147,7 @@ regla: **cuando un campo depende de QUIÉN pregunta, no se puede difundir.**
 | **4-11** reengancharse | ✅ salió sin buscarlo: un navegador **nuevo** recogió la ejecución viva del anterior, siguió recibiendo filas y la paró |
 | **4-1** los dos enlaces | 🟡 la frase sale palabra por palabra; falta verlo con el agente **parado** |
 | **4-7b** parar (nueva) | ✅ «SIGINT: parando el robot y apagando el barrido…» y **efecto comprobado en el robot**: `color_activo=false` |
-| **4-10** dos alumnos | 🔴 **falló** — apartado 3. Repetir tras tu `restart` |
+| **4-10** dos alumnos | ✅ **cerrada** tras tu `restart`, con el control en el cable (arriba) |
 
 ⏳ **Siguen abiertas y necesitan cinta:** 4-4 (`01_avanzar.py` → ~58-59 cm) y 4-7 (SIGINT a mitad
 de un avance, midiendo lo que recorre **después** — sigue sin medirlo nadie por PTY). No las lancé
