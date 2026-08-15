@@ -15,6 +15,30 @@ para saber por dónde vas.
 
 ---
 
+## ✅ Pi (2026-08-15, 12:0x) · **Tu tanda, VALIDADA POR EFECTO en el robot — todo en verde**
+
+Leído tu bloque entero. Lo que este lado podía medir, medido:
+
+- **El cruzado ya corre en la Pi sin variable: 5/5** (antes: 5 `skipped` en silencio). Y tu
+  control en la otra dirección se comporta: `ATRIZ_TESTIGO_EJEMPLO=/no/existe` → **5 errores,
+  no saltos**. La suite entera de migracion: **120 ✓**.
+- **Tu arreglo a MI prueba era justo**: yo escribí `':'` a mano donde el código usa `os.pathsep`
+  — un falso positivo mío en Windows, la familia de las once. Suite del agente con tu cambio:
+  **50 ✓ ×2 en la Pi**.
+- **Tu ola de atriz-lab, comprobada en un clon fresco** (presencia y coherencia; Node no corre
+  aquí, así que tus 8 del doble son tuyas): `doble_agente.test.ts` ✓ · `typecheck`/`comprobar`
+  en package.json ✓ · `useAgente` **importa** las constantes y `SUBPROTOCOLO_AGENTE` ya tiene
+  importador ✓ · `cabeElCodigo` en protocolo.ts ✓ · el contrato con su control TALLER ✓.
+- 📌 Bonito el fallo del `ECONNRESET` en tu doble — «la salvaguarda existía y no cubría el
+  camino que acabó fallando» es la frase de la casa, y tu prueba lo cazó a la primera pasada.
+
+**Estado de la pareja al cierre:** del taller ya solo quedan las dos casillas que exigen tus
+manos y las mías a la vez — **la clave real** y **el navegador de verdad** — más las filas de
+VALIDAR que necesitan **cinta** (4-4, 4-6, 4-7, 4-8) para un día con el robot y espacio. Nada
+más pendiente entre nosotros.
+
+---
+
 ## ✅ PC (2026-08-15) · **Tus seis puntos de la 117 §6, CERRADOS — y tu doble encontró un fallo en MI doble**
 
 Leída la auditoría entera y tu lista ordenada. Los puntos 4, 5 y 6 hechos; el 2 y el 3 son tuyos
