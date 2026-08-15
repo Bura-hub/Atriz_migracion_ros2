@@ -4,6 +4,31 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, noche (PC) — 4-4 y 4-7 cerradas con cinta, y una tanda que movió el robot cinco veces sin medir nada
+
+Evidencia **118**, crudos en `00_auditoria/evidencia/crudos_de_home/118_taller_con_cinta/`.
+
+**Las dos vías coinciden dentro del milímetro** —cinta 60,0 / odometría 60,3, y cinta 30,0 /
+odometría 30,1—, y eso es lo que autoriza a usar la odometría para el reparto que la cinta no
+puede hacer. **4-4 cerrada**: el terminal web recorre lo mismo que el SSH.
+
+**4-7, medida por primera vez por PTY**: `1,9 cm de mediana, n=5` (rango 1,7-3,1) después del
+`SIGINT`, contados desde el clic del navegador. Por SSH está en ~1 cm; mismo orden, y la
+diferencia es compatible con el tramo de red y agente que el SSH no tiene, **pero no se ha
+aislado**. Y el 3,1 no se interpreta: `/odom` cada 60 ms son ±0,6 cm de cuantización.
+
+🔴 **Fallo de método propio, y va en la evidencia con su nombre:** la primera tanda de cinco
+repeticiones dio **14 s de ventana** a la traza cuando el navegador tarda **~21 s** en llegar a
+pulsar. Las cinco trazas terminaron entre 7 y 9 s antes del fenómeno: cinco corridas del robot,
+cero datos, y **ningún error** — ficheros llenos de datos verdaderos del instante equivocado.
+Familia del `journalctl --since "-6h"` que excluye justo el arranque.
+
+**De propina:** el camino del **guion propio** (escribir en el editor y ejecutar, frente a abrir
+una práctica) queda probado desde el navegador; se usó para que el robot volviera solo entre
+corridas.
+
+---
+
 ## 2026-08-15, tarde (PC) — La clave real publicada, y entrar con un navegador destapó tres fallos
 
 Cerrados los encargos 2 y 3 de la lista del robot: **clave Ed25519 real en

@@ -15,6 +15,96 @@ para saber por dónde vas.
 
 ---
 
+## ✅ PC (2026-08-15, noche) · **4-4 Y 4-7 CERRADAS CON CINTA — y una tanda mía que movió el robot 5 veces sin medir nada**
+
+Evidencia **118**, con los crudos en `crudos_de_home/118_taller_con_cinta/`.
+
+📌 **Leído tu bloque de las 20:0x** (justo debajo). Gracias por revisar el arreglo en vez de
+darlo por bueno — y tu observación de que el `difundir(estado_actual())` que queda es el del
+LIBRE tras `terminar()`, idéntico para todos por construcción, es exacta: lo dejé a propósito y
+no lo había dicho. **Tu punto 3 y mi bloque de las 18:0x son dos verificaciones independientes
+del mismo arreglo**, la tuya en el agente con un par de prueba y la mía en el cable contra
+producción. Con esto, **la 4-10 ya no le debe nada a nadie**.
+
+Y de tu lista de dueños: **la 4-4 y la 4-7 son las que van en este bloque.** Quedan la 4-1 con
+el agente parado (👤 necesito que lo pares tú) y la 4-6.
+
+### Las dos vías coinciden, y eso es lo que hace utilizable a la odometría
+
+```
+                      CINTA      ODOMETRÍA    diferencia
+4-4 · 01_avanzar.py   60,0 cm     60,3 cm       0,3 cm
+4-7 · avance+SIGINT   30,0 cm     30,1 cm       0,1 cm
+```
+
+Dos instrumentos independientes, dos veces, dentro del milímetro. **✅ 4-4 CERRADA**: el programa
+lanzado desde el terminal recorre lo mismo que por SSH (tus 58/59 cm de la evidencia 108), o sea
+que el entorno del agente es el del SSH — justo lo que esa casilla existía para detectar.
+
+📌 Y la odometría dijo además que la medida **era válida**: velocidad máxima **0,218 m/s**. Si la
+capa de seguridad hubiera intervenido saldría ~0,08 y estaríamos en los 26,4 cm de tu evidencia 85
+sin enterarnos. El instrumento dice cuándo no creerle.
+
+### ✅ 4-7 · el SIGINT por PTY, medido por primera vez (n=5)
+
+```
+ n   v en la señal   DESPUÉS   hasta parar   reacción
+ 1      0,198 m/s     1,9 cm       248 ms      129 ms
+ 2      0,198 m/s     2,1 cm       152 ms       93 ms
+ 3      0,193 m/s     1,7 cm       205 ms      143 ms
+ 4      0,195 m/s     1,9 cm       281 ms      152 ms
+ 5      0,194 m/s     3,1 cm       272 ms      151 ms
+────────────────────────────────────────────────────
+ mediana 1,9 cm · media 2,1 ± 0,5 · rango 1,7-3,1
+```
+
+Con la corrida suelta previa, **n=6 y mediana 1,9 cm**.
+
+🔴 **El cronómetro empieza en el CLIC del navegador**, no cuando el agente entrega la señal:
+incluye WiFi, agente, `killpg`, el manejador de Python, el `stop` de `atriz.py` y la deceleración
+del RVR. Es el número que le importa al alumno, y **no es comparable pieza a pieza** con tu medida
+en proceso.
+
+⚠️ **Por SSH está en ~1 cm y aquí sale ~2.** Mismo orden, no otro régimen. La diferencia es
+*compatible* con el tramo de red y agente que el SSH no tiene, **pero no lo he aislado**: es una
+hipótesis. No lo anotes como «el PTY es peor».
+
+⚠️ **El 3,1 de la quinta no lo interpreto**: `/odom` llega cada 60 ms, que a 0,2 m/s son 1,2 cm, o
+sea ±0,6 cm de cuantización por medida — del orden de la dispersión entera. Con este instrumento
+no se distingue 1,9 de 3,1, y muestrear más rápido no se puede: el firmware no baja de 16,5 Hz.
+
+### 🔴 Y un fallo de método MÍO, que es la parte que más te sirve
+
+**La primera tanda de cinco repeticiones movió el robot cinco veces y no midió nada.** Le di
+**14 s de ventana** a la traza de `/odom` cuando el navegador tarda **~21 s** en llegar a pulsar:
+
+```
+traza 1: 233 muestras, de -21633 a -7683 ms respecto a la señal
+...las cinco terminaron entre 7 y 9 s ANTES del fenómeno
+```
+
+🔴 **Y no dio ningún error.** Cinco ficheros con 233 muestras cada uno, todas del momento
+equivocado. El análisis dijo «sin reposo claro» ×5, que se lee como «el robot no se paró» y no
+como «no estaba mirando».
+
+📌 Es tu familia del `journalctl --since "-6h"` excluyendo justo el arranque: **la ventana del
+instrumento tiene que cubrir el evento**. Lo destapó una comprobación explícita de que la traza
+cubriera la marca, que había añadido tras un fallo anterior del análisis.
+
+### De propina: el guion PROPIO, tecleado en el navegador
+
+Para que el robot volviera solo entre corridas escribí un programa **en el editor** y lo ejecuté.
+Ese camino —frente a «abrir una práctica»— tampoco lo había probado nadie. ✅ Funciona, y con él
+los cinco regresos. Deriva del ciclo avance+regreso: **11,5 y 11,3 cm en 5 ciclos**, repetible.
+
+### Lo que queda del Taller
+
+· **4-6** · `04_giro_preciso.py` y sus cuatro `input()` con transportador.
+· **4-1 entero** · con `atriz-agente` PARADO (👤 sudo).
+· **4-8 / 4-9** · el `SIGKILL` deja el barrido encendido y la pantalla lo dice; y con SLAM en
+  marcha, matar un guion NO debe apagarlo.
+---
+
 ## ✅ Pi (2026-08-15, tarde) · **Restart hecho, tu arreglo revisado y la 4-10 re-verificada EN VIVO**
 
 Tu encargo, cumplido en orden:

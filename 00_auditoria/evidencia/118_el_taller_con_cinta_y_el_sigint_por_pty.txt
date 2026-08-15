@@ -1,0 +1,158 @@
+═══════════════════════════════════════════════════════════════════════════════
+118 · EL TALLER CON CINTA: 4-4 CERRADA, Y EL SIGINT POR PTY MEDIDO POR PRIMERA
+      VEZ (n=5). MÁS UNA TANDA ENTERA QUE MOVIÓ EL ROBOT Y NO MIDIÓ NADA
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-15, tarde · rvr-01 · batería 7,68 V · clave Ed25519 REAL
+Origen:  El PC publicó la clave real y entró con un navegador de verdad
+         (evidencia previa en ESTADO_ACTUAL). Quedaban las casillas de VALIDAR
+         §4c que exigen cinta métrica. El usuario despejó el espacio y midió.
+Método:  El PC lanza desde el navegador (headless por CDP, la interfaz real);
+         el usuario mide con cinta; y en paralelo se traza `/odom` por
+         rosbridge con marca de tiempo.
+
+RESUMEN
+  4-4 cerrada: 60 cm de cinta contra 60,3 de odometría. 4-7 medida por primera
+  vez por PTY: **1,9 cm de mediana (n=5, rango 1,7-3,1)** después de la señal,
+  contada desde el CLIC del navegador. Y un fallo de método propio: la primera
+  tanda de cinco corridas dio la ventana equivocada al instrumento y no midió
+  nada — cinco movimientos del robot para cero datos.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LAS DOS VÍAS COINCIDEN, Y ESO ES LO QUE HACE UTILIZABLE A LA ODOMETRÍA
+───────────────────────────────────────────────────────────────────────────────
+                          CINTA      ODOMETRÍA     diferencia
+  4-4 · 01_avanzar.py     60,0 cm     60,3 cm        0,3 cm
+  4-7 · avance + SIGINT   30,0 cm     30,1 cm        0,1 cm
+
+  Dos instrumentos independientes, dos veces, dentro del milímetro. Eso es lo
+  que autoriza a usar la odometría para el reparto que la cinta NO puede hacer:
+  separar el trozo de antes y el de después de la señal.
+
+  ⚠️ No se generaliza: aquí el robot va recto, sobre suelo liso y 60 cm. Este
+     proyecto tiene medido que la misma odometría puede irse 41 cm en otras
+     condiciones. Lo que se valida es ESTA medida, no la odometría en general.
+
+  ✅ 4-4 CERRADA. El programa, lanzado desde el terminal web, recorre lo mismo
+     que por SSH (58/59 cm medidos el 2026-08-13, evidencia 108). El entorno
+     del agente es el del SSH: era justo lo que esta casilla existía para
+     detectar.
+
+  📌 La odometría también dijo que la medida era VÁLIDA, y eso importa tanto
+     como el número: velocidad máxima **0,218 m/s**. Si la capa de seguridad
+     hubiera intervenido saldría ~0,08 (frena al 40 %) y estaríamos ante el
+     caso de los 26,4 cm de la evidencia 85 sin saberlo. El instrumento dice
+     cuándo NO creerle.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · 🔴 UNA TANDA ENTERA QUE MOVIÓ EL ROBOT Y NO MIDIÓ NADA
+───────────────────────────────────────────────────────────────────────────────
+  Primera tanda de cinco repeticiones: se le dio **14 s de ventana** a la traza
+  de `/odom` cuando el navegador tarda **~21 s** en llegar a pulsar (9 s de
+  carga de página + 2,5 de abrir la práctica + esperar a ver «Avanzando» + 1,5).
+
+      traza 1: 233 muestras, de -21633 a  -7683 ms respecto a la señal
+      traza 2: 231 muestras, de -22682 a  -8788 ms
+      traza 3: 232 muestras, de -21382 a  -7459 ms
+      traza 4: 231 muestras, de -20577 a  -6647 ms
+      traza 5: 232 muestras, de -21151 a  -7241 ms
+
+  Las cinco terminaron entre 7 y 9 segundos ANTES del fenómeno. Cinco corridas
+  del robot, cero datos, y batería gastada.
+
+  🔴 Y NO DIO NINGÚN ERROR. Los cinco ficheros existían, con 233 muestras cada
+     uno, todas del momento equivocado. El análisis dijo «sin reposo claro» ×5,
+     que se lee como «el robot no llegó a pararse» y no como «no estaba
+     mirando».
+
+  📌 Es la familia que este proyecto ya tiene escrita: `journalctl --since
+     "-6h"` excluyendo justo el arranque, que es cuando ocurre el fenómeno. **La
+     ventana del instrumento tiene que cubrir el evento**, y una ventana que no
+     lo cubre produce ficheros llenos de datos verdaderos del instante que no
+     era.
+
+  ✅ Lo que lo destapó: una comprobación explícita de que la traza CUBRA la
+     marca (`filas[0] <= marca <= filas[-1]`), añadida al análisis después de
+     que fallara. Sin ella, el «sin reposo claro» se habría atribuido al robot.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · 4-7 · EL SIGINT POR PTY, MEDIDO POR PRIMERA VEZ (n=5)
+───────────────────────────────────────────────────────────────────────────────
+  Montaje: `01_avanzar.py` lanzado desde el navegador; el SIGINT se pulsa
+  **1,5 s después de ver «Avanzando» en la salida**, no con un retardo fijo
+  desde el clic — el arranque del programa varió entre 2,5 y 5 s en las tandas,
+  así que un número fijo mediría un instante distinto cada vez.
+
+   n   v en la señal   DESPUÉS   hasta parar   reacción
+   1      0,198 m/s     1,9 cm       248 ms      129 ms
+   2      0,198 m/s     2,1 cm       152 ms       93 ms
+   3      0,193 m/s     1,7 cm       205 ms      143 ms
+   4      0,195 m/s     1,9 cm       281 ms      152 ms
+   5      0,194 m/s     3,1 cm       272 ms      151 ms
+  ─────────────────────────────────────────────────────
+   mediana 1,9 cm · media 2,1 ± 0,5 · rango 1,7-3,1 cm
+   hasta parar: mediana 248 ms (152-281)
+   reacción:    mediana 143 ms (93-152)
+
+  Con la corrida suelta previa (1,9 cm) son **n=6, mediana 1,9 cm**.
+
+  Perfil de una corrida, que es lo que enseña el mecanismo:
+
+       -29 ms   v=+0,196 m/s   x=0,8831      a plena marcha
+       +34 ms   v=+0,194 m/s   x=0,8965      la señal aún no ha hecho efecto
+       +90 ms   v=+0,037 m/s   x=0,9022      frenando
+      +151 ms   v=+0,005 m/s   x=0,9022
+      +212 ms   v=+0,000 m/s   x=0,9022      y ahí se queda
+
+  🔴 EL CRONÓMETRO EMPIEZA EN EL CLIC DEL NAVEGADOR, no cuando el agente
+     entrega la señal. Incluye WiFi, agente, `killpg`, el manejador de Python,
+     el `stop` de `atriz.py` y la deceleración del RVR. Es el número que le
+     importa a un alumno que pulsa el botón; no es comparable pieza a pieza con
+     una medida hecha dentro del robot.
+
+  ⚠️ POR SSH ESTÁ MEDIDO EN ~1 cm (5/5, `probar_ctrl_c_atriz.py`) Y AQUÍ SALE
+     ~2. Mismo orden de magnitud, no otro régimen. La diferencia es **compatible**
+     con el tramo de red y agente que el SSH no tiene — pero **eso no se ha
+     aislado**, así que es una hipótesis y no una medida. Afirmar «el PTY es
+     peor» con estos datos sería exactamente lo que este fichero persigue.
+
+  ⚠️ EL 3,1 DE LA CORRIDA 5 NO SE INTERPRETA. `/odom` llega cada 60 ms, que a
+     0,2 m/s son **1,2 cm**: cada medida arrastra ±0,6 cm de cuantización, del
+     mismo orden que la dispersión entera. Con este instrumento no se distingue
+     1,9 de 3,1 con confianza. Para separarlos haría falta muestrear más rápido
+     que el robot, y el firmware no baja de 16,5 Hz.
+
+  📌 La «reacción» (primera muestra por debajo del 80 % de la velocidad de la
+     señal) está cuantizada igual: 93-152 ms con muestras cada 60 ms significa
+     «entre una y tres muestras». No es un tiempo de reacción fino.
+
+───────────────────────────────────────────────────────────────────────────────
+4 · DE PROPINA: EL GUION PROPIO, TECLEADO EN EL NAVEGADOR
+───────────────────────────────────────────────────────────────────────────────
+  Para que el robot volviera solo entre corridas se escribió un programa **en
+  el editor del terminal** y se ejecutó. Ese camino —el «guion propio», frente
+  a «abrir una práctica»— no lo había probado nadie desde el navegador.
+
+      teclear   -> escrito 98 caracteres
+      Ejecutar  -> pulsado
+      confirmar -> pulsado
+      salida: hola desde el editor del navegador / linea 0 / 1 / 2 / fin
+
+  ✅ Funciona, y con él los cinco regresos (`robot.avanzar(-0.20, 1.5)`).
+  📌 Deriva acumulada del ciclo avance+regreso: **11,5 cm en 5 ciclos** en la
+     primera tanda y **11,3 cm** en la segunda — 2,3 cm por ciclo, repetible.
+
+  ⚠️ El regreso va hacia ATRÁS, donde el `collision_monitor` no protege: su
+     polígono mira hacia delante. Se avisó al usuario antes de lanzar la tanda.
+
+───────────────────────────────────────────────────────────────────────────────
+5 · LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  · **4-6** · `04_giro_preciso.py` y sus cuatro `input()` con transportador.
+  · **4-1 entero** · con `atriz-agente` PARADO (👤 sudo), que la pantalla diga
+    que no llega al agente mientras la franja de arriba sigue «en línea».
+  · **4-8 / 4-9** · SIGKILL deja el barrido encendido y la pantalla lo dice; y
+    con SLAM en marcha, matar un guion NO debe apagar el barrido.
+
+CRUDOS
+  `crudos_de_home/118_taller_con_cinta/traza_47_[1-5].csv`
+  Formato: `epoch_ms,x,y,vx` — 529 muestras por corrida, /odom a 16,5 Hz.

@@ -2397,6 +2397,7 @@ de verdad. Dos consecuencias que cambian el día a día:
 | ✅ **Deriva acumulada de la odometría** | **3,3 cm** tras un ciclo completo (ida 45 cm, giro de 125°, vuelta, ×2), medido con cinta a la marca de partida | 2026-08-07 |
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |
 | Nav2 solo | ~58 % de un núcleo — la pieza más pesada | 2026-07-31 |
+| ✅ **Parada tras un `SIGINT` DESDE EL TERMINAL WEB** | **1,9 cm de mediana, n=5** (rango 1,7-3,1) a 0,20 m/s, contados **desde el CLIC del navegador** — incluye WiFi, agente, `killpg`, el manejador de Python y la deceleración. Hasta parar: 248 ms de mediana. 🔴 Por SSH está en **~1 cm** (5/5, en proceso): mismo orden, y la diferencia es *compatible* con el tramo de red y agente que el SSH no tiene, pero **NO se ha aislado** — no digas que el PTY es peor. ⚠️ Y no distingas 1,9 de 3,1: `/odom` cada 60 ms son **±0,6 cm** de cuantización, del orden de la dispersión entera | 2026-08-15, evidencia 118 |
 | **Parada del `collision_monitor`** | **9.9 cm** a 0.25 m/s · **10.6-10.7 cm** a 0.40 (n=2) | 2026-07-31 |
 | Nav2 a 0.40 m/s | meseta **0.407 m/s** en 0.9 s · error de objetivo **8 cm** | 2026-07-31 |
 | Rodeando un obstáculo | desvío **26–32 cm**, error **8–9 cm**, 4 de 4 SUCCEEDED | 2026-07-31 |
