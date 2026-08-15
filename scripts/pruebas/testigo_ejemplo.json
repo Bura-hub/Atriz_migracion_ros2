@@ -1,0 +1,8 @@
+{
+  "_lee_esto": "Testigo de ejemplo para cruzar Next (firma) con atriz_testigo.py (verifica). La clave privada se genero, se uso y se tiro: aqui solo esta la publica. Regenerar con: node herramientas/emitir_testigo_ejemplo.mjs",
+  "clave_publica_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqZmF4OQqFPh3HSv7WeNXactpIulXsqF6/g0Eu7ZQ5mA=\n-----END PUBLIC KEY-----\n",
+  "testigo": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbmEiLCJyb2IiOjcsImV4cCI6MTc4NjgxMjM1NywiaWF0IjoxNzg2ODExNzU3fQ.KMhY6JuiPV0UA1obc0I38S7D1k2F6PpKi78feBpdCx1WPn1gtBkPDEHhFgt-QPAlq1cab0cN3G5G89_0fz36Ag",
+  "robot": 7,
+  "sujeto": "ana",
+  "emitido_s": 1786811757
+}

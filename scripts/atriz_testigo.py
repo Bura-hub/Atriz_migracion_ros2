@@ -58,11 +58,6 @@ MARCA_RELOJ = Path('/run/systemd/timesync/synchronized')
 MARGEN_RELOJ_S = 60
 
 
-def _b64u(s: str) -> bytes:
-    """Base64 de URL sin relleno, que es lo que usa JWT."""
-    return base64.urlsafe_b64decode(s + '=' * (-len(s) % 4))
-
-
 class Veredicto:
     """El resultado de mirar un testigo. Nunca es un booleano suelto.
 

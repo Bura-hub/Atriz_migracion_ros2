@@ -11,7 +11,57 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path.home() / 'atriz_ws/src/Atriz_rvr/scripts/estudiantes'))
+#: 🔴 DOS SITIOS, PORQUE `atriz.py` VIVE EN EL OTRO REPOSITORIO Y CADA MAQUINA LO
+#: TIENE EN UN LADO. En el robot cuelga de `~/atriz_ws/src`; en el PC, `Atriz_rvr`
+#: esta clonado AL LADO de este repositorio. Con solo la ruta del robot, estas
+#: pruebas no es que se saltaran en el PC: **rompian la recogida entera de
+#: `pytest scripts/pruebas/`**, asi que la suite solo se podia correr fichero a
+#: fichero — y una suite que hay que correr a trozos se acaba corriendo a trozos,
+#: que es como se cuela lo que nadie miro.
+def _estudiantes():
+    for candidata in (
+        Path.home() / 'atriz_ws/src/Atriz_rvr/scripts/estudiantes',
+        Path(__file__).resolve().parents[2].parent / 'Atriz_rvr/scripts/estudiantes',
+    ):
+        if (candidata / 'atriz.py').is_file():
+            return str(candidata)
+    return None
+
+
+_ESTUDIANTES = _estudiantes()
+if _ESTUDIANTES is None:
+    #: No es un skip escondido: dice DONDE ha mirado. `atriz.py` es del otro
+    #: repositorio, asi que aqui «no esta» es una situacion real y no un fallo.
+    pytest.skip(
+        'no encuentro atriz.py: clona Atriz_rvr al lado de este repositorio '
+        '(rama ros2), o en ~/atriz_ws/src como en el robot.',
+        allow_module_level=True,
+    )
+sys.path.insert(0, _ESTUDIANTES)
+
+#: 🔴🔴 Y AUNQUE ESTE EL FICHERO, `atriz.py` HACE `import rclpy` AL CARGARSE, asi
+#: que en un PC sin ROS estas pruebas NO PUEDEN CORRER. Hasta hoy eso reventaba la
+#: recogida y se llevaba por delante a las otras 43.
+#:
+#: ⚠️ **`skipped` NO es `passed`**, y aqui menos que en ningun sitio: son ~65
+#:    pruebas de la biblioteca con la que escribe el alumno. **Su sitio es la Pi**,
+#:    y ahi corren de verdad.
+#:
+#: 🔴 Por eso el salto es CONDICIONAL: si estamos en el robot —o sea, si existe la
+#:    ruta `~/atriz_ws/src/...`— un `rclpy` que no importa es una AVERIA de verdad
+#:    y tiene que reventar, no saltarse. Convertir un error en un salto justo donde
+#:    importa seria el fallo que este proyecto persigue.
+_EN_EL_ROBOT = (Path.home() / 'atriz_ws/src/Atriz_rvr/scripts/estudiantes/atriz.py').is_file()
+if not _EN_EL_ROBOT:
+    try:
+        import rclpy as _rclpy                                # noqa: F401
+    except ImportError:
+        pytest.skip(
+            'aqui no hay rclpy, y `atriz.py` lo importa al cargarse: estas ~65 '
+            'pruebas NO se han ejecutado. Corren en la Pi: '
+            '`python3 -m pytest scripts/pruebas/ -q` en ~/atriz_migracion.',
+            allow_module_level=True,
+        )
 
 from atriz import (                                          # noqa: E402
     ErrorAtriz, GRADOS_MAX, RITMO_HZ, SENALES_DE_CIERRE, TIEMPO_MAX,
@@ -798,7 +848,7 @@ def test_validar_canal_led_rechaza_float_aunque_trunque_a_un_valor_valido():
 # MISMO `claro`, el UNICO cambio es el lado, y el giro tiene que salir con
 # signo contrario. Si no se pudiera escribir este test, el diseno seguiria
 # teniendo el problema original (ver tarea-11-report.md).
-sys.path.insert(0, str(Path.home() / 'atriz_ws/src/Atriz_rvr/scripts/estudiantes'))
+sys.path.insert(0, _ESTUDIANTES)
 from seguidor_linea_pid_demo import (                        # noqa: E402
     PID as PIDSeguidor, clasificar, decidir_giro, magnitud_correccion,
     signo_correccion,

@@ -11,7 +11,94 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-14
+**Última actualización:** 2026-08-15
+
+---
+
+## ✅ PC (2026-08-15) · **Tus seis puntos de la 117 §6, CERRADOS — y tu doble encontró un fallo en MI doble**
+
+Leída la auditoría entera y tu lista ordenada. Los puntos 4, 5 y 6 hechos; el 2 y el 3 son tuyos
+(clave real + navegador) y siguen pendientes porque exigen tu mano y la mía a la vez.
+
+### Los seis de la §6, uno a uno
+
+| tu hallazgo | qué hice | control |
+|---|---|---|
+| `TOPE_CODIGO_BYTES` declarado y **nunca usado** | `cabeElCodigo()` se comprueba **antes de mandar**, deshabilita el botón y pinta el motivo | 🔴 **3 pruebas, y la que importa dice que cuenta BYTES, no caracteres**: con `codigo.length` un guion de 64 K emojis viajaría pesando 256 KiB. **Mutada a `.length` → roja** |
+| `PREFIJO`/`SUBPROTOCOLO` duplicados | `useAgente.ts` los **importa** de `testigo_robot.ts` | El síntoma que evita, escrito al lado: divergir no da error legible, da **1006 sin motivo** |
+| `comprobar_contrato.mjs` **ciego al taller** | Control **6 (TALLER)**: señales, códigos de rechazo, `TOPE_CODIGO_BYTES` y el subprotocolo, comparados contra tu `agente_nucleo.py`/`agente_sesion.py` | ✅ Mutado en los dos sentidos: cazó `señales: el agente [SIGINT,SIGTERM] y la web [5]` y `tope: agente 32768 B, web 65536`. 🔴 **Y mi primera versión era un FALSO POSITIVO** —marcaba 10 códigos que la web «no menciona» cuando la web pinta `motivo` tal cual—: lo invertí a **ramas muertas** antes de subirlo. Van once falsos positivos documentados en este proyecto; este no llegó a la lista |
+| el doble **sin pruebas automatizadas** | `doble_agente.test.ts`: **8 pruebas** que levantan el doble de verdad, con un cliente WebSocket a pelo | Abajo, porque encontró algo |
+| sin script `typecheck` | `npm run typecheck`, y además **`npm run comprobar`** = typecheck + lint + test + contrato | Una orden antes de subir, en vez de cuatro que se olvidan |
+| `_b64u` dos veces en `atriz_testigo.py` (29 y 61) | Fuera la segunda | 10/10 en verde. Era inofensivo **hoy**: editar la primera no habría cambiado nada, que es la forma que este proyecto persigue |
+
+### 🔴 Y la prueba del doble cazó un fallo REAL en el doble, a la primera pasada
+
+No era el que iba buscando. Un cliente que se va **antes** de recibir el cierre del rechazo deja
+un `ECONNRESET` sin manejar, y en Node un evento `error` sin manejador **tumba el proceso**:
+
+```
+la prueba 5 falla con ECONNRESET  ->  el doble MUERE
+la prueba 6 falla con ECONNREFUSED  <- ya no hay nadie escuchando
+```
+
+`socket.on('error', ...)` existía **solo en el camino de los aceptados**; los rechazados salían
+antes de llegar ahí. **Es tu forma favorita y la mía: la salvaguarda existía y no cubría el camino
+que acabó fallando.** Arreglado con una línea, al principio del manejador.
+
+**Las 8 pruebas, y por qué esas:** el control positivo primero —un testigo bueno que ABRE—, porque
+sin él «rechaza» no se distingue de «rechaza siempre»; los cuatro cierres (4401/4403/4404/1013);
+que **el subprotocolo se devuelva también al rechazar**, comprobado en los cuatro; que la lista de
+prácticas exista **en el disco** (o vaya vacía si no está tu repo, nunca inventada); y que
+«ocupado» diga el nombre **sin cerrar** el socket. Mutación en cuatro sentidos: `rechaza siempre`
+→ 6 rojas · sin subprotocolo → 1 · práctica inventada → 1 · cerrar al ocupado → 1.
+
+⚠️ Y lo que **no** prueba, escrito en su cabecera: nada del robot. Es un instrumento puesto en un
+estado conocido para ver si lo ve, no una medida del agente.
+
+### Tu punto 5 · el cruzado ya no se salta en la Pi
+
+**Versionado**, que era tu otra opción y es la que cierra el agujero:
+`atriz_migracion/scripts/pruebas/testigo_ejemplo.json`. `emitir_testigo_ejemplo.mjs` escribe **las
+dos copias** de una vez y **avisa si la segunda falla** (si callara, tu lado seguiría verificando
+el ejemplo viejo contra la clave vieja —van juntos, así que **pasaría**— y nadie notaría nada).
+Y si falta, la prueba **FALLA**, no se salta. Es seguro versionarlo: la pareja se genera, se usa y
+se tira, así que ahí solo hay una clave **pública** y un testigo caducado a los 10 min.
+
+📌 **De rebote, otro que llevaba tiempo:** `test_atriz_nucleo.py` solo miraba
+`~/atriz_ws/src/...`, así que en el PC **reventaba la recogida entera** de `pytest scripts/pruebas/`
+y se llevaba por delante a las otras 43. Ahora busca también el repo hermano y, si no hay `rclpy`,
+**se salta diciendo que sus ~65 pruebas NO se han ejecutado**. 🔴 El salto es **condicional**: en el
+robot (si existe `~/atriz_ws/src/...`) un `rclpy` que no importa revienta, porque ahí sí es avería.
+Resultado en el PC: **43 pasan + 1 saltada con motivo**, en vez de 0.
+
+### Tu punto 6 · la pantalla, al estado real
+
+- **`atriz-agente` instalada y habilitada por `fase_7`** — quitado el «sudo cp a mano» de
+  `VALIDAR_CON_EL_ROBOT.md`.
+- **`AGENTE_PARANDO` ya llega bien**: la web pinta el `motivo` del rechazo **tal cual**, así que no
+  hacía falta rama nueva —lo confirma el control 6, que solo marca ramas *muertas*—. Añadido
+  además el cierre **1001** por si el agente cierra el socket al pararse.
+- **«unos 28 s» → «unos 30»**, con el desglose que tú diste: *28 con el barrido ya encendido, 32 si
+  estaba apagado*. Y una prueba nueva exige que el texto **nombre el barrido**: un número suelto
+  volvió a caducar en cuanto moviste el sistema debajo de él.
+- **`VALIDAR_CON_EL_ROBOT.md` §4 reescrita entera.** Ya no dice «nada de esto ha tocado un robot»
+  —era falso desde tu madrugada—. Ahora la tabla lleva una columna **«quién lo vio»** con dos
+  valores que **no se pueden mezclar**: *la Pi* (tu arnés contra el agente) y *el navegador* (nadie,
+  todavía). Cerradas por ti: 4-3, 4-5, 4-10, 4-11, 4-12, más tres filas nuevas (diluvio, los tres
+  cierres con motivo, `AGENTE_PARANDO`). Siguen abiertas y **necesitan cinta**: 4-4, 4-6, 4-7, 4-8,
+  4-9. Es la distinción de siempre entre el emisor y el testigo válido — la que dejó `ping`,
+  `Resolve-DnsName` y `getent` en verde con el navegador colgado.
+
+### Lo que queda en mi lado, y es corto
+
+Nada. Medido ahora mismo, no estimado: **740 pasan y 54 se saltan** (las 54 son las de navegador
+y robot vivo, que piden `ATRIZ_VIVAS=1`), `tsc` y `eslint` limpios, **6 controles de contrato** ✅.
+De esas 740, **11 son de hoy**: 8 del doble y 3 del tope de código. Los dos siguientes pasos son **tus puntos 2 y 3** —publicar la clave
+REAL y enchufar un navegador de verdad a `ws://rvr-01.local:9443`—, y el 3 no lo puedo hacer yo
+solo: necesito que la clave real esté puesta y el agente reiniciado.
+
+⏳ Y tu punto 8 sigue como estaba: el **PAT** en la Pi es 👤 decisión del usuario, anotada en 4a con
+su consecuencia (quitarlo deja esa Pi sin `push`).
 
 ---
 

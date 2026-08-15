@@ -14,10 +14,15 @@ la primera vez que un alumno pulsara Ejecutar en el aula.
 Lo unico que cruza de verdad es un testigo REAL emitido por uno y verificado por
 el otro. Eso es lo que hay aqui.
 
-⚠️ EL FICHERO DE EJEMPLO VIVE EN EL OTRO REPOSITORIO
-   (`atriz-lab/herramientas/testigo_ejemplo.json`), porque lo emite quien firma.
-   Si no esta —en el robot no lo esta— la prueba se SALTA diciendolo. Saltarse
-   una prueba por no encontrar su material es honesto; darla por buena no.
+✅ EL FICHERO DE EJEMPLO ESTA VERSIONADO AQUI AL LADO (`testigo_ejemplo.json`)
+   desde el 2026-08-15. Antes vivia solo en `atriz-lab`, que NO esta clonado en
+   la Pi, asi que en el robot esta prueba se SALTABA — o sea que la unica que
+   puede cazar la divergencia no corria en la maquina donde el fallo sale.
+   Lo emite quien firma (`atriz-lab/herramientas/emitir_testigo_ejemplo.mjs`),
+   que ahora escribe LAS DOS copias de una vez; si falta, esto FALLA, no se salta.
+
+   📌 Es seguro versionarlo: la pareja de claves se genera, se usa y se tira, asi
+      que aqui solo hay una clave PUBLICA y un testigo caducado a los 10 min.
 """
 
 import json
@@ -36,26 +41,43 @@ import atriz_testigo  # noqa: E402
 from atriz_testigo import CIERRE_OTRO_ROBOT, CIERRE_TESTIGO_MALO, verificar  # noqa: E402
 
 
-#: Se busca al lado del repositorio, que es como estan los dos en el PC. Con la
-#: variable ATRIZ_TESTIGO_EJEMPLO se puede apuntar a otro sitio.
-def _ruta_ejemplo() -> Path:
+#: 🔴 EL EJEMPLO VIVE **EN ESTE REPOSITORIO**, y hasta el 2026-08-15 no.
+#:
+#: Estaba solo en `atriz-lab`, que no esta clonado en la Pi, asi que en el robot
+#: esta prueba se SALTABA. «Saltada» no es «pasada»: la unica prueba capaz de
+#: cazar una divergencia de contrato entre Next y Python no corria justo en la
+#: maquina donde ese fallo aparece — y el resto de pruebas de los dos lados
+#: pasarian con el contrato roto, que es la razon entera de que exista.
+#:
+#: `emitir_testigo_ejemplo.mjs` escribe las dos copias de una vez. Se puede
+#: apuntar a otro sitio con ATRIZ_TESTIGO_EJEMPLO.
+def _rutas_ejemplo() -> list[Path]:
     import os
     puesto = os.environ.get('ATRIZ_TESTIGO_EJEMPLO')
     if puesto:
-        return Path(puesto)
+        return [Path(puesto)]
     raiz = Path(__file__).resolve().parents[2]          # .../atriz_migracion
-    return raiz.parent / 'atriz-lab' / 'herramientas' / 'testigo_ejemplo.json'
+    return [
+        Path(__file__).resolve().parent / 'testigo_ejemplo.json',       # aqui mismo
+        raiz.parent / 'atriz-lab' / 'herramientas' / 'testigo_ejemplo.json',
+    ]
 
 
 @pytest.fixture(scope='module')
 def ejemplo():
-    ruta = _ruta_ejemplo()
-    if not ruta.is_file():
-        pytest.skip(
-            f'no esta el testigo de ejemplo en {ruta}. Lo emite la web con '
-            '`node herramientas/emitir_testigo_ejemplo.mjs`; en el robot no existe.',
-        )
-    return json.loads(ruta.read_text(encoding='utf8'))
+    for ruta in _rutas_ejemplo():
+        if ruta.is_file():
+            return json.loads(ruta.read_text(encoding='utf8'))
+    # 🔴 FALLA, no se salta. El fichero esta versionado en este repositorio: si
+    #    no aparece, algo se ha borrado, y taparlo con un skip dejaria el cruce
+    #    sin comprobar en verde.
+    pytest.fail(
+        'no encuentro el testigo de ejemplo en ninguna de: '
+        + ', '.join(str(r) for r in _rutas_ejemplo())
+        + '. Deberia estar versionado aqui al lado. Se regenera desde atriz-lab '
+        'con `node herramientas/emitir_testigo_ejemplo.mjs`, que escribe LAS DOS copias.',
+    )
+    raise AssertionError('inalcanzable')                # para el analizador
 
 
 @pytest.fixture(scope='module')

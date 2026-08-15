@@ -4,6 +4,39 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15 (PC) — Los seis puntos de la auditoría 117 §6, cerrados; y el cruzado deja de saltarse en la Pi
+
+Respuesta a la auditoría que la Pi hizo del Taller. Lo de este repositorio:
+
+**`scripts/atriz_testigo.py`** — quitada la segunda definición de `_b64u` (estaba en la 29 y en la
+61, idénticas). Era inofensivo hoy y peligroso mañana: editar la primera no habría cambiado nada,
+que es justo la forma que este proyecto persigue. 10/10 en verde.
+
+**`scripts/pruebas/testigo_ejemplo.json`** (nuevo) — el ejemplo que cruza Next↔Python queda
+**versionado también aquí**. Vivía solo en `atriz-lab`, que no está clonado en la Pi, así que en el
+robot las 5 pruebas cruzadas **se saltaban en silencio** — y son las únicas capaces de cazar una
+divergencia de contrato entre los dos lenguajes, porque las pruebas de cada lado pasarían con el
+contrato roto. Ahora `test_testigo_cruzado.py` busca en tres sitios y, si no encuentra el ejemplo,
+**FALLA** en vez de saltarse. Es seguro versionarlo: la pareja de claves se genera, se usa y se
+tira, así que ahí solo hay una clave **pública** y un testigo caducado a los 10 minutos.
+`emitir_testigo_ejemplo.mjs` (en `atriz-lab`) escribe las dos copias y **avisa si la segunda falla**.
+
+**`scripts/pruebas/test_atriz_nucleo.py`** — de rebote, y llevaba tiempo: solo miraba
+`~/atriz_ws/src/...`, así que en el PC **reventaba la recogida entera** de `pytest scripts/pruebas/`
+y se llevaba por delante a las otras 43 pruebas. Ahora busca también el repositorio hermano y, si
+no hay `rclpy`, se salta **diciendo que sus ~65 pruebas NO se han ejecutado**.
+🔴 El salto es **condicional**: en el robot un `rclpy` que no importa sigue reventando, porque ahí
+sí es una avería. Convertir un error en un salto justo donde importa sería el fallo de siempre.
+
+**Verificado:** `pytest scripts/pruebas/ -q` → **43 pasan + 1 saltada con motivo** en el PC (antes:
+0, error de recogida). El cruzado, 5/5. Control en la otra dirección: con
+`ATRIZ_TESTIGO_EJEMPLO=/no/existe` la prueba da **error, no skip**.
+
+**Pendiente (👤):** publicar la clave Ed25519 **real** en `/etc/atriz/testigo.pub` y conectar un
+navegador de verdad a `ws://rvr-01.local:9443`. Es la única casilla que la clave de prueba no cubre.
+
+---
+
 ## 2026-08-15, madrugada (Pi) — El Taller del PC, auditado y validado EN VIVO: cinco fallos cazados (dos en vivo) y la práctica 05 corriendo por el terminal
 
 Auditoría pedida por el usuario sobre el Taller (terminal del alumno) que el PC construyó, con
