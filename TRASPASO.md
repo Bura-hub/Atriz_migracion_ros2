@@ -512,9 +512,24 @@
 > [`00_auditoria/planes/2026-08-04-estructura-app-web.md`](00_auditoria/planes/2026-08-04-estructura-app-web.md)
 > y **todas las dudas abiertas, con recomendación**, en
 > [`00_auditoria/planes/2026-08-04-dudas-abiertas.md`](00_auditoria/planes/2026-08-04-dudas-abiertas.md).
-> 🔴 **El producto —el terminal— está bloqueado por la F0**, que necesita el aula: si el AP aísla
-> clientes, el transporte se replantea entero. Es el único experimento que puede tirar un diseño, y
-> cuesta diez minutos.
+> ~~🔴 **El producto —el terminal— está bloqueado por la F0**, que necesita el aula~~
+>
+> ✅ **CONSTRUIDO EL 2026-08-14.** La F0 se descartó como riesgo el 2026-08-10 y el agente de
+> sesión se escribió el 14. Un alumno abre una práctica **del robot**, la edita, la ejecuta,
+> contesta a sus `input()` y la para — sin SSH. Diseño entero en
+> [`docs/superpowers/specs/2026-08-14-el-taller-terminal-del-alumno-design.md`](docs/superpowers/specs/2026-08-14-el-taller-terminal-del-alumno-design.md).
+>
+> 🔴 **Y lo que falta ya no es un eslabón, es una MEDIDA: el PTY no ha tocado un robot.** Sus 13
+> pruebas están escritas —cada una con su control contra una tubería— y **se saltan en Windows**,
+> así que los dos requisitos que justifican el diseño siguen sin medir. Se cierran en **cualquier
+> Linux, sin RVR**: `python3 -m pytest scripts/agente/pruebas/ -q` en `Atriz_rvr`.
+>
+> 👤 **Antes de instalarlo hay que quitar `~/.git-credentials` de los robots**: el código del
+> alumno corre como `sphero` y puede leer el PAT de GitHub. Los repositorios ya son públicos.
+>
+> 🔴 **Y el modelo de amenaza cambia**: con `rclpy` nativo el alumno alcanza `raw_motors` y
+> `set_ir_mode`, saltándose el `collision_monitor`. «`raw_motors` ya no es alcanzable» **deja de ser
+> cierto mientras haya un programa corriendo**. Va escrito en la pantalla.
 >
 > 🆕 **Y desde el 2026-08-03 hay una tercera cosa, a medias:** el arranque de la navegación.
 > `atriz-nav.service` está **escrita, INSTALADA y sin habilitar** (tareas 1, 2, 3 y 5 del plan
