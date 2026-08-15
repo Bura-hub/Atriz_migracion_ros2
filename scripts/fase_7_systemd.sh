@@ -117,6 +117,8 @@ if [[ $MODO == quitar ]]; then
     rm -f /usr/local/bin/atriz-nav.sh /usr/local/bin/atriz-slam.sh \
           /usr/local/bin/atriz-exclusion
     rm -f /usr/local/bin/atriz-vigia-dds /usr/local/bin/vigia_dds.py
+    systemctl disable --now atriz-agente.service 2>/dev/null || true
+    rm -f /usr/local/bin/atriz-agente.sh /etc/systemd/system/atriz-agente.service
     rm -f /usr/local/bin/atriz-lidar-reenganche \
           /etc/systemd/system/atriz-lidar-reenganche.service \
           /etc/udev/rules.d/98-atriz-lidar-reenganche.rules
@@ -161,6 +163,10 @@ comprobar "existe atriz-slam.service en el repo" "[[ -f $SCRIPTS_DIR/atriz-slam.
 comprobar "existe atriz-exclusion.sh en el repo" "[[ -f $SCRIPTS_DIR/atriz-exclusion.sh ]]"
 comprobar "existe atriz-vigia-dds.sh en el repo" "[[ -f $SCRIPTS_DIR/atriz-vigia-dds.sh ]]"
 comprobar "existe vigia_dds.py en el repo"       "[[ -f $SCRIPTS_DIR/sistema/vigia_dds.py ]]"
+comprobar "existe el agente de sesión en el workspace" \
+          "[[ -f /home/$REAL_USER/atriz_ws/src/Atriz_rvr/scripts/agente/atriz-agente.sh ]]"
+comprobar "existe atriz-agente.service en el workspace" \
+          "[[ -f /home/$REAL_USER/atriz_ws/src/Atriz_rvr/scripts/agente/atriz-agente.service ]]"
 comprobar "existe atriz-lidar-reenganche.sh en el repo" "[[ -f $SCRIPTS_DIR/sistema/atriz-lidar-reenganche.sh ]]"
 comprobar "existe atriz-lidar-reenganche.service en el repo" "[[ -f $SCRIPTS_DIR/sistema/atriz-lidar-reenganche.service ]]"
 comprobar "existe 98-atriz-lidar-reenganche.rules en el repo" "[[ -f $SCRIPTS_DIR/sistema/98-atriz-lidar-reenganche.rules ]]"
@@ -390,6 +396,23 @@ hacer install -m 644 "$SCRIPTS_DIR/sistema/98-atriz-lidar-reenganche.rules" /etc
 hacer udevadm control --reload-rules
 hecho "/etc/udev/rules.d/98-atriz-lidar-reenganche.rules (+ reload de udev)"
 
+# El agente de sesión del taller (2026-08-14): la mitad-robot del terminal del
+# alumno. Su fuente vive en el WORKSPACE (Atriz_rvr/scripts/agente/), como el
+# resto del código del robot; aquí solo se instalan el envoltorio y la unidad —
+# los .py los lee el envoltorio del workspace directamente.
+AGENTE_DIR="/home/$REAL_USER/atriz_ws/src/Atriz_rvr/scripts/agente"
+hacer install -m 755 "$AGENTE_DIR/atriz-agente.sh"      /usr/local/bin/atriz-agente.sh
+hecho "/usr/local/bin/atriz-agente.sh"
+hacer install -m 644 "$AGENTE_DIR/atriz-agente.service" /etc/systemd/system/atriz-agente.service
+hecho "/etc/systemd/system/atriz-agente.service"
+# ⚠️ La CLAVE PÚBLICA no la instala este guion: la emite el PC (atriz-lab,
+#    `node herramientas/publicar_clave.mjs`) y sin ella el agente SE NIEGA a
+#    arrancar — que es lo correcto. Aquí solo se avisa.
+if [[ ! -f /etc/atriz/testigo.pub ]]; then
+    avis "falta /etc/atriz/testigo.pub: el agente del taller NO podrá arrancar"
+    avis "  la publica el PC:  node herramientas/publicar_clave.mjs  (en atriz-lab)"
+fi
+
 # La regla de polkit: sin ella, `supervisor_navegacion` recibe «Interactive
 # authentication required» al llamar a systemctl (verificado el 2026-08-07) y
 # los botones de la web no hacen nada.
@@ -417,6 +440,13 @@ say "4/5 · Habilitar"
 hacer systemctl daemon-reload
 hacer systemctl enable atriz-robot.service
 hecho "atriz-robot.service habilitado (arrancará en el próximo reinicio)"
+
+# El agente del taller SÍ se habilita: el terminal es el producto de la web y
+# cuesta ~0 en reposo (un tornado escuchando). Sin la clave pública se negará a
+# arrancar solo — el aviso de arriba lo dice — y `Restart=always` lo recogerá
+# cuando la clave llegue.
+hacer systemctl enable atriz-agente.service
+hecho "atriz-agente.service habilitado (el terminal del taller)"
 
 # 🔴 atriz-nav NO se habilita, y NO es un olvido. La navegación cuesta ~58 % de
 #    un núcleo, y la Pi se alimenta del USB del RVR, así que eso sale de la

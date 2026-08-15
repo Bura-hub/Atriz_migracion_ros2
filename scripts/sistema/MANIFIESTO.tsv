@@ -45,3 +45,5 @@ scripts/sistema/vigia_dds.py	/usr/local/bin/vigia_dds.py	755	fase_7_systemd.sh	-
 scripts/sistema/atriz-lidar-reenganche.sh	/usr/local/bin/atriz-lidar-reenganche	755	fase_7_systemd.sh	-
 scripts/sistema/atriz-lidar-reenganche.service	/etc/systemd/system/atriz-lidar-reenganche.service	644	fase_7_systemd.sh	-
 scripts/sistema/98-atriz-lidar-reenganche.rules	/etc/udev/rules.d/98-atriz-lidar-reenganche.rules	644	fase_7_systemd.sh	-
+../atriz_ws/src/Atriz_rvr/scripts/agente/atriz-agente.sh	/usr/local/bin/atriz-agente.sh	755	fase_7_systemd.sh	-
+../atriz_ws/src/Atriz_rvr/scripts/agente/atriz-agente.service	/etc/systemd/system/atriz-agente.service	644	fase_7_systemd.sh	-
