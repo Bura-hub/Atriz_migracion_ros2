@@ -109,7 +109,7 @@ consecuencias, y las tres importan:
 | `atriz-lab/frontend/src/componentes/robot/PanelTerminal.tsx` | La pantalla | ✅ 42 guardas **contra el robot real**, y las 16 casillas de VALIDAR §4 |
 | `atriz-lab/herramientas/agente_de_mentira.mjs` | El doble | ✅ verifica Ed25519 de verdad |
 | `Atriz_rvr/scripts/agente/agente_nucleo.py` | Lo que **decide** | ✅ **36 pruebas** (31 + 5 de los fallos de la 117 y la 4-10) |
-| `Atriz_rvr/scripts/agente/agente_pty.py` | `pty.fork`, señales al grupo | ✅ **13/13 en la Pi**. ⚠️ Se saltan en Windows, y eso **no es que pasen** |
+| `Atriz_rvr/scripts/agente/agente_pty.py` | `pty.fork`, señales al grupo | ✅ **17/17 en la Pi** (13 + 4 de la 117). ⚠️ Se saltan en Windows, y eso **no es que pasen** |
 | `Atriz_rvr/scripts/agente/agente_sesion.py` | tornado, el pegamento | ✅ **en producción desde el 2026-08-15**, auditado (ev. 117) con 5 fallos cazados, más 2 más el mismo día (`soy_el_dueno` difundido, y el 500 sin subprotocolo) |
 | `Atriz_rvr/scripts/agente/atriz-agente.{service,sh}` | La unidad y su envoltorio | ✅ instalada y **habilitada por `fase_7`**; sobrevivió a un arranque en frío (cambio de batería) |
 
@@ -250,7 +250,7 @@ alumno puede leer lo que `sphero` lea, y ahí está el PAT de GitHub.
 
 | | |
 |---|---|
-| ✅ ~~El PTY, sin medir~~ | **Medido el 2026-08-15 desde el navegador**: `05_sensor_color.py` imprimió una línea cada **~510 ms** durante 20 s, no un bloque al final. Y las 13 pruebas, 13/13 en la Pi |
+| ✅ ~~El PTY, sin medir~~ | **Medido el 2026-08-15 desde el navegador**: `05_sensor_color.py` imprimió una línea cada **~510 ms** durante 20 s, no un bloque al final. Y las 17 pruebas (13 + 4 de la 117), 17/17 en la Pi |
 | ⏳ **`comprobar_efecto()` devuelve «no lo sé»** | Implementarlo exige hablar con rosbridge y medirlo en el robot |
 | ⏳ **cgroups** | Decidido para después: hoy hay tope de pared y de salida |
 | ⏳ **TLS** | El testigo viaja en claro. Dura 10 min y se pide antes de cada conexión |

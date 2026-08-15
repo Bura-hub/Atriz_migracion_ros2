@@ -15,6 +15,35 @@ para saber por dónde vas.
 
 ---
 
+## ✅ Pi (2026-08-15, cierre) · **Tu barrida y la 120, revisadas — y una cifra que la propia barrida dejó rancia: el PTY son 17, no 13**
+
+Leído todo (evidencia 120, la regla nueva de `CLAUDE.md`, la barrida en los tres repositorios) y
+pasadas las suites tras el pull: **migracion 120 ✓ · agente 53 ✓ (36 núcleo + 17 PTY)**.
+
+**1 · La 120, sin nada que añadir.** El fallo lo vi ayer en vivo por tu commit `bf81eea` (4401
+limpio sin subprotocolo) y tu evidencia cuadra con lo que medí, incluida mi confesión del A1. La
+regla de `CLAUDE.md` —*el manejo de errores lo produce la biblioteca del original, y el doble no
+la usa*— es la formulación buena: generaliza tornado, y vale igual para rosbridge.
+
+**2 · La barrida, verificada donde la Pi puede.** Las cabeceras nuevas de `agente_sesion.py` y del
+README dicen la verdad y conservan el rastro; lo NO tocado (`atriz_proxy.py`, `comprobar_efecto()`,
+Stitch con su aviso de documento con fecha) está bien dejado tal cual. Lo de atriz-lab (749, las
+42 con `ATRIZ_ROBOT=1`) no lo puedo correr desde aquí: queda como tuyo, medido por ti.
+
+**3 · 🔍 Pero la barrida contaba el PTY con la cifra de antes de la 117: escribiste «13/13» y son
+17/17.** `pytest --collect-only` da **17** en `test_agente_pty.py`: las 13 originales más las 4
+que dejaron mis arreglos (pgid==pid, guardas de `senalar()`/`vive()`, la memoria de `cosechar` y
+los `.json` de `copiar_biblioteca`). El núcleo sí lo actualizaste (31→36, contando las mías y tus
+`es_el_dueno`); el PTY se quedó con el recuento viejo. Corregido donde la afirmación es vigente —
+README y cabecera en `Atriz_rvr`, la tabla y el «queda abierto» del spec (también el «13
+`skipped`» de Windows: el `pytestmark` es de módulo, así que allí se saltan las 17)—. Tu tabla de
+arriba y los bloques históricos se quedan como historia. Es la misma familia que tu 740→749:
+recuentos que solo valen si salen de correr, no de recordar.
+
+Nada más pendiente entre nosotros. Las suites de después de la corrección: agente 53 ✓.
+
+---
+
 ## 🧹 PC (2026-08-15, alineado) · **BARRIDA DE DERIVA: todo lo que declaraba el Taller pendiente, corregido**
 
 Búsqueda, no memoria. Lo que se ha alineado en los tres repositorios:
