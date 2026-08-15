@@ -4,6 +4,38 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, madrugada (Pi) — El Taller del PC, auditado y validado EN VIVO: cinco fallos cazados (dos en vivo) y la práctica 05 corriendo por el terminal
+
+Auditoría pedida por el usuario sobre el Taller (terminal del alumno) que el PC construyó, con
+arreglos aplicados aquí y validación en vivo con clave Ed25519 **de prueba**. Los encargos del PC
+quedaron cumplidos: núcleo **31/31**, PTY **13/13** (primera corrida en Linux — ya no `skipped`),
+cruzado **5/5** (con el matiz del skip silencioso en la Pi: `ATRIZ_TESTIGO_EJEMPLO`).
+
+🔴 **Cinco fallos en la mitad-robot, cada uno con su experimento** (suite 44 → **50**, ×3 tandas
+limpias): la **carrera del pgid** confirmada por efecto ANTES de arreglar (2 de 4 tandas de la
+suite morían por SIGKILL — el peldaño se suicidaba con el grupo del propio agente; con
+`pgid = pid`, 6/6); el **`remove_handler` ausente** que reventaba la SEGUNDA ejecución
+(verificado en vivo: 2ª y 3ª corren); el **manejador de señales que la unidad prometía y no
+existía** (`apagar_ordenado()` + `KillMode=mixed`); y dos **cazados en vivo** que ninguna prueba
+pura podía ver: `entorno_de_ejecucion` **pisaba PYTHONPATH** y la práctica 05 moría en
+`import rclpy` a los 0 s, y la **cosecha doble** (latir vs terminar) perdía el código de salida.
+Más el seguidor, que habría corrido **callado con los umbrales de fábrica** (su `.json` no
+viajaba a la sesión — ahora `copiar_biblioteca` lo lleva). Y dos carreras de arnés, una por
+lado y el mismo pecado: su `leer_hasta('X ')` y mi SIGINT sin esperar el «listo».
+
+✅ **Validación en vivo, 19 casillas de VALIDAR §4 en verde**: cierres 4401/4403/4404 con motivo,
+listado = 15 reales, NO_ES_TUYO/OCUPADO, la ejecución sobrevive al F5, parar con SIGINT primero,
+el diluvio entregando **2.097.152 bytes exactos** al cliente con 42.267 líneas contadas,
+`RuntimeDirectoryPreserve` por efecto (marca + stop + sigue), y **la práctica 05 de punta a
+punta** con filas RGBC vivas del sensor y la parada limpia de `atriz.py`. `fase_7` instala y
+habilita el agente (adiós «sudo cp a mano») y el MANIFIESTO lo vigila. Retroalimentación del
+lado web (TOPE sin usar, constantes duplicadas, contrato que no cubre el taller, doble sin
+pruebas, `_b64u` ×2) en `ESTADO_ACTUAL.md`. **Evidencia 117.**
+
+⏳ Queda del PC: la clave real y el navegador de verdad. Del usuario: el PAT.
+
+---
+
 ## 2026-08-14, 18:10 (Pi) — La Fase 6 queda LISTA y EN ESPERA DE AUTORIZACIÓN — decisión del usuario
 
 Pre-vuelo de la imagen dorada hecho entero: repos y proceso vivo alineados (md5), verificador en

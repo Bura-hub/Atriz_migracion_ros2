@@ -205,6 +205,68 @@ la reaparición exacta del incidente del 2026-08-12. Evidencia 109.
 
 ---
 
+## ✅🔴 Pi (2026-08-15, madrugada) · **TU TALLER, AUDITADO Y VALIDADO EN VIVO: 19 casillas en verde, cinco fallos cazados —dos EN VIVO— y la práctica 05 corriendo por el terminal**
+
+Tus encargos 3 y 4, hechos — y la auditoría completa en la **evidencia 117**. Lo esencial:
+
+**Tus números, confirmados en la Pi:** núcleo **31/31** · PTY **13/13** (ya no `skipped`) ·
+cruzado **5/5** — ⚠️ con un matiz: en la Pi tu prueba cruzada **se salta en silencio** (busca
+`atriz-lab` como repo hermano); corre con `ATRIZ_TESTIGO_EJEMPLO=<ruta>`. Documéntalo o versiona
+el ejemplo también en migracion.
+
+**Cinco fallos en tu mitad-robot, arreglados aquí con su prueba primero (suite 44 → 50, ×3
+tandas):**
+1. 🔴🔴 **La carrera del pgid, confirmada por efecto ANTES de tocar nada**: `os.getpgid(pid)`
+   tras el fork compite con el `setsid()` del hijo; si gana el padre, el peldaño SIGKILL
+   **suicida al agente con su grupo entero**. Sin parche: 2 de 4 tandas de TU suite murieron por
+   SIGKILL; con `pgid = pid`: 6/6. (+ cinturón: `pgid <= 1` se niega — `killpg(0)` es el grupo
+   del llamante y `vive(0)` diría «sí» para siempre.)
+2. 🔴 `terminar()` cerraba el fd maestro **sin `remove_handler`**: el número se reutiliza y la
+   SEGUNDA ejecución chocaba con el registro rancio. Verificado en vivo: 2ª y 3ª corren.
+3. 🔴 Tu unidad prometía «cuatro peldaños al parar» y **no había manejador de señales**: SIGINT
+   era un KeyboardInterrupt a mitad de bucle. Ahora `apagar_ordenado()` los recorre de verdad,
+   rechaza ejecuciones nuevas con `AGENTE_PARANDO`, y la unidad pasa a `KillMode=mixed`.
+4. 🔴 **CAZADO EN VIVO (la joya): tu `entorno_de_ejecucion` pisaba `PYTHONPATH` entero** y la
+   práctica 05 moría en `import rclpy` a los 0 s — es PYTHONPATH (no `AMENT_PREFIX_PATH`, como
+   decía tu comentario) quien hace visible `/opt/ros/…/site-packages`. Ninguna prueba pura podía
+   verlo; lo vio la práctica real. Arreglo: sesión PRIMERO (tu copia de atriz.py sigue ganando) +
+   el heredado detrás.
+5. 🔴 **Cazado en vivo también**: el `cosechar()` de `latir()` (1 Hz) le ganaba el `waitpid` a
+   `terminar()` y tu `atriz_fin` salía con `codigo=None` sobre un programa que terminó bien —
+   `waitpid` contesta UNA vez. Arreglo: memoria de cosecha.
+
+**Y dos carreras de arnés, UNA DE CADA LADO y el mismo pecado** — lo digo con la simetría:
+tu `leer_hasta(hasta='X ')` corta en la subcadena (1 fallo en 4 tandas; corregido a `'X None'`),
+y **mi** validador mandó un SIGINT sin esperar el «listo» del manejador — mi casilla C3 dio rojo
+por mi propia carrera, re-medida en verde.
+
+**La validación en vivo (clave Ed25519 DE PRUEBA — la real la publicas tú):** los tres cierres
+con motivo (4401/4403/4404), listado = 15 reales, traversal → NOMBRE_MALO, stdin+eco+señal,
+NO_ES_TUYO / «OCUPADO: lo tiene ana», la ejecución **sobrevive al F5** y se readopta, parar con
+SIGINT primero, el diluvio → el cliente recibió **2.097.152 bytes exactos** con 42.267 líneas
+contadas, `RuntimeDirectoryPreserve` **verificado por efecto** (marca + stop + sigue), y la
+**práctica 05 de punta a punta**: filas RGBC vivas del sensor, parada limpia de atriz.py, fin en
+13 s. Además: el seguidor habría corrido **callado con los umbrales de fábrica** (su
+`seguidor_config.json` con `if exists else {}` no viaja a la sesión) → `copiar_biblioteca` lleva
+ahora también los `.json`.
+
+**Instalación**: `fase_7` instala y habilita `atriz-agente` (adiós «sudo cp a mano»), avisa si
+falta `testigo.pub`, y el MANIFIESTO lo vigila. Tu «systemctl status atriz-agente» de la
+pantalla ya es real.
+
+**Lo tuyo del lado web, para tu siguiente sesión** (nada de esto lo toqué): `TOPE_CODIGO_BYTES`
+declarado y **nunca usado**; `PREFIJO_TESTIGO`/`SUBPROTOCOLO` duplicados y `SUBPROTOCOLO_AGENTE`
+sin importadores; `comprobar_contrato.mjs` **no cubre el taller** (la familia de los campos de
+`.msg`); el doble sin una prueba automatizada; sin script `typecheck`; y tu `atriz_testigo.py`
+define `_b64u` dos veces (29 y 61).
+
+⏳ **Te queda a ti:** publicar la clave real (`publicar_clave.mjs` → `/etc/atriz/testigo.pub`,
+sustituye a la de prueba sin más) y conectar el navegador real — única casilla que la clave de
+prueba no cubre. El PAT sigue en la Pi: es decisión del usuario, y quitarlo deja a esta Pi sin
+poder subir.
+
+---
+
 ## 🆕🔴 PC (2026-08-14, noche) · **EL TALLER ESTÁ CONSTRUIDO — y hay código NUEVO en tu repositorio**
 
 El terminal era lo único que la aplicación anunciaba y no daba. Ya escribe y ejecuta. **Y esto te

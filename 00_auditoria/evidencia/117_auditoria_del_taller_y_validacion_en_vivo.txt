@@ -1,0 +1,168 @@
+═══════════════════════════════════════════════════════════════════════════════
+117 · AUDITORÍA DEL TALLER (LA MITAD DEL PC) Y VALIDACIÓN EN VIVO DEL AGENTE:
+      19 CASILLAS EN VERDE, CINCO FALLOS CAZADOS —DOS EN VIVO— Y LA PRÁCTICA
+      05 CORRIENDO DE PUNTA A PUNTA POR EL TERMINAL
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-14/15, madrugada · batería 7,87 → 7,77 V · clave Ed25519 DE
+         PRUEBA (la real la publica el PC)
+Origen:  El PC construyó el Taller (diseño en docs/superpowers/specs/, web en
+         atriz-lab, mitad-robot en Atriz_rvr/scripts/agente) y dejó cuatro
+         encargos. El usuario pidió auditar propuesto+implementado, aprobó
+         aplicar los arreglos aquí y validar en vivo.
+
+RESUMEN
+  El diseño es de calidad alta y honesto consigo mismo. La implementación
+  traía UN fallo confirmado por efecto (la carrera del pgid: el peldaño de
+  SIGKILL podía suicidar al agente), DOS serios encontrados leyendo y
+  verificados después (remove_handler ausente; el manejador de señales que la
+  unidad prometía y no existía), y DOS más CAZADOS EN VIVO que ninguna prueba
+  pura podía ver (PYTHONPATH pisado → `import rclpy` muerto; la cosecha doble
+  perdía el código de salida). Todos arreglados con su prueba primero: la
+  suite del agente pasa de 44 a 50, ×3 tandas limpias en la Pi. La validación
+  en vivo: 19 casillas de VALIDAR §4 en verde, el Preserve verificado por
+  efecto, y la práctica 05 leyendo el sensor REAL a través de toda la cadena.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LOS ENCARGOS DEL PC, CUMPLIDOS EN LA PI
+───────────────────────────────────────────────────────────────────────────────
+  · Núcleo:      31/31 en 0,15 s   (primera corrida fuera del PC)
+  · PTY:         13/13 en 4,2 s    (primera corrida en Linux — «skipped no es
+                                    passed», y ya no están skipped)
+  · Cruzado:     5/5 — CON matiz: en la Pi se SALTA en silencio (busca
+                 atriz-lab como repo hermano). Corre con
+                 ATRIZ_TESTIGO_EJEMPLO=<ruta al json>. Documentarlo.
+  · Deps:        tornado 6.4 ✓ · cryptography 41.0.7 ✓ · puerto 9443 libre ✓
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LOS CINCO FALLOS DEL LADO ROBOT, CADA UNO CON SU EXPERIMENTO
+───────────────────────────────────────────────────────────────────────────────
+  2.1 🔴🔴 LA CARRERA DEL pgid — CONFIRMADA POR EFECTO ANTES DE ARREGLAR
+      `lanzar()` hacía `os.getpgid(pid)` inmediatamente tras `pty.fork()`, en
+      CARRERA con el `setsid()` del hijo. Si gana el padre, pgid = el grupo
+      DEL PROPIO AGENTE → `killpg(…, SIGKILL)` se suicida con todo su grupo.
+        sin parche:  4 tandas → 2 SIGKILL de pytest ENTERO · 1 fallo · 1 ✓
+        con pgid=pid: 6 tandas → 6 ✓
+      (Y el test nuevo lo re-demostró en rojo: su `finally` mató la corrida.)
+      Arreglo: pgid = pid (tras setsid son iguales por definición; preguntar
+      era la ventana) + cinturón `pgid <= 1 → negarse` en senalar()/vive()
+      (`killpg(0)` señala al grupo del llamante; `vive(0)` diría «sí» eterno).
+
+  2.2 🔴 remove_handler AUSENTE en `terminar()` — el agente cerraba el fd
+      maestro dejando el registro en tornado; el kernel REUTILIZA el número
+      para el PTY siguiente y el add_handler nuevo choca: sobrevivía a una
+      ejecución y reventaba en la segunda. Arreglado; verificado EN VIVO:
+      casillas D1/D2 — segunda Y tercera ejecución corren y terminan.
+
+  2.3 🔴 LA UNIDAD PROMETÍA LO QUE EL CÓDIGO NO TENÍA: «el agente aplica sus
+      cuatro peldaños al hijo antes de irse» — y no había NINGÚN manejador de
+      señales: SIGINT era un KeyboardInterrupt a mitad de bucle, el hijo
+      recibía la señal de rebote por KillMode=control-group, y al vencer el
+      timeout, SIGKILL a pelo sin SIGTERM. Arreglo: `apagar_ordenado()`
+      (recorre los peldaños y para el bucle al terminar), rechazo
+      AGENTE_PARANDO a ejecuciones nuevas durante el cierre, y
+      KillMode=mixed (la señal solo al principal, que ahora sí orquesta;
+      el doble-SIGINT al hijo es el camino que atriz.py ya pagó una vez).
+
+  2.4 🔴 CAZADO EN VIVO — PYTHONPATH PISADO = `import rclpy` MUERTO (la joya).
+      La práctica 05, lanzada por el agente tal cual la leería un alumno:
+        ModuleNotFoundError: No module named 'rclpy'   (a los 0 s)
+      `entorno_de_ejecucion()` REEMPLAZABA el PYTHONPATH entero por la
+      carpeta de sesión — y es PYTHONPATH (no AMENT_PREFIX_PATH, como
+      afirmaba su comentario) quien hace visible /opt/ros/…/site-packages.
+      Las 31 pruebas puras del PC y mis 13 del PTY no podían verlo: no
+      importan rclpy. LO VIO LA PRÁCTICA REAL, que es para lo que existía la
+      casilla. Arreglo: sesión PRIMERO (la copia de atriz.py debe ganar) +
+      el PYTHONPATH heredado detrás. Con él, la 05 corre (ver §3).
+
+  2.5 🔴 CAZADO EN VIVO — LA COSECHA DOBLE PERDÍA EL DESENLACE. El primer fin
+      real salió con codigo=None sobre un programa que terminó bien: el
+      `cosechar()` de `latir()` (1 Hz) le ganó el waitpid al de `terminar()`,
+      y waitpid solo contesta UNA vez. Arreglo: memoria de cosecha por pid.
+
+  Y DOS DEL ARNÉS, uno de cada lado y EL MISMO PECADO — se dice con esa
+  simetría a propósito:
+  · El suyo: `leer_hasta(hasta='X ')` corta en la subcadena y compite con el
+    resto de la línea (1 fallo en 4 tandas). Corregido a esperar 'X None'.
+  · El mío: mandé el SIGINT de la casilla C3 sin esperar el «listo» que
+    confirma el manejador instalado — C3 dio rojo por MI carrera, no por el
+    agente. Re-medido esperando 'listo': ✅ LIMPIO, codigo=0.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · LA VALIDACIÓN EN VIVO (clave de prueba verificada ANTES contra
+    atriz_testigo.verificar: acepta el bueno, 4404 al ajeno)
+───────────────────────────────────────────────────────────────────────────────
+  A · cierres      4401 «no llegó ningún testigo» · 4403 «la firma no es
+                   válida» · 4404 «es para el robot 7, y este es el 1» ✅✅✅
+  B · lectura      bienvenida (sujeto, reloj_fiable) · listado = 15 reales ·
+                   leer 90_template (1730 B) · NO_ESTA · traversal →
+                   NOMBRE_MALO ✅×5
+  C · ejecución    pregunta + stdin '90' con eco + SIGINT → «LIMPIO»,
+                   codigo=0 ✅×3 (C3 re-medido tras el fallo de MI arnés)
+  D · 2ª y 3ª ejecución — el arreglo 2.2 en producción ✅✅
+  E · dueño        stdin ajeno → NO_ES_TUYO · exec ajeno → OCUPADO «lo tiene
+                   ana» ✅✅
+  F · sobrevive    cerrar el socket, reconectar → «CORRIENDO, es mía» ·
+                   atriz_parar → SIGINT primero ✅✅
+  G · tope salida  diluvio de 200k líneas → el cliente recibió 2.097.152
+                   bytes EXACTOS (el tope de 2 MiB al byte), recorte de
+                   42.267 líneas / 591.738 B contados, y el fin lo lleva ✅✅
+  Preserve         marca puesta en /run/atriz + stop atriz-agente (👤) → LA
+                   MARCA SIGUE → start. El fallo cruzado con el vigía,
+                   verificado POR EFECTO ✅
+  Práctica real    05_sensor_color leída del robot y ejecutada por el agente:
+                   filas RGBC VIVAS del sensor (claro ~817) atravesando
+                   RVR→driver→atriz.py→PTY→agente→WebSocket→cliente, parada
+                   con el mensaje limpio de atriz.py, fin en 13 s ✅
+  Y de la práctica salió el 2.4 (primera corrida) y el 2.5 (segunda).
+
+───────────────────────────────────────────────────────────────────────────────
+4 · Y UNO MÁS, CALLADO: EL SEGUIDOR PERDERÍA SU CALIBRACIÓN SIN UN ERROR
+───────────────────────────────────────────────────────────────────────────────
+  `seguidor_linea_pid_demo.py:86` lee su config con `Path(__file__).parent /
+  'seguidor_config.json'` y un `if CONFIG.exists() else {}`: en la carpeta de
+  sesión NO moriría — correría CALLADO con los umbrales de fábrica en vez de
+  los calibrados del aula. La familia favorita del proyecto: funciona, y está
+  mal. Arreglo: `copiar_biblioteca()` lleva también los `.json` (con prueba).
+
+───────────────────────────────────────────────────────────────────────────────
+5 · INSTALACIÓN REPRODUCIBLE (regla del proyecto: nada de «sudo cp a mano»)
+───────────────────────────────────────────────────────────────────────────────
+  `fase_7_systemd.sh` instala y HABILITA atriz-agente (el terminal es el
+  producto y en reposo cuesta ~0), avisa si falta /etc/atriz/testigo.pub (sin
+  ella el agente se niega a arrancar — correcto), `--quitar` lo retira, y el
+  MANIFIESTO lo vigila (rutas ancladas con ../ al workspace). Instalado y
+  ejercitado hoy: dos ✓ nuevos en la pasada del usuario.
+
+───────────────────────────────────────────────────────────────────────────────
+6 · RETROALIMENTACIÓN AL LADO WEB (nada de esto se tocó aquí)
+───────────────────────────────────────────────────────────────────────────────
+  · 🔴 `TOPE_CODIGO_BYTES` (protocolo.ts:40) declarado y NUNCA usado — su
+    propio propósito era no viajar el pegote entero por el WiFi. El agente sí
+    lo aplica; la web debería pre-comprobar.
+  · `PREFIJO_TESTIGO`/`SUBPROTOCOLO` duplicados (testigo_robot.ts:151 y
+    useAgente.ts:42) y `SUBPROTOCOLO_AGENTE` exportado que nadie importa —
+    divergen en silencio.
+  · `comprobar_contrato.mjs` NO cubre el taller (0 menciones de
+    taller/testigo/9443/agente): la misma familia que la ceguera de campos
+    de .msg que ya mordió una vez.
+  · El doble (`agente_de_mentira.mjs`) sin UNA prueba automatizada — los tres
+    rechazos se ejercieron a mano.
+  · Sin script `typecheck` en package.json (el «tsc limpio» no es re-corrible
+    con un comando).
+  · `atriz_testigo.py` define `_b64u` DOS veces (líneas 29 y 61) — inocuo,
+    descuidado.
+  · El aviso de tu pantalla «systemctl status atriz-agente» quedó validado:
+    la unidad se llama así y existe desde hoy.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ⏳ La CLAVE REAL: publicar_clave.mjs en el PC → /etc/atriz/testigo.pub (hoy
+     hay una DE PRUEBA — sustituir sin más). Y la conexión desde el navegador
+     real, que es la única casilla que la clave de prueba no cubre.
+  ⏳ `comprobar_efecto()` sigue en «no lo sé» (honesto; implementarlo pide
+     hablar con rosbridge y medirse aquí).
+  ⏳ El PAT (`~/.git-credentials`): 👤 decisión — tras quitarlo, esta Pi no
+     puede volver a hacer push.
+  ⏳ Las prácticas 20-24 por el agente exigen dos robots; el tope duro de
+     cgroups quedó decidido «para después».
