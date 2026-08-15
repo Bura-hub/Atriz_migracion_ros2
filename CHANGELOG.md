@@ -23,6 +23,15 @@ pulsar. Las cinco trazas terminaron entre 7 y 9 s antes del fenómeno: cinco cor
 cero datos, y **ningún error** — ficheros llenos de datos verdaderos del instante equivocado.
 Familia del `journalctl --since "-6h"` que excluye justo el arranque.
 
+**4-6 cerrada también** (mismo día, algo más tarde): los cuatro `input()` de
+`04_giro_preciso.py` contestados desde el navegador. Lo que cierra la casilla no son los grados
+—robot 89,5/89,9 contra 90 y 90 de transportador— sino que **el programa ESPERÓ**: sin terminal
+de verdad `input()` no bloquea y la práctica se saltaría sus pausas sin decir nada.
+🔴 Y con una **conclusión mía retirada**: dije que 89,5 era un dato nuevo y que el déficit del
+lazo abierto no aparecía por esta vía. Falso — `girar_por_tiempo()` ya estaba caracterizado en
+`CLAUDE.md` (n=4, media +0,23°, peor 2,30°) y mis números caen dentro. Un negativo sacado de una
+búsqueda que no miró donde estaba el dato.
+
 **De propina:** el camino del **guion propio** (escribir en el editor y ejecutar, frente a abrir
 una práctica) queda probado desde el navegador; se usó para que el robot volviera solo entre
 corridas.

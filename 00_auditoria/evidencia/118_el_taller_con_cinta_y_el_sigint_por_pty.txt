@@ -1,6 +1,7 @@
 ═══════════════════════════════════════════════════════════════════════════════
-118 · EL TALLER CON CINTA: 4-4 CERRADA, Y EL SIGINT POR PTY MEDIDO POR PRIMERA
-      VEZ (n=5). MÁS UNA TANDA ENTERA QUE MOVIÓ EL ROBOT Y NO MIDIÓ NADA
+118 · EL TALLER CON CINTA: 4-4, 4-6 Y 4-7 CERRADAS. EL SIGINT POR PTY MEDIDO
+      POR PRIMERA VEZ (n=5), UNA TANDA QUE MOVIÓ EL ROBOT SIN MEDIR NADA, Y UNA
+      CONCLUSIÓN MÍA RETIRADA
 ═══════════════════════════════════════════════════════════════════════════════
 Fecha:   2026-08-15, tarde · rvr-01 · batería 7,68 V · clave Ed25519 REAL
 Origen:  El PC publicó la clave real y entró con un navegador de verdad
@@ -145,9 +146,56 @@ RESUMEN
      polígono mira hacia delante. Se avisó al usuario antes de lanzar la tanda.
 
 ───────────────────────────────────────────────────────────────────────────────
+4bis · 4-6 · LOS CUATRO `input()`, CONTESTADOS DESDE EL NAVEGADOR
+───────────────────────────────────────────────────────────────────────────────
+  `04_giro_preciso.py` corrió entera con sus cuatro `input()` contestados desde
+  la caja de entrada de la pantalla, dejando 60 s entre giro y giro para que el
+  usuario midiera con transportador.
+
+  🔴 LO QUE CIERRA ESTA CASILLA NO SON LOS GRADOS: es que el programa ESPERÓ.
+     Sin un terminal de verdad, `input()` no bloquea y la práctica se saltaría
+     sus cuatro pausas **sin decir nada** — el alumno vería el robot girar dos
+     veces seguidas y no llegaría a medir. Ese es el requisito 2 del taller.
+
+  📌 Y la detección de las preguntas no es por reloj: se mira si la caja de
+     stdin de la pantalla está VIVA, que es lo que el terminal enciende cuando
+     hay un `input()` en curso. Un retardo fijo contestaría a ciegas.
+
+                        robot (yaw)   transportador
+    lazo abierto           89,5°           90°
+    lazo cerrado           89,9°           90°
+
+  · Giró sobre su eje: **0,2 cm** de desplazamiento neto en 180 s de traza,
+    excursión máxima 0,4 cm.
+  · ⚠️ El transportador **no distingue 89,5 de 89,9** —0,4° está por debajo de
+    lo que se lee a mano—. Lo que sí hace es descartar que el yaw mienta a lo
+    grande: con un giro real de 87° y un yaw diciendo 89,5, se habría visto.
+
+  🔴🔴 Y UNA CORRECCIÓN MÍA, QUE VALE MÁS QUE EL RESULTADO. Al ver 89,5 escribí
+     que era «un dato nuevo, ~3° mejor que el mecanismo viejo» y que «el déficit
+     del lazo abierto no aparece por esta vía». **Falso.** `girar_por_tiempo()`
+     a 0,8 rad/s ya estaba caracterizado en `CLAUDE.md` desde el 2026-08-03:
+
+         n=4 a 90° → rango 4,20° · peor 2,30° · media +0,23°
+
+     Mis dos números caen DENTRO de esas distribuciones (−0,5° y −0,1°, contra
+     peores conocidos de 2,30 y 0,74). Esto **reproduce** la caracterización
+     existente; no descubre nada.
+
+     El aviso de la práctica —«lo que va a imprimir este programa NO ESTÁ
+     MEDIDO»— se refiere a que los 86,6/86,2/87,7 son de `move_timed`, y eso es
+     cierto. De ahí deduje que el mecanismo entero estaba sin medir, y la tabla
+     de referencia lo tenía. **Es el negativo sacado de una búsqueda que no miró
+     donde estaba el dato**, la misma forma que el `grep` que no podía casar el
+     `-le 7` del umbral del mapa.
+
+  📝 Consecuencia menor para el robot, y NO es un encargo: el aviso de la
+     práctica es correcto pero incompleto — podría añadir que `girar_por_tiempo`
+     sí está caracterizado en la tabla, para que nadie repita mi deducción.
+
+───────────────────────────────────────────────────────────────────────────────
 5 · LO QUE SIGUE ABIERTO
 ───────────────────────────────────────────────────────────────────────────────
-  · **4-6** · `04_giro_preciso.py` y sus cuatro `input()` con transportador.
   · **4-1 entero** · con `atriz-agente` PARADO (👤 sudo), que la pantalla diga
     que no llega al agente mientras la franja de arriba sigue «en línea».
   · **4-8 / 4-9** · SIGKILL deja el barrido encendido y la pantalla lo dice; y

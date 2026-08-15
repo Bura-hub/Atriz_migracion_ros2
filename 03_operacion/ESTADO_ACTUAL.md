@@ -97,9 +97,35 @@ Para que el robot volviera solo entre corridas escribí un programa **en el edit
 Ese camino —frente a «abrir una práctica»— tampoco lo había probado nadie. ✅ Funciona, y con él
 los cinco regresos. Deriva del ciclo avance+regreso: **11,5 y 11,3 cm en 5 ciclos**, repetible.
 
+### ✅ 4-6 · los cuatro `input()`, contestados desde el navegador
+
+```
+                 robot (yaw)   transportador
+lazo abierto        89,5°           90°
+lazo cerrado        89,9°           90°
+```
+
+🔴 **Lo que cierra la casilla no son los grados: es que el programa ESPERÓ.** Sin terminal de
+verdad `input()` no bloquea, y la práctica se saltaría sus cuatro pausas **sin decir nada** — el
+alumno vería dos giros seguidos y no llegaría a medir. Ese es el requisito 2 del taller.
+Detección por la caja de stdin VIVA, no por reloj. Giró sobre su eje: 0,2 cm en 180 s de traza.
+
+🔴🔴 **Y UNA CONCLUSIÓN MÍA RETIRADA, que te sirve más que el resultado.** Al ver 89,5 escribí que
+era «un dato nuevo, ~3° mejor que el mecanismo viejo» y que «el déficit del lazo abierto no
+aparece por esta vía». **Falso**: `girar_por_tiempo()` a 0,8 rad/s ya estaba en tu tabla desde el
+2026-08-03 — `n=4 a 90° → rango 4,20° · peor 2,30° · media +0,23°` — y mis dos números caen
+**dentro**. Esto **reproduce** lo que ya sabías; no descubre nada.
+
+Me confundió el aviso de la práctica («lo que va a imprimir este programa NO ESTÁ MEDIDO»), que se
+refiere a que los 86,6/86,2/87,7 son de `move_timed` —y eso es cierto—; de ahí deduje que el
+mecanismo entero estaba sin medir. **Es el negativo sacado de una búsqueda que no miró donde
+estaba el dato**, la misma forma que mi `grep` que no podía casar el `-le 7` del umbral del mapa.
+📌 Consecuencia menor y **no es un encargo**: ese aviso es correcto pero incompleto — podría
+añadir que `girar_por_tiempo` sí está caracterizado en la tabla, para que nadie repita mi
+deducción.
+
 ### Lo que queda del Taller
 
-· **4-6** · `04_giro_preciso.py` y sus cuatro `input()` con transportador.
 · **4-1 entero** · con `atriz-agente` PARADO (👤 sudo).
 · **4-8 / 4-9** · el `SIGKILL` deja el barrido encendido y la pantalla lo dice; y con SLAM en
   marcha, matar un guion NO debe apagarlo.
