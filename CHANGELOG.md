@@ -469,6 +469,62 @@ Evidencia 103.
 
 ---
 
+## 2026-08-14 (PC, noche) — EL TALLER: el terminal del alumno, construido
+
+Era el producto y la mitad bloqueada de la aplicación. Un alumno abre una práctica **del robot**, la
+edita, la ejecuta, contesta a sus `input()` y la para — sin SSH.
+
+La cadena de tres eslabones que la pantalla pintaba desde el 2026-08-04 está cerrada: F0 se descartó
+como riesgo el 2026-08-10, el agente de sesión se escribió hoy, y el terminal lo usa.
+
+### Lo construido, y dónde
+
+| | |
+|---|---|
+| **F1 · el testigo** | Ed25519 firmado por Next (`node:crypto`, cero dependencias) y verificado por el `atriz_testigo.py` del robot |
+| **F2 · el núcleo del agente** | `Atriz_rvr/scripts/agente/agente_nucleo.py`, 31 pruebas **en el PC** |
+| **F3 · la web** | `lib/taller/`, `useAgente.ts`, `PanelTerminal.tsx` y un doble que verifica firmas de verdad |
+| **F4 · el servicio** | `agente_pty.py`, `agente_sesion.py`, la unidad y su envoltorio |
+
+### 🔴 Lo que se verificó de verdad, y lo que no
+
+**Sí, y era lo que nadie había probado nunca:** que lo que firma Next lo verifique el Python del
+robot. Cruzado en dos niveles — un testigo de ejemplo versionado, y **contra el servidor vivo**:
+`ok=True sujeto='bura_hub'` para el robot 7, `4404` para el 3. Mutado a milisegundos, cae.
+
+**No:** el PTY. Los requisitos 1 y 2 del taller —que `print()` salga en vivo y que `input()`
+espere— tienen sus 13 pruebas escritas **con su control contra una tubería**, y **se saltan en
+Windows**. Este PC no tiene WSL con Python ni el demonio de Docker arrancado. `skipped` no es
+`passed`, y así queda dicho.
+
+### Dos cosas del plan que resultaron imposibles
+
+- **«`PYTHONPATH` en solo lectura»**: el agente corre como `sphero` y el directorio de prácticas es
+  de `sphero`. → Se copia `atriz.py` a la carpeta de la sesión en cada lanzamiento.
+- **Llamar a `/stop_scan` tras cada ejecución**: dejaría ciega una navegación en curso. →
+  `comprobar_efecto()` devuelve «no lo sé» en todos sus campos en vez de inventar un `false`.
+
+### 🔴 Y un fallo cruzado entre dos unidades systemd
+
+`atriz-robot.service` y el agente declaran el mismo `RuntimeDirectory=atriz`, donde vive la marca
+del vigía de DDS. Sin `RuntimeDirectoryPreserve=yes` en la unidad nueva, **parar el agente borraría
+esa marca** y el robot se reiniciaría solo más de una vez por arranque. `systemd-analyze verify` no
+lo ve, y leer cualquiera de las dos unidades por separado tampoco.
+
+### 🔴 Y el modelo de amenaza cambia, escrito en la pantalla
+
+El programa del alumno corre con `rclpy` nativo: alcanza `raw_motors`, `move_timed` y
+`set_ir_mode('following')` — los caminos que se saltan el `collision_monitor`. **«`raw_motors` ya no
+es alcanzable» deja de ser cierto mientras haya un programa corriendo.** No se puede impedir sin
+quitarle Python al alumno; lo que se hace es decirlo.
+
+👤 Y hace falta **quitar `~/.git-credentials` de los robots**: el código del alumno puede leerlo.
+
+**729 pruebas + 50 de navegador + 31 de Python.** La guarda del taller en `pantallas_reales` se
+**sustituyó** por su contraria, no se borró.
+
+---
+
 ## 2026-08-14 (PC, tarde) — El caudal medido cierra el «≥», y dos textos míos de la mañana ya eran falsos
 
 Integrada la tanda de la tarde del robot (19 commits en migración, 4 en `Atriz_rvr`).

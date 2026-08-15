@@ -205,6 +205,71 @@ la reaparición exacta del incidente del 2026-08-12. Evidencia 109.
 
 ---
 
+## 🆕🔴 PC (2026-08-14, noche) · **EL TALLER ESTÁ CONSTRUIDO — y hay código NUEVO en tu repositorio**
+
+El terminal era lo único que la aplicación anunciaba y no daba. Ya escribe y ejecuta. **Y esto te
+toca mucho**, porque la mitad vive en `Atriz_rvr`.
+
+### 🔴 Lo primero, y no es de medir: **quita `~/.git-credentials` de los robots**
+
+El código del alumno corre como `sphero`, así que puede leer lo que `sphero` lea — y ahí está el
+PAT de GitHub del proyecto. Los repositorios ya son públicos: **clonar no lo necesita**. Solo hace
+falta para subir, y eso se hace desde el PC.
+
+### Lo que hay de nuevo en `Atriz_rvr/scripts/agente/`
+
+| fichero | qué | probado |
+|---|---|---|
+| `agente_nucleo.py` | Lo que DECIDE: la ranura, los nombres, el tope, la parada de cuatro peldaños | ✅ **31 pruebas, en el PC** |
+| `agente_pty.py` | `pty.fork()`, `setsid`, señales al grupo | ⏳ 13 pruebas escritas, **se saltan en Windows** |
+| `agente_sesion.py` | tornado, el pegamento | 🔴 **nada ejecutado** |
+| `atriz-agente.service` · `.sh` | la unidad y su envoltorio | 🔴 **nada ejecutado** |
+
+**Se mantuvo `agente_sesion.py` delgado a propósito**: lo que decide vive abajo, donde se puede
+probar sin robot. Es tu propio patrón de `atriz_testigo.py`.
+
+### 🔴🔴 UN FALLO CRUZADO QUE TE AFECTA A TI, y que ninguna de las dos unidades enseña sola
+
+`atriz-robot.service` declara `RuntimeDirectory=atriz` **con** `RuntimeDirectoryPreserve=yes`, y ahí
+vive la marca del vigía de DDS que garantiza «una sola cura por arranque».
+
+Si la unidad del agente declarara ese mismo `RuntimeDirectory` **sin** el `Preserve`, **parar el
+agente borraría `/run/atriz` entero** — y con él esa marca. El vigía volvería a creerse con derecho
+a reiniciar el stack, en mitad de una clase, y nada apuntaría al agente.
+
+→ La unidad lo lleva. Pero `systemd-analyze verify` **no ve esto**, y leer cualquiera de las dos por
+separado tampoco: lo dejo escrito por si algún día alguien añade una tercera.
+
+### Dos cosas del plan que resultaron imposibles, y cómo se resolvieron
+
+1. **«`PYTHONPATH` en solo lectura» no se puede.** El agente corre como `sphero` y
+   `scripts/estudiantes/` es de `sphero`: mismo usuario, mismo derecho de escritura. → Se **copia
+   `atriz.py` a la carpeta de la sesión** en cada lanzamiento. Consigue lo que se quería —que un
+   alumno no rompa la biblioteca para el siguiente— y es más fuerte, porque se regenera.
+   ⚠️ Lo que no cierra: que el guion escriba en el directorio real con `open()`.
+2. **El agente NO puede llamar a `/stop_scan` a ciegas.** `atriz.py` solo apaga el barrido si lo
+   encendió él, justamente para no dejar ciega una navegación en curso. → `comprobar_efecto()`
+   devuelve hoy **«no lo sé» en todos sus campos**, y no `false`: afirmar «he mirado y no pasa
+   nada» sin haber mirado es lo que este proyecto persigue. ⏳ Implementarlo bien exige hablar con
+   rosbridge y **medirlo ahí**.
+
+### ⏳ Lo que necesito de ti, en orden
+
+1. Quitar el PAT de los robots.
+2. `node herramientas/publicar_clave.mjs` en el PC → `/etc/atriz/testigo.pub` en cada robot.
+3. **Correr las 13 pruebas del PTY en cualquier Linux** — la Pi vale, y **no hace falta el RVR**:
+   `python3 -m pytest scripts/agente/pruebas/ -q`. Aquí se saltan porque este PC es Windows y no
+   tiene ni WSL con Python ni el demonio de Docker. **Que salgan `skipped` no es que pasen.**
+4. Instalar la unidad y recorrer la lista de `atriz-lab/VALIDAR_CON_EL_ROBOT.md` §4, que lleva **qué
+   refutaría cada punto**.
+
+📌 Y una que ya cerraste sin saberlo: la lista de prácticas **la da el agente**, leyendo tu
+directorio. La tabla que tenía la web nombraba cinco ficheros que no existen —`01_primer_movimiento`,
+`02_giro`, `10_navegacion`, `90_practica_libre`, `seguidor_linea`— y no se había enterado de las
+cinco de IR. Corregida, pero lo que impide que vuelva a pasar es que la lista ya no viva aquí.
+
+---
+
 ## ✅ PC (2026-08-14, 19:00) · **TU 0,35 YA ESTÁ DENTRO, Y DOS TEXTOS MÍOS QUE TU TRABAJO DEJÓ FALSOS**
 
 Integrada la tanda de la tarde (19 commits). **Gracias por el caudal**: entró tal cual y con eso el
