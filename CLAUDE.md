@@ -928,6 +928,35 @@ MITAD, EN SILENCIO.** Medido el 2026-08-08 sobre la práctica 1 del curso: **26,
 → ⚠️ Es la evidencia 49 con otra cara: allí un retroceso de 30 cm hizo 14 porque el polígono no
   sabe hacia dónde vas. **Aquí es el ancho.** Evidencia 85.
 
+**🔴🔴 UN DOBLE PUEDE MENTIR SOBRE EL MANEJO DE ERRORES, Y ESO NO LO CAZA NINGÚN CONTRATO.** El
+2026-08-15, `select_subprotocol` del agente devolvía `atriz.v1` **siempre**, y tornado ejecuta
+`assert self.selected_subprotocol in subprotocols`: un cliente que **no ofrece ninguno** —justo el
+que no lleva testigo— se llevaba un `AssertionError` y un **HTTP 500** en vez del cierre
+`4401 · no llegó ningún testigo` que la propia clase promete. **La rama del 4401 era inalcanzable
+por ese camino**, y cada intento dejaba la traza entera en el journal.
+
+```
+la prueba del doble, «sin testigo -> 4401»   ✅ VERDE
+el agente de verdad, mismo caso              🔴 HTTP 500
+```
+
+→ 🔴 **El doble no fallaba ahí** porque escribe la cabecera del apretón a mano y no tiene el
+  `assert`. La prueba se había escrito **esa misma mañana** para cerrar «el doble sin pruebas
+  automatizadas» de la auditoría 117, y certificaba un camino que en el robot revienta.
+→ 📌 **El doble de rosbridge de este proyecto ya mintió una vez sobre los NOMBRES DE CAMPO**, y
+  eso se acabó cazando porque los datos se comparan contra el robot — para eso está
+  `comprobar_contrato.mjs`. **Esto es otra cosa: mentir sobre el manejo de errores**, que no se
+  compara con nada. Y el control de contrato **no puede cazarlo**, y lo dice en su propia salida:
+  *«⚠️ Nombres y constantes, NO comportamiento»*.
+→ ✅ Arreglo: elegir algo que el cliente **haya ofrecido** (el nuestro si está, si no el primero
+  suyo, `None` si no ofreció ninguno), para que el apretón **siempre termine** — que es la
+  condición para poder cerrar con código y motivo. Verificado con control: sin subprotocolo →
+  `101` + `4401 con motivo`; con testigo bueno → `atriz.v1` + `atriz_bienvenida`.
+→ 📝 **La regla: lo que un doble no puede reproducir es su manejo de errores, porque el error lo
+  produce la BIBLIOTECA del original** —aquí tornado— y el doble no la usa. Antes de fiarte de una
+  prueba contra un doble, pregunta si el camino que ejercita pasa por código de terceros que el
+  doble no tiene. Evidencia 120.
+
 **🔴🔴 EL PRIMER MENSAJE DE UN TOPIC NO TARDA LO QUE DICE SU RITMO: TARDA LO QUE TARDE
 DDS EN EMPAREJAR.** `atriz.py` decidía si el barrido del LIDAR ya estaba encendido esperando
 **1,0 s** un `/scan`, con este comentario: *«una espera corta basta: /scan va a ~10 Hz cuando está

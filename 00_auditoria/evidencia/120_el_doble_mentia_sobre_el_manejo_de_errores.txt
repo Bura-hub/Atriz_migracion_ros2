@@ -1,0 +1,103 @@
+═══════════════════════════════════════════════════════════════════════════════
+120 · UN CLIENTE SIN SUBPROTOCOLO SE LLEVABA UN HTTP 500 EN VEZ DEL CIERRE 4401
+      — Y EL DOBLE NO FALLABA AHÍ, ASÍ QUE LA PRUEBA ESTABA EN VERDE
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-15, cierre · rvr-01 · batería 8,46 V (recién cambiada)
+Origen:  Una sonda mía sin subprotocolo, lanzada para ver si el agente había
+         vuelto tras el cambio de batería. No volvió el resultado esperado: el
+         agente SÍ había vuelto, y lo que fallaba era la sonda — pero al fallar
+         destapó esto.
+Método:  Cliente TCP a pelo contra `ws://rvr-01:9443`, y el journal del robot.
+
+RESUMEN
+  `select_subprotocol` devolvía `atriz.v1` SIEMPRE. Tornado ejecuta
+  `assert self.selected_subprotocol in subprotocols`, así que un cliente que no
+  ofrece ninguno —el que no lleva testigo— provocaba un `AssertionError` sin
+  capturar y un **HTTP 500**, en vez del cierre `4401 · no llegó ningún testigo`
+  que la propia clase promete. La rama del 4401 era **inalcanzable** por ese
+  camino. Y el doble no fallaba ahí, así que la prueba automatizada del PC
+  llevaba todo el día en verde sobre un camino que en el robot revienta.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LO QUE DECÍA EL JOURNAL, EN PRODUCCIÓN
+───────────────────────────────────────────────────────────────────────────────
+    Uncaught exception GET / (192.168.1.2)
+    ...
+      File ".../tornado/websocket.py", line 905, in _accept_connection
+        assert self.selected_subprotocol in subprotocols
+    AssertionError
+    500 GET / (192.168.1.2) 2.31ms
+
+  🔴 Cada intento deja la traza ENTERA en el journal — sobre una microSD, y por
+     16 robots. Misma familia que los `Failed to get scan` a 25/s del nodo del
+     LIDAR: ruido que ahoga los errores de verdad.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · 🔴🔴 Y EL DOBLE NO FALLABA AHÍ. ESA ES LA PARTE QUE IMPORTA
+───────────────────────────────────────────────────────────────────────────────
+  `agente_de_mentira.mjs` escribe la cabecera del apretón a mano, así que no
+  tiene el `assert`: contestaba 4401 correctamente. Resultado:
+
+      la prueba `doble_agente.test.ts`, «sin testigo → 4401»   ✅ VERDE
+      el agente de verdad, mismo caso                          🔴 HTTP 500
+
+  Y la prueba se había escrito **esa misma mañana**, precisamente para cerrar el
+  punto «el doble sin pruebas automatizadas» de la auditoría 117.
+
+  📌 **Es «un doble que miente» en su forma más difícil de ver.** El doble de
+     rosbridge de este proyecto mintió una vez sobre los NOMBRES DE CAMPO, y eso
+     se acabó cazando porque los datos se comparan contra el robot —de ahí el
+     control de contrato—. Este mentía sobre el **MANEJO DE ERRORES**, que no se
+     compara con nada y que nadie mira hasta que ocurre.
+
+  ⚠️ Y el control de contrato **no podía cazarlo**, y lo dice él mismo en su
+     propia salida: *«⚠️ Nombres y constantes, NO comportamiento»*. Compara que
+     los códigos de cierre existan en los dos lados, no que se lleguen a emitir.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · EL ARREGLO, Y SU VERIFICACIÓN CON CONTROL
+───────────────────────────────────────────────────────────────────────────────
+  Se elige algo que el cliente HAYA ofrecido: `atriz.v1` si está, si no el
+  primero que ofreciera, y `None` si no ofreció ninguno. Así el apretón de manos
+  **siempre termina**, que es la condición para poder cerrar con código y
+  motivo — que era la intención original y no se cumplía.
+
+      1 · SIN subprotocolo
+          antes:  HTTP/1.1 500 Internal Server Error · sin marco de cierre
+          ahora:  101 Switching Protocols · SIN cabecera de subprotocolo
+                  ✅ CIERRE 4401: no llegó ningún testigo
+
+      2 · CONTROL, con testigo bueno
+          Sec-Websocket-Protocol: atriz.v1
+          {"op": "atriz_bienvenida", "robot": 1, "reloj_fiable": true, ...}
+
+  🔴 El control no es adorno: sin él, «ya no da 500» no distingue el arreglo de
+     haber roto el camino bueno.
+
+  ✅ El doble se alineó con el agente, y la prueba se **invirtió**: ahora exige
+     que en ese caso **NO** venga subprotocolo. Antes exigía lo contrario, que
+     era justo el error. Y el caso salió de la lista de la prueba «el
+     subprotocolo se devuelve también al rechazar», que ahora cubre solo los tres
+     que sí lo ofrecieron — meterlo ahí era lo que dejaba pasar la divergencia.
+
+───────────────────────────────────────────────────────────────────────────────
+4 · DE PROPINA: UN ARRANQUE EN FRÍO QUE VOLVIÓ LIMPIO
+───────────────────────────────────────────────────────────────────────────────
+  El cambio de batería del RVR apaga también la Pi —se alimenta de su USB—, o
+  sea que fue un arranque en frío de verdad. Volvió entero:
+
+      rosbridge       abre en 16 ms
+      /odom           16,6 Hz            (DDS cruzó: sin el mudo de la ev. 109)
+      atriz-agente    enabled · active · desde el arranque
+      batería         8,46 V · 100 %
+
+  📌 Cuenta para la pregunta abierta del mudo en DDS: van **2 de 3** arranques
+     fríos con salto grande de reloj que se quedaron mudos, y **éste no**. No
+     cierra nada —no se comprobó cuánto saltó el reloj esta vez— pero es un caso
+     más en la columna buena.
+
+  🔴 Y una corrección mía, que es lo que empezó todo: al ver que mi sonda no
+     abría, escribí que **el agente no había vuelto** y monté la hipótesis de
+     que la unidad no estuviera habilitada. Falso: estaba `enabled`, `active` y
+     con PID desde el arranque. **Lo que no abría era mi sonda**, por este mismo
+     fallo. Un instrumento roto que se lee como una avería del sistema medido.

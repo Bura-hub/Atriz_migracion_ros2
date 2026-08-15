@@ -4,6 +4,33 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, tras el cambio de batería (PC) — Un doble que mentía sobre el manejo de errores
+
+Evidencia **120**. `select_subprotocol` del agente devolvía `atriz.v1` siempre; tornado ejecuta
+`assert self.selected_subprotocol in subprotocols`, así que un cliente **sin subprotocolo** —el que
+no lleva testigo— se llevaba `AssertionError` + **HTTP 500** en vez del cierre `4401`. La rama del
+4401 era **inalcanzable** por ese camino, y cada intento dejaba la traza entera en el journal.
+
+🔴 **Y el doble no fallaba ahí**: escribe la cabecera a mano y no tiene el `assert`, así que la
+prueba escrita esa misma mañana estaba **en verde sobre un camino que en el robot revienta**. El
+doble de rosbridge ya mintió una vez sobre los *nombres de campo* —y eso se caza comparando datos
+contra el robot—; esto es mentir sobre el **manejo de errores**, que no se compara con nada. El
+control de contrato no puede verlo, y lo dice él mismo: «Nombres y constantes, NO comportamiento».
+
+✅ Arreglado en los dos lados y verificado con control: sin subprotocolo → `101` + `4401 con
+motivo`; con testigo bueno → `atriz.v1` + `atriz_bienvenida`. Prueba **invertida**.
+📌 Trampa nueva en `CLAUDE.md`: *lo que un doble no puede reproducir es su manejo de errores,
+porque el error lo produce la biblioteca del original.*
+
+⚠️ **Corrección**: al ver que la sonda no abría, se escribió que el agente no había vuelto tras el
+cambio de batería. Falso — estaba `enabled` y `active` desde el arranque; lo que no abría era la
+sonda.
+
+**Y un arranque en frío que volvió limpio**: rosbridge 16 ms, `/odom` 16,6 Hz, agente activo,
+batería 8,46 V. Van 2 de 3 arranques fríos mudos en DDS, y éste no.
+
+---
+
 ## 2026-08-15, cierre (PC) — Las 16 casillas del Taller cerradas, y las guardas saltadas corridas
 
 **4-1, la última**, con `atriz-agente` parado de verdad (👤): la franja de arriba dice «en línea ·

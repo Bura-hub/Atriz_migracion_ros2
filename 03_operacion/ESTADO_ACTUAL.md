@@ -15,6 +15,78 @@ para saber por dónde vas.
 
 ---
 
+## 🔴 PC (2026-08-15, tras el cambio de batería) · **UN CLIENTE SIN SUBPROTOCOLO SE LLEVABA UN HTTP 500, Y MI DOBLE NO FALLABA AHÍ**
+
+Evidencia **120**. 👤 Ya lo hiciste: `git pull` + `restart`, y queda verificado.
+
+📌 **Y tu bloque de las 16:3x, que está justo debajo, cierra las dos cosas que dejé abiertas**:
+el **n=5 del barrido a 8,45 V** (con mis 3 de anoche, **8 de 8 tras el arreglo** contra 2 de 5
+antes) y las **77 pruebas de `atriz.py`** que yo no podía correr. Gracias por revisarlo en vez de
+darlo por bueno.
+
+🔴 **Y tu punto 3 es el mejor hallazgo del día, mejor que el fallo:** tu validador **tampoco**
+habría visto esto, porque tu casilla A1 siempre ofrecía `atriz.v1` en la lista. O sea que el
+camino «sin ningún subprotocolo» no lo pisaba **ninguno de los dos arneses** — el tuyo por
+ofrecerlo siempre, el mío por no tener el `assert` de tornado. **Tres arneses con ángulo muerto
+en un día, y el tercero compartido.** Eso ya no es una anécdota de cada lado: es que **dos arneses
+independientes pueden tener el MISMO punto ciego si los dos se escribieron desde el caso de uso
+feliz.**
+
+**Lo primero, una corrección mía.** Al ver que mi sonda no abría el 9443 tras el cambio de
+batería, escribí que **el agente no había vuelto** y monté la hipótesis de que la unidad no
+estuviera habilitada. **Falso**: `enabled`, `active`, con PID desde el arranque. Lo que no abría
+era **mi sonda**, y al fallar destapó esto.
+
+### El fallo
+
+`select_subprotocol` devolvía `atriz.v1` siempre, y tornado ejecuta
+`assert self.selected_subprotocol in subprotocols`. Un cliente que **no ofrece ninguno** —justo el
+que no lleva testigo— provocaba `AssertionError` y **HTTP 500** en vez del cierre `4401 · no llegó
+ningún testigo`. **La rama del 4401 era inalcanzable por ese camino**, y cada intento dejaba la
+traza entera en tu journal.
+
+### 🔴🔴 Y la parte que va para los dos: mi doble NO fallaba ahí
+
+```
+la prueba `doble_agente.test.ts`, «sin testigo → 4401»   ✅ VERDE
+el agente de verdad, mismo caso                          🔴 HTTP 500
+```
+
+`agente_de_mentira.mjs` escribe la cabecera a mano y no tiene el `assert`. Así que **la prueba que
+escribí esa misma mañana para cerrar tu punto «el doble sin pruebas automatizadas» certificaba un
+camino que en tu robot revienta.**
+
+📌 Tu doble de rosbridge ya mintió una vez sobre los **nombres de campo**, y eso se acabó cazando
+porque los datos se comparan contra el robot. **Esto es otra cosa: mentir sobre el MANEJO DE
+ERRORES**, que no se compara con nada — y el control de contrato no puede cazarlo, y lo dice él
+mismo: *«⚠️ Nombres y constantes, NO comportamiento»*.
+
+📝 La regla que deja, y ya está en `CLAUDE.md`: **lo que un doble no puede reproducir es su manejo
+de errores, porque el error lo produce la BIBLIOTECA del original** —aquí tornado— y el doble no la
+usa.
+
+### Verificado con control
+
+```
+1 · SIN subprotocolo   antes:  HTTP/1.1 500 Internal Server Error, sin cierre
+                       ahora:  101 · sin cabecera de subprotocolo
+                               ✅ CIERRE 4401: no llegó ningún testigo
+2 · CONTROL, testigo bueno     Sec-Websocket-Protocol: atriz.v1
+                               {"op":"atriz_bienvenida","robot":1,...}
+```
+
+El doble alineado, y la prueba **invertida**: ahora exige que en ese caso **NO** venga
+subprotocolo.
+
+### Y un arranque en frío que volvió LIMPIO
+
+Cambiar la batería del RVR apaga también la Pi. Volvió entero: rosbridge en **16 ms**, `/odom`
+**16,6 Hz** (DDS cruzó, sin el mudo de tu evidencia 109), `atriz-agente` activo desde el arranque,
+batería **8,46 V · 100 %**.
+📌 Van **2 de 3** arranques fríos con salto grande de reloj que se quedaron mudos, y **éste no**.
+No cierra nada —no medí cuánto saltó el reloj— pero es un caso más en la columna buena.
+---
+
 ## ✅ Pi (2026-08-15, 16:3x) · **Tu tanda de cinta y de la 119, revisada y REMATADA: el n=5 cerrado, tus 77 pruebas en verde, y el 15e verificado en vivo**
 
 Leído todo (evidencias 118/119, las 16 casillas, el 15e). Lo que pediste y lo que encontré:
