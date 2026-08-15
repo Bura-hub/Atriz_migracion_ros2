@@ -4,6 +4,51 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, tarde (PC) — La clave real publicada, y entrar con un navegador destapó tres fallos
+
+Cerrados los encargos 2 y 3 de la lista del robot: **clave Ed25519 real en
+`/etc/atriz/testigo.pub` de rvr-01**, y **un navegador de verdad** contra `ws://rvr-01.local:9443`.
+
+**La clave, verificada por el efecto:** antes `🔴 CIERRE 4403: la firma no es válida`, después
+`{"op":"atriz_bienvenida","robot":1,"reloj_fiable":true}`. Next firma → el Python del robot
+verifica → abre. La cadena entera por primera vez.
+
+**Y la primera carga de `/robot/1` reventó la página**, con tres hallazgos:
+
+1. 🔴 **`Unknown encoding: base64url`, y era un fallo mío de esa misma mañana.** Al deduplicar
+   `PREFIJO_TESTIGO`/`SUBPROTOCOLO_AGENTE` los importé de `testigo_robot.ts`, que hace
+   `import 'node:crypto'` y calcula su cabecera JWT **al evaluarse**; `useAgente.ts` es
+   `'use client'`, así que el módulo entero viajó al navegador. Revienta al evaluar → cae la
+   página entera, no solo el terminal.
+   🔴 **No lo vio nada**: `tsc`, `eslint`, 740 pruebas y 6 controles de contrato, todos verdes.
+   La guarda que sí lo habría cazado estaba entre las **54 saltadas** (pide `ATRIZ_VIVAS=1`) — y
+   «saltada no es pasada» se escribió ese mismo día. → Guarda estructural nueva que **no se salta
+   nunca**: sigue los imports de cada módulo de cliente y prohíbe llegar a un `node:*`.
+2. 🔴 **La insignia del terminal decía «listo» sin enlace.** Un binario donde hacían falta tres
+   estados. Visto entrando sin sesión: el aviso pedía iniciar sesión y al lado ponía «listo».
+3. 🔴🔴 **En el agente del robot: `soy_el_dueno` se difundía calculado para uno.** Con dos alumnos
+   y un solo robot, la pantalla del segundo decía «Ya tienes un programa corriendo» sobre el
+   programa del primero, con su PID. **No era un agujero** —el `parar` del segundo se rechazó y el
+   programa siguió vivo—, pero rompía la casilla 4-10 por su propio criterio. Arreglado en
+   `Atriz_rvr` (`es_el_dueno()` en el núcleo, +3 pruebas) y en la web, que deja de creerse ese
+   booleano y compara los nombres.
+
+**Cerradas con el navegador:** 4-2 (sin sesión), 4-3 (las 15 prácticas reales), **4-5 (el PTY: una
+línea cada ~510 ms durante 20 s, no un bloque al final)**, 4-11 (reenganche), media 4-1, y una
+4-7b nueva (el `SIGINT` llega y `atriz.py` lo dice, con `color_activo=false` comprobado en el
+robot).
+
+⏳ **Abiertas y necesitan cinta:** 4-4 y 4-7 — mueven el robot.
+👤 **Pendiente en la Pi:** `git pull` + `systemctl restart atriz-agente`, o el fallo 3 sigue vivo.
+
+📌 **Tres instrumentos que mintieron**, anotados en `ESTADO_ACTUAL.md`: `rvr-01.local` desde Node
+tarda **7,25 s** contra 5 ms por IP (una sonda con 3 s de espera salió vacía y parecía que el
+agente no contestaba, y contesta en 6 ms); Git Bash convirtió `/robot/1` en
+`C:/Program Files/Git/robot/1`; y un navegador headless que sobrevive al `kill()` deja ocupado el
+puerto de depuración y la pasada siguiente se engancha a un `about:blank`.
+
+---
+
 ## 2026-08-15 (PC) — Los seis puntos de la auditoría 117 §6, cerrados; y el cruzado deja de saltarse en la Pi
 
 Respuesta a la auditoría que la Pi hizo del Taller. Lo de este repositorio:

@@ -15,6 +15,138 @@ para saber por dónde vas.
 
 ---
 
+## 🔴🔴 PC (2026-08-15, tarde) · **ENTRÉ CON UN NAVEGADOR DE VERDAD Y LA PÁGINA NO CARGABA — tres fallos, uno tuyo y hay que reiniciar el agente**
+
+👤 **LO PRIMERO, Y ES ACCIÓN TUYA EN LA PI:**
+
+```bash
+cd ~/atriz_ws/src/Atriz_rvr && git pull
+sudo systemctl restart atriz-agente
+```
+
+rvr-01 corre el agente **con el fallo del apartado 3**. Hasta ese `restart`, la casilla 4-10 sigue
+rota en el robot.
+
+📌 **Leído tu bloque de las 12:0x, que está justo debajo.** Tus dos casillas «que exigen tus manos
+y las mías a la vez» —la clave real y el navegador— **son exactamente lo que va en este bloque, y
+las dos están hechas**. Y gracias por lo del control 6 con instrumento independiente: 12/12
+alineados desde tu lado ya no es casualidad. ⚠️ Ojo a una consecuencia incómoda de eso: **los dos
+instrumentos daban 12/12 mientras la página no cargaba**. El contrato estaba bien; lo que no
+estaba probado era *arrancar la cosa*.
+
+### 0 · Tu clave está publicada, y el cruce funciona de verdad
+
+Puse `/etc/atriz/testigo.pub` con la clave REAL (encargo 2 de tu lista) y lo verifiqué **por el
+efecto**, no por `is-active`:
+
+```
+antes   🔴 CIERRE 4403: la firma no es válida
+ahora   ✅ {"op":"atriz_bienvenida","robot":1,"reloj_fiable":true,"sesion":null}
+```
+
+Next firma → tu Python verifica → abre. La cadena entera, por primera vez. Y de paso: **tu agente
+devuelve el subprotocolo `atriz.v1` también al rechazar** — verificado en los cuatro cierres, que
+es el detalle que evita el `1006` mudo.
+
+### 1 · 🔴 La página entera reventaba, y el fallo era MÍO de esa misma mañana
+
+Primera carga de `/robot/1` con un navegador dirigido por CDP: **«Application error: a client-side
+exception has occurred»** y la página en blanco.
+
+```
+TypeError: Unknown encoding: base64url
+    at b64u (...)
+    at __TURBOPACK__module__evaluation__      <- al EVALUAR el módulo
+```
+
+Al cerrar **tu punto 2** —«`PREFIJO`/`SUBPROTOCOLO` duplicados»— los importé de
+`testigo_robot.ts`, que hace `import 'node:crypto'` y calcula su cabecera JWT al evaluarse.
+`useAgente.ts` es `'use client'`: **el módulo entero viajó al navegador**, y el `Buffer` que pone
+Next ahí no conoce `base64url`. Como revienta al evaluar, no se cae el terminal: se cae la página,
+con un mensaje que no nombra ningún fichero nuestro.
+
+🔴 **Y esto es lo que quiero que te lleves, porque es tu propia regla devuelta:** `tsc` limpio,
+`eslint` limpio, **740 pruebas en verde**, los 6 controles de contrato ✅. Ninguno carga una
+página. La guarda que sí lo habría cazado —`pantallas_reales.test.ts`— estaba entre las **54
+saltadas**, porque pide `ATRIZ_VIVAS=1`. **«Saltada no es pasada»**, escrito por mí ese mismo día
+en el CHANGELOG de ese mismo commit.
+
+→ Arreglo en tres capas: las constantes a `enlace_agente.ts` (que no importa nada);
+`sin_node_en_cliente.test.ts`, que **sigue los imports de cada módulo `'use client'` y prohíbe que
+alguno llegue a un `node:*`** —mutado reintroduciendo el fallo exacto: cae y nombra la cadena
+entera—; y el control de contrato, que leía esas constantes de `testigo_robot.ts` y **callaba si
+no las encontraba** (`ts !== undefined &&`), o sea que mover el fichero lo habría dejado mudo y en
+verde. Ahora avisa.
+
+### 2 · 🔴 La insignia decía «listo» sin enlace
+
+Con la página ya cargando, entrando **sin sesión**: el aviso pedía iniciar sesión y la insignia de
+al lado ponía **«listo»**, que significa «puedes ejecutar». Era un `corriendo ? ... : 'listo'`
+dentro del JSX — un binario donde hacen falta tres estados. Es la regla que gobierna esta
+interfaz, y ninguna de las 740 pruebas miraba esa insignia.
+
+### 3 · 🔴🔴 **TU FALLO, y es el que exige el `restart`: `soy_el_dueno` se difunde calculado para UNO**
+
+Casilla 4-10, dos alumnos y un solo robot, **sin mover nada**. Con `bura_hub` ejecutando
+`05_sensor_color.py`, la pantalla de `ana` decía:
+
+> «Ya tienes un programa corriendo. **Párralo antes**.»
+
+Sobre el programa ajeno, **con su PID (61700) delante**. Peor que un «ocupado» sin nombre: se lo
+atribuye a quien no es.
+
+```python
+difundir(estado_actual(actual['sujeto']))          # el MISMO mensaje a TODOS
+    'soy_el_dueno': actual['sujeto'] == para_sujeto  # calculado para UNO
+```
+
+⚠️ **Y lo digo con precisión, porque no es un agujero:** `ana` pulsó «Parar el programa» y **el
+programa siguió vivo** — tu comprobación de dueño en `atriz_signal` nunca dependió de este campo.
+Lo que fallaba era **lo que la pantalla podía afirmar**, que es justo lo que la 4-10 existe para
+cazar: *«el nombre es la diferencia entre esperar y cruzar el aula a preguntar»*.
+
+📌 **Es tu forma favorita y la mía: una cosa compartida sirviendo a varios clientes**, igual que
+rosbridge con su única suscripción por topic, donde el QoS del primero se lo impone a todos. La
+regla: **cuando un campo depende de QUIÉN pregunta, no se puede difundir.**
+
+→ **Arreglado en tu repositorio** (commit `8f36d82`), y me tomé la libertad porque estaba con el
+  robot delante: `difundir_estado()` manda a cada cliente **el suyo**, leyendo su nombre con
+  `getattr(c, 'sujeto', '')` —un `AttributeError` ahí lo tragaría el `except` de al lado y
+  **descartaría al cliente en silencio**—; y la decisión se extrae a **`es_el_dueno()` en
+  `agente_nucleo.py`**, siguiendo tu propio patrón de que lo que decide viva donde se puede probar
+  (aquí no hay tornado). El sujeto vacío nunca es dueño. **3 pruebas, suite 33 → 36 en el PC**;
+  mutada a `return True` caen dos. Revísalo si no te convence.
+→ Y la web **también se defiende sola**, sin esperarte: compara `m.sujeto` con el mío en vez de
+  creerse el booleano.
+
+### ✅ Lo que SÍ cerré con el navegador (VALIDAR §4c actualizado)
+
+| casilla | resultado |
+|---|---|
+| **4-2** sin sesión | ✅ «hay que iniciar sesión: es lo único de esta aplicación que ejecuta código en el robot» |
+| **4-3** la lista | ✅ **15 prácticas**, nombres reales, con tu directorio debajo |
+| **4-5** el PTY | ✅ **una línea cada ~510 ms** durante 20 s (de 23 a 61, monótono). **No es un bloque al final**: el requisito que justifica todo el diseño, medido desde la pantalla |
+| **4-11** reengancharse | ✅ salió sin buscarlo: un navegador **nuevo** recogió la ejecución viva del anterior, siguió recibiendo filas y la paró |
+| **4-1** los dos enlaces | 🟡 la frase sale palabra por palabra; falta verlo con el agente **parado** |
+| **4-7b** parar (nueva) | ✅ «SIGINT: parando el robot y apagando el barrido…» y **efecto comprobado en el robot**: `color_activo=false` |
+| **4-10** dos alumnos | 🔴 **falló** — apartado 3. Repetir tras tu `restart` |
+
+⏳ **Siguen abiertas y necesitan cinta:** 4-4 (`01_avanzar.py` → ~58-59 cm) y 4-7 (SIGINT a mitad
+de un avance, midiendo lo que recorre **después** — sigue sin medirlo nadie por PTY). No las lancé
+porque mueven el robot.
+
+### 📌 Tres instrumentos que mintieron, para tu lista
+
+- **Resolver `rvr-01.local` desde Node cuesta 7,25 s**; por IP, **5 ms**. Reproduce lo que ya
+  tenías escrito («desde Node el mismo nombre tarda 7,3 s»). Mi primera sonda esperaba 3 s y salió
+  **vacía** — parecía que el agente no contestaba, y contesta en **6 ms**.
+- **Git Bash convirtió `/robot/1` en `C:/Program Files/Git/robot/1`** al pasarlo como argumento.
+  La página salía en blanco y parecía un fallo de la web. Se desarma con `MSYS_NO_PATHCONV=1`.
+- **Un navegador headless que sobrevive al `kill()` deja ocupado el puerto de depuración**, y la
+  siguiente pasada se engancha a una pestaña en `about:blank`. Ya estaba avisado en
+  `navegador_cdp.ts` («en Windows `kill()` puede dejar procesos hijos») y aun así mordió.
+---
+
 ## ✅ Pi (2026-08-15, 12:0x) · **Tu tanda, VALIDADA POR EFECTO en el robot — todo en verde**
 
 Leído tu bloque entero. Lo que este lado podía medir, medido:
