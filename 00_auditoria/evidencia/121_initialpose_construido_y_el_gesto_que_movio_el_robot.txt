@@ -126,6 +126,53 @@ RESUMEN
         Cualquier cosa que se apoye en «la odometría acierta al milímetro»
         tiene que decir en qué condiciones se midió eso.
 
+  ✅ **Y LA CAUSA SE AISLÓ ESA MISMA NOCHE — LAS DOS HIPÓTESIS ERAN FALSAS.**
+     Repetir «con `avanzar()`» a secas NO habría aislado nada: desde la medida
+     anómala había pasado el tiempo, así que el RVR ya no estaba frío y se
+     habrían movido las dos variables otra vez. Se corrieron **las dos vías
+     seguidas**, con el RVR caliente (27 min según el `latido` del supervisor),
+     misma orden nominal 0,20 m/s x 1,5 s y misma marca:
+
+         corrida  camino                     cinta   odometría   Δ
+         A        `avanzar()` en el robot     30,0     29,6      0,4 cm
+         B        `/cmd_vel_raw` desde el PC  28,0     27,7      0,3 cm
+
+     🔴 **La odometría cuadra en LAS DOS.** No había error de odometría: ni por
+        el camino de conducción ni por el RVR frío.
+
+     ✅ **Lo que sí hay, y es reproducible: las dos vías recorren distancias
+        DISTINTAS** para la misma orden — `avanzar()` ~30 cm, `/cmd_vel_raw`
+        ~28 cm, unos 2 cm (~7 %) menos.
+
+     📌 **Y eso explica el 1,9 cm sin ningún fallo.** Aquella corrida fue por
+        `/cmd_vel_raw`, o sea la vía corta: la odometría dijo 28,1, que es
+        exactamente lo que esa vía recorre (27,7 hoy). **El número que no encaja
+        de aquel par es el 30 de la cinta, no el 28,1 de la odometría.**
+
+     ⚠️ **Y la culpa es del método, no de quien midió**: en aquella corrida la
+        marca se pidió como un extra —«y si puedes, marca dónde está»— en vez de
+        como requisito. Sin marca fresca, localizar dónde para un robot tiene
+        fácilmente un par de centímetros de incertidumbre. En A y B se marcó
+        primero, y salieron 0,4 y 0,3.
+
+     📝 **Dos reglas operativas que deja:**
+        · **`avanzar()` y `/cmd_vel_raw` no son intercambiables.** Quien mida
+          una práctica tiene que decir por cuál condujo, o el número no se puede
+          comparar con otro.
+        · **La odometría de este robot acierta a ~0,3-0,4 cm** contra cinta en
+          las dos vías (n=4 ese día). Lo que hay que pedir siempre es **la marca
+          antes de arrancar**, no la cinta después.
+
+  🔴 **Y UN HALLAZGO DE PROPINA QUE CASI SE LEE AL REVÉS: la primera corrida B
+     dio 0,0 cm.** No era el camino: `atriz.py` había apagado el barrido al
+     salir —hace bien, lo había encendido él— y **sin `/scan` el
+     `collision_monitor` bloquea todo movimiento**. La corrida original de los
+     28,1 salió porque Nav2 estaba en marcha y lo tenía encendido.
+     → Reportar aquel 0,0 como resultado habría producido la conclusión
+       *«conducir por `/cmd_vel_raw` no funciona»*, que es rotundamente falsa:
+       funciona, pero **exige que alguien haya encendido el barrido, y por esa
+       vía no lo hace nadie**.
+
   ⏳ **Que la pose fijada sea CORRECTA sigue sin verificarse**, y la pantalla lo
      dice ella misma en vez de afirmarlo: «se ha publicado, pero eso no es que
      AMCL la haya aceptado». Comprobarlo exige comparar el mapa con la sala, y

@@ -928,6 +928,38 @@ MITAD, EN SILENCIO.** Medido el 2026-08-08 sobre la práctica 1 del curso: **26,
 → ⚠️ Es la evidencia 49 con otra cara: allí un retroceso de 30 cm hizo 14 porque el polígono no
   sabe hacia dónde vas. **Aquí es el ancho.** Evidencia 85.
 
+**🔴 `avanzar()` Y `/cmd_vel_raw` NO SON INTERCAMBIABLES: ~2 cm DE DIFERENCIA PARA LA MISMA
+ORDEN.** Medido el 2026-08-15 con las dos vías seguidas, RVR caliente (27 min), misma marca y misma
+orden nominal `0,20 m/s × 1,5 s`:
+
+```
+corrida  camino                       cinta   odometría   Δ
+A        `avanzar()` en el robot       30,0     29,6     0,4 cm
+B        `/cmd_vel_raw` desde el PC    28,0     27,7     0,3 cm
+```
+
+→ ✅ **La odometría cuadra en las dos** (0,3-0,4 cm). Lo que cambia es **cuánto recorre cada vía**:
+  `/cmd_vel_raw` se queda ~2 cm (7 %) corta. **Quien mida una práctica tiene que decir por cuál
+  condujo**, o el número no se puede comparar con otro.
+→ 📌 **Y así se cerró una anomalía sin que hubiera ningún fallo.** Una corrida anterior dio «cinta
+  30,0 · odometría 28,1» y se anotó como 1,9 cm de discrepancia con dos hipótesis (el camino, o el
+  RVR recién encendido). **Las dos eran falsas**: aquella corrida fue por la vía corta, así que
+  28,1 era correcto — **el número que no encajaba era el de la cinta**. La marca se había pedido
+  como un extra («y si puedes, marca dónde está») en vez de como requisito.
+→ 📝 **La regla: pide la MARCA antes de arrancar, no la cinta después.** Sin marca fresca, localizar
+  dónde para un robot tiene un par de centímetros de incertidumbre — del mismo orden que el efecto
+  que se busca.
+→ ⚠️ **Y repetir «con la otra vía» a secas NO aísla nada** si entretanto ha cambiado otra variable:
+  aquí el RVR ya no estaba frío. Hay que correr **las dos seguidas**. Evidencia 121.
+
+**🔴 Y `/cmd_vel_raw` NO MUEVE EL ROBOT SI NADIE HA ENCENDIDO EL BARRIDO.** La primera corrida B dio
+**0,0 cm**: `atriz.py` había apagado el barrido al salir —hace bien, lo había encendido él— y sin
+`/scan` el `collision_monitor` bloquea todo. La corrida original salió porque **Nav2 estaba en
+marcha** y lo tenía encendido.
+→ 🔴 Reportar aquel 0,0 habría dado *«conducir por `/cmd_vel_raw` no funciona»*, que es falso:
+  funciona, pero **exige que alguien haya encendido el barrido, y por esa vía no lo hace nadie**.
+  `atriz.py` sí lo hace por el alumno. Evidencia 121.
+
 **🔴🔴 UN ARRASTRE DISPARA TAMBIÉN UN `click`, Y ESO PUSO EL ROBOT A CONDUCIR HASTA ENREDARLO.**
 El 2026-08-15, el gesto nuevo de «decirle al robot dónde está» —pulsar en el mapa y arrastrar hacia
 donde mira— **mandaba además un objetivo de navegación al punto donde se soltaba**. El robot se

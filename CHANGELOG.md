@@ -4,6 +4,23 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, aislamiento (PC) — La anomalía de la cinta no era un fallo, y las dos hipótesis eran falsas
+
+Corridas **las dos vías seguidas** con el RVR caliente, misma marca y misma orden nominal:
+`avanzar()` da cinta 30,0 / odometría 29,6, y `/cmd_vel_raw` da 28,0 / 27,7. **La odometría cuadra
+en las dos** (0,3-0,4 cm). Lo que hay es que **las dos vías recorren distancias distintas** —
+`/cmd_vel_raw` se queda ~2 cm (7 %) corta —, y eso explica la anomalía anterior sin ningún fallo:
+aquella corrida fue por la vía corta, así que **el número que no encajaba era el de la cinta**.
+
+📌 Dos reglas nuevas en `CLAUDE.md`: **`avanzar()` y `/cmd_vel_raw` no son intercambiables**, y
+**`/cmd_vel_raw` no mueve el robot si nadie ha encendido el barrido** (la primera corrida B dio
+0,0 cm por eso, y reportarlo habría dado una conclusión rotundamente falsa).
+
+📝 Y una de método: **repetir «con la otra vía» a secas no aísla nada** si entretanto ha cambiado
+otra variable. Hay que correr las dos seguidas. Evidencia 121.
+
+---
+
 ## 2026-08-15, A5 (PC) — `/initialpose` construido, y el gesto que movió el robot
 
 Evidencia **121**. `/initialpose` estaba **declarado y sin construir**: en el contrato de la web,

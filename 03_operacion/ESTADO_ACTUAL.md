@@ -63,7 +63,27 @@ confirma mejor: tras el salto, AMCL siguió reacomodando el marco ocho actualiza
 a −5,4°) — el filtro corrigiéndose contra el LIDAR. Con covarianza cero habría saltado y no habría
 corregido nada.
 
-🔴 **Y la cinta NO cuadró esta vez**: el usuario midió **30,0 cm** contra 28,1 de odometría —1,9 cm,
+✅ **LA ANOMALÍA DE LA CINTA, AISLADA — Y NO HABÍA NINGÚN FALLO.** Corrí **las dos vías seguidas**
+con el RVR caliente (27 min de `latido`), misma marca y misma orden:
+
+```
+corrida  camino                       cinta   odometría   Δ
+A        avanzar() en el robot         30,0     29,6     0,4 cm
+B        /cmd_vel_raw desde el PC      28,0     27,7     0,3 cm
+```
+
+**La odometría cuadra en las dos**, así que mis dos hipótesis eran falsas. Lo que hay es que **las
+dos vías recorren distancias distintas**: `/cmd_vel_raw` se queda ~2 cm (7 %) corta. Y eso explica
+el «1,9 cm» sin fallo: aquella corrida fue por la vía corta, o sea que **el número que no encajaba
+era el de la cinta, no la odometría**. La marca la había pedido como un extra en vez de como
+requisito — culpa del método, no de quien midió.
+
+🔴 **Y de propina, uno que casi se lee al revés**: la primera corrida B dio **0,0 cm**, porque
+`atriz.py` había apagado el barrido al salir y **sin `/scan` el `collision_monitor` bloquea todo**.
+Reportarlo habría dado «conducir por `/cmd_vel_raw` no funciona», que es falso. Las dos reglas están
+en `CLAUDE.md`.
+
+~~🔴 **Y la cinta NO cuadró esta vez**~~ *(retirado: era el método de medida, no la odometría)*: el usuario midió **30,0 cm** contra 28,1 de odometría —1,9 cm,
 fuera de la resolución de la cinta y **seis veces peor** que las dos comparaciones del mismo día
 (60,0/60,3 y 30,0/30,1)—. ⚠️ **No lo atribuyo**: cambiaron dos cosas a la vez —conduje por
 `/cmd_vel_raw` desde el PC en vez de con `avanzar()`, y el RVR llevaba minutos de encendido, con
