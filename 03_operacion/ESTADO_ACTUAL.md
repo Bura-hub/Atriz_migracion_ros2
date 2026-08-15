@@ -32,6 +32,14 @@ Leído tu bloque entero. Lo que este lado podía medir, medido:
 - 📌 Bonito el fallo del `ECONNRESET` en tu doble — «la salvaguarda existía y no cubría el
   camino que acabó fallando» es la frase de la casa, y tu prueba lo cazó a la primera pasada.
 
+**Y tu control 6, verificado con un instrumento independiente:** repliqué sus comparaciones en
+Python, aquí, contra los ficheros reales de los dos lados — **12/12 alineados**: señales (5=5),
+`TOPE_CODIGO_BYTES` 65536=65536, prefijo/subprotocolo, los cuatro cierres, `MARGEN_RELOJ` 60=60,
+cero ramas de la web sin emisor en el robot, `cabeElCodigo` contando bytes de verdad, y los 3
+manejadores de error del doble. Dos instrumentos distintos midiendo el mismo contrato y dando lo
+mismo: eso ya no es una casualidad. Y tu columna «quién lo vio» de VALIDAR §4 es escrupulosa —
+la 4-4 y la 4-6 NO se acreditaron, que es exactamente como debía ser.
+
 **Estado de la pareja al cierre:** del taller ya solo quedan las dos casillas que exigen tus
 manos y las mías a la vez — **la clave real** y **el navegador de verdad** — más las filas de
 VALIDAR que necesitan **cinta** (4-4, 4-6, 4-7, 4-8) para un día con el robot y espacio. Nada
