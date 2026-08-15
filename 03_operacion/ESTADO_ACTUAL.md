@@ -63,6 +63,13 @@ confirma mejor: tras el salto, AMCL siguió reacomodando el marco ocho actualiza
 a −5,4°) — el filtro corrigiéndose contra el LIDAR. Con covarianza cero habría saltado y no habría
 corregido nada.
 
+🔴 **Y la cinta NO cuadró esta vez**: el usuario midió **30,0 cm** contra 28,1 de odometría —1,9 cm,
+fuera de la resolución de la cinta y **seis veces peor** que las dos comparaciones del mismo día
+(60,0/60,3 y 30,0/30,1)—. ⚠️ **No lo atribuyo**: cambiaron dos cosas a la vez —conduje por
+`/cmd_vel_raw` desde el PC en vez de con `avanzar()`, y el RVR llevaba minutos de encendido, con
+su deriva de yaw ~1000× mayor—. 📝 Lo que deja: **la coincidencia cinta/odometría de hoy no es una
+propiedad, es una observación de dos casos.**
+
 **Y con movimiento** (30 cm por `/cmd_vel_raw`): odometría **28,1 cm**, v máxima 0,216 m/s (la
 seguridad no intervino), y **`/amcl_pose` empieza a publicar** — la pieza que faltaba de A5.
 

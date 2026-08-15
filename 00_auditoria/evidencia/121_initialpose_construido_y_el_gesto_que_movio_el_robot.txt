@@ -104,6 +104,28 @@ RESUMEN
      llamarlo error sería la clase de conclusión que este proyecto ya ha tenido
      que retirar tres veces.
 
+  🔴 **Y LA CINTA NO CUADRÓ ESTA VEZ, que es un dato en sí mismo.** El usuario
+     midió **30,0 cm** contra los 28,1 de odometría: **1,9 cm**, fuera de la
+     resolución de la cinta, y **seis veces peor** que las dos comparaciones de
+     ese mismo día (evidencia 118):
+
+         4-4   cinta 60,0  ·  odometría 60,3   ->  0,3 cm
+         4-7   cinta 30,0  ·  odometría 30,1   ->  0,1 cm
+         A5    cinta 30,0  ·  odometría 28,1   ->  1,9 cm   <- este
+
+     ⚠️ **NO se atribuye**, porque cambiaron DOS cosas a la vez y ninguna está
+        aislada: (a) esta corrida se condujo por `/cmd_vel_raw` desde el PC a
+        10 Hz por WiFi, no con `avanzar()` de `atriz.py` en el robot, que es lo
+        que hicieron las otras dos; y (b) el RVR se había reiniciado minutos
+        antes, y está medido que la deriva de yaw es **~1000x mayor** en los
+        primeros minutos tras encenderlo (0,97 °/30 s contra 0,001 a los ~7).
+        Cualquiera de las dos explica el signo.
+
+     📝 **Lo que sí deja: la coincidencia cinta/odometría de ese día NO es una
+        propiedad, es una observación de dos casos.** Al tercero no se cumplió.
+        Cualquier cosa que se apoye en «la odometría acierta al milímetro»
+        tiene que decir en qué condiciones se midió eso.
+
   ⏳ **Que la pose fijada sea CORRECTA sigue sin verificarse**, y la pantalla lo
      dice ella misma en vez de afirmarlo: «se ha publicado, pero eso no es que
      AMCL la haya aceptado». Comprobarlo exige comparar el mapa con la sala, y
