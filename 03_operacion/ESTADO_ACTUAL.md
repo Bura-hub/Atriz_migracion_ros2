@@ -15,6 +15,62 @@ para saber por dónde vas.
 
 ---
 
+## ✅✅ PC (2026-08-15, cierre) · **LAS 16 CASILLAS DEL TALLER, CERRADAS — y las guardas que llevaban todo el día saltadas, corridas**
+
+### 4-1, la última, con `atriz-agente` PARADO de verdad (👤 lo paró el usuario)
+
+Es el caso que faltaba: **agente caído y rosbridge vivo**, o sea los dos enlaces en estados
+opuestos. Lo que pinta la pantalla:
+
+```
+FRANJA DE ARRIBA :  7,23 V · ENLACE «en línea» · socket abierto
+EL AGENTE        :  «La conexión se cortó sin decir por qué. Suele ser que el
+                     agente del robot no está corriendo, o que no se llega a él
+                     por la red.»
+                    «Esto es OTRO enlace que el de la franja de arriba: aquella
+                     habla por el 9090 y esto con el agente por el 9443. Que una
+                     diga "en línea" no dice nada de la otra.»
+LA INSIGNIA      :  «sin enlace»    ← esta misma mañana ponía «listo» aquí
+EJECUTAR         :  «No hay enlace con el agente de este robot»
+```
+
+📌 De paso, **el arreglo de la insignia de esta mañana queda validado en su caso real**, no solo
+en su prueba unitaria: era exactamente esta situación la que le hacía decir «listo».
+
+👤 **El agente sigue PARADO**: hace falta `sudo systemctl start atriz-agente` para devolver el
+terminal al aire.
+
+### Y corrí las guardas que llevaban todo el día saltadas
+
+- **`pantallas_reales`: 42/42 contra el robot REAL**, las diez rutas incluida la del taller. Es
+  **la guarda que habría cazado el `Unknown encoding: base64url`** de esta mañana, y que estaba
+  entre las 54 saltadas cuando el fallo entró. Ahora en verde.
+- **`tarjetas_vivas`: 8/8** — pero a la primera dieron **6 fallos de 8**, todos con la misma
+  espera agotada de ~11 s.
+
+  🔴 **No era una regresión: era el comando DOCUMENTADO.** `ATRIZ_HOST` valía `'1'` por defecto,
+  así que la aplicación apuntaba a `rvr-01.local` —el robot de verdad— mientras la prueba
+  levantaba su doble en `localhost`, que se quedaba hablando solo. Y **la primera prueba del
+  fichero exige literalmente el texto «dirección IP»**, así que con un número **no podía pasar**:
+  el defecto estaba peleado con su propio contenido. Corregido a `127.0.0.1`, con el porqué
+  escrito en la cabecera; ahora el comando de la cabecera funciona tal cual.
+
+  📝 Es la forma que perseguimos los dos, en su versión más barata: **una comprobación cuyo modo
+  de uso documentado no funciona se lee como una regresión**, y quien la vea roja la desactiva.
+
+### El Taller, cerrado
+
+Las **16 casillas** de `VALIDAR_CON_EL_ROBOT.md` §4c en verde. Y el balance de la jornada, que es
+lo que las justifica: **cinco fallos encontrados** — el `base64url` que tumbaba la página, la
+insignia que decía «listo» sin enlace, tu `soy_el_dueno` difundido, `atriz.py` apagando el barrido
+ajeno, y el defecto de `ATRIZ_HOST` —, más dos errores de método míos escritos con su nombre (la
+tanda que no midió nada y la conclusión de `girar_por_tiempo` que hubo que retirar).
+
+⚠️ **Batería a 7,23 V (29 %)**, a 0,26 del umbral de «baja». Antes de cualquier otra medida, a
+cargar.
+
+---
+
 ## 🔴🔴 PC (2026-08-15, noche 2) · **LA CASILLA 4-9 ENCONTRÓ UN FALLO SERIO EN `atriz.py`: APAGABA EL BARRIDO DE OTRO 3 DE CADA 5 VECES, EN SILENCIO**
 
 Evidencia **119**. 👤 **Ya está en tu repo (`c914a5e`) y el usuario hizo `git pull`**, pero

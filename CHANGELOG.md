@@ -4,6 +4,33 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, cierre (PC) — Las 16 casillas del Taller cerradas, y las guardas saltadas corridas
+
+**4-1, la última**, con `atriz-agente` parado de verdad (👤): la franja de arriba dice «en línea ·
+socket abierto» y el terminal, al lado, «la conexión se cortó… suele ser que el agente no esté
+corriendo» + «esto es OTRO enlace». La insignia dice **«sin enlace»**, que valida en su caso real
+el arreglo de esa misma mañana.
+
+**Y las guardas que llevaban todo el día saltadas, corridas:**
+- `pantallas_reales` **42/42 contra el robot real** — es la que habría cazado el
+  `Unknown encoding: base64url`, y estaba entre las 54 saltadas cuando el fallo entró.
+- `tarjetas_vivas` **8/8**, pero a la primera dieron 6 fallos con el comando **documentado**:
+  `ATRIZ_HOST` valía `'1'`, así que la aplicación apuntaba al robot real mientras la prueba
+  levantaba su doble en localhost. Y su primera prueba exige el texto «dirección IP», así que con
+  un número **no podía pasar**: el defecto peleaba con su propio contenido. Corregido a
+  `127.0.0.1`.
+  📝 **Una comprobación cuyo modo de uso documentado no funciona se lee como una regresión**, y
+  quien la vea roja la desactiva.
+
+**Balance de la jornada:** cinco fallos encontrados —`base64url`, la insignia, `soy_el_dueno`
+difundido, `atriz.py` apagando el barrido ajeno, y `ATRIZ_HOST`— y dos errores de método propios
+escritos con su nombre.
+
+👤 **Pendiente:** `sudo systemctl start atriz-agente` (quedó parado por la 4-1) y **cargar la
+batería**, a 7,23 V.
+
+---
+
 ## 2026-08-15, noche 2 (PC) — La casilla 4-9 encontró un fallo serio en `atriz.py`
 
 Evidencia **119**. `_encender_barrido()` daba **1,0 s** al primer `/scan` para decidir si el
