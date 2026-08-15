@@ -260,10 +260,38 @@ sin importadores; `comprobar_contrato.mjs` **no cubre el taller** (la familia de
 `.msg`); el doble sin una prueba automatizada; sin script `typecheck`; y tu `atriz_testigo.py`
 define `_b64u` dos veces (29 y 61).
 
-⏳ **Te queda a ti:** publicar la clave real (`publicar_clave.mjs` → `/etc/atriz/testigo.pub`,
-sustituye a la de prueba sin más) y conectar el navegador real — única casilla que la clave de
-prueba no cubre. El PAT sigue en la Pi: es decisión del usuario, y quitarlo deja a esta Pi sin
-poder subir.
+**Coda (01:0x, tras el último restart 👤): el agente en producción ejecuta EXACTAMENTE el código
+del repo, y los dos arreglos finales quedaron verificados en vivo** — un guion con `sys.exit(7)`
+devolvió `atriz_fin` con `codigo=7` (la cosecha recuerda aunque `latir` gane el waitpid), y
+`/run/atriz` quedó con **0 carpetas de sesión residuales** (la limpieza recoge). El estado del
+robot al cierre: `atriz-robot` y `atriz-agente` activos, batería ~7,77 V, clave DE PRUEBA en
+`/etc/atriz/testigo.pub`.
+
+### 📋 PARA TU PRÓXIMA SESIÓN, EN ORDEN — la lista completa, para que nada se escape
+
+1. **`git pull` en los dos repos** y lee: **evidencia 117** (la auditoría entera con los
+   experimentos) y el CHANGELOG del 2026-08-15 de `Atriz_rvr` (tus cinco arreglos, uno a uno).
+2. **Publica la clave real**: `node herramientas/publicar_clave.mjs` → `/etc/atriz/testigo.pub`
+   (pisa la de prueba sin más ceremonia; el agente la lee al arrancar → un restart).
+3. **Conecta el navegador de verdad** contra `ws://rvr-01.local:9443` — es la ÚNICA casilla que
+   la clave de prueba no cubre. Todo lo demás de VALIDAR §4 ya está en verde desde aquí.
+4. **Tu lado web, los seis puntos de la 117 §6**: `TOPE_CODIGO_BYTES` sin usar ·
+   `PREFIJO`/`SUBPROTOCOLO` duplicados · `comprobar_contrato.mjs` ciego al taller · el doble sin
+   pruebas automatizadas · sin script `typecheck` · `_b64u` definida dos veces en
+   `atriz_testigo.py`.
+5. **Documenta el skip silencioso del cruzado** (o versiona `testigo_ejemplo.json` también en
+   migracion): en la Pi, sin `ATRIZ_TESTIGO_EJEMPLO`, tus 5 pruebas cruzadas salen `skipped` —
+   tus propias palabras: skipped no es passed.
+6. **Sube tu pantalla al estado real**: la unidad `atriz-agente` existe, instalada y habilitada
+   por `fase_7`; el fin trae `codigo` real; `AGENTE_PARANDO` es un rechazo nuevo que tu
+   `protocolo.ts` aún no conoce (llega si alguien ejecuta durante un reinicio del agente).
+7. **Contexto que quizá no viste de la tarde** (evidencias 109-116, ya integraste parte): el
+   robot ahora **se cura solo** del mudo en DDS y del LIDAR desenchufado — un robot que
+   «parpadea» ~30-40 s y vuelve es un vigilante trabajando, no un fallo; el arranque de nav con
+   barrido apagado es **~32 s** (tu «unos 28» puede decir «~30»); y la **Fase 6 (imagen dorada)
+   está LISTA y en espera de autorización del usuario** — cuando salga, llevará el agente dentro.
+8. ⏳ El **PAT** sigue en la Pi (decisión del usuario: quitarlo la deja sin push). Tu encargo 1
+   queda **pendiente y anotado**, no olvidado.
 
 ---
 

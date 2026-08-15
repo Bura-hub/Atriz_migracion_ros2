@@ -32,7 +32,9 @@ habilita el agente (adiós «sudo cp a mano») y el MANIFIESTO lo vigila. Retroa
 lado web (TOPE sin usar, constantes duplicadas, contrato que no cubre el taller, doble sin
 pruebas, `_b64u` ×2) en `ESTADO_ACTUAL.md`. **Evidencia 117.**
 
-⏳ Queda del PC: la clave real y el navegador de verdad. Del usuario: el PAT.
+⏳ Queda del PC: la clave real y el navegador de verdad (lista completa en ESTADO_ACTUAL «PARA
+TU PRÓXIMA SESIÓN»). Del usuario: el PAT. Coda verificada tras el último restart: `codigo=7`
+conservado y 0 carpetas residuales — el agente en producción es el código del repo.
 
 ---
 

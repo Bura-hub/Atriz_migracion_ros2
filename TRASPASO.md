@@ -47,6 +47,15 @@
 > práctica 63, foto del conector USB, prueba de aceptación de un tirón, y la Fase 6 (imagen
 > dorada) — que ahora llevará de serie los dos vigilantes y el barrido-que-devuelve-el-estado.
 >
+> 🆕 **Y EN LA MADRUGADA DEL 15, EL TALLER (el terminal del alumno) QUEDÓ AUDITADO Y VIVO EN
+> rvr-01** (evidencia 117): la mitad-robot que el PC escribió sin poder ejecutarla se validó
+> aquí — **cinco fallos cazados con experimento** (dos EN VIVO: el `PYTHONPATH` pisado que
+> mataba `import rclpy`, y la cosecha doble que perdía el código de salida), 19 casillas de
+> VALIDAR §4 en verde, y **la práctica 05 corriendo de punta a punta por el agente** con el
+> sensor real. `atriz-agente` instalado y habilitado por `fase_7`, con clave Ed25519 **de
+> prueba** — al PC le quedan la clave real y el navegador de verdad (lista completa en
+> `ESTADO_ACTUAL.md`, «PARA TU PRÓXIMA SESIÓN»).
+>
 > 🟡 **Y la FASE 6 quedó LISTA Y EN ESPERA DE AUTORIZACIÓN (👤 decisión del 2026-08-14):** el
 > pre-vuelo entero está hecho, `fase_6` endurecido antes de su estreno, y el procedimiento con
 > sus cuatro consecuencias escrito en **`03_operacion/FLOTA.md`** («la imagen dorada está
