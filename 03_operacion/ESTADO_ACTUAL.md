@@ -15,6 +15,78 @@ para saber por dónde vas.
 
 ---
 
+## 🔴🔴 PC (2026-08-15, noche 2) · **LA CASILLA 4-9 ENCONTRÓ UN FALLO SERIO EN `atriz.py`: APAGABA EL BARRIDO DE OTRO 3 DE CADA 5 VECES, EN SILENCIO**
+
+Evidencia **119**. 👤 **Ya está en tu repo (`c914a5e`) y el usuario hizo `git pull`**, pero
+**revísalo**: lo escribí yo desde el PC y **no puedo correr las 65 pruebas de `atriz.py`**.
+
+### El fallo, medido por efecto
+
+Con el barrido encendido **por otro** (`/start_scan` desde rosbridge, que es lo que haría SLAM) y
+un programa de alumno de tres líneas que usa el LIDAR:
+
+```
+corrida 1  aviso=0 → APAGADO        corrida 4  aviso=1 → ENCENDIDO
+corrida 2  aviso=0 → APAGADO        corrida 5  aviso=1 → ENCENDIDO
+corrida 3  aviso=0 → APAGADO
+```
+
+🔴 Correlación exacta entre «no salió el aviso» y «lo apagó»: falla la **detección**, no la
+decisión — `debe_apagar_barrido()` hace bien su trabajo con la bandera que le dan. Y cuando falla,
+**el alumno no ve nada**: la línea «NO lo apagaré al cerrar, para no dejar ciego a quien lo esté
+usando» tampoco sale.
+
+### La causa: no es el ritmo del topic, es el descubrimiento de DDS
+
+`_encender_barrido()` daba **1,0 s** al primer `/scan`, con este comentario: *«una espera corta
+basta: /scan va a ~10 Hz cuando está activo»*. Cierto para el ritmo, falso para el PRIMER mensaje.
+
+```
+primer /scan:  40 · 1282 · 16 · 1677 · 28 · 964 ms   (n=6, suscripción nueva por proceso)
+
+emparejar   primer_msg   hueco     <- y partido en dos mitades:
+ 1523 ms      1549        26          casi TODO es descubrimiento; una vez
+   11           33        22          emparejado el dato llega en 22-333 ms
+ 1400         1733       333
+```
+
+✅ **Control que hace viable el arreglo:** con el barrido **apagado**, la suscripción empareja en
+**10 ms** y no llega ningún mensaje en 8 s. O sea que el emparejamiento ocurre igual en los dos
+casos y sirve de señal; el mensaje queda de discriminador.
+
+### El arreglo, con las constantes derivadas
+
+`ESPERA_EMPAREJAR_S = 5.0` (3× el peor emparejamiento) a que `get_publisher_count() > 0`, y **solo
+entonces** `ESPERA_PRIMER_SCAN_S = 1.0` (3× el peor hueco) al dato.
+🔴 **El segundo no se puede subir a lo bruto**: con el barrido apagado —el caso normal— se paga
+entero en cada arranque de cada programa de cada alumno.
+
+**Después: 3 de 3 respetado**, más el control del caso normal (barrido apagado → sin aviso → lo
+enciende y lo apaga).
+⚠️ **n=3, y digo por qué**: la batería estaba a **7,26 V** (29 %), a 0,26 del umbral de «baja».
+Si antes fallaba 3 de 5, sacar 3 limpias por azar tiene ~6 % de probabilidad: indicio fuerte, no
+prueba. 👤 Repetir con la batería cargada.
+
+### Y de paso, dos cosas de método
+
+✅ **Comprobar la PRECONDICIÓN en cada corrida salvó una tanda entera**: cinco salieron con
+`antes=APAGADO` porque `/start_scan` no había hecho efecto. Sin esa comprobación habría leído
+cinco «despues=APAGADO» como cinco fallos, midiendo nada.
+
+🔴 **Y el robot se cayó de la red en medio.** `ping` y test de puerto: los dos puertos cerrados,
+sin respuesta. Un minuto después el socket abría en **73 ms** y `/odom` volvía a 16,5 Hz; y
+`Resolve-DnsName` fallaba mientras `Test-NetConnection` por nombre resolvía bien. 📌 **El testigo
+que vale es abrir el socket**, como ya estaba escrito para el mDNS.
+
+### 4-8 también cerrada
+
+`/scan` a **12,00 Hz antes** del `SIGKILL` y **11,83 después** — sin limpieza, el barrido sigue,
+que es lo que debe pasar. Y la tarjeta «Cómo terminó» dice *«Barrido del LIDAR: no se comprobó ·
+Movimiento después: no se midió»*: **no afirma que se apagara**, que es justo lo que tu
+`comprobar_efecto()` no puede saber todavía.
+
+---
+
 ## ✅ PC (2026-08-15, noche) · **4-4 Y 4-7 CERRADAS CON CINTA — y una tanda mía que movió el robot 5 veces sin medir nada**
 
 Evidencia **118**, con los crudos en `crudos_de_home/118_taller_con_cinta/`.

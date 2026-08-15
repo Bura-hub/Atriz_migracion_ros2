@@ -4,6 +4,30 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, noche 2 (PC) — La casilla 4-9 encontró un fallo serio en `atriz.py`
+
+Evidencia **119**. `_encender_barrido()` daba **1,0 s** al primer `/scan` para decidir si el
+barrido ya estaba encendido; el primer mensaje tarda más de eso la mitad de las veces, así que la
+biblioteca se creía dueña y al cerrar llamaba a `/stop_scan` sobre un barrido **ajeno** — dejando
+ciega a una navegación en curso y **sin imprimir su propio aviso**. Medido: **3 de 5 corridas**,
+con correlación exacta entre «no salió el aviso» y «lo apagó».
+
+La causa no es el ritmo del topic sino el **descubrimiento de DDS**: primer `/scan` en suscripción
+nueva `40 · 1282 · 16 · 1677 · 28 · 964 ms` (n=6), y partido en dos mitades, casi todo es
+emparejar (11-1598 ms) mientras el dato, una vez emparejado, llega en 22-333 ms.
+
+✅ Arreglado en `Atriz_rvr` separando las dos esperas, con las constantes derivadas de esas
+medidas. Después: 3 de 3, más el control del caso normal. ⚠️ n=3 por batería a 7,26 V, y **sin
+prueba unitaria** (es espera de E/S): 👤 revisar desde la Pi.
+
+**4-8 también cerrada**: `/scan` a 12,00 Hz antes del `SIGKILL` y 11,83 después, y la pantalla
+dice «no se comprobó» en vez de afirmar que se apagó.
+
+📌 Trampa nueva en `CLAUDE.md`: *el primer mensaje de un topic no tarda lo que dice su ritmo,
+tarda lo que tarde DDS en emparejar* — familia del `default_server_timeout: 20` de Nav2.
+
+---
+
 ## 2026-08-15, noche (PC) — 4-4 y 4-7 cerradas con cinta, y una tanda que movió el robot cinco veces sin medir nada
 
 Evidencia **118**, crudos en `00_auditoria/evidencia/crudos_de_home/118_taller_con_cinta/`.

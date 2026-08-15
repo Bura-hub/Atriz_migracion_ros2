@@ -928,6 +928,36 @@ MITAD, EN SILENCIO.** Medido el 2026-08-08 sobre la práctica 1 del curso: **26,
 → ⚠️ Es la evidencia 49 con otra cara: allí un retroceso de 30 cm hizo 14 porque el polígono no
   sabe hacia dónde vas. **Aquí es el ancho.** Evidencia 85.
 
+**🔴🔴 EL PRIMER MENSAJE DE UN TOPIC NO TARDA LO QUE DICE SU RITMO: TARDA LO QUE TARDE
+DDS EN EMPAREJAR.** `atriz.py` decidía si el barrido del LIDAR ya estaba encendido esperando
+**1,0 s** un `/scan`, con este comentario: *«una espera corta basta: /scan va a ~10 Hz cuando está
+activo»*. Cierto para el **ritmo**, falso para el **primer** mensaje. Medido el 2026-08-15 desde el
+terminal web, suscripción nueva por proceso y el barrido ENCENDIDO:
+
+```
+primer /scan:  40 · 1282 · 16 · 1677 · 28 · 964 ms      (n=6)
+                    ^^^^        ^^^^        ^^^         > 1000 ms
+emparejar   primer_msg   hueco     <- partido en sus dos mitades:
+ 1523 ms      1549        26          casi TODO es descubrimiento, y una vez
+   11           33        22          emparejado el dato llega en 22-333 ms
+ 1400         1733       333
+```
+
+→ **Consecuencia medida, y era de las malas:** cuando el plazo vencía, la biblioteca se creía
+  dueña del barrido y al cerrar llamaba a `/stop_scan` sobre un barrido **ajeno** — dejando ciega
+  a una navegación en curso **y sin imprimir su propio aviso**. 🔴 **3 de 5 corridas**, con
+  correlación exacta entre «no salió el aviso» y «lo apagó»: fallaba la DETECCIÓN, no la decisión.
+→ ✅ **El arreglo separa las dos esperas**, que es lo que la medida hace obvio: primero a que
+  `sub.get_publisher_count() > 0` (`ESPERA_EMPAREJAR_S = 5.0`, 3× el peor emparejamiento) y
+  **solo entonces** al dato (`ESPERA_PRIMER_SCAN_S = 1.0`, 3× el peor hueco). ✅ Control: con el
+  barrido **apagado** la suscripción empareja en **10 ms** y no llega nada en 8 s — por eso el
+  emparejamiento sirve de señal y el mensaje de discriminador.
+→ 🔴 **Y el plazo del dato no se puede subir a lo bruto:** con el barrido apagado —el caso
+  normal— se paga **entero** en cada arranque de cada programa de cada alumno.
+→ 📝 Misma familia que el `default_server_timeout: 20` de Nav2 y el `MAX_SIN_CAMBIO = 5` de
+  `girar()`: **un plazo puesto contra un fenómeno cuya latencia no se midió.** ⚠️ n=3 tras el
+  arreglo (batería a 7,26 V) y **sin prueba unitaria**: es espera de E/S. Evidencia 119.
+
 **🔴🔴 UN GUARDIÁN QUE CUENTA ITERACIONES EN VEZ DE SEGUNDOS DISPARA SOBRE UN SISTEMA SANO.**
 `girar()` de `atriz.py` abortaba el giro a los **5,5° de 90 pedidos** —**saliendo con código 0**—
 avisando «Odometría perdida o desconectada» con `/odom` a **16,54 Hz, σ 2,5 ms, peor hueco 81 ms**.

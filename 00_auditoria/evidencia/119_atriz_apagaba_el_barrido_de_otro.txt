@@ -1,0 +1,133 @@
+═══════════════════════════════════════════════════════════════════════════════
+119 · `atriz.py` APAGABA EL BARRIDO DE OTRO 3 DE CADA 5 VECES, EN SILENCIO —
+      UN PLAZO DE 1 s CONTRA UNA LATENCIA DE DESCUBRIMIENTO QUE NADIE MIDIÓ
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-15, noche · rvr-01 · batería 7,26 V al cierre (29 %)
+Origen:  La casilla 4-9 de `VALIDAR_CON_EL_ROBOT.md` — «con SLAM en marcha,
+         matar un guion NO debe apagar el barrido». Se fue a comprobar y falló.
+Método:  Todo desde el terminal web y rosbridge. El barrido se enciende y se
+         apaga con `/start_scan` y `/stop_scan`; el estado se mide contando
+         mensajes de `/scan`, no mirando listas de topics.
+
+RESUMEN
+  `_encender_barrido()` daba **1,0 s** al primer `/scan` para decidir si el
+  barrido ya estaba encendido. El primer mensaje tarda más de eso **la mitad de
+  las veces**, así que la biblioteca se creía dueña y al cerrar llamaba a
+  `/stop_scan` sobre un barrido ajeno — dejando ciega a una navegación en curso
+  y **sin imprimir su propio aviso**. Medido: 3 de 5 corridas. Arreglado
+  separando descubrimiento de dato, con las dos constantes derivadas de lo
+  medido. Después: 3 de 3 respetado, y el control del caso normal sigue bien.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · EL FALLO, MEDIDO POR EFECTO
+───────────────────────────────────────────────────────────────────────────────
+  Montaje: `/start_scan` desde rosbridge (o sea el barrido es de OTRO, no del
+  programa), esperar, comprobar que `/scan` llega, correr un programa de alumno
+  de tres líneas que usa el LIDAR, y volver a medir `/scan`.
+
+      corrida 1:  antes=ENCENDIDO  aviso=0  despues=APAGADO
+      corrida 2:  antes=ENCENDIDO  aviso=0  despues=APAGADO
+      corrida 3:  antes=ENCENDIDO  aviso=0  despues=APAGADO
+      corrida 4:  antes=ENCENDIDO  aviso=1  despues=ENCENDIDO
+      corrida 5:  antes=ENCENDIDO  aviso=1  despues=ENCENDIDO
+
+  🔴 **La correlación es exacta**: `aviso=0 → APAGADO`, `aviso=1 → ENCENDIDO`.
+     Eso localiza el fallo en la DETECCIÓN, no en la decisión —
+     `debe_apagar_barrido()` hace bien su trabajo con la bandera que le dan.
+
+  📌 El «aviso» es la línea que `atriz.py` imprime cuando detecta que el barrido
+     ya estaba encendido: *«NO lo apagaré al cerrar, para no dejar ciego a quien
+     lo esté usando»*. Cuando falla la detección, **el alumno no ve nada**.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LA CAUSA: NO ES EL RITMO DEL TOPIC, ES EL DESCUBRIMIENTO DE DDS
+───────────────────────────────────────────────────────────────────────────────
+  El comentario del código decía: *«una espera corta basta: /scan va a ~10 Hz
+  cuando está activo»*. Cierto para el **ritmo**; falso para el **primer**
+  mensaje, porque antes hay que emparejar con el publicador.
+
+  Medido desde el terminal, con el barrido ENCENDIDO y suscripción recién
+  creada (un proceso nuevo por medida, como hace un programa de alumno):
+
+      primer /scan:  40 · 1282 · 16 · 1677 · 28 · 964 ms      (n=6)
+                          ^^^^        ^^^^        ^^^         > 1000
+
+  Tres de seis pasan del plazo de 1,0 s. Cuadra con el 3 de 5 del apartado 1.
+
+  Y partido en sus dos mitades, que es lo que decide qué arreglo sirve:
+
+      emparejar   primer_msg   hueco
+       1523 ms      1549        26
+        638          688        50
+       1400         1733       333      <- el peor hueco medido
+         11           33        22
+       1598         1664        66
+
+  🔴 **Casi todo el retardo es descubrimiento.** Una vez emparejado, el mensaje
+     llega en 22-333 ms.
+
+  ✅ CONTROL, y es el que hace viable el arreglo: con el barrido **APAGADO**, la
+     suscripción **empareja en 10 ms** y no llega ningún mensaje en 8 s. O sea
+     que el emparejamiento ocurre igual en los dos casos y **sirve de señal de
+     que el descubrimiento terminó**; el mensaje queda como discriminador.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · EL ARREGLO, CON LAS CONSTANTES DERIVADAS
+───────────────────────────────────────────────────────────────────────────────
+  Separar las dos esperas, porque son dos fenómenos distintos y solo uno es
+  lento:
+
+      ESPERA_EMPAREJAR_S   = 5.0    3x el peor emparejamiento medido (1598 ms)
+      ESPERA_PRIMER_SCAN_S = 1.0    3x el peor hueco medido (333 ms)
+
+  🔴 **Y el segundo NO se puede subir a lo bruto.** Cuando el barrido está
+     apagado —el caso NORMAL— ese plazo se paga **entero** en cada arranque de
+     cada programa de cada alumno. Subirlo a 5 s por prudencia costaría cuatro
+     segundos de espera en todas las prácticas del curso.
+
+  📝 La familia: **un plazo puesto contra un fenómeno cuya latencia no se había
+     medido**, igual que el `default_server_timeout: 20` de Nav2 —20 ms contra
+     un ruido de planificación de 326— y el `MAX_SIN_CAMBIO = 5` de `girar()`,
+     que contaba vueltas suponiendo el ritmo del bucle.
+
+───────────────────────────────────────────────────────────────────────────────
+4 · DESPUÉS DEL ARREGLO
+───────────────────────────────────────────────────────────────────────────────
+      barrido de OTRO:   corrida 1  aviso=1  despues=ENCENDIDO
+                         corrida 2  aviso=1  despues=ENCENDIDO
+                         corrida 3  aviso=1  despues=ENCENDIDO
+
+      CONTROL, barrido apagado de partida:
+                         aviso=0    despues=APAGADO     <- sigue apagando lo suyo
+
+  ⚠️ **n=3, y se dice por qué.** Antes fallaba ~3 de 5; la probabilidad de sacar
+     3 limpias seguidas si nada hubiera cambiado es ~6 %. Es indicio fuerte, no
+     prueba. Se paró en 3 porque la batería estaba en **7,26 V**, a 0,26 del
+     umbral de «baja» del firmware, y cada corrida gasta con el X2 a 11,8 Hz.
+     👤 Repetir con la batería cargada para tener n=5.
+
+  ⚠️ **Sin prueba unitaria.** La lógica nueva es espera de E/S y necesita ROS.
+     La escribió el PC, que **no puede correr las 65 pruebas de `atriz.py`**
+     (aquí no hay rclpy). 👤 Revisar desde la Pi.
+
+───────────────────────────────────────────────────────────────────────────────
+5 · DOS COSAS DE MÉTODO QUE SALVARON O COSTARON LA MEDIDA
+───────────────────────────────────────────────────────────────────────────────
+  ✅ **Comprobar la PRECONDICIÓN en cada corrida.** Una tanda entera de cinco
+     salió con `antes=APAGADO` porque `/start_scan` no había hecho efecto: sin
+     esa comprobación se habrían leído cinco «despues=APAGADO» como cinco
+     fallos, cuando no se estaba midiendo nada.
+
+  🔴 **Y en medio, el robot se cayó de la red.** `ping` y `Test-NetConnection`
+     dieron los dos puertos cerrados y sin respuesta a ping; un minuto después
+     el socket abría en **73 ms** y `/odom` volvía a 16,5 Hz. `Resolve-DnsName`
+     falló mientras `Test-NetConnection` por nombre resolvía a la IP correcta.
+     📌 **El testigo que vale es abrir el socket**, como ya está escrito para el
+     caso del mDNS: `ping`, `Resolve-DnsName` y un test de puerto pueden dar los
+     tres el veredicto contrario al del cliente real.
+
+CRUDOS
+  Las tandas de este fichero son las líneas `corrida N: antes=… aviso=… despues=…`
+  de arriba, tal como las imprimió el guion. Las latencias salen de un programa
+  de medida ejecutado POR EL TERMINAL WEB, que es de por sí una comprobación de
+  que el terminal sirve para instrumentar el robot.
