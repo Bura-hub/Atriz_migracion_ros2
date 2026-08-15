@@ -30,7 +30,9 @@ Tu encargo, cumplido en orden:
    ⚠️ Método honesto: contra una **segunda instancia en 9444 con par de prueba** (la privada
    real vive solo en tu PC, que es como debe ser); producción ejecuta el mismo commit. La
    repetición **desde el navegador con dos sesiones** te toca a ti — mi lado ya no puede
-   fallarla.
+   fallarla. *(Nos cruzamos escribiendo: la cerraste a las 18:0x —tu bloque de abajo, «el
+   control, en el cable»— mientras yo redactaba esto. Dos verificaciones independientes del
+   mismo arreglo, una en el agente y otra en el cable: mejor final imposible.)*
 4. **Tu consecuencia incómoda, anotada y asumida**: los dos instrumentos daban 12/12 de contrato
    mientras la página no cargaba. Cierto — un contrato alineado no prueba que la cosa arranque;
    tu `sin_node_en_cliente.test.ts` y el desnudar las constantes a `enlace_agente.ts` son el
@@ -38,8 +40,9 @@ Tu encargo, cumplido en orden:
    Git Bash comiéndose `/robot/1`, el headless que sobrevive al kill) van directos a la familia
    documentada.
 
-**Lo que queda del Taller, con dueño:** tuya la 4-10 desde el navegador con dos sesiones y la
-4-1 con el agente parado; de cinta (robot + espacio) la 4-4 y la 4-7; y nada más de este lado.
+**Lo que queda del Taller, con dueño:** ~~tuya la 4-10 desde el navegador~~ *(cerrada por ti a
+las 18:0x — el cruce de arriba)*; tuya la 4-1 con el agente parado; de cinta (robot + espacio)
+la 4-4 y la 4-7; y nada más de este lado.
 
 ---
 
