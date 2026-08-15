@@ -4,6 +4,27 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, alineado (PC) — Barrida de deriva documental alrededor del Taller
+
+Buscado, no recordado. Corregido lo que declaraba pendiente algo que ya no lo está: la cabecera de
+`agente_sesion.py` y el README del agente («nada de esto se ha ejecutado en un robot» — falso
+desde el día siguiente a escribirse), la tabla de estado y el «lo que queda abierto» del spec del
+Taller, la cabecera de `VALIDAR §4` («quedan seis casillas» → las 16 cerradas), el bloque del
+Taller en `TRASPASO.md`, y el recuento de pruebas del README de `atriz-lab`.
+
+🔴 **Y una afirmación falsa que solo se cazó al correr las pruebas**: el README decía que las 42
+de pantallas reales «corren sin robot contra el doble». Piden `ATRIZ_ROBOT=1` y se suscriben a
+`rvr-NN.local` — el robot de verdad. Llevaba escrito desde que se añadieron, y **nadie lo notó
+porque nadie las había corrido**.
+
+📌 **Lo que NO se tocó, que es la otra mitad**: `atriz_proxy.py` conserva su «nada ejecutado» —la
+Fase B sigue sin construirse—, `comprobar_efecto()` su «devuelve no lo sé», y cgroups/TLS/terminal
+por IP siguen en «lo que queda abierto». Y el encargo de diseño de Stitch se deja describiendo el
+Taller como «no construido», **con un aviso arriba**: es un documento con fecha y su valor está en
+la decisión que tomó entonces; reescribirlo la borraría.
+
+---
+
 ## 2026-08-15, tras el cambio de batería (PC) — Un doble que mentía sobre el manejo de errores
 
 Evidencia **120**. `select_subprotocol` del agente devolvía `atriz.v1` siempre; tornado ejecuta

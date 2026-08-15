@@ -56,6 +56,22 @@
 > prueba** — al PC le quedan la clave real y el navegador de verdad (lista completa en
 > `ESTADO_ACTUAL.md`, «PARA TU PRÓXIMA SESIÓN»).
 >
+> ✅ **Y ESA MISMA TARDE EL PC LAS CERRÓ: LAS 16 CASILLAS DEL TALLER, EN VERDE** (evidencias
+> 118-120). Clave real publicada y cruce Next→Python verificado por efecto (`4403` antes,
+> `atriz_bienvenida` después); el requisito del PTY medido **desde la pantalla** (una línea cada
+> **~510 ms**); `01_avanzar.py` a **60,0 cm de cinta contra 60,3 de odometría**; el `SIGINT` por
+> PTY medido **por primera vez** (1,9 cm de mediana, n=5); y los cuatro `input()` de la práctica 4
+> contestados desde el navegador.
+> 🔴 **Y con un navegador de verdad aparecieron CINCO fallos más**: el `base64url` que tumbaba la
+> página entera, la insignia que decía «listo» sin enlace, el `soy_el_dueno` que el agente
+> difundía a todos por igual, `atriz.py` **apagando el barrido ajeno 3 de cada 5 veces** —dejaría
+> ciega una navegación, en silencio— y un `HTTP 500` donde debía ir un cierre con motivo. Los
+> cinco arreglados y verificados con control; el del barrido, **8 de 8 después** contra 2 de 5.
+> 📝 Y la lección que dejó, porque vale para todo el proyecto: **dos arneses independientes pueden
+> tener el MISMO punto ciego si los dos se escribieron desde el caso de uso feliz.**
+>
+> **Del Taller no queda nada pendiente entre el PC y la Pi.**
+>
 > 🟡 **Y la FASE 6 quedó LISTA Y EN ESPERA DE AUTORIZACIÓN (👤 decisión del 2026-08-14):** el
 > pre-vuelo entero está hecho, `fase_6` endurecido antes de su estreno, y el procedimiento con
 > sus cuatro consecuencias escrito en **`03_operacion/FLOTA.md`** («la imagen dorada está

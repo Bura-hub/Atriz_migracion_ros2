@@ -105,13 +105,13 @@ consecuencias, y las tres importan:
 | `atriz-lab/frontend/src/lib/sesion/testigo_robot.ts` | Firma Ed25519 con `node:crypto` | ✅ 14 pruebas |
 | `atriz-lab/frontend/src/app/api/sesion/testigo/route.ts` | `GET ?robot=NN`, exige sesión | ✅ contra el servidor vivo |
 | `atriz-lab/frontend/src/lib/taller/{protocolo,sesion_taller,salida}.ts` | Puro: protocolo, máquina de estados, búfer | ✅ 48 pruebas |
-| `atriz-lab/frontend/src/componentes/robot/useAgente.ts` | El segundo socket | ⏳ solo por el doble |
-| `atriz-lab/frontend/src/componentes/robot/PanelTerminal.tsx` | La pantalla | ✅ 42 guardas de navegador |
+| `atriz-lab/frontend/src/componentes/robot/useAgente.ts` | El segundo socket | ✅ contra el agente REAL de rvr-01 (2026-08-15) |
+| `atriz-lab/frontend/src/componentes/robot/PanelTerminal.tsx` | La pantalla | ✅ 42 guardas **contra el robot real**, y las 16 casillas de VALIDAR §4 |
 | `atriz-lab/herramientas/agente_de_mentira.mjs` | El doble | ✅ verifica Ed25519 de verdad |
-| `Atriz_rvr/scripts/agente/agente_nucleo.py` | Lo que **decide** | ✅ **31 pruebas** |
-| `Atriz_rvr/scripts/agente/agente_pty.py` | `pty.fork`, señales al grupo | ⏳ 13 pruebas **que se saltan en Windows** |
-| `Atriz_rvr/scripts/agente/agente_sesion.py` | tornado, el pegamento | 🔴 **nada ejecutado** |
-| `Atriz_rvr/scripts/agente/atriz-agente.{service,sh}` | La unidad y su envoltorio | 🔴 **nada ejecutado** |
+| `Atriz_rvr/scripts/agente/agente_nucleo.py` | Lo que **decide** | ✅ **36 pruebas** (31 + 5 de los fallos de la 117 y la 4-10) |
+| `Atriz_rvr/scripts/agente/agente_pty.py` | `pty.fork`, señales al grupo | ✅ **13/13 en la Pi**. ⚠️ Se saltan en Windows, y eso **no es que pasen** |
+| `Atriz_rvr/scripts/agente/agente_sesion.py` | tornado, el pegamento | ✅ **en producción desde el 2026-08-15**, auditado (ev. 117) con 5 fallos cazados, más 2 más el mismo día (`soy_el_dueno` difundido, y el 500 sin subprotocolo) |
+| `Atriz_rvr/scripts/agente/atriz-agente.{service,sh}` | La unidad y su envoltorio | ✅ instalada y **habilitada por `fase_7`**; sobrevivió a un arranque en frío (cambio de batería) |
 
 ---
 
@@ -250,7 +250,7 @@ alumno puede leer lo que `sphero` lea, y ahí está el PAT de GitHub.
 
 | | |
 |---|---|
-| ⏳ **El PTY, sin medir** | 13 pruebas listas; hace falta un Linux |
+| ✅ ~~El PTY, sin medir~~ | **Medido el 2026-08-15 desde el navegador**: `05_sensor_color.py` imprimió una línea cada **~510 ms** durante 20 s, no un bloque al final. Y las 13 pruebas, 13/13 en la Pi |
 | ⏳ **`comprobar_efecto()` devuelve «no lo sé»** | Implementarlo exige hablar con rosbridge y medirlo en el robot |
 | ⏳ **cgroups** | Decidido para después: hoy hay tope de pared y de salida |
 | ⏳ **TLS** | El testigo viaja en claro. Dura 10 min y se pide antes de cada conexión |

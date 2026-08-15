@@ -18,6 +18,24 @@
 
 ---
 
+> ## 🔴 AVISO DE 2026-08-15 — EL TERMINAL YA NO ESTÁ «NO CONSTRUIDO»
+>
+> Este documento describe el estado **«no construido»** del Taller como si fuera
+> permanente: la lengüeta con su marca en versalitas, el editor y la salida
+> vacíos, la cadena de bloqueo en tres pasos. **Era cierto cuando se escribió y
+> dejó de serlo el 2026-08-14/15**: el terminal escribe y ejecuta contra el robot,
+> y las **16 casillas** de `atriz-lab/VALIDAR_CON_EL_ROBOT.md` §4 están cerradas
+> contra rvr-01 con un navegador de verdad.
+>
+> **No se reescribe el documento**, y conviene decir por qué: es un **encargo de
+> diseño** con fecha, y su valor está en lo que pedía entonces —incluida la
+> decisión de dibujar el chasis vacío y marcarlo, en vez de esconder la pestaña o
+> fingir un editor—. Reescribirlo borraría esa decisión, que es la que hay que
+> conservar. Lo que no puede quedarse es que **alguien lo lea hoy y crea que el
+> Taller no existe**, así que va este aviso arriba.
+>
+> Estado real: `03_operacion/ESTADO_ACTUAL.md`, y las evidencias **117-120**.
+
 ## §0 · Qué cambió, en cinco líneas
 
 1. **El mundo visual es ÓRBITA + BLOQUES**, y es lo único nuevo del registro: pozo oscuro

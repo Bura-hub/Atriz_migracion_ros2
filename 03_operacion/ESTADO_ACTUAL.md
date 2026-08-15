@@ -15,6 +15,38 @@ para saber por dónde vas.
 
 ---
 
+## 🧹 PC (2026-08-15, alineado) · **BARRIDA DE DERIVA: todo lo que declaraba el Taller pendiente, corregido**
+
+Búsqueda, no memoria. Lo que se ha alineado en los tres repositorios:
+
+| dónde | decía | dice |
+|---|---|---|
+| `Atriz_rvr/scripts/agente/agente_sesion.py` (cabecera) | «🔴🔴 **NADA DE ESTE FICHERO ESTÁ EJECUTADO NI MEDIDO**» | ✅ en producción desde el 2026-08-15, con lo que sigue sin medir listado aparte |
+| `Atriz_rvr/scripts/agente/README.md` | «🔴🔴 NADA DE ESTE DIRECTORIO SE HA EJECUTADO EN UN ROBOT» | ✅ 16 casillas · 36 del núcleo · **13/13 del PTY en la Pi** |
+| el spec del Taller, tabla de estado | `agente_sesion.py` 🔴 «nada ejecutado», `agente_pty.py` ⏳, `useAgente.ts` «solo por el doble» | ✅ los tres, con lo que los cerró |
+| el spec, «lo que queda abierto» | ⏳ «El PTY, sin medir» | ✅ medido desde la pantalla: una línea cada ~510 ms |
+| `VALIDAR §4` (cabecera) | «quedan seis casillas» | ✅ «LAS 16 CASILLAS, CERRADAS» |
+| `TRASPASO.md` | «al PC le quedan la clave real y el navegador» | ✅ cerradas, con los cinco fallos que aparecieron al hacerlo |
+| `README` de atriz-lab | 740 pruebas | 749, medido |
+
+🔴 **Y una afirmación FALSA que solo se cazó al correr las pruebas:** el README decía que las
+**42 de pantallas reales** «corren **sin robot** contra el doble». No: piden `ATRIZ_ROBOT=1` y se
+suscriben a `rvr-NN.local`, o sea **el robot de verdad**. Solo las 8 de tarjetas vivas levantan un
+doble. Llevaba escrito desde que se añadieron, y nadie lo notó porque **nadie las había corrido**.
+
+📌 **Lo que NO se ha tocado, y por qué**, que es la otra mitad de una barrida honesta:
+- `scripts/atriz_proxy.py` conserva su «nada ejecutado ni medido»: la **Fase B sigue sin
+  construirse**, así que ahí es verdad.
+- `comprobar_efecto()` conserva su «⏳ devuelve no lo sé»: sigue sin implementarse, a propósito.
+- **cgroups**, **TLS** y **el terminal por IP** siguen en «lo que queda abierto» del spec.
+- El **encargo de diseño de Stitch** describe el Taller como «no construido» **y se deja tal
+  cual**, con un aviso arriba: es un documento con fecha, y su valor está en la decisión que
+  tomó entonces —dibujar el chasis vacío y marcarlo en vez de esconder la pestaña—. Reescribirlo
+  borraría esa decisión. Lo que no podía quedarse es que alguien lo lea hoy y crea que el Taller
+  no existe.
+
+---
+
 ## 🔴 PC (2026-08-15, tras el cambio de batería) · **UN CLIENTE SIN SUBPROTOCOLO SE LLEVABA UN HTTP 500, Y MI DOBLE NO FALLABA AHÍ**
 
 Evidencia **120**. 👤 Ya lo hiciste: `git pull` + `restart`, y queda verificado.
