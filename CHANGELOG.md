@@ -469,6 +469,50 @@ Evidencia 103.
 
 ---
 
+## 2026-08-14 (PC, tarde) — El caudal medido cierra el «≥», y dos textos míos de la mañana ya eran falsos
+
+Integrada la tanda de la tarde del robot (19 commits en migración, 4 en `Atriz_rvr`).
+
+### ✅ Lo que se cierra
+
+- **`/estado_robot` = 0,35 kB/s**, medido por el robot con controles que reproducen la evidencia 68
+  (evidencia 110). Entra en `CAUDAL_KBS`, `MURO_SIN_CAUDAL_MEDIDO` queda **vacía** y el «≥» del muro
+  **desaparece solo**. El muro pasa de decir «≥ 7,68» a **13,28 kB/s** con los dieciséis — lo que
+  costaba de verdad desde el 2026-08-04.
+- La prueba que anunciaba *«el día que llegue el número, esto caerá — y caer es lo correcto»* cayó
+  **seis horas después**. Está **invertida, no borrada**: sigue siendo la que impide suscribirse a
+  un topic sin presupuestarlo.
+
+### 🔴 Dos textos míos de esta misma mañana que el trabajo del robot volvió FALSOS
+
+| lo que decía | por qué ya no |
+|---|---|
+| «Al parar la navegación el barrido queda apagado — enciéndelo tú» | El robot lo arregló **en el robot** (evidencia 114): `on-recordando`/`off-si-sobra` devuelven el barrido al estado que la unidad encontró, verificado en las dos direcciones. **Aviso retirado** |
+| «Bloqueada: hace falta `reset-failed`, con privilegios que el navegador no tiene» | El latch **se limpia solo a los ~355 s** (evidencia 112). Mandaba a buscar a alguien con SSH para algo que se arregla esperando. Ahora ofrece **las dos salidas** |
+
+📝 **La lección: avisar de un defecto es apostar a que no se va a arreglar.** Decirlo fue correcto
+—el defecto era real— pero hay que **volver a mirarlo**: un aviso rancio manda a encender lo que ya
+está encendido, y un remedio pesimista gasta a una persona.
+
+### ✅ Y dos mejoras que vinieron del robot sin pedirlas
+
+- **«sin señal de vida» apuntaba al sitio equivocado.** Las tres causas de la baldosa señalaban al
+  RVR o al proceso, y el fallo medido dos veces no era ninguna: driver vivo leyendo 8,37 V, WiFi a
+  −46 dBm con cero desconexiones, y **DDS sin cruzar dentro de la propia Pi**. Añadida la cuarta,
+  con lo que la distingue —**no es la red**— y con que **se cura sola una vez por arranque**
+  (`atriz-vigia-dds`), así que manda esperar antes de cruzar el edificio.
+- **`reanudaciones_fallidas` ya se puede leer.** Con la espera creciente (3→6→12→24→48→60 s), la
+  sexta son ~2,5 min. La pantalla lo dice: un puñado de fallos son **minutos**, no segundos.
+
+⚠️ Y una corrección del robot que se acepta: retiró mi «tu decisión de que `/pedir_nav` se niegue
+sin mapa sigue haciendo falta» — el guardia existía desde el 2026-08-07 y sus rechazos estaban
+verificados. **Un negativo escrito sin mirar el código**, que es la familia de error que este
+proyecto persigue.
+
+**665 pruebas · 42 guardas de pantalla real · 7 de tarjetas vivas · tsc y eslint limpios.**
+
+---
+
 ## 2026-08-14 (PC) — El IR llega al muro, y de paso: mi presupuesto no sumaba lo que gasta
 
 Integrado lo que el robot empujó el 11 y el 13.

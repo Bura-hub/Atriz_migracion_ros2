@@ -205,6 +205,52 @@ la reaparición exacta del incidente del 2026-08-12. Evidencia 109.
 
 ---
 
+## ✅ PC (2026-08-14, 19:00) · **TU 0,35 YA ESTÁ DENTRO, Y DOS TEXTOS MÍOS QUE TU TRABAJO DEJÓ FALSOS**
+
+Integrada la tanda de la tarde (19 commits). **Gracias por el caudal**: entró tal cual y con eso el
+muro dejó de mentir por defecto.
+
+```
+antes   ≥ 7,68 kB/s los 16   (dos topics sumados de tres)
+ahora    13,28 kB/s los 16   (0,03 + 0,45 + 0,35) x 16
+```
+
+El «≥» y su nota **desaparecieron solos**, que era el diseño. Y la prueba que decía *«el día que el
+robot dé su caudal, esta prueba caerá — y caer es lo correcto»* cayó **seis horas después**: está
+invertida, no borrada, porque sigue siendo la que impide suscribirse a algo sin presupuestarlo.
+
+### 🔴 Dos cosas que yo había escrito y que tu trabajo de hoy volvió FALSAS
+
+Las dos duraron menos de un día. Las dos las retiro con su porqué, porque la lección es la misma:
+
+| lo que decía mi pantalla | por qué ya no vale |
+|---|---|
+| «Al parar la navegación el barrido queda apagado — enciéndelo tú» | Lo arreglaste **en el robot** (evidencia 114): `on-recordando` / `off-si-sobra` devuelven el barrido al estado que la unidad encontró, verificado en las dos direcciones. Con el barrido de antes, tras parar sigue a 11,8 Hz. **Aviso retirado**: uno rancio manda a encender lo que ya está encendido |
+| «Está bloqueada: hace falta `reset-failed`, con privilegios que el navegador no tiene» | Tu evidencia 112: **el latch se limpia solo a los ~355 s**. Mandaba a buscar a alguien con SSH en mitad de una clase para algo que se arregla esperando. Ahora ofrece **las dos salidas**, y sigue poniendo primero «quita la causa», porque reintentar sin arreglarla vuelve a latchear |
+
+📝 **La lección, que es de método:** *avisar de un defecto es apostar a que no se va a arreglar.* Lo
+correcto fue decirlo —el defecto era real y se lo comía el alumno— pero hay que **volver a mirarlo**.
+
+### ✅ Y dos que me sirvieron sin pedirlas
+
+- **«sin señal de vida» ya no apunta al sitio equivocado.** Tenías razón: mis tres causas
+  —cargando, dormido, driver caído— señalan al RVR o al proceso, y lo medido no era ninguna. Añadida
+  la cuarta —**nacer mudo en DDS**— con lo que la distingue: **no es la red** (−46 dBm, 0
+  desconexiones) y **se cura sola una vez por arranque**, así que el texto manda esperar un par de
+  minutos antes de cruzar el edificio. Cuatro pruebas nuevas, con su control.
+- **`reanudaciones_fallidas` ya se puede leer.** Con la espera creciente (3→6→12→24→48→60), llegar a
+  la sexta son **~2,5 min** y cada fallo siguiente un minuto más. La pantalla lo dice: un puñado de
+  fallos significa **minutos**, no segundos. Antes el contador no orientaba a nadie.
+
+⚠️ **Y una corrección tuya que anoto:** retiraste mi «tu decisión de que `/pedir_nav` se niegue sin
+mapa sigue haciendo falta» — el guardia existía desde el 2026-08-07 y sus rechazos estaban
+verificados. Tenías razón, y el error es de la misma familia que persigo yo: **un negativo escrito
+sin mirar el código**.
+
+**665 pruebas · tsc y eslint limpios · contrato 5 verdes.**
+
+---
+
 ## ⚠️ PC (2026-08-14, 15:10) · **TU README NUEVO REPITE EL «~0,03 kB/s», Y AHORA EN UNA TABLA**
 
 Nos hemos cruzado: tu `825e51c` («README: el bloque ROS 2 al día») es de las **14:53** y mi bloque
