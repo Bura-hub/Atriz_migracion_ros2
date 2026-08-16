@@ -157,6 +157,16 @@ medida de frecuencia en este proyecto.
 
 ## Las dos herramientas de red, y por qué no usan librerías
 
+🔴 **DESDE EL 2026-08-15, rosbridge EXIGE TESTIGO — y por eso estas herramientas siguen vivas.**
+La Fase B (A7) hace que rvr-01 rechace con `4401` a quien llegue **desde la red** sin credencial.
+Las de aquí corren **en el robot**, y el parche **exime a `127.0.0.1` a propósito**: quien ya está
+dentro alcanza `raw_motors` con `rclpy`, así que exigirle testigo no cerraría nada y en cambio
+dejaría muertas estas herramientas.
+
+⚠️ **Lo que SÍ dejó de funcionar** son `03_operacion/probar_conexion_web.html` y `medir_aula.html`:
+se abren en el navegador del PC, sin sesión, así que no tienen testigo que mandar. Llevan el aviso
+escrito dentro. Evidencia 124.
+
 `probar_rosbridge.py` habla **WebSocket escrito a mano** (handshake HTTP + tramas RFC 6455) y
 `probar_mdns.py` habla **DNS crudo sobre UDP multicast**. Las dos podrían ser cuatro líneas con
 `websockets` y `zeroconf`.

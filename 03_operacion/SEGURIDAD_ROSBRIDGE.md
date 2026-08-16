@@ -176,17 +176,26 @@ robots**, y que eso educa a dar a «aceptar siempre».
 
 ## Qué cubre cada fase, sin adornos
 
-| Requisito | Fase A | Fase B |
-|---|---|---|
-| 3 · cerrar `raw_motors` y compañía | ✅ | ✅ |
-| 2 · que nadie sin permiso mueva un robot | ❌ | ✅ |
-| 1 · que un alumno no mueva el robot de otro | ❌ | ✅ |
-| 4 · que no se pueda espiar la telemetría | ❌ | ✅ (TLS) |
+| Requisito | Fase A | Fase B | estado real |
+|---|---|---|---|
+| 3 · cerrar `raw_motors` y compañía | ✅ | ✅ | ✅ desde 2026-08-02 |
+| 2 · que nadie sin permiso mueva un robot | ❌ | ✅ | ✅ **en rvr-01 desde el 2026-08-15** |
+| 1 · que un alumno no mueva el robot de otro | ❌ | ✅ | ✅ **en rvr-01**: el testigo lleva el número y el robot lo compara (cierre `4404`) |
+| 4 · que no se pueda espiar la telemetría | ❌ | ✅ (TLS) | ⏳ **abierto**: `certfile`/`keyfile` están soportados, falta decidir certificados |
 
-⚠️ **La fase A sola NO levanta el pendiente que bloquea la Fase 5.** Cierra el agujero más grave y
-reduce la superficie sobre la que nacerá el cliente, pero **cualquiera en el aula seguirá pudiendo
-teleoperar cualquier robot** hasta que esté la B. Conviene que eso esté dicho, y no que la lista
-blanca dé una sensación de resuelto.
+~~⚠️ **La fase A sola NO levanta el pendiente que bloquea la Fase 5.**~~ Cerraba el agujero más
+grave y reducía la superficie, pero **cualquiera en el aula seguía pudiendo teleoperar cualquier
+robot**.
+
+✅ **RESUELTO EN rvr-01 EL 2026-08-15** (evidencia 124): rosbridge exige un testigo firmado, y el
+robot **sabe quién entra**. Medido en las dos direcciones y desde los dos lados.
+
+⏳ **Lo que sigue abierto**, y conviene no darlo por cerrado:
+- **los otros 15 robots**: llega con la imagen dorada, no está desplegado;
+- **el requisito 4 (TLS)**: el testigo y toda la telemetría **viajan en claro**;
+- 🔴 **quien corre DENTRO de la Pi sigue teniendo más autoridad que la web** —el Taller ejecuta
+  código del alumno como `sphero`, que alcanza `raw_motors` con `rclpy`—. La exención de
+  `127.0.0.1` no lo empeora, pero tampoco lo arregla, y no lo arregla nada de la Fase B.
 
 ---
 

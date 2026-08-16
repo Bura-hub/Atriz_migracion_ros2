@@ -26,6 +26,37 @@ lista blanca de rosbridge (lo dejó abierto el PC en su 121).
 
 ---
 
+## 2026-08-15, A7 cerrado de punta a punta — y barrido de todo lo que quedó rancio
+
+✅ **`NEXT_PUBLIC_ATRIZ_TESTIGO=1`, Next relanzado, y un navegador conducido hasta
+`/robot/1/telemetria`: `7,95 V` en pantalla.** Telemetría viva de rvr-01 por la interfaz real, con
+la web pidiendo el testigo a su propia ruta y el robot verificando la firma. Hasta aquí A7 solo
+estaba medido **por piezas**.
+
+**Barrido de documentación, porque lo de hoy dejó bastante en falso:**
+
+- 🔴 **Había texto FALSO visible para el alumno.** `PanelEntrar.tsx` decía «rosbridge 2.7.0 no
+  tiene autenticación, así que cualquiera en la misma red puede hablar con cualquier robot».
+  Reescrito: ahora dice qué protege la sesión **y qué no** (va sin cifrar; quien ejecuta dentro del
+  robot tiene más permisos).
+- 🔴 **El plan del proxy (`2026-08-10-fase-b-proxy.md`) y `scripts/atriz_proxy.py` quedaron
+  superados.** Los dos llevan cabecera: el código está marcado como **muerto, no instalar**.
+  Instalarlo añadiría el relevo de 80,7 kB/s que la Decisión 2 evita.
+- 🔴 **`Atriz_rvr` tiene TRES ramas, no dos.** `CLAUDE.md` y `ESTADO_ACTUAL.md` decían dos.
+  Existe `feat/estado-robot` (2026-08-04), **fusionada del todo** —0 commits propios, 54 por
+  detrás— y **su historial contiene los commits con las credenciales filtradas**. 👤 Borrarla es
+  higiene barata y es del usuario.
+- Actualizados: la tabla de cobertura de `SEGURIDAD_ROSBRIDGE.md` (requisitos 1 y 2 ✅, el 4 sigue
+  abierto), `contrato.ts` (la identidad ya existe y aun así **no se reabre** `raw_motors`: son
+  cosas distintas), `identidad.ts`, el README de `atriz-lab`, `TRASPASO.md`, y el README de las
+  mediciones de banco.
+- ⚠️ **`probar_conexion_web.html` y `medir_aula.html` llevan aviso dentro**: dejaron de conectar
+  con un robot parcheado. Las que corren EN el robot siguen, por la exención de `127.0.0.1`.
+
+⏳ **Lo que queda de A7:** TLS (el testigo y la telemetría van en claro) y los otros 15 robots.
+
+---
+
 ## 2026-08-15, A7 (PC + rvr-01) — rosbridge ya EXIGE testigo en rvr-01, y ahora se sabe quién entra
 
 👤 Con autorización del usuario, `robot.launch.py` pasa a lanzar `atriz_rosbridge.py`. Comprobado

@@ -41,8 +41,15 @@
 >   de la premisa de A13 llevaba escrita desde el 2026-08-06 sin cruzarse con ella, y el drop-in
 >   del journal nació en un heredoc que el propio guion prohíbe catorce líneas más arriba.
 >
-> **Lo que queda:** A5 (¿es correcta la pose fijada? — necesita mapa fresco), **A7 · Fase B**
-> (cerrar rosbridge de verdad, el único que bloquea la Fase 5) y A8 (el aula).
+> ✅ **Y A7 · Fase B se cerró EL MISMO DÍA, más tarde** (evidencia 124): **rvr-01 ya exige un
+> testigo firmado para abrir rosbridge**, y la web se lo manda. Verificado de punta a punta con un
+> navegador — telemetría viva en pantalla. Era lo que bloqueaba la Fase 5. 🔴 No hizo falta el
+> proxy que el diseño pedía: `RosbridgeWebSocket` se importa por nombre, así que se parchea y se
+> ejecuta el nodo original — **cero relevo** en la ruta de 80,7 kB/s por robot.
+>
+> **Lo que queda:** A5 (¿es correcta la pose fijada? — necesita mapa fresco), A8 (el aula), y de
+> A7: **TLS** (el testigo y la telemetría viajan en claro) y **los otros 15 robots**, que llegan
+> con la imagen dorada.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-14 · EL DÍA EN QUE EL ROBOT APRENDIÓ A CURARSE SOLO (evidencias 109-115)**

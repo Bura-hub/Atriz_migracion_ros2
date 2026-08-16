@@ -90,8 +90,11 @@ fichero y otras dos credenciales:** la PSK del WiFi del laboratorio y la contras
 documentos (tarea 12, commit `d543cdd`), pero **siguen en el historial** de `main` y `ros2` —
 medido el 2026-08-02 sobre las cuatro ramas remotas que entonces existían, 11 coincidencias en
 cada una, ningún tag afectado, 2 commits tocan el valor. El 2026-08-03 se **borraron**
-`migracion-ros2` y `wip/scripts-estudiantes`, así que hoy quedan **dos** ramas y solo la punta
-de `main` sigue sirviéndolas; **eso no cierra nada**: el historial de `main` y `ros2` las
+`migracion-ros2` y `wip/scripts-estudiantes`. 🔴 **CORREGIDO el 2026-08-15: quedan TRES, no dos.**
+Existe además **`feat/estado-robot`** (del 2026-08-04), **totalmente fusionada** —0 commits propios,
+54 por detrás— y **su historial contiene esos mismos commits**, así que también las sirve. 👤
+Borrarla es del usuario, y es higiene barata: no aporta nada. Solo la punta de `main` las expone en
+el contenido; **eso no cierra nada**: el historial de `main` y `ros2` las
 conserva igual. Reescribir el
 contenido no cierra la exposición: **rotar la PSK y la contraseña es lo único que lo hace**, y
 es acción del usuario. Purgar el historial después es higiene y es incompleta — no llega a los

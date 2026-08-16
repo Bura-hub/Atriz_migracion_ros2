@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
-"""Proxy autenticador de la Fase B. Va DELANTE de rosbridge, en cada robot.
+"""
+🔴🔴 CÓDIGO MUERTO DESDE EL 2026-08-15 — NO LO INSTALES.
+
+La Fase B se resolvió SIN proxy: `Atriz_rvr/atriz_rvr_bringup/scripts/
+atriz_rosbridge.py` parchea `RosbridgeWebSocket.open` y ejecuta el nodo
+original. Eso ya corre en rvr-01 y está verificado (evidencia 124).
+
+Instalar esto añadiría un relevo de Python en la ruta de 80,7 kB/s por robot,
+sobre una Pi que con el stack completo va al ~89 % de un núcleo — y rompería la
+promesa de la Decisión 2 de ARQUITECTURA.md.
+
+Se conserva porque su análisis del testigo y del reloj sin RTC se reutilizó.
+El plan que lo acompaña: 00_auditoria/planes/2026-08-10-fase-b-proxy.md
+Proxy autenticador de la Fase B. Va DELANTE de rosbridge, en cada robot.
 
 ════════════════════════════════════════════════════════════════════════════
 🔴🔴 NADA DE ESTE FICHERO ESTÁ EJECUTADO NI MEDIDO

@@ -1,3 +1,28 @@
+> # 🔴🔴 SUPERADO EL 2026-08-15 — LA FASE B **NO** LLEVA PROXY
+>
+> Este plan se ejecutó en otra forma y **el proxy no se construyó**. Al leer el fuente de
+> rosbridge en la Pi apareció que `RosbridgeWebSocket` se importa **por nombre**
+> (`rosbridge_websocket.py:54` y `:221`), así que basta con parchear sus métodos y ejecutar el
+> nodo original. Lo que hoy corre en rvr-01 es
+> `Atriz_rvr/atriz_rvr_bringup/scripts/atriz_rosbridge.py`, ~250 líneas.
+>
+> | | proxy (este plan) | lo que se hizo |
+> |---|---|---|
+> | ruta de datos | 🔴 un salto de Python a **80,7 kB/s por robot** | **cero** |
+> | puerto / unidad | uno nuevo de cada | ninguno |
+> | `address: 127.0.0.1` | imprescindible | innecesario |
+> | TLS | había que implementarlo | `certfile`/`keyfile`, ya soportados |
+>
+> 🔴 Y el proxy **contradecía en silencio la Decisión 2 de `ARQUITECTURA.md`**: prometía que los
+> datos siguen yendo robot → navegador directos, y con un relevo eso dejaba de ser cierto dentro
+> de la Pi.
+>
+> **Se conserva entero** porque su análisis sigue valiendo —el testigo en el subprotocolo, la Pi
+> sin reloj, qué se rompe al atar rosbridge a `127.0.0.1`, TLS— y porque enseña que un diseño
+> razonable puede caer entero al **leer el fuente del componente** en vez de razonar sobre él.
+>
+> ⚠️ **`scripts/atriz_proxy.py` es código MUERTO.** No lo instales. Ver la evidencia **124**.
+
 # Fase B · el proxy autenticador — diseño y código
 
 **Fecha:** 2026-08-10 · **Escrito desde:** el PC · 🔴 **NADA DE ESTO ESTÁ EJECUTADO**

@@ -261,6 +261,29 @@ como **644**. `ros2 launch` solo considera ejecutable lo que tiene el bit.
 
 
 ───────────────────────────────────────────────────────────────────────────────
+10 · DE PUNTA A PUNTA, CON UN NAVEGADOR DE VERDAD
+───────────────────────────────────────────────────────────────────────────────
+Puesto `NEXT_PUBLIC_ATRIZ_TESTIGO=1` y relanzado Next, se condujo un navegador
+(Edge por CDP, cookie de sesión firmada con el `ATRIZ_SECRETO` del propio
+servidor) hasta `/robot/1/telemetria`:
+
+    7,95 V   en pantalla, junto a los umbrales 7,00 y 6,50
+
+Eso es telemetría VIVA de rvr-01 pintada por la interfaz real. La cadena entera
+—la web pide el testigo a su propia ruta, lo manda en el subprotocolo, el robot
+verifica la firma Ed25519 y compara el número— funciona sin que nadie toque nada
+a mano.
+
+✅ **A7 verificado de extremo a extremo.** Hasta aquí solo estaba medido por
+   piezas: el lanzador contra el robot, el transporte contra dobles, y el doble
+   contra su propio apretón.
+
+⚠️ Y quedan dos cosas dichas, no medidas: **cuánto cuesta** el apretón con
+   testigo (no se cronometró) y qué ve el alumno cuando el testigo se rechaza en
+   la interfaz real (se probó el mecanismo, no la pantalla).
+
+
+───────────────────────────────────────────────────────────────────────────────
 7 · LO QUE FALTA
 ───────────────────────────────────────────────────────────────────────────────
 ⏳ F2 · el cliente: `Transporte` abre con `atriz.token.<jwt>`. La ruta que emite

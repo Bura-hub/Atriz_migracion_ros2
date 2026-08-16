@@ -1,4 +1,27 @@
 <!DOCTYPE html>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  🔴🔴 DESDE EL 2026-08-15 ESTA PÁGINA NO CONECTA CON UN ROBOT PARCHEADO
+  ═══════════════════════════════════════════════════════════════════════════
+  La Fase B (A7) hace que rosbridge EXIJA un testigo firmado por el servidor de
+  la web. Esta página se abre con doble clic, sin sesión, así que no tiene
+  testigo que mandar: el robot la cierra con **4401 · no llegó ningún testigo**.
+
+  ⚠️ Y ojo con el síntoma: el `4401` llega DESPUÉS del apretón, así que verás
+     «abrió» y acto seguido un cierre. No es que el robot esté mal.
+
+  Lo que SÍ sigue funcionando:
+    · las herramientas que corren EN EL ROBOT (`probar_rosbridge.py`,
+      `probar_lista_blanca.py`, `probar_color_por_websocket.py`): el parche
+      exime a 127.0.0.1 a propósito;
+    · un robot SIN parchear, que a fecha de hoy son los 15 que no son rvr-01.
+
+  Y lo que hace lo mismo con credencial: la propia aplicación (`atriz-lab`),
+  que es quien firma los testigos. Esta página nació antes que ella.
+
+  👤 DECISIÓN PENDIENTE: darle testigo (habría que pegarlo a mano en la URL) o
+     jubilarla. Ver 03_operacion/SEGURIDAD_ROSBRIDGE.md y la evidencia 124.
+-->
 <meta charset="utf-8">
 <title>Atriz · prueba de conexión web ↔ robot</title>
 <!--

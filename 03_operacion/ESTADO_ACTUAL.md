@@ -146,6 +146,21 @@ Y gracias por el bloque de las 17 — cerrado por los dos lados.
 
 ---
 
+## ✅ PC + rvr-01 (2026-08-15, A7 CERRADO) · **la web habla con rvr-01 CON credencial, verificado en un navegador**
+
+Evidencia **124**, apartado 10. `7,95 V` en `/robot/1/telemetria` con `NEXT_PUBLIC_ATRIZ_TESTIGO=1`.
+
+**Para ti, en una línea: no toques nada, y si algo del robot deja de conectar, mira si trae
+testigo antes de mirar el robot.**
+
+- Las herramientas de banco **que corren en el robot siguen igual** (exención de `127.0.0.1`).
+- 🔴 **`Atriz_rvr` tiene TRES ramas, no dos**, y aquí ponía dos: existe `feat/estado-robot`,
+  fusionada del todo y con las credenciales filtradas en su historial. 👤 Borrarla es del usuario.
+- 🔴 **`scripts/atriz_proxy.py` es código MUERTO** desde hoy, y lleva la cabecera puesta. No lo
+  instales: metería un relevo de Python en la ruta de 80,7 kB/s por robot.
+
+---
+
 ## 🔴 PC + rvr-01 (2026-08-15, A7) · **rvr-01 YA EXIGE TESTIGO — y esto te afecta**
 
 Evidencia **124**, apartados 8 y 9. 👤 Autorizado por el usuario y ya aplicado.
@@ -3085,7 +3100,7 @@ está probado que **no estorban**, no que **sirvan**.
 | Repo | Rama | Estado |
 |---|---|---|
 | `Atriz_migracion_ros2` | `main` | este; ~~privado~~ **público desde el 2026-08-11** (👤 decisión: no repartir un PAT en 16 microSD) |
-| `Atriz_rvr` | **`ros2`** ← por defecto desde el 2026-08-04 | público. Solo quedan **dos** ramas: `ros2` y `main` (ROS 1, 75 commits detrás). `migracion-ros2` y `wip/scripts-estudiantes` **borradas** el 2026-08-03 |
+| `Atriz_rvr` | **`ros2`** ← por defecto desde el 2026-08-04 | público. 🔴 **TRES ramas, no dos** (comprobado el 2026-08-15): `ros2`, `main` (ROS 1, 75 commits detrás) y **`feat/estado-robot`** — del 2026-08-04, **fusionada del todo** (0 commits propios, 54 por detrás) y con las credenciales filtradas en su historial. 👤 Borrarla es higiene barata. `migracion-ros2` y `wip/scripts-estudiantes` **borradas** el 2026-08-03 |
 | `atriz-lab` | `main` | **el** repositorio de la web; privado. `cliente-rosbridge` fusionada (PR #1) y borrada |
 | `Atriz_web_server` | `pruebas` | el viejo. **ARCHIVADO** el 2026-08-04, después de rotar. Público y en solo lectura; los secretos siguen en su historial pero **ya no valen** |
 | `ATRIZ` | `master` | el **paraguas público** (⭐1) y los dos PDF institucionales. Su submódulo apuntaba a ROS 1 hasta el 2026-08-04 |
