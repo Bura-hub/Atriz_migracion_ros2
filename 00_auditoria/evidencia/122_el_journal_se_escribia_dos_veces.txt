@@ -234,6 +234,21 @@ verde con 23 h de retención. El tamaño no es el síntoma.
        uso  53M / tope 256M / 23 h  ->  ✅ journal joven
        uso 250M / tope 256M / 23 h  ->  🔴 FALLO      (correcto)
 
+📌 Y LO ENCONTRARON LAS DOS MÁQUINAS POR SEPARADO, EL MISMO DÍA, CON EL MISMO
+   DISCRIMINANTE. El PC lo dedujo mirando la salida del verificador; la Pi lo
+   vio ejecutándolo. Los dos arreglos llegaron al mismo umbral —el 80 % del
+   tope— y chocaron al empujar. Quedan fundidos: el comentario es de la Pi
+   —suyo es el matiz de que `fase_6` VACÍA el journal, así que los 16 clones
+   NACEN con retención cero— y la conversión de unidades es del PC, porque un
+   `grep -oE '[0-9]+'` sobre un tope de «1G» daría 1 MB.
+
+   ⚠️ Merece decirse porque contrasta con la lección del 2026-08-15 sobre el
+      Taller: allí **dos bancos independientes compartieron el mismo punto
+      ciego** porque los dos se escribieron desde el camino feliz. Aquí las dos
+      convergieron en lo correcto. La diferencia no es la suerte: **este fallo
+      lo destapó EJECUTAR la comprobación en un robot de verdad**, y el otro
+      solo se veía por un camino que ninguno de los dos bancos recorría.
+
 ⚠️ Y ninguna la cubre el `cmp` del manifiesto. Un fichero byte-idéntico al del
    repositorio **solo dice que es el nuestro**: que gane el orden, que rsyslog
    esté parado y que la retención sea real son tres efectos distintos.
