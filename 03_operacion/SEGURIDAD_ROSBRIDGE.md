@@ -91,9 +91,58 @@ lista estilo Python con patrones **`fnmatch`**, no regex.
 (`rosbridge_websocket.py:141-142`).
 
 **Qué cierra:** `raw_motors`, `move_timed`, `move_to_pose`, `move_to_pos_and_yaw`,
-`set_ir_evading`, `set_ir_mode`, `send_infrared_message`, `set_drive_parameters`, `set_pos_and_yaw`
+`set_ir_evading`, `set_ir_mode`, `set_drive_parameters`
 — y, lo más importante, **publicar directamente en `/cmd_vel`**, que hoy salta el
 `collision_monitor` entero.
+
+> ### 🔴 ESTE APARTADO SE CONTRADECÍA A SÍ MISMO — corregido el 2026-08-16
+>
+> Decía «**DOCE**» servicios y listaba **`send_infrared_message`** y
+> **`set_pos_and_yaw`** entre lo que la lista *cierra*. Las tres cosas eran falsas
+> contra el launch de hoy: son **TRECE**, y los dos servicios están **DENTRO** —
+> `set_pos_and_yaw` aparecía además como permitido tres líneas más arriba, en su
+> propia fila de la tabla, o sea que el documento se desmentía en la misma página.
+>
+> Lo destapó una auditoría del código el 2026-08-16, al ir a contestar si se puede
+> conducir con el barrido apagado.
+>
+> **La lista literal, copiada de `atriz_rvr_bringup/launch/robot.launch.py:383-405`:**
+>
+> ```
+> /start_scan · /stop_scan · /release_emergency_stop · /set_pos_and_yaw ·
+> /set_led_rgb · /set_multiple_leds · /set_leds · /trigger_led_event ·
+> /enable_color · /get_rgbc_sensor_values · /pedir_slam · /pedir_nav ·
+> /send_infrared_message
+> ```
+>
+> 📌 **La fuente autoritativa es el launch, no este fichero.** Un número escrito a
+> mano —«DOCE»— envejece en cuanto alguien añade una entrada, y nadie vuelve a
+> contarlo. Es la misma forma que este proyecto persigue en el código: una
+> afirmación sin ejecutor detrás.
+>
+> ⚠️ Y hay un hueco que conviene saber: `comprobar_contrato.mjs` compara
+> `topics_sub_glob`, `topics_pub_glob` y `services_glob` contra el launch, pero
+> **NO `actions_glob`**, porque ese va inline sin constante que extraer
+> (`atriz-lab/frontend/src/lib/rosbridge/contrato.ts:101-105`). Es el único de los
+> cuatro sin verificación automatizada.
+
+### 🔴 Y LO QUE LA LISTA BLANCA **NO** CIERRA: EL TALLER
+
+La lista blanca gobierna **rosbridge (9090)**. El Taller es **otro puerto y otro
+proceso**: `atriz-agente` en el **9443** ejecuta Python del alumno con `pty.fork()`
+como usuario `sphero`, y desde ahí `import rclpy` alcanza `raw_motors`,
+`move_timed` y `set_ir_mode` — **saltándose el `collision_monitor`**, que es justo
+lo que esta lista cierra para el navegador.
+
+No es un descubrimiento: lo dice el propio agente en
+`Atriz_rvr/scripts/agente/README.md:80-84` — «**No es una frontera de seguridad**»
+— y lo repite la web en `PanelTerminal.tsx:33-37`.
+
+📌 **Consecuencia práctica, y es la que importa en el aula:** la respuesta a «¿se
+puede mover el robot con el LIDAR apagado?» es **sí, pero no por la pantalla de
+conducir**. Desde el 2026-08-16 esa pantalla lo dice en vez de callarlo: quien
+tenga un LIDAR roto encuentra la salida, con su advertencia de que ahí no hay capa
+de seguridad.
 
 **Y se levanta `rosapi_node`**, que hoy no corre. Sin él, `ros.getTopics()`, `getServices()` y
 `getTopicType()` de roslibjs **se cuelgan sin error**, que es una trampa documentada. Se levanta
