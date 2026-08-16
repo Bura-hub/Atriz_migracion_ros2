@@ -1,0 +1,108 @@
+═══════════════════════════════════════════════════════════════════════════════
+126 · EL SDK SE TRAGA `connection_lost` CON UN `pass`: EL PUERTO SERIE MUERE EN
+      SILENCIO Y EL DRIVER CULPA AL RVR — «sin señal de vida» CON EL ROBOT SANO
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-15, 23:0x-23:3x · rvr-01 · el usuario mirando la plataforma
+Origen:  La baldosa de rvr-01 decía «7,92 V · sin señal de vida · la Pi calla».
+         El usuario preguntó por qué, y pidió NO apagar/encender el RVR hasta
+         identificar la causa — que es lo que permitió cazarla.
+Método:  Journal del driver, medición por rosbridge (127.0.0.1, exento), y
+         /proc del proceso vivo. Nada tocado: el estado sigue en pie al cierre.
+
+RESUMEN
+  A las 23:01:45 el enlace serie murió ENTERO y de golpe (streaming, keepalive,
+  sondeo IR, térmica — todo a timeouts a la vez) con el RVR encendido y tras
+  6,5 min de conversación constante. La causa NO es el robot: el proceso del
+  driver tiene 28 descriptores y NINGUNO es /dev/ttyAMA0 — el puerto está
+  CERRADO dentro del proceso. Quien lo cierra es pyserial-asyncio al ver un
+  error de E/S; quien se calla es el SDK vendorizado:
+
+      sphero_sdk/asyncio/server/port/serial_sphero_port.py:38
+          def connection_lost(self, exc):
+              pass
+
+  La excepción con la causa real se descarta, el puerto no se reabre nunca, y
+  los 12 intentos de reanudar (wake+stop+start) escriben a un transporte
+  muerto. El driver informa, honestamente, «apagado, cargando o el cable
+  fuera» — culpando al robot de un puerto que cerró su propio SDK.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LO QUE SE DESCARTÓ ANTES, Y CON QUÉ
+───────────────────────────────────────────────────────────────────────────────
+  · El testigo/A7: el journal muestra a la web ADMITIDA («admitido bura_hub
+    desde 192.168.1.2», 23:04:06) y suscrita. No es la conexión.
+  · El sueño por inactividad (300,6 s): el sondeo IR le mandaba comandos al
+    RVR CADA 3 s — el temporizador no pudo vencer. Y el sueño normal se
+    reanuda con wake en 4 ms (medido 2/2 el 2026-07-31); aquí fallaron 12.
+  · El kernel: journalctl -k sin UNA línea de ttyAMA/serial en la ventana.
+    El cierre fue de espacio de usuario.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LA CRONOLOGÍA, DEL JOURNAL
+───────────────────────────────────────────────────────────────────────────────
+      22:55:15  arranque (tras la prueba del on_exit) · «RVR presente
+                (firmware comprobado en 0.00 s)» · streaming a 60 ms
+      22:55:45  keepalive: «estado de batería: ok (7.93 V)»
+      23:01:45  ÚLTIMA muestra de telemetría (antigüedad medida después)
+      23:01:48  keepalive FALLÓ: TimeoutError + sondeo IR sin respuesta
+      23:01:50  get_motor_fault_state: TimeoutError
+      23:01:51  «lleva 6.2 s sin telemetría… intentando reanudar (nº 1)»
+      23:01→…   12+ intentos, espera creciente 6→12→24→48→60 s, todos mudos
+
+  🔴 TODO muere en el mismo segundo. Un RVR que se duerme apaga el streaming
+     pero contesta al wake; un cable suelto mata ambos sentidos… y también lo
+     hace un PUERTO CERRADO. Lo que separa las hipótesis es el fd.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · EL FD, QUE ES LO QUE DECIDE
+───────────────────────────────────────────────────────────────────────────────
+      ls -l /proc/124597/fd | grep -c AMA   ->  0     (de 28 descriptores)
+      hilos=20 · CPU 10 % · proceso vivo y «sano»
+
+  El puerto serie NO ESTÁ ABIERTO en el proceso. pyserial (serial.Serial) es
+  en-proceso: sin fd no hay enlace, dé lo que dé el robot. Y pyserial-asyncio
+  documenta el mecanismo: ante un error de E/S el SerialTransport CIERRA el
+  puerto y llama a connection_lost(exc) del protocolo — que aquí es `pass`.
+
+  ⏳ El DISPARADOR de fondo (qué OSError ocurrió a las 23:01:45) queda SIN
+     IDENTIFICAR: la única copia de la excepción se descartó en ese `pass`.
+     Ese dato se perdió para siempre — que es exactamente el coste de
+     tragarse una excepción.
+
+───────────────────────────────────────────────────────────────────────────────
+4 · POR QUÉ LA PLATAFORMA DIJO LO QUE DIJO
+───────────────────────────────────────────────────────────────────────────────
+  · «Voltaje 7,92 V (antigüedad desconocida)»: la última lectura buena.
+    Correcto y honesto.
+  · «sin señal de vida»: rvr_responde=false, 283 s sin muestra. Correcto —
+    aunque el culpable no era el RVR.
+  · «la Pi calla»: MEDIO defecto aparte, medido antes de esta caza:
+    /estado_robot a 7 msgs/35 s y /motor_status a 8/35 s (~0,2 Hz donde
+    prometen 1 Hz) durante el bucle de reintentos — los huecos superan el
+    umbral de 5 s del muro y pintan muda una Pi viva. ⚠️ Mecanismo sin aislar
+    (hipótesis: los intentos de reanudar bloquean el ejecutor).
+
+───────────────────────────────────────────────────────────────────────────────
+5 · LA FAMILIA, Y LO QUE SIGUE
+───────────────────────────────────────────────────────────────────────────────
+  📝 Es el «descriptor muerto» del LIDAR (evidencia de 2026-08-04) con dos
+     agravantes: aquí el puerto lo cierra el PROPIO SDK (no un desenchufe), y
+     la excepción que diría por qué SE TIRA. Misma familia también que «una
+     excepción en un manejador mata /odom en silencio» (2026-07-31).
+
+  ⏳ CONFIRMACIÓN PENDIENTE (👤): `sudo systemctl restart atriz-robot` SIN
+     tocar el RVR. Si el enlace vuelve solo, la atribución queda cerrada:
+     era el puerto de la Pi, no el robot.
+
+  ⏳ ARREGLO CANDIDATO (no aplicado — pendiente de autorización):
+     connection_lost debe (a) REGISTRAR exc con su traza —es la única copia
+     de la causa—, y (b) disparar la reapertura del puerto (reconstruir
+     serial.Serial + SerialTransport), o al menos marcar el enlace como
+     MUERTO-POR-PUERTO para que el vigilante de silencio reabra en vez de
+     hacer wake contra un transporte cerrado. Con 16 robots en un aula, un
+     robot por clase muriendo así sería «se colgó el robot» sin diagnóstico.
+
+CRUDOS
+  Las líneas del journal citadas arriba (unidad atriz-robot, 22:54-23:10);
+  el conteo de fds sobre /proc/124597; la medición de 35 s por rosbridge
+  (7/8/1 mensajes) del bloque anterior del canal.
