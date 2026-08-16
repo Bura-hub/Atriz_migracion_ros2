@@ -11,7 +11,60 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-15
+**Última actualización:** 2026-08-16
+
+---
+
+## ✅ PC (2026-08-16) · **`atriz-lab`: color libre para los LEDs y resaltado de sintaxis en el Taller**
+
+Todo en el repositorio de la web. **No toca el robot ni el contrato**: `/set_led_rgb` con
+`led_id 11` ya estaba en la lista blanca y ya estaba en `contrato.ts`; no hay que redesplegar nada
+en la Pi ni recompilar ningún paquete.
+
+**Lo que hay ahora**
+
+- **Los LEDs aceptan cualquier color.** Rueda de tono, plano de intensidad y brillo, hexadecimal,
+  los tres canales y la paleta del muro. Los cinco atajos de siempre **siguen enviando de un clic**.
+- **El editor del Taller colorea Python**, con un tokenizador escrito a mano (cero dependencias) y
+  un `<pre>` espejo debajo de un `<textarea>` transparente — el `<textarea>` se queda porque una
+  prueba exige que exista y no esté `disabled`.
+- **La salida señala las trazas por su FORMA.** Aquí no llega ANSI: el agente fija `TERM='dumb'` a
+  propósito, así que el color se deduce en la web y **se dice en la pantalla que es una heurística**.
+
+**Números medidos**
+
+```
+tokenizador          32 pruebas · invariante «no se pierde ni un caracter» sobre las 16 practicas reales
+trazas               25 pruebas · controles negativos sacados de la salida REAL de las practicas
+color                20 pruebas · ida y vuelta RGB<->HSV sobre 32768 colores
+tintas de sintaxis   3, con contraste medido: 10,93 · 7,06 · 7,29 : 1 sobre el fondo real del editor
+suite entera         892 en verde (53 ficheros) · tsc y eslint limpios
+espejo del editor    alto 402 = 402 · ancho 394 = 394  (Edge headless, fichero con lineas que ajustan)
+```
+
+**🔴 Tres defectos encontrados midiendo, no leyendo**
+
+1. **El plano de intensidad no respondía al ratón.** El manejador estaba escrito y no puesto en el
+   elemento: solo funcionaba el teclado, con la rueda de al lado bien y sin ningún error. Ni `tsc`
+   ni el navegador lo ven — **lo delató `eslint`** («assigned a value but never used»).
+2. **El espejo del editor se despegaba 15 px.** El `<textarea>` saca barra de desplazamiento y el
+   espejo no, así que una línea larga ajustaba en otra columna. **Latente**: con las prácticas
+   cortas de hoy ninguna línea llega a ajustar. Lo destapó comparar el **ancho**, no el alto.
+   Cerrado con `scrollbar-gutter: stable` en los dos, y verificado con mutación (quitarlo devuelve
+   `402 vs 381`).
+3. **Un comentario de CSS con un glob dentro** (`*` seguido de `/`) cerraba el bloque antes de
+   tiempo y tumbaba PostCSS: las dos rutas dieron **HTTP 500**. Error mío, y de los que solo se ven
+   pidiendo la página.
+
+**📌 Para la Pi — dos cosas que os tocan a vosotros, ninguna urgente**
+
+- ⚠️ **Nadie quita el `\r` del PTY.** El agente escribe por un PTY, que traduce `\n` a `\r\n`, y
+  `salida.ts` parte solo por `\n`: **cada línea de la salida conserva su `\r`**. Es invisible en
+  pantalla (el navegador lo colapsa) y ya no afecta al color —los patrones lo toleran—, pero
+  **está deducido leyendo el código de los dos lados, NO medido contra el robot**. Si alguien
+  captura una traza real byte a byte, lo cierra en un minuto.
+- 📝 **Sin cambios en ningún `.msg` ni en ningún servicio.** Se dice explícitamente porque la regla
+  de este proyecto es avisar cuando los hay, y aquí **no los hay**.
 
 ---
 

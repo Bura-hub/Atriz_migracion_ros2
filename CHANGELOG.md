@@ -4,6 +4,48 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-16 (PC) — `atriz-lab`: color libre para los LEDs y resaltado de sintaxis en el Taller
+
+Todo en el repositorio de la web, **sin tocar el robot ni el contrato**: `/set_led_rgb` con
+`led_id 11` ya estaba en la lista blanca y en `contrato.ts`, y no cambió ningún `.msg` ni ningún
+servicio. Nada que redesplegar en la Pi.
+
+**Qué se hizo.** Los LEDs aceptan cualquier color (rueda de tono, plano de intensidad y brillo,
+hexadecimal, tres canales y la paleta del muro), conservando los cinco atajos que envían de un
+clic. El editor del Taller colorea Python con un tokenizador escrito a mano —cero dependencias
+nuevas— sobre un `<pre>` espejo debajo de un `<textarea>` transparente, y la salida señala las
+trazas de Python por su **forma**, no por códigos ANSI: el agente fija `TERM='dumb'` a propósito,
+así que aquí no llega ninguno y la pantalla dice que el color es una heurística.
+
+**Qué se verificó.** 892 pruebas en verde (53 ficheros), `tsc` y `eslint` limpios. El tokenizador
+lleva la invariante «no se pierde ni un carácter» comprobada sobre **las 16 prácticas reales** del
+robot, no sobre ejemplos inventados. Los controles negativos del clasificador de trazas salen de la
+salida real de esas prácticas —`AVISO:`, `Bateria: 7,95 V` y `Error del lazo cerrado: 0.3 grados`,
+que es **una medida que salió bien** y una regla ingenua habría pintado como fallo—. Las tres
+tintas de sintaxis llevan contraste medido (10,93 · 7,06 · 7,29 : 1) sobre el fondo real del
+editor, trazado hasta su antecesor (`Tarjeta` → `.vidrio` → `--card`) en vez de supuesto. Y el
+espejo se midió en un navegador headless con un fichero cuyas líneas ajustan: `alto 402 = 402`,
+`ancho 394 = 394`.
+
+**Tres defectos encontrados midiendo.** (1) El plano de intensidad **no respondía al ratón**: el
+manejador estaba escrito y no puesto en el elemento, así que solo servía el teclado, con la rueda
+al lado funcionando y sin ningún error — lo delató `eslint`, no `tsc` ni el navegador. (2) El
+espejo se despegaba **15 px** porque el `<textarea>` saca barra de desplazamiento y él no, así que
+una línea larga ajustaba en otra columna; **latente**, porque las prácticas de hoy no llegan a
+ajustar, y lo destapó comparar el **ancho** y no el alto. Cerrado con `scrollbar-gutter: stable` y
+verificado con mutación (quitarlo devuelve `402 vs 381`). (3) Un comentario de CSS con un glob
+dentro cerraba el bloque antes de tiempo y las dos rutas dieron **HTTP 500**.
+
+**Qué queda pendiente.** Diez casillas nuevas en `VALIDAR_CON_EL_ROBOT.md` §1bis, todas de las que
+exigen ojos: si dos naranjas próximos se distinguen **en el robot** (que es lo que decide si el
+aviso sobre el color se suaviza o se queda), si la traza se lee como error **sin gastar rojo**, y
+si el espejo aguanta en el portátil del aula. ⚠️ Y una deducción sin medir: **nadie quita el `\r`
+del PTY** en todo el camino —el PTY traduce `\n` a `\r\n` y `salida.ts` parte solo por `\n`—, leído
+en el código de los dos lados y **no comprobado contra el robot**; los patrones lo toleran, así que
+el color no depende de la respuesta.
+
+---
+
 ## 2026-08-15, noche (Pi) — Los dos arreglos de la evidencia 126, con TDD y desplegados
 
 `cad8bcf` en Atriz_rvr. (1) `connection_lost` del SDK dejó de ser `pass`: registra la excepción

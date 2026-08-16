@@ -324,7 +324,7 @@ puesta».
 | 1 | Portada | `/` | imprescindible |
 | 2 | Muro de flota | `/flota` | imprescindible |
 | 3 | Marco del robot (armazón) | `/robot/[id]/*` | imprescindible |
-| 4 | Taller del alumno | `/robot/[id]` | imprescindible · **NO CONSTRUIDO** |
+| 4 | Taller del alumno | `/robot/[id]` | imprescindible · ✅ **CONSTRUIDO** (2026-08-14, validado con navegador contra rvr-01 el 15; editor con color desde el 16). El «NO CONSTRUIDO» que había aquí era de cuando era un chasis — ver §5.4 |
 | 5 | Por qué no obedece | `/robot/[id]/no-obedece` | imprescindible · ruta nueva |
 | 6 | Conducir | `/robot/[id]/conducir` | imprescindible |
 | 7 | Telemetría | `/robot/[id]/telemetria` | imprescindible |
@@ -934,11 +934,33 @@ Aplica además la sección §8 entera.
 
 ---
 
-### 5.4 · Taller del alumno (el terminal) — `/robot/[id]` · 🔴 NO CONSTRUIDO
+### 5.4 · Taller del alumno (el terminal) — `/robot/[id]` · ✅ CONSTRUIDO (2026-08-14)
+
+> 🔴 **ESTA SECCIÓN ESTÁ RANCIA DESDE EL 2026-08-14 y se anota en vez de reescribirse.** Todo lo
+> que sigue describe el **chasis** —la pantalla dibujada y sin nada detrás— y era exacto mientras
+> lo fue. **Ya no**: el terminal se construyó el 2026-08-14 y el 2026-08-15 se validó con un
+> navegador de verdad contra rvr-01, **16 casillas cerradas** —`05_sensor_color.py` imprimiendo una
+> línea cada ~510 ms, `01_avanzar.py` a 60,0 cm de cinta contra 60,3 de odometría, el `SIGINT` por
+> PTY en 1,9 cm de mediana (n=5) y los cuatro `input()` contestados desde el navegador—.
+>
+> 📌 Se conserva entero porque **la cadena de bloqueo en tres pasos y la regla de «ni una línea
+> inventada» siguen siendo la especificación**: la prueba que vigilaba el chasis no se borró, se
+> **invirtió** (de «¿alguien podría creer que esto ya funciona?» a «¿alguien podría creer que hace
+> algo que no hace?»), y la salida sigue sin inventar nada.
+>
+> ✅ **Y desde el 2026-08-16 el editor colorea Python y la salida señala las trazas.** Dos cosas que
+> esta sección no contempla y que conviene saber antes de leerla: el color del editor lo pinta un
+> `<pre>` espejo **debajo** del `<textarea>` —que no se sustituye, y por eso las guardias que
+> exigen `<textarea` sin `disabled` siguen valiendo—, y el color de la salida **no viene del
+> robot**: el agente fija `TERM='dumb'`, así que no llega ni un código ANSI y la web lo deduce de
+> la forma del texto. Es una heurística y la pantalla lo dice.
+>
+> Estado y casillas al día: [`atriz-lab/README.md`](../../atriz-lab/README.md) y
+> `atriz-lab/VALIDAR_CON_EL_ROBOT.md` §4 y §1bis.
 
 **Trabajo.** Escribir un guion, ejecutarlo **EN** el robot, verlo imprimir en vivo, contestarle
-por teclado y pararlo. **Hoy NO CONSTRUIDO**: se dibuja el chasis y la cadena de bloqueo, y **ni
-una línea de código o de salida inventada**.
+por teclado y pararlo. ~~**Hoy NO CONSTRUIDO**: se dibuja el chasis y la cadena de bloqueo, y **ni
+una línea de código o de salida inventada**.~~ ← ver el aviso de arriba: construido y validado.
 
 **Quién la usa.** El alumno del taller presencial de 90 minutos. **Es el 90 % de su tiempo y el
 0 % de lo que funciona.**
@@ -1779,6 +1801,22 @@ CONSTRUIDO**, con los tres bloqueos escritos.
 son telemetría, son órdenes**. Selector con los doce grupos y cinco botones de color. El resultado
 sale en un aviso con la hora, y **nunca dice más que «orden enviada»**. El `led_id 10` está en la
 lista **con su nota medida pegada, no escondido**.
+
+> 🔴 **DERIVA ABIERTA (anotada el 2026-08-16, NO resuelta): el selector de los doce grupos no
+> existe en el código, y nunca ha existido.** `PanelLeds.tsx` manda **siempre** a `led_id 11`
+> (`all_lights`) — está escrito en el componente con la tabla de doce al lado, así que no es un
+> descuido, es que el selector no se construyó. Este párrafo lo da por hecho desde entonces.
+>
+> Lo que **sí** cambió el 2026-08-16 es el otro eje: de cinco colores fijos se pasó a **cualquier
+> color** (rueda de tono, plano de intensidad y brillo, hexadecimal, tres canales y la paleta del
+> muro), conservando los cinco atajos. O sea que el panel creció por donde este documento no pedía
+> y sigue plano por donde sí pedía.
+>
+> 👤 **Se anota y no se resuelve**: decidir si los doce grupos hacen falta es del usuario. Se
+> escribe aquí, y no en un hilo, porque *«si algo importa y solo vive en un hilo de Claude, no
+> existe»*. ⚠️ Y el `led_id 10` de la frase de arriba **tampoco está en ninguna lista de la
+> pantalla**: el pie de la tarjeta explica por qué no aparece, que es lo contrario de lo que este
+> párrafo describe.
 
 Rejilla de dos columnas a partir de `lg`. **Ningún acordeón por encima del nivel del desplegable
 de contexto**: esconder POR QUÉ algo está en ámbar deja el ámbar sin acción posible.
