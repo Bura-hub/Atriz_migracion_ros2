@@ -1162,6 +1162,40 @@ el agente de verdad, mismo caso              🔴 HTTP 500
   prueba contra un doble, pregunta si el camino que ejercita pasa por código de terceros que el
   doble no tiene. Evidencia 120.
 
+**🔴🔴 EL PUERTO SERIE PUEDE MORIR DESDE DENTRO, Y EL DRIVER CULPABA AL ROBOT.** El 2026-08-15,
+23:01:45: el enlace con el RVR murió ENTERO y de golpe (streaming, keepalive, sondeo IR — todo a
+timeouts a la vez) con el robot **encendido y sano**, tras 6,5 min de conversación constante.
+14 minutos de «sin señal de vida» en la web. La caza (evidencia 126), sin apagar nada:
+
+```
+fds del proceso del driver: 28 · hacia /dev/ttyAMA0: CERO      <- el puerto, CERRADO
+journalctl -k: ni una línea de ttyAMA                          <- lo cerró USERSPACE
+sphero_sdk/…/serial_sphero_port.py:38   def connection_lost(self, exc): pass
+```
+
+pyserial-asyncio **cierra el puerto** ante un error de E/S y entrega la excepción —la ÚNICA copia
+de la causa— a `connection_lost`. Con `pass`: causa perdida para siempre, puerto jamás reabierto, y
+cada `wake+stop+start` del reenganche escribiendo a un transporte muerto mientras el driver decía,
+honestamente, «apagado, cargando o el cable fuera».
+→ 🔴 **El driver fue honesto y AUN ASÍ señalaba al sitio equivocado**: su lista de hipótesis no
+  incluía «mi propio puerto está cerrado». Es el descriptor muerto del LIDAR + la excepción
+  tragada del manejador de telemetría, juntos.
+→ ✅ Arreglado (cad8bcf, TDD con un PTY como dispositivo serie real; las pruebas FALLAN con el
+  `pass` original): `connection_lost` registra `exc` con traza y **reabre el puerto solo** (espera
+  creciente 2→30 s); `exc is None` = cierre intencional, no resucita. Confirmación de atribución:
+  `restart` SIN tocar el RVR → «RVR presente en 0,01 s».
+→ 🔴 **Y el latido mintió de rebote, con la mecánica de los grupos**: `/estado_robot` y
+  `/motor_status` prometen 1 Hz «aunque todo esté ocupado» y quedaron MEDIDOS a ~0,2 Hz — estaban
+  en el MISMO `MutuallyExclusiveCallbackGroup` que `_sondear_ir`, que bloquea hasta 6 s por tic con
+  el enlace caído. La intención estaba escrita en el comentario; el grupo la contradecía. ✅ Grupo
+  propio `g_latido` (solo callbacks que no tocan el puerto) y el sondeo IR EN PAUSA con el enlace
+  caído. Medido tras desplegar: 0,94 / 0,97 Hz.
+→ 📝 Las dos reglas: **una excepción entregada a un callback vacío es una causa que se pierde para
+  siempre** — implementa el callback ANTES de necesitarlo; y **un temporizador que promete correr
+  "pase lo que pase" no puede compartir grupo mutuamente excluyente con nada que bloquee**.
+  ⏳ El caso degradado (latido a 1 Hz con el enlace caído, reapertura en vivo) espera la próxima
+  ocurrencia natural: inducirlo exige apagar el RVR.
+
 **🔴🔴 EL PRIMER MENSAJE DE UN TOPIC NO TARDA LO QUE DICE SU RITMO: TARDA LO QUE TARDE
 DDS EN EMPAREJAR.** `atriz.py` decidía si el barrido del LIDAR ya estaba encendido esperando
 **1,0 s** un `/scan`, con este comentario: *«una espera corta basta: /scan va a ~10 Hz cuando está
