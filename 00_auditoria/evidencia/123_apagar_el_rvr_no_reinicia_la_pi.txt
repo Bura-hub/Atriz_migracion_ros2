@@ -148,4 +148,75 @@ es lo único que puede verificar `ATRIZ_ESPERA_RED` y `ATRIZ_ESPERA_RELOJ` —ho
 marcados NO VERIFICADO— y la espera de puertos, que su propio fichero llama «una
 red de seguridad SIN ESTRENAR».
 
+───────────────────────────────────────────────────────────────────────────────
+6 · EL ARRANQUE EN FRÍO, MEDIDO — Y SIN GASTAR UN REINICIO MÁS
+───────────────────────────────────────────────────────────────────────────────
+No hizo falta pedir otro reinicio: la Pi ya había arrancado en frío cinco veces
+hoy y el journal lo conserva. Leído del arranque de las 18:54.
+
+📝 En tiempo MONOTÓNICO, no de reloj, y a propósito: el reloj de esta Pi salta
+   hacia delante a mitad del arranque (parte en `Fri Jun 5` y NTP lo corrige),
+   así que las marcas de reloj de esos primeros segundos NO se pueden restar
+   entre sí. Es la trampa del RTC aplicada AL INSTRUMENTO en vez de sufrida.
+
+    11,66 s   systemd lanza atriz-robot
+    15,86 s   entorno ROS cargado (ROS_DOMAIN_ID=1)
+    18,99 s   ✓ red con dirección IPv4 (tras 3s)
+    19,19 s   ✓ reloj sincronizado (tras 0s) · /dev/rvr y /dev/ydlidar (tras 0s)
+    21,84 s   los ocho nodos arrancados
+    22,81 s   LIDAR conectado, «health status good»
+    23,79 s   collision_monitor ACTIVO  <- ya hay capa de seguridad
+    27,59 s   RVR presente (firmware comprobado en 0,01 s)
+    31,09 s   Started atriz-robot.service  <- EL ROBOT ACEPTA ÓRDENES
+
+    systemd-analyze: 6,310 s (kernel) + 24,899 s (userspace) = 31,210 s
+
+✅ **31 s desde que vuelve la corriente hasta robot útil**, con la capa de
+   seguridad activa a los 24. Ese es el número que A13 pedía.
+
+✅ **`ATRIZ_ESPERA_RED` SE EJERCITÓ: esperó 3 s REALES.** Era ⏳ NO VERIFICADO
+   desde el 2026-08-12. No es decorativa: cuando systemd lanzó el servicio **no
+   había dirección IPv4**, y sin esa espera el robot habría arrancado en la misma
+   situación que lo dejó mudo en DDS aquel día.
+
+⚠️ Y LO QUE **NO** SE VERIFICÓ, que hay que decir o sería dar por buena una
+   salvaguarda porque el arranque salió bien:
+   · `ATRIZ_ESPERA_RELOJ` pasó en **0 s** — el reloj ya estaba sincronizado al
+     llegar ahí. No es un fallo, pero la espera NO se ejercitó. Sigue sin
+     estrenar.
+   · Las esperas de `/dev/rvr` y `/dev/ydlidar`, **0 s otra vez, y van cuatro**.
+     Su propio fichero ya lo dice: «una red de seguridad SIN ESTRENAR, no una
+     comprobación aprobada». Sigue igual.
+
+📌 Y de paso, confirmado en vivo lo que dice la tabla de referencia: el LIDAR
+   anunció `Single Fixed Size: 250` y acto seguido `Real points 252 > fixed
+   points 250`. **El tamaño de /scan no es una constante.**
+
+⚠️ `userspace 24,9 s` sigue por encima del objetivo de <15 s de la higiene del
+   SO. No es nuevo y no se persigue aquí.
+
+
+───────────────────────────────────────────────────────────────────────────────
+7 · REGALO DEL MISMO LOG: EL CICLO DE APAGADO, VISTO DESDE EL DRIVER
+───────────────────────────────────────────────────────────────────────────────
+El control del apartado 2 quedó registrado sin habérselo pedido a nadie:
+
+    2013,7 s   sondeo IR: el RVR no contestó en 3 s
+    2016,8 s   el RVR lleva 7,0 s sin enviar telemetría … intento nº 1
+    2108,7 s   el RVR VOLVIÓ: primera muestra tras 5 intento(s) sin respuesta
+
+✅ **91,9 s de la detección a la recuperación**, y el «VOLVIÓ» salió **solo al
+   llegar una muestra de verdad** — el arreglo del 2026-08-14 (evidencia 116)
+   verificado por primera vez en un ciclo de apagado REAL y provocado a
+   propósito, no simulado.
+✅ Y `NRestarts` siguió en **0**: el driver no murió, esperó. Que es justo lo que
+   distingue este caso de un proceso que se cae.
+
+⚠️ **Lo que NO se puede afirmar con esta corrida:** cuánto tardó el reenganche
+   *desde que se encendió el RVR*. Solo hay marca de la detección, no del
+   interruptor. Así que los «~1 min tras encender» que documenta `CLAUDE.md`
+   **siguen sin confirmarse**. Es la misma regla que la de la cinta: **el dato
+   hay que pedirlo ANTES, no reconstruirlo después**.
+
+
 ⚠️ n=1, un robot.

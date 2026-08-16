@@ -26,6 +26,37 @@ lista blanca de rosbridge (lo dejó abierto el PC en su 121).
 
 ---
 
+## 2026-08-15, A13 (PC + rvr-01) — Apagar el RVR no reinicia la Pi. Manipular el robot sí, y pasó cinco veces hoy
+
+**A13 reformulado y medido.** Su premisa —«la Pi se alimenta del USB del RVR, así que apagar el RVR
+REINICIA LA PI ENTERA»— salió de **una sola** observación del 2026-08-06 y está **retirada**.
+Medido con control: RVR apagado 30 s y encendido, sin tocar la Pi → `boot_id` **idéntico**,
+`uptime` 32→35 min, `NRestarts` 0. «Se alimenta del USB» es cierto; **«apagar lo reinicia» es
+falso**: la deducción confundía *apagar* con *cortar* la alimentación.
+
+🔴 **Y la refutación llevaba en el repositorio desde el mismo 2026-08-06**
+(`2026-08-06-plan-slam-color-arranque.md:59`), sin cruzarse nunca con la afirmación que
+contradecía. Misma forma que el seguidor de línea.
+
+🔴 **Lo que apareció sin buscarlo:** la Pi había perdido la alimentación **cinco veces hoy** — ocho
+arranques y **ni un `shutdown` ordenado**. Descartada la causa eléctrica (cero sub-tensiones en 6
+arranques, `throttled=0x0`, batería a 8,29 y 8,06 V) y **atribuidos por el usuario: los cinco
+fueron manipulación suya**. O sea: **manipular el robot es reiniciarlo**, sin un error en ningún
+log. Con 16 robots y alumnos, la pregunta no es «¿y si pasa?».
+
+✅ **Arranque en frío medido SIN gastar otro reinicio** —ya había cinco en el journal—, en tiempo
+**monotónico** porque el reloj salta a mitad del arranque: **31,1 s** de la corriente a robot útil,
+con `collision_monitor` activo a los 23,8. Y **`ATRIZ_ESPERA_RED` se ejercitó: 3 s reales**, con lo
+que deja de estar NO VERIFICADA. ⚠️ `ATRIZ_ESPERA_RELOJ` y las esperas de puertos pasaron en 0 s:
+**siguen sin estrenar**, y eso no es lo mismo que aprobadas.
+
+✅ De regalo, el mismo log capturó el ciclo de apagado: **91,9 s** de la detección a «el RVR
+VOLVIÓ», que salió **solo al llegar una muestra** — el arreglo del 2026-08-14 verificado en un
+apagado real por primera vez. ⚠️ No se puede decir cuánto fue *desde el interruptor*: no hay marca
+de ese instante. Evidencia 123.
+
+---
+
 ## 2026-08-15, A12 (PC + rvr-01) — El journal se estaba escribiendo DOS veces, y el tope solo controlaba una
 
 **A12 CERRADO.** Se fue a medir «32 MB es poco» y salió algo mayor: retención real **23 h 08 min**

@@ -800,6 +800,37 @@ repitió igual. Evidencia 113.
 → 📝 `verificar_robot.sh` ya usa esta regla para el puente del `.bashrc` («lanzando un shell
   limpio con `env -i`, no con un `grep`») — estaba en el repo y no se aplicó aquí.
 
+**🔴🔴 APAGAR EL RVR NO REINICIA LA PI — MANIPULAR EL ROBOT SÍ, Y CINCO VECES EN UN DÍA.** La
+premisa de A13 decía *«la Pi se alimenta del USB del RVR, así que apagar el RVR REINICIA LA PI
+ENTERA»*, y salió de **una sola** observación del 2026-08-06. Medido con control el 2026-08-15
+—RVR apagado 30 s y encendido, sin tocar la Pi ni el cable—:
+
+```
+boot_id    6d98b5e6-...  ANTES  ->  6d98b5e6-...  DESPUÉS    IDÉNTICO
+uptime     32 min -> 35 min · NRestarts 0 -> 0               la Pi ni se inmuta
+```
+
+→ **«se alimenta del USB del RVR» es CIERTO; «apagar el RVR la reinicia» es FALSO.** Con el RVR
+  apagado (blando) el raíl USB sigue alimentando. Lo que la tira es **CORTAR** la corriente. La
+  deducción confundía *apagar* con *cortar*, y por eso convivía con ocho documentos que dan «RVR
+  apagado con la Pi viva» por el estado **cotidiano**.
+→ 🔴 **Y la refutación llevaba en el repositorio desde el MISMO 2026-08-06**, en
+  `2026-08-06-plan-slam-color-arranque.md:59`: *«si apagar el RVR reiniciara la Pi, la evidencia 52
+  no existiría»*. Nunca se cruzó con la afirmación que contradecía. **Misma forma que el seguidor
+  de línea: el proyecto ya tenía la respuesta.**
+→ 🔴🔴 **Lo que sí ocurre, y es el caso NORMAL: cinco cortes de alimentación en un día, los cinco
+  por manipulación** —cambiar la batería, recolocarlo, desenredarlo de un cable—. Ocho arranques en
+  el journal y **ni un `shutdown` ordenado**. Descartada la causa eléctrica: **cero** registros de
+  sub-tensión en 6 arranques, `throttled=0x0`, batería a 8,29 y 8,06 V. Con 16 robots y alumnos, la
+  pregunta no es «¿y si pasa?» sino «¿cuántas veces por clase?».
+→ **Y no deja ni un error en ningún log.** Tras manipular un robot da por perdidos Nav2, SLAM, el
+  mapa vivo, el origen de la odometría y el barrido. ⚠️ **El reloj arranca en una fecha de hace DOS
+  MESES** —sin apagado ordenado, la marca que systemd guarda para restaurarlo no se actualiza—, así
+  que la trampa del RTC es peor aquí que en cualquier otro sitio.
+→ 💡 Sin implementar y no toca el robot: el `latido` de `/estado_robot` **arranca de cero con el
+  driver**, así que un `latido` que RETROCEDE es prueba directa de que hubo reinicio. Es el remedio
+  R2 del plan del 2026-08-06. Evidencia 123.
+
 **🔴🔴 EL NOMBRE DE UN DROP-IN DECIDE QUIÉN GANA, Y `99-` PIERDE CONTRA UN NOMBRE DE UBUNTU.**
 systemd ordena **TODOS** los drop-ins por nombre de FICHERO, sin importar si vienen de `/etc` o de
 `/usr`. El de Ubuntu para el journal se llama `syslog.conf`, así que el reflejo natural —
@@ -938,8 +969,12 @@ ros2 topic info /battery_state -v Publisher count: 1 · Node name: _NODE_NAME_UN
   **`TimeoutStartSec=infinity`**. Un laboratorio sin salida a NTP dejaría los 16 robots colgados
   en el arranque para siempre.
 → ✅ **Arreglo: dos esperas ACOTADAS y que FALLAN ABIERTO** en `atriz-robot.sh` (sección 2) —
-  `ATRIZ_ESPERA_RED` (60 s) y `ATRIZ_ESPERA_RELOJ` (90 s). Avisan y arrancan igual. ⏳ **NO
-  VERIFICADO que prevengan el fallo**: exige un arranque en frío real.
+  `ATRIZ_ESPERA_RED` (60 s) y `ATRIZ_ESPERA_RELOJ` (90 s). Avisan y arrancan igual.
+  ✅ **`ATRIZ_ESPERA_RED` VERIFICADA el 2026-08-15 (evidencia 123): esperó 3 s REALES** en un
+  arranque en frío — cuando systemd lanzó el servicio **no había IPv4**. ⚠️ **`ATRIZ_ESPERA_RELOJ`
+  sigue SIN ESTRENAR**: pasó en 0 s porque el reloj ya estaba sincronizado, que no es lo mismo que
+  haber funcionado. Y que PREVENGAN el fallo sigue sin demostrarse: lo medido es que la espera
+  ocurre, no que sin ella el robot quede mudo.
 → 🔴 **Y DOS INSTRUMENTOS MINTIERON ANTES DE LLEGAR A LA CAUSA, van siete en el proyecto:**
   `ros2 topic list` devolvió una lista **incompleta** (se llegó a escribir «faltan todos los topics
   del driver», falso: volvieron con `ros2 daemon stop && start`), y **`ros2 node list` salió VACÍO
@@ -2545,6 +2580,8 @@ de verdad. Dos consecuencias que cambian el día a día:
 | **SLAM arrancado desde la web** | `apagado → arrancando → funcionando` en **~18 s**, con los segundos subiendo (4 · 9 · 14). Y `CIEGO` en 1-2 s al apagar el barrido | 2026-08-09 |
 | **WebSocket por nombre, desde el NAVEGADOR** | **2736 ms** con la caché mDNS fría · **16-25 ms** caliente (plazo del cliente: 10 s). ⚠️ Desde **Node** el mismo nombre tarda **7,3 s**: no se transfiere entre clientes | 2026-08-09, n=3 |
 | Enlace con keepalive | **12 min, 0 huecos** en `/odom`, 16.54 Hz | 2026-07-31 |
+| ✅ **ARRANQUE EN FRÍO hasta robot ÚTIL** | **31,1 s** desde que vuelve la corriente (kernel 6,3 + userspace 24,9). Hitos: red IPv4 **19,0** · LIDAR conectado **22,8** · `collision_monitor` ACTIVO **23,8** · RVR presente **27,6** · `Started atriz-robot` **31,1**. 🔴 **Vuelven** driver, LIDAR, rosbridge y el agente; **NO vuelven** Nav2, SLAM, el mapa vivo, la odometría ni el barrido — y el reloj arranca ~2 meses atrás | 2026-08-15, evidencia 123 |
+| ✅ **Reenganche tras apagar el RVR** | **91,9 s** de la detección («lleva 7,0 s sin telemetría») a «el RVR VOLVIÓ», con 5 intentos. ⚠️ **NO se sabe cuánto fue desde el INTERRUPTOR**: solo hay marca de la detección — los «~1 min tras encender» siguen sin confirmar | 2026-08-15, evidencia 123 |
 | ✅ **GIRO POR ANGULO, medido con el robot en el suelo** | **`girar()` (lazo cerrado, tras compensar la inercia)**: n=5 a 90° → rango **0.94°**, peor error **0.74°**, media **+0.20°**. n=9 a 90/180/360 → sesgo **+0.19°**. · **`girar_por_tiempo()` (lazo abierto, 0.8 rad/s por `/cmd_vel_raw`)**: n=4 a 90° → rango **4.20°**, peor **2.30°**, media **+0.23°**. 🔴 **Misma media, 4.5× menos dispersion en el cerrado**: la realimentacion no mejora el acierto, reduce la varianza. ⚠️ Antes de compensar, el cerrado sobregiraba **+4.01° CONSTANTES** (0.35 s de inercia tras mandar parar) | 2026-08-03, evidencias 58 y 61 |
 | ✅ **GIRO POR ANGULO** | **n=3**: 90°→**86.6 / 86.2 / 87.7°** · 180°→**179.6 / 179.6 / 179.6°** · 360°→**358.4 / 357.9 / 358.8°**. Rango 1.5° / **0.0°** / 0.9°. Deslizamiento **0.0–0.3 cm** · signo REP-103. 📝 Con baterías del 55 al 100 %: **el déficit NO depende de la carga**, y el de 180° sale idéntico las tres veces | 2026-08-02, evidencias 48 y 55 |
 | ✅ **Nav2: error de RUMBO al llegar** | **13.6 · 10.1 · 14.1°** — dato NUEVO. Nav2 los da por `SUCCEEDED` (su `yaw_goal_tolerance` lo permite), pero **un robot que llega mirando 14° a un lado importa para la web** | 2026-08-02, evidencia 55 |
