@@ -90,9 +90,12 @@ RESUMEN
      la excepción que diría por qué SE TIRA. Misma familia también que «una
      excepción en un manejador mata /odom en silencio» (2026-07-31).
 
-  ⏳ CONFIRMACIÓN PENDIENTE (👤): `sudo systemctl restart atriz-robot` SIN
-     tocar el RVR. Si el enlace vuelve solo, la atribución queda cerrada:
-     era el puerto de la Pi, no el robot.
+  ✅ CONFIRMADO (23:17:47): el usuario hizo `restart atriz-robot` SIN tocar el
+     RVR y el enlace volvió entero — «RVR presente (firmware comprobado en
+     0.01 s)» (el atajo histórico: 0 s = responde), streaming a 60 ms,
+     keepalive «ok (7,92 V)», fd de ttyAMA0 presente, y /odom a **16,60 Hz**
+     medido con ejecutor persistente. El robot NUNCA tuvo la culpa: 14 minutos
+     mudo por un puerto que su propio SDK cerró y se calló.
 
   ⏳ ARREGLO CANDIDATO (no aplicado — pendiente de autorización):
      connection_lost debe (a) REGISTRAR exc con su traza —es la única copia

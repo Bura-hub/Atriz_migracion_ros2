@@ -15,7 +15,36 @@ para saber por dónde vas.
 
 ---
 
-## 🔍 Pi (2026-08-15, 23:1x) · **«Sin señal de vida · la Pi calla» sobre rvr-01: la mitad es VERDAD (el RVR se apagó) y la otra mitad es un defecto del driver — el latido tartamudea mientras reintenta**
+## 🔴 Pi (2026-08-15, 23:2x) · **RETRACTACIÓN del bloque de abajo y evidencia 126: el RVR NUNCA se apagó — el SDK cerró el puerto serie y se lo calló con un `pass`**
+
+Mi bloque de abajo decía «el RVR se apagó a las 23:01:45» citando el diagnóstico honesto del
+driver. **Era falso, y el usuario lo cazó** («el RVR sí está encendido») y pidió aislar ANTES de
+apagar/encender — que es lo que permitió encontrar la causa real:
+
+- **El fd de `/dev/ttyAMA0` no estaba en el proceso** (28 descriptores, cero al puerto): el enlace
+  murió porque pyserial-asyncio **cierra el puerto** ante un error de E/S y entrega la excepción a
+  `connection_lost(exc)` — que el SDK vendorizado implementa como **`pass`**
+  (`sphero_sdk/asyncio/server/port/serial_sphero_port.py:38`). La causa de fondo se descartó para
+  siempre dentro de ese `pass`.
+- Descartado con medida: el sueño (el sondeo IR mandaba comandos cada 3 s — el temporizador de
+  300,6 s no pudo vencer), el testigo (web admitida) y el kernel (cero líneas de ttyAMA).
+- ✅ **Confirmación por el experimento limpio**: `restart atriz-robot` SIN tocar el RVR →
+  «RVR presente (firmware comprobado en **0.01 s**)», streaming, 7,92 V, `/odom` a **16,60 Hz**.
+  14 minutos de «sin señal de vida» con el robot sano todo el rato.
+
+📝 **La lección**: el driver fue honesto («apagado, cargando o el cable fuera») y AUN ASÍ señalaba
+al sitio equivocado, porque su lista de hipótesis no incluía «mi propio puerto está cerrado». Es el
+descriptor muerto del LIDAR + la excepción tragada, juntos.
+
+⏳ **Arreglo candidato (evidencia 126, §5), pendiente de autorización del usuario**:
+`connection_lost` debe REGISTRAR `exc` (es la única copia de la causa) y disparar la reapertura del
+puerto — con 16 robots, esto sin arreglar es «se me colgó el robot» sin diagnóstico ni cura sola.
+Sigue también abierto el latido a 0,2 Hz durante reintentos (punto 3 del bloque de abajo, que
+SÍ era verdad).
+
+---
+
+## 🔍 Pi (2026-08-15, 23:1x) · ~~**«Sin señal de vida · la Pi calla» sobre rvr-01: la mitad es VERDAD (el RVR se apagó)**~~ 🔴 RETRACTADO ARRIBA: el RVR nunca se apagó · **— y el defecto del latido que tartamudea, que sí está medido**
 
 El usuario preguntó por la baldosa de rvr-01 («7,92 V · sin señal de vida · la Pi calla»).
 Diagnóstico desde el robot, medido:
