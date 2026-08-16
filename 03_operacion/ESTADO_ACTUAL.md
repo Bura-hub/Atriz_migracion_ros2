@@ -15,6 +15,48 @@ para saber por dónde vas.
 
 ---
 
+## ✅ PC (2026-08-16, noche) · **F0 CERRADA — las trampas desarmadas, cero cambio visual**
+
+Cuatro commits en `atriz-lab`, rama `rediseno-2026-08`. La app se ve **exactamente igual** y las
+doce rutas responden 200. Lo que cambió es que ahora hay ejecutores donde había comentarios.
+
+```
+tsc limpio · eslint limpio · 967 pruebas (eran 908) · las 12 rutas a 200
+las dos animaciones verificadas EN EL NAVEGADOR (animation-name=entrar, 0.32s)
+```
+
+**🔴 Cuatro fallos encontrados midiendo, y tres son de la familia que este proyecto persigue**
+
+1. **El troceador de bloques de `estilo.test.ts` funcionaba POR ACCIDENTE.** Yo había escrito que
+   «exige dos espacios de sangría»; medido, es peor: `:root` cierra en columna 0, así que el
+   troceo **seguía hasta el `body` de `@layer base`** y se llevaba **20 233 caracteres**. Acertaba
+   solo porque los tres `--sintaxis-*` eran los únicos de ese tramo. Y con un selector inexistente
+   devolvía **0 caracteres** → los dos conjuntos iguales **por basura**: aprobado sobre nada.
+2. **`@keyframes entrar` lo generaba Tailwind**, y solo porque una utilidad se usaba en **un**
+   sitio — mientras lo consumían **dos**. Quitarla dejaba las seis pestañas del robot sin animar
+   **en silencio**. Ahora se declara a mano, con guardia (`keyframesHuerfanos`) **verificada
+   contra el estado real de antes**: devolvía `["entrar"]`, ahora `[]`.
+3. **La guardia de globs contaba las cadenas de los COMENTARIOS como rutas.** Lo destapé
+   documentando dos globs nuevos: mi comentario decía `'bg-…'` y lo tomó por un directorio muerto.
+   📝 **Cuarta vez** que este proyecto tropieza con «contar un comentario como si fuera un ajuste»;
+   las tres anteriores están en `CLAUDE.md` **con la lección ya escrita**.
+4. 🔴 **Y el guion de capturas encontró un fallo EN PANTALLA a su primer uso**: el muro pintaba
+   *«Ningún robot responde»* durante los primeros segundos sin sesión — el fallo del 16 de agosto
+   **reducido a una ventana de tiempo**, invisible porque la comprobación de navegador esperaba
+   6 s y para entonces se había corregido solo. Causa: la condición dejaba pasar `NO_SE_SABE`, y
+   los 16 sockets fallan mucho antes que la sesión. **No se acusa a los robots hasta saber que de
+   este lado no falta nada.**
+
+**✅ Y una buena noticia sobre vuestro trabajo:** el contraste ahora es ejecutable (45 pruebas), y
+las cifras **reproducen exactas** las que `globals.css` llevaba escritas a mano — 6,53 · 10,93 ·
+7,06 · 7,29 · 13,11 · 9,15 · 9,16. Quien las midió, midió bien. Lo que cambia es que ya no dependen
+de que alguien vuelva a hacerlo cuando el rediseño toque los 21 colores a la vez.
+
+⏳ **Siguiente: F1 (cuentas y roles).** No toca el robot. La puerta (F2) no se cierra hasta que las
+16 cuentas existan — es una dependencia dura, no una preferencia.
+
+---
+
 ## ✅✅ Pi + 👤 (2026-08-16) · **APROBADO. Las tres decisiones, tomadas — puedes empezar**
 
 El usuario decidió, con el bloque de abajo delante:
