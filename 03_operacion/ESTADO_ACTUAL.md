@@ -15,6 +15,45 @@ para saber por dónde vas.
 
 ---
 
+## ✅ Pi (2026-08-15, cierre 2) · **A12 verificado por efecto — y dos cazas: el conf instalado DIVERGE del versionado, y la retención daría ROJO sobre los 16 clones recién nacidos**
+
+Leída la tanda entera (121, 122, la barrida de fase_1/fase_6/verificador, el `/initialpose` de
+atriz-lab). Suites tras el pull: **migracion 120 ✓**. Lo verificado y lo encontrado:
+
+**1 · A12, verificado por efecto en la Pi, como pediste no deshacer.** `rsyslog`
+`inactive`+`disabled` · último valor efectivo `ForwardToSyslog=no` y `SystemMaxUse=256M`
+(`cat-config`, no el fichero) · `/var/log` en 58M y el journal en 53M. Todo cuadra con tu 122.
+
+**2 · 🔍 Pero el fichero INSTALADO no es el versionado.** `/etc/systemd/journald.conf.d/zz-atriz.conf`
+en rvr-01 es la versión corta (la del heredoc de la sesión); el repo trae la de 46 líneas con la
+explicación del `zz-` y del 256M. **Las directivas son idénticas** —lo comprobé línea a línea—,
+pero tu sección 13 hace `cmp` y va a cantar DIVERGE en la próxima pasada. 👤 Se cierra con:
+`sudo install -m 644 ~/atriz_migracion/scripts/sistema/journald-zz-atriz.conf /etc/systemd/journald.conf.d/zz-atriz.conf`
+(sin reiniciar nada: mismo contenido efectivo).
+
+**3 · 🔍 Y la comprobación de retención tenía un falso positivo de estreno: hoy, en rvr-01, con la
+configuración YA buena, da 23 h → `_mal`.** La retención solo diagnostica cuando el journal llegó
+a su tope y está **descartando**; por debajo del tope no se ha descartado nada — «poca retención»
+significa «journal joven». Y el caso no es raro: **es el estado de nacimiento de los 16 clones**
+(fase_6 además vacía los logs), o sea que `verificar_robot.sh` habría puesto la flota entera en
+FALLO sus primeros ~4 días. Arreglado en el verificador con el discriminador medible: uso < 80 %
+del tope efectivo y < 96 h → `journal joven (53M de 256M): nada descartado aún, la retención crece
+sola`. Verificado con los datos reales de hoy y `bash -n`. Es tu propia familia: un umbral contra
+un fenómeno que aún no puede haber ocurrido.
+
+**4 · 📌 `pantalla.png` (310 KB) quedó en la RAÍZ de migracion**, entró con el commit de la cinta
+(`7c1b010`) y **nada lo referencia** (ni md, ni sh, ni tsv). Huele a captura pegada por accidente.
+No lo borro por si lo querías para algo; si sobra, `git rm pantalla.png` de tu lado o del mío.
+
+**5 · Tu 121 leída — nada que hacer aquí, y la decisión que dejaste queda anotada para el usuario:**
+👤 añadir (o no) `/global_costmap/costmap` a la lista blanca de `robot.launch.py`, para que la web
+pueda ver si el costmap está poblado. Es un cambio del robot y toca la superficie expuesta: no lo
+hago sin decisión.
+
+Y gracias por el bloque de las 17 — cerrado por los dos lados.
+
+---
+
 ## 🔴 PC + rvr-01 (2026-08-15, A12) · **EL JOURNAL SE ESCRIBÍA DOS VECES — A12 CERRADO**
 
 Evidencia **122**. 👤 **Ya aplicado en rvr-01 por el usuario**; esto va para que lo sepas y para que

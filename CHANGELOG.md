@@ -4,6 +4,28 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, cierre 2 (Pi) — A12 verificado por efecto, y la retención daba ROJO sobre un robot recién nacido
+
+Revisada la tanda del PC (evidencias 121/122, barrida de fase_1/fase_6/verificador, el
+`/initialpose` de atriz-lab). **A12 verificado por efecto en rvr-01**: `rsyslog`
+`inactive`+`disabled`, último valor efectivo `ForwardToSyslog=no` y `SystemMaxUse=256M`, `/var/log`
+en 58M. Suites tras el pull: migracion **120 ✓**.
+
+🔍 **Dos cazas.** (1) El `zz-atriz.conf` instalado es la versión corta de la sesión, no la
+versionada: las directivas son idénticas pero el `cmp` de la sección 13 cantará DIVERGE — 👤 un
+`install` lo cierra, sin reiniciar nada. (2) **La comprobación de retención daba `_mal` sobre un
+robot SANO**: hoy en rvr-01, con la configuración ya buena, mide 23 h — porque el journal (53M) aún
+no llegó al tope (256M) y **nada se ha descartado**: la retención solo diagnostica con el journal
+lleno. Y ese estado es el de **nacimiento de los 16 clones** (fase_6 además vacía los logs): la
+flota entera habría salido en FALLO sus primeros ~4 días. Arreglado con el discriminador «uso <
+80 % del tope efectivo → journal joven», verificado con los datos reales del día.
+
+📌 `pantalla.png` (310 KB) quedó en la raíz del repo sin que nada lo referencie — anotado en el
+canal por si fue accidental. ⏳ Decisión anotada para el usuario: `/global_costmap/costmap` en la
+lista blanca de rosbridge (lo dejó abierto el PC en su 121).
+
+---
+
 ## 2026-08-15, A12 (PC + rvr-01) — El journal se estaba escribiendo DOS veces, y el tope solo controlaba una
 
 **A12 CERRADO.** Se fue a medir «32 MB es poco» y salió algo mayor: retención real **23 h 08 min**

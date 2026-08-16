@@ -325,7 +325,20 @@ JD_VIEJO="$(grep -oE '"first_entry" *: *[0-9]+' <<<"$JD_LB" | head -1 | grep -oE
 [[ "${JD_VIEJO:-}" =~ ^[0-9]{13,}$ ]] && JD_VIEJO=$(( JD_VIEJO / 1000000 ))   # µs -> s
 if [[ "${JD_VIEJO:-}" =~ ^[0-9]+$ ]]; then
     JD_HORAS=$(( ( $(date +%s) - JD_VIEJO ) / 3600 ))
-    if   [[ "$JD_HORAS" -ge 96 ]]; then _ok  "retención del journal: ${JD_HORAS} h (~$((JD_HORAS/24)) días)"
+    # 🔴 La retención solo DIAGNOSTICA cuando el journal ya llegó a su tope y
+    #    está descartando lo viejo. Por debajo del tope no se ha descartado
+    #    NADA: «poca retención» significa «journal joven» —robot recién
+    #    aprovisionado, tope recién ampliado, o recién salido de la imagen
+    #    dorada, que fase_6 además vacía— y marcarla en rojo pondría a los 16
+    #    clones en FALLO durante sus primeros ~4 días de vida. Cazado en rvr-01
+    #    el 2026-08-15: 23 h con la configuración ya buena y 53M de 256M usados.
+    JD_TOPE_MB="$(grep -E '^SystemMaxUse=' <<<"$JD_EFECTIVO" | tail -1 | grep -oE '[0-9]+' || true)"
+    JD_USO_MB="${JOUR%[MG]}"; JD_USO_MB="${JD_USO_MB%%.*}"
+    [[ "$JOUR" == *G ]] && JD_USO_MB=$(( ${JD_USO_MB:-0} * 1024 ))
+    if [[ "${JD_TOPE_MB:-}" =~ ^[0-9]+$ && "${JD_USO_MB:-}" =~ ^[0-9]+$ ]] \
+       && [[ "$JD_USO_MB" -lt $(( JD_TOPE_MB * 8 / 10 )) && "$JD_HORAS" -lt 96 ]]; then
+        _ok "journal joven (${JD_USO_MB}M de ${JD_TOPE_MB}M): nada descartado aún, la retención (${JD_HORAS} h) crece sola"
+    elif [[ "$JD_HORAS" -ge 96 ]]; then _ok  "retención del journal: ${JD_HORAS} h (~$((JD_HORAS/24)) días)"
     elif [[ "$JD_HORAS" -ge 48 ]]; then _avi "retención del journal: solo ${JD_HORAS} h" \
              "no cubre un incidente de fin de semana. ¿Hay algún servicio inundando el log?"
     else _mal "retención del journal: solo ${JD_HORAS} h — un incidente se pierde antes de investigarlo" \
