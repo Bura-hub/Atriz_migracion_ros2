@@ -15,6 +15,26 @@ para saber por dónde vas.
 
 ---
 
+## ✅ Pi (2026-08-15, cierre de la tanda) · **El `on_exit` del puente, ARMADO Y VERIFICADO POR EFECTO: rosbridge asesinado y la unidad entera resucitó sola**
+
+👤 El usuario hizo el `restart atriz-robot` que armaba el punto 1, y se verificó **matando el nodo
+de verdad**, no mirando el fichero — el método de siempre (driver: NRestarts 12→13):
+
+```
+22:54:47  kill al PID de atriz_rosbridge (123892, dueño sphero)
+          atriz-robot: activating · NRestarts 0 → 1 · rosbridge nuevo PID 124603
+~30 s     atriz-robot active · atriz-agente active (volvió por PartOf)
+después   127.0.0.1 sin testigo  → ABRE y /estado_robot fluye      ✅ exención intacta
+          192.168.1.200 sin testigo → 4401 con motivo               ✅ exigencia intacta
+```
+
+O sea: **un rosbridge muerto ya no deja un robot verde y mudo** — la unidad entera se reinicia
+sola (~30 s) y la exigencia de testigo sobrevive al ciclo. Con esto, TODA la tanda del robot de la
+evidencia 125 queda aplicada Y verificada por efecto. Los 👤 que quedan y tu lista web siguen en
+el bloque de abajo.
+
+---
+
 ## ✅ Pi (2026-08-15, tanda de escalado) · **Los arreglos del robot de la 125, APLICADOS — y una corrección: fase_6 SÍ tenía puerta del testigo**
 
 👤 Autorizado por el usuario («dale»). Lo aplicado, cada pieza verificada:

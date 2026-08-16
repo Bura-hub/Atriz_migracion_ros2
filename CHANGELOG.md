@@ -4,6 +4,15 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, cierre de la tanda (Pi) — El on_exit del puente, verificado matando el nodo
+
+Tras el restart del usuario, prueba de efecto real: `kill` al PID de `atriz_rosbridge` →
+`NRestarts` 0→1, la unidad entera resucitó sola en ~30 s (agente incluido, por `PartOf`), y las
+dos direcciones del testigo intactas tras el ciclo (localhost abre y fluye; la red, 4401 con
+motivo). Un rosbridge muerto ya no deja un robot verde y mudo.
+
+---
+
 ## 2026-08-15, tanda de escalado (Pi) — Los arreglos del robot de la evidencia 125, aplicados
 
 Autorizados por el usuario. `fase_7 --id` reescribe la identidad heredada de un clon en vez de
