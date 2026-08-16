@@ -1640,6 +1640,28 @@ if [[ -f "$LAUNCH_ROBOT" ]]; then
         _mal "rosbridge SIN lista blanca: raw_motors alcanzable desde la red" \
              "ver 03_operacion/SEGURIDAD_ROSBRIDGE.md, Fase A"
     fi
+
+    # --- FASE B: ¿exige rosbridge un TESTIGO? (A7, evidencia 124) -------------
+    # 🔴 La lista blanca cierra `raw_motors`, pero NO distingue personas:
+    #    cualquiera en el aula sigue pudiendo teleoperar cualquier robot por
+    #    `/cmd_vel_raw`. Eso es lo que cierra la Fase B, y esto lo comprueba.
+    #
+    # 🔴 Se delega en un guion Python porque hace falta un apretón de WebSocket
+    #    y leer el CÓDIGO de cierre, y eso en bash no sale. Y sobre todo porque
+    #    la comprobación tiene una trampa que merece estar explicada donde vive:
+    #    **desde 127.0.0.1 la exención la haría pasar siempre**, así que mide
+    #    desde la dirección de red del propio robot. Ver su cabecera.
+    TESTIGO_CHK="$REPO/scripts/sistema/comprobar_testigo_rosbridge.py"
+    if [[ -f "$TESTIGO_CHK" ]]; then
+        SAL_TESTIGO="$(python3 "$TESTIGO_CHK" 2>&1 || true)"
+        case "$SAL_TESTIGO" in
+            OK*)    _ok "${SAL_TESTIGO#OK }" ;;
+            FALLO*) _mal "${SAL_TESTIGO#FALLO }" \
+                         "03_operacion/SEGURIDAD_ROSBRIDGE.md, Fase B · evidencia 124" ;;
+            AVISO*) _avi "${SAL_TESTIGO#AVISO }" "no bloquea, pero deja la Fase B sin comprobar" ;;
+            *)      _nota "${SAL_TESTIGO#INFO }" ;;
+        esac
+    fi
     # 🔴 La sesion de medicion de color necesita LOS DOS, y ahora por DOS razones.
     #    Que este uno solo es peor que que no este ninguno, porque parece que
     #    funciona. Anadidos el 2026-08-06 (evidencia 76).
