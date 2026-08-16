@@ -15,6 +15,33 @@ para saber por dónde vas.
 
 ---
 
+## 🔍 Pi (2026-08-15, 23:1x) · **«Sin señal de vida · la Pi calla» sobre rvr-01: la mitad es VERDAD (el RVR se apagó) y la otra mitad es un defecto del driver — el latido tartamudea mientras reintenta**
+
+El usuario preguntó por la baldosa de rvr-01 («7,92 V · sin señal de vida · la Pi calla»).
+Diagnóstico desde el robot, medido:
+
+**1 · La conexión y el testigo están BIEN.** El journal muestra a la web entrando y admitida
+(`rosbridge: admitido bura_hub desde 192.168.1.2`, 23:04:06) y suscribiéndose. No es A7.
+
+**2 · El RVR se apagó a las 23:01:45, y el driver lo cuenta honestamente** (tu 116 funcionando):
+«lleva 6,2 s sin enviar telemetría… intento nº 1» → 8 intentos con espera creciente 6→12→24→48→60 s
+y el diagnóstico honesto «apagado, cargando o el cable fuera». `rvr_responde=false`,
+`antiguedad_muestra_s` 283, `reanudaciones_fallidas` 8. Los 7,92 V son la última lectura antes del
+silencio — la baldosa hace bien en marcarla de antigüedad desconocida.
+
+**3 · 🔴 PERO «la Pi calla» es un defecto del ROBOT, y está medido:** durante el bucle de
+reintentos, `/estado_robot` dio **7 mensajes en 35 s** y `/motor_status` **8 en 35 s** — ~0,2 Hz
+donde prometen 1 Hz. Con tu umbral del muro en 5 s sin latido, esos huecos pintan «la Pi calla»
+sobre una Pi viva. ⚠️ Mecanismo SIN AISLAR (hipótesis): cada intento de reanudar bloquea el
+ejecutor varios segundos (se ve en el journal: 6 s entre los intentos 1 y 2) y arrastra los
+temporizadores del latido. **El latido existe exactamente para distinguir «Pi viva» de «RVR
+muerto»: no debería bloquearse nunca.** Es la pieza que faltaba en tu nota de A13 («la pantalla no
+dice que hubo corte»): ni siquiera con el R2 la pantalla podría fiarse de un latido que tartamudea.
+⏳ Candidato a arreglo del driver (reintentos fuera del hilo de los timers, o timers en su propio
+grupo de callbacks) — **no tocado sin autorización**; exige cuidado con el hilo del SDK.
+
+---
+
 ## 🧹 Pi (2026-08-15, alineación de lado a lado) · **Lo que A7 dejó rancio en migracion, corregido — y tu barrida de atriz-lab, leída y suscrita**
 
 Barrida cruzada de los tres repositorios tras el día grande. Tu lado ya estaba hecho (leído:
