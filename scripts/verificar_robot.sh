@@ -1651,8 +1651,16 @@ if [[ -f "$LAUNCH_ROBOT" ]]; then
     #    la comprobación tiene una trampa que merece estar explicada donde vive:
     #    **desde 127.0.0.1 la exención la haría pasar siempre**, así que mide
     #    desde la dirección de red del propio robot. Ver su cabecera.
-    TESTIGO_CHK="$REPO/scripts/sistema/comprobar_testigo_rosbridge.py"
-    if [[ -f "$TESTIGO_CHK" ]]; then
+    # 🔴 RAIZ PROPIA, no `$REPO`: esa se define en la seccion 13, MAS ABAJO que
+    #    esto, asi que aqui estaba VACIA — la ruta no existia y la guarda de
+    #    debajo convertia eso en un salto SILENCIOSO. Una comprobacion que no
+    #    comprueba y no lo dice, que es la familia que este guion persigue.
+    RAIZ_V="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || echo '')"
+    TESTIGO_CHK="$RAIZ_V/scripts/sistema/comprobar_testigo_rosbridge.py"
+    if [[ ! -f "$TESTIGO_CHK" ]]; then
+        # 🔴 Y si falta, se DICE. Callarse aqui es lo que escondio el fallo.
+        _avi "no encuentro comprobar_testigo_rosbridge.py: la Fase B queda SIN comprobar"              "esperado en $TESTIGO_CHK"
+    else
         SAL_TESTIGO="$(python3 "$TESTIGO_CHK" 2>&1 || true)"
         case "$SAL_TESTIGO" in
             OK*)    _ok "${SAL_TESTIGO#OK }" ;;

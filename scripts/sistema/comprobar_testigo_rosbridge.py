@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import base64
 import os
+import re
 import socket
 import struct
 import subprocess
@@ -104,6 +105,20 @@ def tocar(host: str, timeout: float = 6.0) -> tuple[str, int, str]:
             pass
 
 
+#: 🔴🔴 ANCLADO AL PRINCIPIO DE LÍNEA, Y NO UN `in` SOBRE EL FICHERO ENTERO.
+#:
+#: La primera versión buscaba la cadena suelta y **contó un COMENTARIO como si
+#: fuera un ajuste**: el propio `robot.launch.py` lleva, dentro del bloque que
+#: explica cómo activar la Fase B, la línea de ejemplo comentada. Resultado
+#: medido en rvr-01: dijo FALLO «rosbridge acepta sin testigo» sobre un robot
+#: que no tenía por qué exigirlo.
+#:
+#: 📌 Es la TERCERA vez que este proyecto cuenta un comentario como un ajuste, y
+#:    la regla ya estaba escrita en CLAUDE.md por las dos anteriores: **ancla al
+#:    principio de línea y a la sintaxis exacta**.
+_CABLE = re.compile(r"^\s*package='atriz_rvr_bringup',\s*executable='atriz_rosbridge\.py'")
+
+
 def cableado() -> bool:
     """¿Está el launch apuntando al lanzador con testigo?
 
@@ -118,7 +133,7 @@ def cableado() -> bool:
         ruta = os.path.join(base, 'atriz_rvr_bringup', 'launch', 'robot.launch.py')
         try:
             with open(ruta, encoding='utf8') as f:
-                return "executable='atriz_rosbridge.py'" in f.read()
+                return any(_CABLE.match(l) for l in f)
         except OSError:
             continue
     return False

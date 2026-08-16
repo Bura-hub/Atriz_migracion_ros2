@@ -2827,6 +2827,21 @@ dado FALLO durante dos días**, incluidos los 16 al salir de la imagen dorada.
   en el caso bueno, que se paga igual de caro: **un verificador con falsos positivos se acaba
   ignorando.** Ensayado en las dos direcciones antes de subirlo. Evidencia 122.
 
+🔴 **Y VAN CATORCE, las dos el 2026-08-15 y en la misma comprobación nueva (A7 F4):**
+
+- **Trece · contó un COMENTARIO como si fuera un ajuste.** Buscaba
+  `executable='atriz_rosbridge.py'` con un `in` sobre el fichero entero, y esa cadena está en
+  `robot.launch.py` **dentro del bloque que explica cómo activar la Fase B**. Dijo **FALLO
+  «rosbridge acepta sin testigo»** sobre un robot que no tenía por qué exigirlo.
+  📌 **Es la TERCERA vez que pasa esto**, y la regla ya estaba escrita aquí por las dos
+  anteriores: **ancla al principio de línea y a la sintaxis exacta**. La leí el mismo día.
+- **Catorce · una comprobación que se saltó SOLA y en silencio.** El bloque usaba `$REPO`, que el
+  guion define **300 líneas más abajo**: estaba vacía, la ruta no existía, y mi guarda
+  `if [[ -f … ]]` convirtió eso en un salto mudo. **El verificador no imprimió ni una línea sobre
+  la Fase B y nadie lo habría notado.**
+  → El arreglo no es solo calcular bien la ruta: es que **si el guion falta, ahora AVISA**.
+    Callarse era lo que lo escondía. Misma familia que las diez anteriores.
+
 **Un verificador con falsos positivos se acaba ignorando, y eso es peor que no tenerlo.**
 Evidencia 32.
 
