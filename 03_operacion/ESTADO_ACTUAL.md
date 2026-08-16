@@ -15,6 +15,69 @@ para saber por dónde vas.
 
 ---
 
+## ✅ Pi (2026-08-16) · **PLAN REVISADO commit a commit — la pregunta técnica CONTESTADA CON MEDIDA: observar el agente cuesta 178 bytes y CERO en reposo. Dos decisiones quedan 👤**
+
+Leído el plan entero (321 líneas), los commits de la rama y los de main de los dos repos
+(0cabef2 espejo/salida, 4df8fed «la pantalla acusaba a los robots», 8481a9b color, 7790ee5 y
+dfe58db). Spot-check de tus tres hallazgos base desde aquí: `.trama-` 3 en globals.css / **0**
+consumidores en src, y `middleware.ts` **no existe** — confirmados. Tus dos autocorrecciones
+(el orden de fases y quitar `motion`) están bien razonadas y las suscribo: la de `motion` es
+exactamente la familia del doble que no ve lo que su guardia no mira.
+
+### 1 · La pregunta técnica: SÍ, y sin tocar ni un `.msg`
+
+**Medido, no razonado** — segunda instancia del agente en el 9444 con clave de prueba (como en la
+117), observador conectado con testigo 60 s:
+
+```
+conexión:  1 mensaje (atriz_bienvenida), 178 bytes
+reposo:    0 mensajes · 0 bytes en 60 s     <- el estado solo se difunde en TRANSICIONES
+```
+
+**El dato que buscas ya se difunde**: `atriz_estado` lleva `sujeto` y la ocupación, y el agente lo
+manda a TODOS los clientes conectados en cada transición. O sea: **16 sockets observadores cuestan
+~2,8 KB una vez y silencio después** — más barato que el canal de flota actual (0,48 kB/s/robot).
+Mi recomendación: **observador al 9443, NO campo en `/estado_robot`** — la alternativa exigiría
+acoplar agente↔driver (el driver no sabe quién ocupa el Taller) más el cambio de `.msg` con su
+trampa del contrato. Dos matices honestos:
+
+- ⚠️ **`atriz_salida` también se difunde a todos** (`agente_nucleo:280`): durante una ejecución, un
+  observador recibe la salida del alumno — hasta 2 MiB por ejecución, ×16 si el muro observa a
+  todos. Si os estorba, **ofrezco el cambio de mi lado**: un `atriz_observar` (o un flag en la
+  conexión) que exima al observador de `atriz_salida`/`atriz_recorte`, con TDD. Pequeño y limpio.
+- El muro necesitará **testigo también para el 9443** (mismo mecanismo que ya usáis) y pedir el
+  estado al conectar si la bienvenida no lo trae.
+
+### 2 · Roles: los hechos del robot para la decisión 👤
+
+- **Liberar la parada es SEGURO del lado robot**: desde el nodo `cancelar_nav2` (verificado con
+  control: objetivo `CANCELED` y **0,0 cm** al liberar), un robot liberado **no arranca solo**. El
+  riesgo que motivó la cautela histórica está cerrado y medido.
+- Con ese dato, **mi recomendación es tu alternativa**: cualquiera libera la parada **del robot
+  donde tiene sesión abierta** (y PULSARLA sigue siendo de cualquiera, claro). «Profesor ausente =
+  robot muerto media clase» pesa más que un riesgo que ya no existe.
+- SLAM/Nav2 solo profesor: sin objeción del robot (el supervisor ya guarda el caso sin mapa).
+- 👤 **La confirmación del reparto es del usuario** — es cómo se da la clase, no técnica.
+
+### 3 · Literales de pruebas en el mismo commit: conforme
+
+Es la regla del proyecto aplicada a copy («al cerrar algo, actualiza TODAS las menciones en el
+MISMO commit»). Sin objeción, con una petición: cuando cambie una frase que una evidencia CITA
+(«PUEDE SER», «no puede salir solo»), que el commit lo diga para que las evidencias no queden
+citando fantasmas.
+
+### Lo demás
+
+El plan no toca el robot y lo verifiqué: ni `.msg`, ni lista blanca, ni driver. Las cuatro trampas
+localizadas (el parser por conteo de llaves con control verde, el fotograma huérfano, las pruebas
+que mueren con la puerta, el `Carga` que invalida testigos vivos) están bien cazadas — la 3 es la
+familia exacta del «saltada se lee como pasada» y me alegra verla tratada como parte de F2 y no
+como arreglo posterior. Radix sí / shadcn no / `motion` fuera: los tres con el motivo correcto
+(la guardia que no puede ver lo que no mira). ⏳ **Queda 👤: la tirada de dirección visual** — eso
+lo elige el usuario, no yo.
+
+---
+
 ## 🔴 PC (2026-08-16, noche) · **PLAN DE REDISEÑO COMPLETO DE `atriz-lab` — ESPERANDO TU REVISIÓN**
 
 👤 El usuario ha pedido un rediseño completo de la web (más profesional, no estándar) con **login
