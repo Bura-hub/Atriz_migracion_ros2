@@ -4,9 +4,9 @@ EVIDENCIA 124 · A7 F1 — rosbridge EXIGE TESTIGO, Y NO HIZO FALTA NINGÚN PROX
 Fecha       2026-08-15
 Robot       rvr-01
 Pendiente   A7 · Fase B de SEGURIDAD_ROSBRIDGE.md
-Estado      F1 CERRADO y verificado contra el robot (8/8)
-            ⏳ F2 cliente · F3 doble · F4 herramientas y verificador · F5 TLS
-            🔴 NADA DESPLEGADO: el cableado del launch está revertido a propósito
+Estado      ✅ CABLEADO Y ACTIVO en rvr-01 desde el 2026-08-15 (apartado 8)
+            F1 lanzador · F2 cliente · F3 doble · F4 verificador: hechos
+            ⏳ queda el interruptor de la web, las dos herramientas HTML y TLS
 
 
 ───────────────────────────────────────────────────────────────────────────────
@@ -197,6 +197,67 @@ el nodo original. Existe para no tener que entrar por SSH a 16 robots si el
 parche se rompe. ⏳ `verificar_robot.sh` tiene que dar **FALLO** si la encuentra
 puesta — una salida de emergencia que nadie ve es una puerta trasera. **Sin hacer
 (F4).**
+
+
+───────────────────────────────────────────────────────────────────────────────
+8 · CABLEADO Y ACTIVO EN rvr-01 — 2026-08-15, con autorización del usuario
+───────────────────────────────────────────────────────────────────────────────
+`robot.launch.py` pasa a lanzar `atriz_rosbridge.py`. Comprobado en las dos
+direcciones y desde los DOS lados:
+
+  desde el PC, SIN testigo   ->  4401 «no llegó ningún testigo: abre el robot
+                                 desde la web, con la sesión iniciada»
+  desde el PC, testigo_real  ->  8/8 (4401 · 4401 · 4403 · 4404 · admitido ·
+                                 subprotocolo ofrecido · /odom fluyendo)
+  desde el robot (verificador) -> OK exige testigo desde la red (192.168.1.200
+                                  → 4401) y exime a localhost
+
+✅ **El requisito 1 queda cerrado en el robot**: ya no es solo que `raw_motors`
+   esté cerrado, es que el robot **sabe quién entra** y rechaza a quien no traiga
+   una credencial suya. Era lo que bloqueaba la Fase 5.
+
+
+───────────────────────────────────────────────────────────────────────────────
+9 · 🔴🔴 Y AL CABLEARLO TUMBÉ EL ROBOT: EL BIT DE EJECUCIÓN
+───────────────────────────────────────────────────────────────────────────────
+Primer reinicio tras cablear:
+
+    [ERROR] [launch]: executable 'atriz_rosbridge.py' not found on the libexec
+                      directory '/home/sphero/atriz_ws/install/.../lib/...'
+    Job for atriz-robot.service failed
+    -> atriz-robot ENTERO caído, dos reintentos, y el robot sin rosbridge
+
+**Causa, que no conocía:** con `--symlink-install`, `install(PROGRAMS …)` **no
+copia el fichero: lo ENLAZA al fuente**, así que el permiso es el del fuente y
+no el que pide CMake. Y ese fuente lo escribí en Windows, donde git lo registró
+como **644**. `ros2 launch` solo considera ejecutable lo que tiene el bit.
+
+✅ Arreglado en git —`git update-index --chmod=+x`— para que llegue con el pull,
+   no con un `chmod` a mano que se perdería al reflashear.
+
+🔴 **Y LA PARTE QUE IMPORTA ES MÍA, NO DE CMAKE: PEDÍ LA COMPROBACIÓN
+   EQUIVOCADA.** Antes de reiniciar pedí expresamente comprobar el efecto, y lo
+   que pedí fue:
+
+       ls -l ~/atriz_ws/install/atriz_rvr_bringup/lib/atriz_rvr_bringup/
+
+   Los dos ficheros estaban, di el paso por bueno, y **ese mismo `ls -l` tenía
+   el modo delante**. La comprobación buena era una palabra: `test -x`.
+
+   Es la regla de este proyecto —«comprueba el EFECTO, no que el fichero
+   exista»— aplicada a medias: **comprobé la existencia y la llamé efecto**.
+   Misma forma que `ros2 topic list` incluyendo topics de nodos muertos, que
+   `systemctl is-active` sobre un launch cuyo nodo murió, y que
+   `comprobar_contrato.mjs` mirando que el `.msg` exista.
+
+📌 **Y habría llegado a los 16 idéntico:** `provision.sh` compila desde un clon
+   limpio, así que el modo sale de git para toda la flota. Que apareciera en
+   rvr-01 con un usuario delante es lo mejor que podía pasar.
+
+⏳ Sin comprobar: que `verificar_robot.sh` cace este caso. Hoy comprueba el
+   EFECTO (rosbridge rechaza desde la red), lo cual lo cubre indirectamente —si
+   el nodo no arranca, no hay a quién conectarse y sale AVISO—, pero no dice
+   «falta el bit de ejecución».
 
 
 ───────────────────────────────────────────────────────────────────────────────

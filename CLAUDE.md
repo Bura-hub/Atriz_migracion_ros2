@@ -831,6 +831,26 @@ uptime     32 min -> 35 min · NRestarts 0 -> 0               la Pi ni se inmuta
   driver**, así que un `latido` que RETROCEDE es prueba directa de que hubo reinicio. Es el remedio
   R2 del plan del 2026-08-06. Evidencia 123.
 
+**🔴🔴 Y CON `--symlink-install`, EL BIT DE EJECUCIÓN SALE DEL FUENTE, NO DE CMAKE.**
+`install(PROGRAMS …)` **no copia el fichero: lo ENLAZA**, así que el permiso es el del fuente. Un
+guion escrito en Windows entra en git como **644**, y `ros2 launch` solo considera ejecutable lo
+que tiene el bit:
+
+```
+[ERROR] [launch]: executable 'atriz_rosbridge.py' not found on the libexec directory '…/lib/…'
+   -> atriz-robot ENTERO caído, y el robot sin rosbridge
+```
+
+→ Se arregla **en git** (`git update-index --chmod=+x`), no con un `chmod` en el robot: eso se
+  perdería al reflashear, y `provision.sh` compila desde un clon limpio — o sea que el modo sale de
+  git **para los 16**.
+→ 🔴 **Y la lección es de método, no de CMake: pedí la comprobación equivocada.** Antes de
+  reiniciar pedí «comprobar el efecto», y lo que pedí fue un `ls -l` del directorio. Los ficheros
+  estaban, di el paso por bueno, y **el propio `ls -l` enseñaba el modo delante de mí**. La buena
+  era una palabra: **`test -x`**.
+  **Comprobé la existencia y la llamé efecto** — misma familia que `ros2 topic list` con topics de
+  nodos muertos y que `comprobar_contrato.mjs` mirando que el `.msg` exista. Evidencia 124.
+
 **🔴🔴 CON `--symlink-install`, SUBIR AL REPOSITORIO **ES** DESPLEGAR.** El 2026-08-15 cableé un
 lanzador nuevo en `robot.launch.py` en el primer commit, dando por hecho que haría falta un
 `colcon build` para activarlo. No hacía falta:

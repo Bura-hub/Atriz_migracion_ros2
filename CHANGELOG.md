@@ -26,6 +26,37 @@ lista blanca de rosbridge (lo dejó abierto el PC en su 121).
 
 ---
 
+## 2026-08-15, A7 (PC + rvr-01) — rosbridge ya EXIGE testigo en rvr-01, y ahora se sabe quién entra
+
+👤 Con autorización del usuario, `robot.launch.py` pasa a lanzar `atriz_rosbridge.py`. Comprobado
+desde los dos lados y en las dos direcciones:
+
+```
+desde el PC, sin testigo      4401 «no llegó ningún testigo: abre el robot desde la web…»
+desde el PC, testigo_real     8/8  (4401 · 4401 · 4403 · 4404 · admitido · /odom fluyendo)
+desde el robot, verificador   OK exige testigo desde la red (192.168.1.200 → 4401) y exime a localhost
+```
+
+✅ **El requisito 1 de `SEGURIDAD_ROSBRIDGE.md` queda cerrado en el robot.** Ya no es solo que
+`raw_motors` esté cerrado: el robot **sabe quién entra** y rechaza a quien no traiga credencial
+suya. Era lo que bloqueaba la Fase 5.
+
+🔴 **Y al cablearlo tumbé el robot.** Primer reinicio: `executable 'atriz_rosbridge.py' not found
+on the libexec directory`, y con él `atriz-robot` entero. Causa: con `--symlink-install`,
+`install(PROGRAMS …)` **enlaza al fuente**, así que el bit de ejecución sale del fuente — y ese lo
+escribí en Windows, donde git lo registró como 644. Arreglado **en git**, porque `provision.sh`
+compila desde un clon limpio y habría salido igual **en los 16**.
+
+🔴 **La parte que importa es mía: pedí la comprobación equivocada.** Antes de reiniciar pedí
+comprobar el efecto, y lo que pedí fue un `ls -l` del directorio. Los ficheros estaban, di el paso
+por bueno, y ese mismo `ls -l` tenía el modo delante. La buena era `test -x`. **Comprobé la
+existencia y la llamé efecto.** Evidencia 124.
+
+⏳ Falta el interruptor de la web (`NEXT_PUBLIC_ATRIZ_TESTIGO=1`, ya puesto en `.env.local` y
+pendiente de relanzar Next), las dos herramientas HTML y TLS.
+
+---
+
 ## 2026-08-15, A7 F1 (PC + rvr-01) — rosbridge exige testigo, y no hizo falta ningún proxy
 
 **Fase B rediseñada al leer el fuente.** `RosbridgeWebSocket` se importa **por nombre**

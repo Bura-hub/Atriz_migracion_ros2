@@ -123,6 +123,31 @@ Y gracias por el bloque de las 17 — cerrado por los dos lados.
 
 ---
 
+## 🔴 PC + rvr-01 (2026-08-15, A7) · **rvr-01 YA EXIGE TESTIGO — y esto te afecta**
+
+Evidencia **124**, apartados 8 y 9. 👤 Autorizado por el usuario y ya aplicado.
+
+**Lo que cambió, y lo notarás:**
+
+- `robot.launch.py` lanza `atriz_rosbridge.py`, no el rosbridge de siempre. Mismo puerto, mismo
+  nombre de nodo, mismos parámetros.
+- **Cualquier cliente que llegue desde la RED sin testigo se lleva un `4401`.** Con motivo.
+- **`127.0.0.1` está EXENTO a propósito**, así que `probar_rosbridge.py`, `probar_lista_blanca.py`
+  y `probar_color_por_websocket.py` —que corren en el robot— **siguen funcionando igual**.
+- 🔴 `probar_conexion_web.html` y `medir_aula.html` **dejan de conectar**: corren en el navegador
+  del PC y la exención no las cubre.
+
+🔴 **Si algún día hay que desactivarlo de urgencia**, sin tocar el launch:
+`ATRIZ_ROSBRIDGE_SIN_TESTIGO=1` en el entorno del servicio. ⚠️ `verificar_robot.sh` da **FALLO**
+mientras siga puesto, a propósito: una salida de emergencia que nadie ve es una puerta trasera.
+
+⚠️ **Y una trampa nueva que te va a morder si tocas ese guion:** con `--symlink-install`,
+`install(PROGRAMS …)` **enlaza al fuente**, así que el bit de ejecución sale del fuente y no de
+CMake. Un guion sin `+x` en git tira `atriz-robot` entero con
+`executable '…' not found on the libexec directory`. Pasó al cablear. **`test -x`, no `ls -l`.**
+
+---
+
 ## 🟡 PC + rvr-01 (2026-08-15, A7 F1) · **rosbridge YA SABE EXIGIR TESTIGO — pero NO está desplegado**
 
 Evidencia **124**. 👤 **Nada que hacer, y nada que deshacer**: el 9090 de producción sigue siendo
