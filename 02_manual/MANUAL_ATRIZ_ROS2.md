@@ -4870,10 +4870,22 @@ usa el número alto.**
 
 ### 19.7 La prueba de que todo esto funciona
 
-[`03_operacion/probar_conexion_web.html`](../03_operacion/probar_conexion_web.html) — se abre
-con doble clic **en el PC**, no en el robot. Sin librerías y sin CDN: WebSocket del navegador
-contra el protocolo JSON de rosbridge, escrito a mano, para que funcione **sin internet**, que
-el laboratorio puede no tener.
+🔴 **`probar_conexion_web.html` JUBILADA el 2026-08-15** (y con ella `medir_aula.html`), por
+decisión del usuario. Desde la Fase B (A7) rosbridge **exige un testigo firmado**, y esas páginas
+se abren con doble clic, sin sesión: no tienen credencial que mandar y el robot las cierra con
+`4401`.
+
+**Lo que las sustituye es la propia aplicación** (`atriz-lab`), que es quien firma los testigos y
+que hoy hace todo lo que hacían ellas — y más. Nacieron antes que la web, para probar que el
+camino navegador ↔ robot existía; ese camino lleva meses siendo el camino normal.
+
+📝 **Y lo que se pierde es menos de lo que parece, pero conviene saberlo:** su valor era aislar
+«¿es la app o es la red?». Eso **sigue siendo posible sin ellas**, porque un cierre `4401` **es un
+resultado positivo** para esa pregunta: prueba que el nombre resolvió, que el TCP conectó y que
+rosbridge contestó. Si en vez de `4401` no abre nada, el problema es la red o el nombre.
+
+⚠️ Lo que ya no queda es una página que enseñe eso en dos líneas a quien no sepa leer un código de
+cierre. Si algún día hace falta, se rehace **con testigo**: hay que pegarlo a mano en la URL.
 
 Prueba **las dos direcciones**, que son caminos distintos:
 

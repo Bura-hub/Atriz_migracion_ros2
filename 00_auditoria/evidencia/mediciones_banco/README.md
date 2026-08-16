@@ -181,8 +181,9 @@ multiplicador del JSON, que se había estimado en 3–5× y resultó ser **~2×*
 
 ## La prueba que NO está aquí, y es la que más vale
 
-[`03_operacion/probar_conexion_web.html`](../../../03_operacion/probar_conexion_web.html) se
-abre **en el PC**, no en el robot. Es la única que comprueba lo que de verdad hará la
+~~`03_operacion/probar_conexion_web.html`~~ **JUBILADA el 2026-08-15**: desde la Fase B rosbridge
+exige testigo y esa página no tiene sesión con la que firmarlo. Lo que hacía lo hace hoy la propia
+aplicación. Se abría **en el PC**, no en el robot, y comprobaba lo que de verdad hace la
 plataforma: que un **navegador** resuelva `rvr-NN.local`, abra el WebSocket, reciba topics y
 llame a un servicio. Un cliente Python en el propio robot no prueba nada de eso.
 
@@ -199,10 +200,10 @@ cuatro líneas con `websockets` y `zeroconf`.
 diagnóstico que exige desplegar software no sirve el día que hay una avería — que es
 exactamente el día que lo necesitas. Cien líneas de protocolo crudo se pagan solas.
 
-📝 Y hay un tercer probador que **no** vive aquí, porque no se ejecuta en el robot:
-[`03_operacion/probar_conexion_web.html`](../../../03_operacion/probar_conexion_web.html) se
-abre con doble clic **en el PC** y hace la prueba que ninguna herramienta del robot puede
-hacer: que un **navegador** abra el WebSocket.
+📝 Hubo un tercer probador que no vivía aquí porque no se ejecutaba en el robot:
+`03_operacion/probar_conexion_web.html`, **jubilado el 2026-08-15**. Hacía la prueba que ninguna
+herramienta del robot puede hacer —que un **navegador** abra el WebSocket— y hoy la hace la
+aplicación, que además trae credencial.
 
 
 ---

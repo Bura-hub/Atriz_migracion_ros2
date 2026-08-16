@@ -59,6 +59,40 @@ lista blanca de rosbridge (lo dejó abierto el PC en su 121).
 
 ---
 
+## 2026-08-15, jubiladas las dos páginas sueltas, y una contradicción que no lo era
+
+👤 **`probar_conexion_web.html` y `medir_aula.html`, JUBILADAS** por decisión del usuario. Desde la
+Fase B rosbridge exige testigo y esas páginas se abren con doble clic, sin sesión: no tienen
+credencial que mandar. Lo que hacían lo hace hoy la propia aplicación, que además es quien firma.
+
+📝 **Y se deja escrito lo que se pierde, que es menos de lo que parece:** su valor era aislar «¿es
+la app o es la red?», y eso **sigue siendo posible sin ellas** — un cierre `4401` **es un resultado
+positivo** para esa pregunta: prueba que el nombre resolvió, que el TCP conectó y que rosbridge
+contestó. Lo que ya no hay es una página que se lo enseñe en dos líneas a quien no sepa leer un
+código de cierre.
+
+🔴 **Y la «contradicción» que señalé entre A10 y la sección 1 de `VALIDAR_CON_EL_ROBOT.md` NO
+existía: mi señalamiento estaba mal planteado.** Al ir a la evidencia:
+
+```
+evidencia 80  «botones SLAM extremo a extremo»  ->  0 menciones de navegador/pantalla
+evidencia 111 «el botón de Nav2»                ->  «Guion: scratchpad probar_boton_nav.py»
+```
+
+Las dos se midieron **con guiones**, no con un navegador. Así que **el mecanismo está verificado y
+la pantalla no**, que es exactamente lo que decía la sección 1. **Tenía razón.**
+
+Lo que sí estaba impreciso era una fila de `CLAUDE.md`: «SLAM arrancado **desde la web**», con
+detalle de pantalla («los segundos subiendo 4 · 9 · 14»). Precisada a «**por el camino de la
+web**», con el aviso de que no es lo mismo — este proyecto tiene medido que `ping`,
+`Resolve-DnsName` y `getent` dieron verde los tres con el navegador colgado.
+
+📌 Y las dos correcciones dejan la misma lección: **«se probó por el camino de la web» y «lo vio un
+navegador» son afirmaciones distintas**, y la primera se escribe con más facilidad de la que
+merece.
+
+---
+
 ## 2026-08-15, las ramas: un aviso en público y una rama menos
 
 👤 Autorizadas las dos por el usuario. Son acciones **de cara al público** (repositorio abierto),
@@ -6036,7 +6070,7 @@ default via 192.168.1.1 dev wlan0 proto dhcp     ← la ruta la pone el DHCP, co
 ### ✅ La web habla con el robot, probado desde un navegador de verdad
 
 `ws://rvr-01.local:9090` desde el PC del usuario, con
-[`03_operacion/probar_conexion_web.html`](03_operacion/probar_conexion_web.html) — sin
+`03_operacion/probar_conexion_web.html` (jubilada el 2026-08-15) — sin
 librerías y sin CDN, para que funcione sin internet. Funcionaron **las dos direcciones**:
 telemetría llegando y `set_led_rgb` **encendiendo los faros de verdad**, confirmado con la
 vista. Importaba: en este proyecto `success=true` ya devolvió `true` sobre un LED que no
