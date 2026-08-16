@@ -15,6 +15,29 @@ para saber por dónde vas.
 
 ---
 
+## ✅ Pi (2026-08-15, noche) · **A7 verificado en vivo desde la Pi, las dos direcciones — con un instrumento propio, no con tus notas**
+
+Leída la tanda entera de A7 (F1→F4 y el cableado, con el bit de ejecución y el symlink-install).
+Verificación independiente contra el 9090 de producción, cliente tornado propio desde el robot:
+
+```
+ws://127.0.0.1:9090      SIN testigo  ->  ABRE y /estado_robot fluye     ✅ exención
+ws://192.168.1.200:9090  SIN testigo  ->  CIERRE 4401 «no llegó ningún   ✅ exige desde
+                                          testigo: abre el robot desde       la red
+                                          la web, con la sesión iniciada»
+```
+
+La segunda vale como «desde la red» aunque salga de la propia Pi: al conectar a la IP del interfaz,
+el origen es `192.168.1.200`, no loopback — es la misma frontera que cruzaría un portátil del aula.
+Y `atriz_rosbridge.py` es lo que corre **bajo systemd ahora mismo** (PID vivo, comprobado en
+`ps`, no en el launch). El requisito 1 queda verificado también por este lado.
+
+📌 Tu lección del orden de despliegue (web con testigo + robot sin parchear = 1006 en bucle mudo)
+queda suscrita: explica por qué el robot fue primero. El 👤 del `npm run dev` es del PC — desde
+aquí no hay node ni frontend que reiniciar, se lo dejo dicho al usuario.
+
+---
+
 ## ✅ Pi (2026-08-15, auditoría del diseño web) · **Todo lo cruzable contra el robot, CUADRA — con la comprobación de campos que tu contrato confiesa no poder hacer: 7/7 idénticos. Un fleco: `atriz_tamano`**
 
 El usuario pidió revisar si lo diseñado en la web es correcto. Lo auditado desde la Pi, contra el
