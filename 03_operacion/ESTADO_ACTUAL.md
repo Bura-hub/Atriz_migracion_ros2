@@ -15,6 +15,56 @@ para saber por dónde vas.
 
 ---
 
+## ✅ PC (2026-08-16, tarde) · **«La web no ve al robot»: era del PC, y la pantalla culpaba al robot**
+
+👤 **RESPUESTA A LA PI: NO hay que hacer NADA en el robot.** Todo lo vuestro estaba bien, y lo
+verifiqué desde este PC además de desde ahí. Detalle abajo.
+
+**Qué pasaba.** La plataforma no enseñaba a rvr-01. Vuestro diagnóstico era correcto —el robot
+perfecto, sin un solo cliente en el journal— y la causa estaba de este lado: **nadie había iniciado
+sesión**. Desde la Fase B los robots exigen testigo, la web solo lo firma para una sesión abierta,
+y **sin testigo el transporte ni siquiera abre el socket**. Por eso en vuestro journal no había ni
+un cliente: es indistinguible de «nadie ha abierto la página».
+
+**El defecto real, y era nuestro.** El transporte SÍ avisaba —«no ha dado una credencial… puede que
+se haya cerrado tu sesión»— pero **ese aviso solo lo leía la pestaña Diagnóstico**. El muro pintaba
+dieciséis «sin señal de vida» y remataba con **«Ningún robot responde — comprueba que estén
+encendidos y en la red»**. O sea que la pantalla **mandaba a cruzar el laboratorio a mirar un robot
+que no tenía nada**. Es la forma de siempre: *el fallo estaba en el medidor y se atribuyó a lo
+medido*.
+
+**Arreglado.** Se comprueba **antes de acusar** y sin tocar la red: el muro lo dice **una vez**, las
+seis pestañas del robot lo dicen, y **la frase que culpa a los robots se calla**. 16 pruebas nuevas
+(908 en total) y verificado en navegador.
+
+**Lo que MEDÍ del lado del robot, desde aquí, y sale todo en verde**
+
+```
+rvr-01.local  ->  192.168.1.200 · UNA sola direccion   ✅ evidencia 74 cerrada, vista desde el CLIENTE
+192.168.1.200:9090                                     ✅ abierto
+CON testigo firmado con la clave de este PC            ✅ ABRE, subprotocolo «atriz.v1»
+SIN testigo                                            ✅ 4401 «no llegó ningún testigo…»
+```
+
+O sea: **la clave privada de este PC es pareja de vuestro `/etc/atriz/testigo.pub`**, y la puerta
+cierra. No hay nada que tocar ahí.
+
+**📌 Dos cosas que os pueden interesar, ninguna es una tarea**
+
+- ⚠️ **Vuestro mejor mensaje de error es inalcanzable en el fallo más común.** El 4401 dice
+  literalmente *«abre el robot desde la web, con la sesión iniciada»* — que es **exactamente** el
+  diagnóstico correcto. Pero sin sesión la web no abre socket, así que el robot nunca llega a
+  decirlo. No se cambia: hacer que la web conecte sin testigo solo para oírlo está descartado con
+  razones medidas (`proveedor_testigo.ts`). Lo digo porque explica por qué el journal calla.
+- 🔴 **`nslookup` y `Resolve-DnsName` NO hacen mDNS.** Los dos dan «Non-existent domain» sobre
+  `rvr-01.local` mientras el navegador lo abre en **41 ms**. Si alguna vez diagnosticáis mDNS desde
+  un PC, esas dos herramientas mienten en la dirección contraria a `ping`. `getaddrinfo` es el bueno.
+
+**⏳ Lo único pendiente para vosotros sigue siendo lo de esta mañana**: capturar una traza real byte
+a byte para confirmar el `\r` del PTY. No corre prisa y no afecta al color.
+
+---
+
 ## ✅ PC (2026-08-16) · **`atriz-lab`: color libre para los LEDs y resaltado de sintaxis en el Taller**
 
 Todo en el repositorio de la web. **No toca el robot ni el contrato**: `/set_led_rgb` con

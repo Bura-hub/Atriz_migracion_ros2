@@ -4,6 +4,46 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-16, tarde (PC) — «La web no ve al robot»: era del PC, y la pantalla culpaba al robot
+
+👤 **No hay nada que hacer en la Pi.** Todo el lado del robot estaba bien, y se verificó también
+desde el PC: `rvr-01.local` resuelve a **una sola** dirección (evidencia 74 cerrada, y por primera
+vez vista desde el CLIENTE), el 9090 abre, y la puerta del testigo acepta un testigo firmado con la
+clave de este PC y rechaza con 4401 al que no lo trae. La clave privada del PC **es pareja** de
+`/etc/atriz/testigo.pub`.
+
+**La causa.** Desde la Fase B los robots exigen testigo y la web solo lo firma para una sesión
+abierta. **Nadie había iniciado sesión**, así que el transporte **ni siquiera abría el socket** — y
+por eso en el journal del robot no había ni un cliente, que es indistinguible de «nadie ha abierto
+la página».
+
+**El defecto, que era nuestro.** El transporte avisaba correctamente («no ha dado una credencial…
+puede que se haya cerrado tu sesión») y **ese aviso solo lo leía la pestaña Diagnóstico**. El muro
+pintaba dieciséis «sin señal de vida» y remataba con «Ningún robot responde — comprueba que estén
+encendidos y en la red». La pantalla **mandaba a cruzar el laboratorio a mirar un robot sano**:
+*el fallo estaba en el medidor y se atribuyó a lo medido*.
+
+**Arreglo.** `precondicion.ts` comprueba sesión y destino **sin tocar la red y sin esperar los 10 s
+del plazo**; el muro lo dice **una vez y no dieciséis**; `MarcoRobot` lo lleva a las seis pestañas;
+y la frase que culpa a los robots **se calla** —dejarla al lado sería seguir acusando con una nota—.
+Un robot puesto por IP se trata aparte, porque ahí **entrar no lo arregla** y mandar a entrar sería
+el consejo equivocado. 16 pruebas; verificado en navegador en `/flota` y `/robot/1/telemetria`.
+
+**Herramienta nueva: `npm run enlace`**, el hermano en el PC de `diagnosticar_mudo.sh`. Recorre
+servidor · interruptor · clave · sesión · nombre · puerto · puerta del testigo con **control
+negativo**, y dice qué eslabón está roto y de qué lado. Avisa de su propio límite: Node no es el
+navegador.
+
+**🔴 Dos errores míos del mismo día, corregidos en voz alta.** (1) Probé `192.168.1.58` copiado de
+un documento viejo, se colgó 10 s, y lo reporté como *«sigue siendo un agujero negro, la firma
+exacta de la evidencia 74»*: **falso**, no hay nadie en esa dirección y el robot no la anuncia —
+habría mandado a buscar un fallo de red inexistente. Por eso la herramienta **solo prueba lo que el
+nombre resuelve**. (2) Di por roto el mDNS con `nslookup`, que **no hace mDNS**: dijo «Non-existent
+domain» mientras el navegador abría en **41 ms**. Es la trampa del 2026-08-04 al revés, y confirma
+la regla en las dos direcciones — **el testigo válido es el cliente**.
+
+---
+
 ## 2026-08-16 (PC) — `atriz-lab`: color libre para los LEDs y resaltado de sintaxis en el Taller
 
 Todo en el repositorio de la web, **sin tocar el robot ni el contrato**: `/set_led_rgb` con
