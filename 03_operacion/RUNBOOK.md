@@ -516,6 +516,17 @@ sudo dmesg | grep -iE "throttl|under.?volt"                    # vacío = alimen
 ros2 topic echo /battery_state --once
 ```
 
+🔴 **MANIPULAR EL ROBOT LO REINICIA, Y NO DEJA NI UN ERROR.** Medido el 2026-08-15
+(evidencia 123): **cinco manipulaciones, cinco reinicios** en un solo día — cambiar la batería,
+recolocarlo, desenredarlo de un cable. Ninguno fue un fallo eléctrico (cero registros de
+sub-tensión, batería a 8 V): es un **corte limpio** de alimentación.
+→ ⚠️ **Apagar el RVR NO lo reinicia** (eso está medido con control: `boot_id` idéntico). Lo que lo
+  tira es **cortar** la corriente.
+→ **Después de manipular un robot, da por perdido:** Nav2 y SLAM (hay que volver a pedirlos desde
+  la web), el mapa vivo, el origen de la odometría, y el barrido del LIDAR (vuelve a `off`). El
+  reloj además arranca ~2 meses en el pasado hasta que NTP sincroniza.
+→ **Vuelve solo** `atriz-robot`, y con él el driver, el LIDAR, rosbridge y el agente del Taller.
+
 La Pi se alimenta del USB del RVR, así que **una batería baja apaga las dos cosas**. Si el
 robot se apaga solo a mitad de una sesión, mira la batería antes de buscar fallos de
 software.

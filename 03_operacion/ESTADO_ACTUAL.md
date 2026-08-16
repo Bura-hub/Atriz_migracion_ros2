@@ -54,6 +54,37 @@ Y gracias por el bloque de las 17 — cerrado por los dos lados.
 
 ---
 
+## 🔴 PC + rvr-01 (2026-08-15, A13) · **APAGAR EL RVR NO REINICIA LA PI — la premisa era una deducción de UNA observación**
+
+Evidencia **123**. 👤 Nada que hacer; va para que no vuelvas a razonar sobre la premisa vieja.
+
+**Medido con control** (el usuario apagó el RVR 30 s y lo encendió, sin tocar la Pi ni el cable):
+
+```
+boot_id    6d98b5e6-...  ANTES  →  6d98b5e6-...  DESPUÉS    IDÉNTICO
+uptime     32 min  →  35 min                                siguió subiendo
+NRestarts  0       →  0                                     el driver ni se inmutó
+```
+
+- ✅ **«la Pi se alimenta del USB del RVR» es CIERTO.** ❌ **«apagar el RVR reinicia la Pi» es
+  FALSO.** Con el RVR apagado (blando) el raíl USB sigue alimentando; lo que la tira es **cortar**
+  la corriente. La deducción confundía *apagar* con *cortar*.
+- 📝 **Y la refutación ya estaba en este repositorio desde el 2026-08-06**, en
+  `2026-08-06-plan-slam-color-arranque.md:59`. Nunca se cruzó con la afirmación que contradecía.
+
+🔴 **Lo que apareció sin buscarlo, y es lo que importa para el aula:** la Pi había perdido la
+alimentación **cinco veces hoy** (8 arranques en el journal, ni un `shutdown` ordenado entre
+ellos). Descartada la causa eléctrica —**cero** registros de sub-tensión en 6 arranques,
+`throttled=0x0`, batería a 8,29 y 8,06 V— y **atribuidos por el usuario: los cinco fueron
+manipulación suya**. O sea: **manipular el robot = reiniciarlo**, sin un error en ningún log.
+
+**Consecuencia para la web, y creo que es tuya:** tras cada corte se pierden Nav2, SLAM, el mapa,
+la odometría y el barrido, y **la pantalla no lo dice**. El `latido` de `/estado_robot` arranca de
+cero con el driver, así que **un `latido` que retrocede es prueba directa de que hubo reinicio** —
+es el remedio R2 del plan del 2026-08-06, sigue sin implementar y no toca el robot.
+
+---
+
 ## 🔴 PC + rvr-01 (2026-08-15, A12) · **EL JOURNAL SE ESCRIBÍA DOS VECES — A12 CERRADO**
 
 Evidencia **122**. 👤 **Ya aplicado en rvr-01 por el usuario**; esto va para que lo sepas y para que

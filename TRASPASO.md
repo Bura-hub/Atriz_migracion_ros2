@@ -142,6 +142,11 @@
 >
 > 📌 La sospecha que ya no se puede comprobar: la Pi **reinició a las 16:17**, ocho minutos
 > antes de relanzarse SLAM. Sería **la Pi entera**, no el driver — se alimenta del USB del RVR.
+> ⚠️ **PRECISADO el 2026-08-15 (evidencia 123):** que se alimente del USB es cierto, pero **apagar
+> el RVR NO la reinicia** — medido con control: `boot_id` idéntico y `uptime` subiendo. Lo que la
+> tira es **cortar** la alimentación (quitar la batería, manipular el robot). 🔴 Y eso resultó ser
+> **el caso normal**: cinco cortes en un solo día, los cinco por manipulación, sin un error en
+> ningún log y con los bits de sub-tensión a cero.
 >
 > 🔴 **Y esto destapó dos cosas más importantes que M6**, las dos abiertas:
 > **A11** · el `collision_monitor` escribe «Ignoring the source» sobre el LIDAR. Si es

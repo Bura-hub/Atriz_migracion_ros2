@@ -239,6 +239,18 @@ minutos antes de que se relanzara SLAM. Si el suceso fue ese, no se reinició el
 apagado, la odometría a cero, el `slam_toolbox` muerto y el `NRestarts = 0`. **Sin confirmar,
 y ya no se puede.**
 
+🔴 **PRECISADO EL 2026-08-15 (evidencia 123), y el matiz cambia A13 entero.** Que la Pi se
+reiniciara sigue en pie. Lo que NO se sostiene es lo que se dedujo de ahí: que **apagar el RVR**
+la reinicie. Medido con control —RVR apagado 30 s y encendido, sin tocar la Pi—: `boot_id`
+**idéntico**, `uptime` 32→35 min, `NRestarts` 0. **La Pi no se inmuta.**
+→ La reconciliación: con el RVR apagado (blando) el raíl USB **sigue alimentando**; lo que tira a
+  la Pi es **cortar la alimentación** —quitar la batería, o manipular el robot—. `apagar` y
+  `cortar` no son lo mismo, y el 2026-08-06 fue lo segundo.
+→ 📝 **Y la refutación ya estaba en este repositorio, escrita el MISMO día**, en
+  `2026-08-06-plan-slam-color-arranque.md:59`: *«si apagar el RVR reiniciara la Pi, la evidencia
+  52 no existiría»*. Nunca llegó hasta aquí. Es la forma del seguidor de línea otra vez: **el
+  proyecto ya tenía la respuesta y no se cruzó con la afirmación que la contradecía.**
+
 ### Las dos decisiones que esto destapa, y son más importantes que M6
 
 **A12 · El journal no aguanta un incidente ni dos días.** Con 16 robots y fallos
@@ -316,7 +328,8 @@ a la hora de la carga y empieza otro → NO se reinició el driver: SE REINICIÓ
 ✅ **El usuario confirmó que el RVR estuvo cargando en esa ventana.**
 
 Explica los cuatro síntomas de golpe, y es física, no conjetura: **la Pi se alimenta del USB del
-RVR**. Barrido apagado (lo fuerza el `ExecStartPost` en cada arranque), `NRestarts=0`,
+RVR** ⚠️ —cierto, pero **de ahí NO se sigue que apagar el RVR la reinicie**: eso se midió el
+2026-08-15 y es falso (evidencia 123). Lo que la tira es cortar la alimentación—. Barrido apagado (lo fuerza el `ExecStartPost` en cada arranque), `NRestarts=0`,
 `slam_toolbox` muerto (se lo llevó la sesión SSH) y el mapa perdido.
 
 📝 **Lo irrecuperable era el detalle, no el desenlace.** Y la lección de método: se dio por perdida

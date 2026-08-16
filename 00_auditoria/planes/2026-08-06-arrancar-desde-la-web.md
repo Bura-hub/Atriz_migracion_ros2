@@ -31,7 +31,9 @@ arranque -1  termina  2026-08-06 15:09:03
 arranque  0  empieza  2026-08-06 16:17:06     ← más de una HORA de hueco
 ```
 
-**Se reinició la Pi entera**, porque se alimenta del USB del RVR. Eso explica de golpe los cuatro
+**Se reinició la Pi entera**, porque se alimenta del USB del RVR ⚠️ (cierto; pero **apagar** el RVR
+no basta para tirarla — medido el 2026-08-15, evidencia 123: hace falta **cortar** la
+alimentación). Eso explica de golpe los cuatro
 síntomas: el barrido apagado (lo fuerza el `ExecStartPost` en cada arranque), `NRestarts=0`,
 `slam_toolbox` muerto (se lo llevó la sesión SSH) y el mapa perdido.
 

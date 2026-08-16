@@ -1,0 +1,151 @@
+═══════════════════════════════════════════════════════════════════════════════
+EVIDENCIA 123 · A13 — APAGAR EL RVR **NO** REINICIA LA PI, Y LA PREMISA DE A13
+                       ERA UNA DEDUCCIÓN DE UNA SOLA OBSERVACIÓN
+═══════════════════════════════════════════════════════════════════════════════
+Fecha       2026-08-15
+Robot       rvr-01
+Pendiente   A13 · «que el robot vuelva ENTERO tras un apagón del RVR»
+Estado      la premisa queda RETIRADA · el pendiente se REFORMULA
+            los cortes de hoy: ATRIBUIDOS (manipulación del usuario, confirmado
+            por él). Ninguno espontáneo
+
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LA CONTRADICCIÓN QUE HABÍA EN EL REPOSITORIO
+───────────────────────────────────────────────────────────────────────────────
+Las dos afirmaciones convivían, y las dos estaban OBSERVADAS:
+
+  (A) «la Pi se alimenta del USB del RVR, así que apagar el RVR REINICIA LA PI
+       ENTERA»                       -> premisa de A13, y el argumento con el que
+                                        se decidió que Nav2 no arranque solo
+  (B) «el RVR apagado con la Pi VIVA es el estado COTIDIANO: así se carga»
+                                     -> en 8 documentos, sostiene pantallas
+                                        enteras de la web, y está medido
+                                        (evidencias 52 y 115)
+
+(A) salió de UNA observación del 2026-08-06: un arranque nuevo de la Pi durante
+una ventana en la que el usuario confirmó que el RVR estaba cargando. De ahí se
+escribió una frase de física.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2 · EL CONTROL, CON LA PREDICCIÓN ESCRITA ANTES
+───────────────────────────────────────────────────────────────────────────────
+Predicho antes de medir: «el boot_id será el MISMO, el uptime habrá seguido
+subiendo y NRestarts no cambiará».
+
+👤 El usuario apagó el RVR, contó 30 s y lo encendió. Sin tocar la Pi ni el cable.
+
+                        ANTES                    DESPUÉS
+    boot_id     6d98b5e6-1b49-...        6d98b5e6-1b49-...     IDÉNTICO
+    uptime      up 32 minutes            up 35 minutes         siguió subiendo
+    NRestarts   0                        0                     ni se inmutó
+
+✅ **APAGAR EL RVR NO REINICIA LA PI.** La premisa (A) queda RETIRADA.
+
+📌 Y la reconciliación es precisa, no un apaño:
+
+    RVR apagado (blando)          el raíl USB sigue alimentando -> la Pi VIVE
+    RVR sin batería / agotada     se corta todo                 -> la Pi CAE
+
+    «la Pi se alimenta del USB del RVR»  ->  CIERTO
+    «apagar el RVR reinicia la Pi»       ->  FALSO
+
+  La deducción confundió **apagar** con **cortar la alimentación**. El suceso del
+  2026-08-06 fue lo segundo (el usuario manipuló el robot para ponerlo a cargar),
+  no lo primero.
+
+⚠️ Lo que NO cambia: la decisión de que `atriz-nav.service` no arranque solo. Esa
+   se apoya en que la Pi CONSUME de la batería del RVR (~2 h de autonomía contra
+   clases de 2-3 h), que es otra cosa y sigue en pie.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3 · LO QUE APARECIÓ SIN BUSCARLO: CINCO CORTES DE ALIMENTACIÓN EN UN DÍA
+───────────────────────────────────────────────────────────────────────────────
+El `uptime` de la línea base decía «up 32 minutes» sobre una Pi que nadie había
+reiniciado. Al mirar:
+
+    $ journalctl --list-boots | wc -l      ->  8 arranques
+
+    $ last -x
+      runlevel (to lvl 3)   14:06 - 16:00        <- y NINGUNA línea `shutdown`
+      runlevel (to lvl 3)   16:00 - 17:14           entre un arranque y el
+      runlevel (to lvl 3)   17:14 - 17:57           siguiente
+      runlevel (to lvl 3)   17:57 - 18:54
+      shutdown system down  Fri Aug 14 22:26     <- el ÚNICO apagado ordenado
+
+Sin registro de cierre, `last` marca todas las sesiones como `crash`. O sea:
+**cinco pérdidas de alimentación hoy, ninguna ordenada.**
+
+Y los dos negativos que descartan la causa eléctrica:
+
+    journalctl --grep 'nder-voltage|hrottl'   ->  0 entradas en SEIS arranques
+    vcgencmd get_throttled                    ->  throttled=0x0
+    batería al arrancar   17:57 -> 8.29 V · 18:54 -> 8.06 V   (umbral bajo 7.00)
+
+🔴 El Pi tiene bits PEGAJOSOS de sub-tensión precisamente para esto, y están a
+   cero. Un corte limpio con la batería a 8 V no es un fallo eléctrico: es un
+   **contacto que se abre** — el cable USB, o alguien manipulando el robot.
+
+✅ **ATRIBUIDO, y por la única vía que podía cerrarlo: se le preguntó al usuario.**
+   Respuesta: «sí, todos fueron yo manipulando el robot». **NO hay ningún corte
+   espontáneo.** Con los bits de sub-tensión a cero y la batería a 8 V, no
+   quedaba causa eléctrica que perseguir; lo que faltaba era un dato que no está
+   en ninguna máquina.
+
+🔴 **Y lo que queda es MÁS útil que el susto que se descartó: cinco
+   manipulaciones, CINCO reinicios.** Cambiar una batería, recolocar el robot o
+   desenredarlo de un cable **corta la alimentación de la Pi**, cada vez. No es
+   un accidente raro que haya que evitar: en un aula con 16 robots y alumnos
+   recolocándolos, es el CASO NORMAL. Y no deja ni un error en ningún log.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4 · LO QUE SÍ QUEDA ESTABLECIDO, PASE LO QUE PASE CON LA ATRIBUCIÓN
+───────────────────────────────────────────────────────────────────────────────
+🔴 **LA RASPBERRY PI ENTERA CUELGA DE UN CABLE USB, Y QUE SE SUELTE REINICIA EL
+   ROBOT EN SILENCIO.** No hay error, no hay aviso, y no lo registra ningún bit
+   de sub-tensión porque no es una caída: es un corte. Con 16 robots y alumnos
+   manipulándolos, va a pasar — la única duda es cuántas veces por clase.
+
+Lo que se pierde en cada corte, medido hoy:
+
+    · Nav2 y SLAM              NO vuelven (sus unidades están instaladas y NO
+                               habilitadas, a propósito). Hay que pedirlo desde
+                               la web otra vez.
+    · el mapa vivo de SLAM     se pierde entero
+    · la odometría             vuelve a cero
+    · el barrido del LIDAR     queda apagado (lo fuerza el ExecStartPost)
+    · el RELOJ                 arranca en `Fri Jun 5 10:38` — DOS MESES atrás
+
+📝 Y lo del reloj es consecuencia directa de que nunca haya apagado ordenado: la
+   marca que systemd guarda para restaurar el reloj sin RTC **no se actualiza**,
+   así que cada arranque parte de una fecha vieja y fija. Es la trampa del RTC ya
+   documentada, agravada por la forma en que este robot se apaga. Se ve en
+   `last`: `reboot system boot ... Fri Jun 5 10:38` en los CINCO arranques.
+
+✅ Lo que SÍ vuelve solo: `atriz-robot.service` (enabled), y con él el driver, el
+   LIDAR, rosbridge y el agente del Taller.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5 · CÓMO QUEDA A13
+───────────────────────────────────────────────────────────────────────────────
+La pregunta original —«¿vuelve el robot entero tras apagar el RVR?»— **estaba mal
+planteada**: apagar el RVR no lo tira. La pregunta buena es:
+
+    ¿vuelve el robot entero tras un CORTE DE ALIMENTACIÓN, que es lo que de
+    verdad ocurre y ocurrió cinco veces hoy?
+
+Respuesta parcial, ya medida: vuelve `atriz-robot`, no vuelven Nav2 ni SLAM, y el
+reloj vuelve mal.
+
+Y con la atribución cerrada, **la frecuencia deja de ser una hipótesis**: hoy fueron
+cinco cortes en un día con UN robot y un usuario que sabe lo que hace. La pregunta
+para el aula no es «¿y si pasa?», es «¿cuántas veces por clase?». ⏳ Falta un arranque en frío medido de punta a punta, que además
+es lo único que puede verificar `ATRIZ_ESPERA_RED` y `ATRIZ_ESPERA_RELOJ` —hoy
+marcados NO VERIFICADO— y la espera de puertos, que su propio fichero llama «una
+red de seguridad SIN ESTRENAR».
+
+⚠️ n=1, un robot.
