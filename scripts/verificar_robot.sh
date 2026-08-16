@@ -1641,6 +1641,16 @@ if [[ -f "$LAUNCH_ROBOT" ]]; then
              "ver 03_operacion/SEGURIDAD_ROSBRIDGE.md, Fase A"
     fi
 
+    # 🔴 LA CLAVE PÚBLICA, Y NO ES SOLO DEL TALLER DESDE LA FASE B.
+    #    `atriz_rosbridge.py` falla CERRADO sin ella, así que un robot sin clave
+    #    arranca, parece sano y es INVISIBLE PARA LA WEB. Peor que el Taller
+    #    caído, porque no se nota hasta que alguien intenta usarlo.
+    if [[ -s /etc/atriz/testigo.pub ]]; then
+        _ok "clave pública del testigo presente (rosbridge y el Taller pueden verificar)"
+    else
+        _mal "falta /etc/atriz/testigo.pub: rosbridge NO podrá verificar testigos y este robot será INVISIBLE para la web"              "se emite en el PC: node herramientas/publicar_clave.mjs (en atriz-lab), y aquí: sudo tee /etc/atriz/testigo.pub"
+    fi
+
     # --- FASE B: ¿exige rosbridge un TESTIGO? (A7, evidencia 124) -------------
     # 🔴 La lista blanca cierra `raw_motors`, pero NO distingue personas:
     #    cualquiera en el aula sigue pudiendo teleoperar cualquier robot por

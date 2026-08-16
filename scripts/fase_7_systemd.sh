@@ -408,9 +408,17 @@ hecho "/etc/systemd/system/atriz-agente.service"
 # ⚠️ La CLAVE PÚBLICA no la instala este guion: la emite el PC (atriz-lab,
 #    `node herramientas/publicar_clave.mjs`) y sin ella el agente SE NIEGA a
 #    arrancar — que es lo correcto. Aquí solo se avisa.
+#
+# 🔴 AMPLIADO EL 2026-08-15: este aviso decía «el agente del taller NO podrá
+#    arrancar», y desde la Fase B (A7) eso se queda MUY corto. Sin esa clave
+#    **rosbridge también falla cerrado**, y entonces el robot arranca, parece
+#    sano y es **invisible para la web**. Es peor que el Taller caído, porque no
+#    se nota hasta que alguien intenta usarlo.
 if [[ ! -f /etc/atriz/testigo.pub ]]; then
-    avis "falta /etc/atriz/testigo.pub: el agente del taller NO podrá arrancar"
-    avis "  la publica el PC:  node herramientas/publicar_clave.mjs  (en atriz-lab)"
+    avis "🔴 falta /etc/atriz/testigo.pub — y esto NO es solo el Taller:"
+    avis "   rosbridge EXIGE testigo (Fase B) y sin la clave no puede verificarlo,"
+    avis "   así que este robot quedará INVISIBLE PARA LA WEB aunque parezca sano"
+    avis "   la publica el PC:  node herramientas/publicar_clave.mjs  (en atriz-lab)"
 fi
 
 # La regla de polkit: sin ella, `supervisor_navegacion` recibe «Interactive

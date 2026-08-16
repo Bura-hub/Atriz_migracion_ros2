@@ -26,6 +26,31 @@ lista blanca de rosbridge (lo dejó abierto el PC en su 121).
 
 ---
 
+## 2026-08-15, A7 · la regresión que el barrido encontró: los robots 2-16 habrían salido invisibles
+
+🔴 Revisando **qué ficheros quedaban pendientes** de la Fase B —no midiendo— apareció que
+`atriz_rosbridge.py` falla cerrado sin `/etc/atriz/testigo.pub`, **y que nadie la instala**: la
+emite el PC y se pega a mano. `fase_7` solo avisaba, y su texto decía «el agente del taller NO
+podrá arrancar» — cierto hasta ayer, y **corto desde que cablée la Fase B**. `provision.sh` no la
+menciona, `FLOTA.md` no la pedía, y `verificar_robot.sh` no la comprobaba.
+
+**Consecuencia:** un robot recién aprovisionado arranca, `atriz-robot` queda `active`, el driver
+publica, el LIDAR gira… **y rosbridge no está**. Invisible para la web, y nada lo dice. La familia
+de fallo que este proyecto persigue —parece sano y está mudo—, introducida por mí hoy.
+
+📝 **Y la forma de la deriva merece nombre:** el aviso de `fase_7` era correcto cuando se escribió.
+Se quedó falso **sin que nadie lo tocara**, porque algo nuevo pasó a depender de una pieza vieja.
+
+✅ Cerrado en cuatro sitios: `fase_6` **ABORTA** si falta (en la puerta, antes de borrar la
+identidad), `fase_7` dice la consecuencia real, `verificar_robot.sh` da **FALLO**, y `FLOTA.md` la
+lista entre lo obligatorio de la imagen dorada — **dentro** de la imagen, porque los 16 hablan con
+el mismo servidor y es la misma clave.
+
+⚠️ **NO VERIFICADO** que un robot sin clave se comporte así: es deducción del código, no medida.
+No se probó para no dejar rvr-01 sin web. Evidencia 124, apartado 11.
+
+---
+
 ## 2026-08-15, A7 cerrado de punta a punta — y barrido de todo lo que quedó rancio
 
 ✅ **`NEXT_PUBLIC_ATRIZ_TESTIGO=1`, Next relanzado, y un navegador conducido hasta

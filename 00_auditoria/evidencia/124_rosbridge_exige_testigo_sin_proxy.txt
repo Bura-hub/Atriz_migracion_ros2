@@ -284,6 +284,44 @@ a mano.
 
 
 ───────────────────────────────────────────────────────────────────────────────
+11 · 🔴🔴 Y UNA REGRESIÓN QUE HABRÍA SALIDO EN LOS ROBOTS 2-16
+───────────────────────────────────────────────────────────────────────────────
+Encontrada revisando qué ficheros quedaban pendientes de todo esto, no midiendo.
+
+`atriz_rosbridge.py` **falla cerrado sin `/etc/atriz/testigo.pub`**, que es lo
+correcto. Pero:
+
+    · NADIE la instala. La emite el PC y se pega a mano.
+    · `fase_7_systemd.sh` solo AVISABA, y su texto decía «el agente del taller
+      NO podrá arrancar» — cierto hasta hoy, y desde hoy MUY corto.
+    · `provision.sh` no la menciona.
+    · `FLOTA.md` no la pedía para la imagen dorada.
+    · `verificar_robot.sh` no la comprobaba en absoluto.
+
+🔴 **Consecuencia:** un robot recién aprovisionado arranca, `atriz-robot` queda
+   `active`, el driver publica, el LIDAR gira… y **rosbridge no está**. El robot
+   es **invisible para la web** y nada lo dice. Es exactamente la familia de
+   fallo que este proyecto persigue —parece sano y está mudo—, y la habría
+   introducido yo hoy al cablear la Fase B.
+
+✅ Cerrado en cuatro sitios:
+    · `fase_6` **ABORTA** si falta la clave, en la PUERTA — antes de borrar la
+      identidad, por lo mismo que el driver: descubrirlo después deja un robot a
+      medio preparar;
+    · `fase_7` avisa diciendo la consecuencia REAL (invisible para la web);
+    · `verificar_robot.sh` da **FALLO**;
+    · `FLOTA.md` la lista entre lo obligatorio de la imagen dorada.
+
+📌 Va **dentro de la imagen** y no se pega robot a robot: los 16 hablan con el
+   MISMO servidor web, así que es la misma clave para todos.
+
+⚠️ **NO VERIFICADO**: que un robot sin clave se comporte como se describe. Es
+   una deducción del código (`_morir()` sale con 1) y del modo de fallo del
+   `Node` de launch, no una medida. Se comprobaría moviendo la clave un momento
+   y reiniciando — no se ha hecho para no dejar rvr-01 sin web.
+
+
+───────────────────────────────────────────────────────────────────────────────
 7 · LO QUE FALTA
 ───────────────────────────────────────────────────────────────────────────────
 ⏳ F2 · el cliente: `Transporte` abre con `atriz.token.<jwt>`. La ruta que emite

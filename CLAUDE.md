@@ -834,6 +834,20 @@ uptime     32 min -> 35 min · NRestarts 0 -> 0               la Pi ni se inmuta
   driver**, así que un `latido` que RETROCEDE es prueba directa de que hubo reinicio. Es el remedio
   R2 del plan del 2026-08-06. Evidencia 123.
 
+**🔑 SIN `/etc/atriz/testigo.pub`, UN ROBOT ARRANCA, PARECE SANO Y ES INVISIBLE PARA LA WEB.**
+Desde la Fase B (2026-08-15) `atriz_rosbridge.py` **falla cerrado** sin esa clave — que es lo
+correcto—, pero **nadie la instala**: la emite el PC (`node herramientas/publicar_clave.mjs` en
+`atriz-lab`) y se pega a mano. `atriz-robot` queda `active`, el driver publica, el LIDAR gira, y
+**rosbridge no está**.
+→ Antes de la Fase B, esa clave solo afectaba al Taller, y el aviso de `fase_7` decía exactamente
+  eso. Al cablear la Fase B ese aviso se quedó corto **sin que nadie lo tocara**: es la forma de
+  deriva que aparece cuando algo nuevo depende de una pieza vieja.
+→ ✅ Hoy: `fase_6` **aborta** si falta (en la puerta, antes de borrar la identidad),
+  `verificar_robot.sh` da **FALLO**, y `FLOTA.md` la lista como obligatoria de la imagen. Va
+  **dentro de la imagen**: los 16 hablan con el mismo servidor, o sea la misma clave.
+→ ⚠️ **NO VERIFICADO** que un robot sin clave se comporte así: es deducción del código, no medida.
+  Evidencia 124, apartado 11.
+
 **🔴🔴 Y CON `--symlink-install`, EL BIT DE EJECUCIÓN SALE DEL FUENTE, NO DE CMAKE.**
 `install(PROGRAMS …)` **no copia el fichero: lo ENLAZA**, así que el permiso es el del fuente. Un
 guion escrito en Windows entra en git como **644**, y `ros2 launch` solo considera ejecutable lo

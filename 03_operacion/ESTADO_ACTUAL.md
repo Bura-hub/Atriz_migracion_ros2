@@ -146,6 +146,22 @@ Y gracias por el bloque de las 17 — cerrado por los dos lados.
 
 ---
 
+## 🔑 PC (2026-08-15) · **la clave pública pasa a ser CRÍTICA, y nadie la instalaba**
+
+Evidencia **124**, apartado 11. 👤 En rvr-01 **ya está**, así que no hay nada que hacer hoy — esto
+es para el día de la imagen dorada y para los robots 2-16.
+
+Desde que rosbridge exige testigo, `/etc/atriz/testigo.pub` deja de ser cosa del Taller: sin ella
+`atriz_rosbridge.py` **falla cerrado** y el robot queda **invisible para la web** aunque
+`atriz-robot` esté `active` y el driver publique. Y **nadie la instalaba**: la emite el PC y se
+pega a mano.
+
+✅ Ahora `fase_6` **aborta** si falta, `verificar_robot.sh` da **FALLO**, y `FLOTA.md` la exige.
+
+⚠️ Si algún día un robot sale «sano pero la web no lo ve», **mira esto antes que la red**.
+
+---
+
 ## ✅ PC + rvr-01 (2026-08-15, A7 CERRADO) · **la web habla con rvr-01 CON credencial, verificado en un navegador**
 
 Evidencia **124**, apartado 10. `7,95 V` en `/robot/1/telemetria` con `NEXT_PUBLIC_ATRIZ_TESTIGO=1`.

@@ -115,6 +115,29 @@ if systemctl is-active --quiet atriz-robot 2>/dev/null; then
 fi
 ok "atriz-robot está parada: se puede preparar la imagen"
 
+# 🔴🔴 LA CLAVE PÚBLICA DEL TESTIGO — PUERTA DESDE EL 2026-08-15 (A7, Fase B)
+#
+#    Desde que rosbridge exige testigo, `/etc/atriz/testigo.pub` **deja de ser
+#    cosa solo del Taller**: sin ella, `atriz_rosbridge.py` falla cerrado y el
+#    robot se queda **invisible para la web**. Un clon sin clave arranca, parece
+#    sano, y no hay forma de hablarle desde la interfaz.
+#
+#    Va en la imagen porque los 16 comparten el MISMO servidor web, así que es
+#    la misma clave para todos. Y se comprueba AQUÍ, en la puerta, por lo mismo
+#    que el driver: descubrirlo después de borrar la identidad deja un robot a
+#    medio preparar.
+if [[ ! -s /etc/atriz/testigo.pub ]]; then
+    echo >&2
+    echo "  ✗ falta /etc/atriz/testigo.pub (o está vacía)." >&2
+    echo "    Sin ella los 16 clones quedarán INVISIBLES PARA LA WEB: rosbridge" >&2
+    echo "    exige testigo desde la Fase B y sin la clave no puede verificarlo." >&2
+    echo "    Se emite en el PC, dentro de atriz-lab:" >&2
+    echo "        node herramientas/publicar_clave.mjs" >&2
+    echo "    y se instala aquí con:  sudo tee /etc/atriz/testigo.pub" >&2
+    exit 1
+fi
+ok "clave pública del testigo presente: los clones podrán hablar con la web"
+
 # ─────────────────────────────────────────────────────────────────────────────
 say "1/6 · Instalar el servicio de personalización de primer arranque"
 
