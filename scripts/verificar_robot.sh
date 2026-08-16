@@ -323,6 +323,32 @@ fi
 JD_LB="$(journalctl --list-boots -o json --no-pager 2>/dev/null || true)"
 JD_VIEJO="$(grep -oE '"first_entry" *: *[0-9]+' <<<"$JD_LB" | head -1 | grep -oE '[0-9]+$' || true)"
 [[ "${JD_VIEJO:-}" =~ ^[0-9]{13,}$ ]] && JD_VIEJO=$(( JD_VIEJO / 1000000 ))   # µs -> s
+# 🔴🔴 Y HACE FALTA UN SEGUNDO DATO, O ESTO ES UN FALSO POSITIVO GARANTIZADO.
+#    La primera versión de esta comprobación (2026-08-15) daba FALLO en el mismo
+#    robot que acababa de arreglarse: tras aplicar el drop-in el journal se
+#    rota, así que la retención vuelve a cero y tarda DÍAS en subir. **Todo robot
+#    recién aprovisionado habría dado FALLO durante dos días** — que es
+#    exactamente lo que hace que un verificador se acabe ignorando, y van doce
+#    fallos propios en este guion.
+#
+#    El discriminante es si el journal ESTÁ EXPULSANDO o no:
+#      · uso MUY por debajo del tope -> no ha borrado nada. La retención medida
+#        es la EDAD del journal, no su límite. No dice nada malo.
+#      · uso PEGADO al tope         -> sí está expulsando, y entonces una
+#        retención corta significa que algo inunda el log.
+#    O sea: la retención solo es diagnóstica cuando el journal está lleno.
+a_mb() {   # "53.0M" · "1.2G" · "900K"  ->  MB enteros
+    local n="${1%[KMGkmg]}" u="${1: -1}"
+    [[ "$n" =~ ^[0-9.]+$ ]] || { echo 0; return; }
+    case "$u" in
+        K|k) awk -v v="$n" 'BEGIN{printf "%d", v/1024}' ;;
+        M|m) awk -v v="$n" 'BEGIN{printf "%d", v}' ;;
+        G|g) awk -v v="$n" 'BEGIN{printf "%d", v*1024}' ;;
+        *)   echo 0 ;;
+    esac
+}
+JD_USO_MB="$(a_mb "$JOUR")"
+JD_TOPE_MB="$(a_mb "$(grep -E '^SystemMaxUse=' <<<"$JD_EFECTIVO" | tail -1 | cut -d= -f2)")"
 if [[ "${JD_VIEJO:-}" =~ ^[0-9]+$ ]]; then
     JD_HORAS=$(( ( $(date +%s) - JD_VIEJO ) / 3600 ))
     # 🔴 La retención solo DIAGNOSTICA cuando el journal ya llegó a su tope y
@@ -332,17 +358,20 @@ if [[ "${JD_VIEJO:-}" =~ ^[0-9]+$ ]]; then
     #    dorada, que fase_6 además vacía— y marcarla en rojo pondría a los 16
     #    clones en FALLO durante sus primeros ~4 días de vida. Cazado en rvr-01
     #    el 2026-08-15: 23 h con la configuración ya buena y 53M de 256M usados.
-    JD_TOPE_MB="$(grep -E '^SystemMaxUse=' <<<"$JD_EFECTIVO" | tail -1 | grep -oE '[0-9]+' || true)"
-    JD_USO_MB="${JOUR%[MG]}"; JD_USO_MB="${JD_USO_MB%%.*}"
-    [[ "$JOUR" == *G ]] && JD_USO_MB=$(( ${JD_USO_MB:-0} * 1024 ))
-    if [[ "${JD_TOPE_MB:-}" =~ ^[0-9]+$ && "${JD_USO_MB:-}" =~ ^[0-9]+$ ]] \
-       && [[ "$JD_USO_MB" -lt $(( JD_TOPE_MB * 8 / 10 )) && "$JD_HORAS" -lt 96 ]]; then
+    #
+    # 📝 Esta comprobación la arreglaron el PC y la Pi por separado, el mismo
+    #    día y con el mismo discriminante. Queda fundida: el comentario es de la
+    #    Pi —suyo es el matiz de que fase_6 vacía el journal, así que los 16
+    #    clones NACEN con retención cero— y la conversión de unidades es del PC,
+    #    porque un `grep -oE '[0-9]+'` sobre un tope de «1G» daría 1 MB.
+    if   [[ "$JD_HORAS" -ge 96 ]]; then
+        _ok "retención del journal: ${JD_HORAS} h (~$((JD_HORAS/24)) días)"
+    elif [[ "$JD_TOPE_MB" -gt 0 && "$JD_USO_MB" -lt $(( JD_TOPE_MB * 80 / 100 )) ]]; then
         _ok "journal joven (${JD_USO_MB}M de ${JD_TOPE_MB}M): nada descartado aún, la retención (${JD_HORAS} h) crece sola"
-    elif [[ "$JD_HORAS" -ge 96 ]]; then _ok  "retención del journal: ${JD_HORAS} h (~$((JD_HORAS/24)) días)"
-    elif [[ "$JD_HORAS" -ge 48 ]]; then _avi "retención del journal: solo ${JD_HORAS} h" \
-             "no cubre un incidente de fin de semana. ¿Hay algún servicio inundando el log?"
-    else _mal "retención del journal: solo ${JD_HORAS} h — un incidente se pierde antes de investigarlo" \
-              "mira quién inunda: journalctl -b -o json --output-fields=_SYSTEMD_UNIT | sort | uniq -c | sort -rn | head"
+    elif [[ "$JD_HORAS" -ge 48 ]]; then
+        _avi "retención del journal: ${JD_HORAS} h con el journal LLENO (${JD_USO_MB}M/${JD_TOPE_MB}M)"              "no cubre un incidente de fin de semana. Mira quién escribe tanto: journalctl -b -o json --output-fields=_SYSTEMD_UNIT | sort | uniq -c | sort -rn | head"
+    else
+        _mal "retención del journal: solo ${JD_HORAS} h y el journal está LLENO (${JD_USO_MB}M/${JD_TOPE_MB}M): algo inunda el log y un incidente se pierde antes de investigarlo"              "journalctl -b -o json --output-fields=_SYSTEMD_UNIT | sort | uniq -c | sort -rn | head"
     fi
 else
     _avi "no se pudo medir la retención del journal"

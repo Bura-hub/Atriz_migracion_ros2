@@ -212,6 +212,28 @@ verde con 23 h de retención. El tamaño no es el síntoma.
   3. RETENCIÓN en horas          por efecto: la edad del registro más antiguo.
                                  <48 h avisa, <... falla
 
+🔴🔴 Y LA TERCERA NACIÓ CON UN FALSO POSITIVO — CAZADO AL ESTRENARLA EN rvr-01.
+   Escrita con umbrales «<48 h avisa, menos falla», dio **FALLO sobre el robot que
+   acababa de arreglarse**:
+
+       ✗ retención del journal: solo 23 h
+       ✓ journal: 53.0M                     <- de un tope de 256M
+
+   Aplicar el arreglo ROTA el journal, así que la retención vuelve a cero y tarda
+   DÍAS en subir. O sea que **todo robot recién aprovisionado habría dado FALLO
+   durante dos días**, los 16 al salir de la imagen dorada. Van DOCE fallos
+   propios de este verificador.
+
+   → El defecto era medir la magnitud **sin su condición de validez**. La
+     retención solo es diagnóstica **si el journal está expulsando**. Con 53 de
+     256 M no ha borrado nada: los 23 h son la EDAD del journal, no su límite.
+   → Arreglo, con los dos datos:
+       uso < 80 % del tope                    -> «journal joven, aún no se puede medir»  ✓
+       uso pegado al tope Y retención corta   -> FALLO (algo inunda)                     🔴
+   → Ensayado en las DOS direcciones antes de subirlo:
+       uso  53M / tope 256M / 23 h  ->  ✅ journal joven
+       uso 250M / tope 256M / 23 h  ->  🔴 FALLO      (correcto)
+
 ⚠️ Y ninguna la cubre el `cmp` del manifiesto. Un fichero byte-idéntico al del
    repositorio **solo dice que es el nuestro**: que gane el orden, que rsyslog
    esté parado y que la retención sea real son tres efectos distintos.
@@ -225,6 +247,12 @@ verde con 23 h de retención. El tamaño no es el síntoma.
 ───────────────────────────────────────────────────────────────────────────────
 8 · LO QUE QUEDA SIN MEDIR
 ───────────────────────────────────────────────────────────────────────────────
+📌 Y la divergencia que reportó la sección 13 al estrenarlo NO era de finales de
+   línea, aunque lo sospeché: el fichero que había en rvr-01 era el MÍNIMO que se
+   escribió a mano con `tee` (7 líneas) y el del repositorio es el documentado
+   (58). Se cierra reinstalando con `fase_1_higiene_so.sh`, y esa reinstalación
+   es además la primera ejecución del paso 3/9 nuevo.
+
 ⏳ Que la retención sea de verdad ~7 días. Hoy es una división: 256 ÷ 37. Se
    confirma dejando pasar una semana y mirando `--list-boots`. El verificador ya
    lo mide, así que se cerrará solo.

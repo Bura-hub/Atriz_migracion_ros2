@@ -2742,6 +2742,20 @@ mismo pipe **sin** pipefail PASA, y pipefail **sin** pipe PASA.
 → 📌 La regla doble: **nunca `ros2 … | grep -q` bajo pipefail**, y **una corrección también es
   una afirmación** — la del daemon se escribió sin controles y duró diez minutos.
 
+🔴 **Y VAN DOCE, el 2026-08-15, y este lo cacé YO al estrenar la comprobación:** al cerrar A12
+añadí un control de **retención del journal** que daba **FALLO sobre el robot que acababa de
+arreglar**. La causa es de forma conocida: aplicar el arreglo **rota el journal**, así que la
+retención vuelve a cero y tarda días en subir — o sea que **todo robot recién aprovisionado habría
+dado FALLO durante dos días**, incluidos los 16 al salir de la imagen dorada.
+→ **El fallo era medir la magnitud sin su condición de validez.** La retención solo significa algo
+  **si el journal está expulsando**; con 53 M de un tope de 256 no ha borrado nada y la cifra es la
+  **edad** del journal, no su límite. El arreglo usa los dos datos: `<80 % del tope` → «journal
+  joven, todavía no se puede medir»; `pegado al tope` **y** retención corta → FALLO de verdad.
+→ 📌 Es el primo del *«un umbral sobre un dato que no mide lo que falla da verde en el caso peor»*
+  de la edad del mapa, y del *«umbral en unidades del observador»* de `girar()`. Aquí daba **rojo**
+  en el caso bueno, que se paga igual de caro: **un verificador con falsos positivos se acaba
+  ignorando.** Ensayado en las dos direcciones antes de subirlo. Evidencia 122.
+
 **Un verificador con falsos positivos se acaba ignorando, y eso es peor que no tenerlo.**
 Evidencia 32.
 
