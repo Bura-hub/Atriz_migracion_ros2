@@ -97,13 +97,23 @@ RESUMEN
      medido con ejecutor persistente. El robot NUNCA tuvo la culpa: 14 minutos
      mudo por un puerto que su propio SDK cerró y se calló.
 
-  ⏳ ARREGLO CANDIDATO (no aplicado — pendiente de autorización):
-     connection_lost debe (a) REGISTRAR exc con su traza —es la única copia
-     de la causa—, y (b) disparar la reapertura del puerto (reconstruir
-     serial.Serial + SerialTransport), o al menos marcar el enlace como
-     MUERTO-POR-PUERTO para que el vigilante de silencio reabra en vez de
-     hacer wake contra un transporte cerrado. Con 16 robots en un aula, un
-     robot por clase muriendo así sería «se colgó el robot» sin diagnóstico.
+  ✅ ARREGLADO EL MISMO DÍA (autorizado: «dale con los dos»), commit cad8bcf
+     de Atriz_rvr, con TDD sobre un PTY como dispositivo serie real:
+     · connection_lost REGISTRA exc con traza (stderr → journal) y programa
+       la reapertura (serial.Serial + SerialTransport nuevos, espera
+       creciente 2→30 s). `exc is None` = cierre intencional: no resucita.
+     · 3 pruebas en atriz_rvr_driver/scripts/pruebas/; las dos primeras
+       FALLAN con el `pass` original (comprobado antes de arreglar).
+     · Confesión de arnés: la 1ª versión de la prueba de reapertura PASABA
+       con el `pass` — llamaba a connection_lost sin cerrar el transporte y
+       el send salía por el puerto viejo. El arnés mintió antes que el SDK.
+     Y el defecto del apartado 4 (latido a 0,2 Hz), arreglado en el mismo
+     commit: los publicadores puros van en su propio grupo (g_latido) y el
+     sondeo IR se PAUSA con el enlace caído (sin tormenta de 3 s). Medido
+     tras desplegar: /estado_robot 0,94 Hz · /motor_status 0,97 Hz con
+     /odom a 15,5. ⏳ El caso DEGRADADO (latido a 1 Hz con el enlace caído,
+     y el puerto reabriéndose en vivo) queda para la próxima ocurrencia
+     natural: inducirlo exigiría apagar el RVR.
 
 CRUDOS
   Las líneas del journal citadas arriba (unidad atriz-robot, 22:54-23:10);

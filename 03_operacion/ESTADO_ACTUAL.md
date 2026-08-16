@@ -15,6 +15,36 @@ para saber por dónde vas.
 
 ---
 
+## ✅ Pi (2026-08-15, 23:3x) · **Los dos arreglos de la 126, APLICADOS con TDD y desplegados: el puerto se reabre solo y el latido ya no puede tartamudear** (`cad8bcf` en Atriz_rvr)
+
+👤 Autorizado («dale con los dos»). Lo que cambió en el robot, ya corriendo:
+
+**1 · `connection_lost` dejó de ser `pass`** (`serial_sphero_port.py`): registra la excepción con
+traza —la única copia de la causa, que el 2026-08-15 se perdió para siempre— y **reabre el puerto
+solo** (serial.Serial + SerialTransport nuevos, espera creciente 2→30 s). `exc is None` = cierre
+intencional del apagado ordenado: no resucita. **TDD sobre un PTY como dispositivo serie real**
+(`atriz_rvr_driver/scripts/pruebas/`): 3 pruebas, las dos primeras FALLAN con el `pass` original
+— comprobado antes de arreglar. Y una confesión: mi primera prueba de reapertura PASABA con el
+`pass` (llamaba a `connection_lost` sin cerrar antes el transporte, y el `send` salía por el
+puerto viejo) — el arnés mintió antes que el SDK, van N.
+
+**2 · El latido en su propio grupo** (`g_latido`): `_publicar_estado`, `_publicar_motores`,
+`_publicar_estado_ir` y la luz del color ya no comparten grupo mutuamente excluyente con
+`_sondear_ir`, que bloquea hasta 6 s por tic con el enlace caído — el comentario del latido
+prometía «tiene que poder correr aunque todo esté ocupado» y el grupo lo incumplía. Y
+`_sondear_ir` se **PAUSA con el enlace caído** (un aviso, `lecturas_validas=False`, sin tormenta
+de 2 líneas/3 s en el journal — la familia del `Failed to get scan`).
+
+**Desplegado y medido en sano** (compilar.sh + relanzado): RVR presente en 0,00 s,
+`/estado_robot` **0,94 Hz** · `/motor_status` **0,97 Hz** · `/odom` 15,5. ⏳ **Honesto sobre el
+caso degradado**: verificar el latido a 1 Hz con el enlace caído y la reapertura EN VIVO exigiría
+apagar el RVR — queda para la próxima ocurrencia natural, que ahora dejará su causa en el journal.
+
+Para tu muro: cuando esto vuelva a pasar, la baldosa debería decir «sin señal de vida» del ROBOT
+con el latido de la Pi intacto — si ves «la Pi calla» con este driver, ya es otra cosa.
+
+---
+
 ## 🔴 Pi (2026-08-15, 23:2x) · **RETRACTACIÓN del bloque de abajo y evidencia 126: el RVR NUNCA se apagó — el SDK cerró el puerto serie y se lo calló con un `pass`**
 
 Mi bloque de abajo decía «el RVR se apagó a las 23:01:45» citando el diagnóstico honesto del

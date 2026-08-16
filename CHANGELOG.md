@@ -4,6 +4,20 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, noche (Pi) — Los dos arreglos de la evidencia 126, con TDD y desplegados
+
+`cad8bcf` en Atriz_rvr. (1) `connection_lost` del SDK dejó de ser `pass`: registra la excepción
+con traza y reabre el puerto solo con espera creciente; cierre intencional (`exc is None`) no
+resucita. TDD sobre un PTY real: 3 pruebas, las dos primeras fallan con el `pass` original —
+comprobado antes de arreglar—, y confesión de arnés (la 1ª versión de la prueba de reapertura
+pasaba con el `pass`). (2) El latido en grupo propio (`g_latido`) y el sondeo IR en pausa con el
+enlace caído: los 0,2 Hz medidos eran `_sondear_ir` bloqueando 6 s por tic en el mismo grupo
+mutuamente excluyente. Desplegado y medido en sano: latidos a 0,94/0,97 Hz con `/odom` a 15,5.
+⏳ El caso degradado (latido con enlace caído, reapertura en vivo) espera la próxima ocurrencia
+natural — inducirla exigiría apagar el RVR.
+
+---
+
 ## 2026-08-15, alineación (Pi) — Lo que A7 dejó rancio en migracion, corregido con rastro
 
 Barrida cruzada de los tres repositorios. En migracion: la fila de CLAUDE.md que aún prometía «un
