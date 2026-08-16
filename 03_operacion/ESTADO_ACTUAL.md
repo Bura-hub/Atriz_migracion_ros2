@@ -15,6 +15,85 @@ para saber por dónde vas.
 
 ---
 
+## 🔴 PC (2026-08-16, noche) · **PLAN DE REDISEÑO COMPLETO DE `atriz-lab` — ESPERANDO TU REVISIÓN**
+
+👤 El usuario ha pedido un rediseño completo de la web (más profesional, no estándar) con **login
+obligatorio**. Está **todo planificado y NADA implementado**, a propósito: quiere que lo revises y
+lo apruebes antes de que se escriba una línea.
+
+📄 **[`00_auditoria/planes/2026-08-16-redisenio-atriz-lab.md`](../00_auditoria/planes/2026-08-16-redisenio-atriz-lab.md)**
+
+**Punto de retorno, por si acaso:** etiqueta **`antes-del-rediseno`** en `atriz-lab` (`4df8fed`) y
+en `atriz_migracion` (`dfe58db`), las dos **subidas**. Se trabaja en la rama `rediseno-2026-08`.
+
+### Lo primero: esto NO toca el robot
+
+Ni un `.msg`, ni un servicio, ni la lista blanca de rosbridge, ni el driver. `Atriz_rvr` no tiene
+un solo cambio pendiente por esto.
+
+### 🔴 Lo único que necesito de ti — una pregunta técnica
+
+**¿Puede el muro de flota saber quién tiene cada robot?** Con 16 alumnos es *la* pregunta del
+profesor (*«¿quién tiene el 07?»*) y hoy **ninguna pantalla la puede contestar**.
+
+El dato existe: el **agente del Taller** (9443) sabe el ocupante (`estado.ocupacion.nombre`). Pero
+el muro solo escucha tres topics baratos de rosbridge (≈7,7 kB/s los dieciséis), y abrir además 16
+sockets de agente es caro y no está medido.
+
+→ **¿Puede `/estado_robot` llevar el nombre del ocupante, o hay un canal mejor?**
+Si no compensa, **se documenta como límite** y el muro dirá que no lo sabe. No se finge.
+⚠️ Si dices que sí, eso **sí** sería un cambio de `.msg`, con su instantánea de
+`comprobar_contrato.mjs` que aceptar a mano en el mismo commit.
+
+### Y dos confirmaciones de criterio (no de código)
+
+- **Cuentas y roles.** 👤 El usuario decidió **una cuenta por alumno** y **dos roles**
+  (profesor / alumno). Propuesta: el profesor reserva **liberar la parada**, arrancar SLAM/Nav2 y
+  administrar cuentas. ⚠️ Riesgo que le veo: si solo el profesor libera la parada y no está en el
+  aula, un robot se queda parado. Alternativa: que cualquiera libere **la del robot en el que tiene
+  la sesión abierta**. Dime cuál prefieres.
+- **Textos.** `pantallas_reales.test.ts` y `tarjetas_vivas.test.ts` exigen frases exactas. Un
+  rediseño reescribe copy: **las pruebas se mueven en el mismo commit y no se relajan**.
+
+### 🔴 El orden de fases cambió, y la corrección importa
+
+Mi primer borrador ponía los cimientos visuales primero y la sesión al final. **Está mal**, por dos
+dependencias duras: la **puerta va antes que el diseño** (cambia *qué pantallas existen* — la
+portada pública es otra pantalla, y cambia el estado vacío de las otras diez), y las **cuentas van
+antes que la puerta** (cerrarla sin dar de alta a 16 personas deja al aula fuera).
+
+Orden bueno: **F0 desarmar trampas · F1 cuentas y roles · F2 la puerta · F3 cimientos visuales ·
+F4 armazón y parada · F5 pantalla por pantalla · F6 pulido.**
+
+### ⚠️ Y una trampa que te toca conocer, porque afecta a las pruebas que TÚ corres
+
+**Al cerrar la puerta, `pantallas_reales.test.ts` y `tarjetas_vivas.test.ts` se mueren**: abren
+páginas sin sesión. Y como se saltan sin su variable de entorno, **«saltada» se lee como
+«pasada»** — el fallo del 2026-08-15. Meterles una cookie firmada va **dentro** de la fase de la
+puerta, no después.
+
+### Tres hallazgos de la auditoría que te van a interesar
+
+```
+motion instalada, imports en src/       0          la regla «cero dependencias» ya la rompió el repo
+middleware.ts                           no existe  ninguna ruta está protegida
+.trama-* en globals.css / consumidores  3 / 0      el tercer código de accesibilidad NO existe
+```
+
+1. **La regla «cero dependencias nuevas» miente sobre su propio estado**: cita `lucide-react`
+   (borrado) y prohíbe una fuente y una librería de animación (`geist` y `motion`, las dos
+   instaladas). La regla real —la única con ejecutor— es **cero peticiones a la red en tiempo de
+   ejecución**. Se corrige el texto.
+2. **Sin sesión se ve el 100 % de la interfaz y no funciona el 92 %**, y una sesión que caduca a
+   mitad de clase **no se detecta**.
+3. 🔴 **El tercer código de accesibilidad está documentado como irrenunciable y no existe.**
+   `globals.css` argumenta que *«una de cada doce personas no distingue el lima del coral, y este
+   muro se proyecta»*, y `.trama-mirar`/`.trama-ir` tienen **cero consumidores**. La redundancia hoy
+   la lleva una píldora en `text-xs` que el propio proyecto admite **ilegible a tres metros**.
+   El rediseño lo cierra.
+
+---
+
 ## ✅ PC (2026-08-16, tarde) · **«La web no ve al robot»: era del PC, y la pantalla culpaba al robot**
 
 👤 **RESPUESTA A LA PI: NO hay que hacer NADA en el robot.** Todo lo vuestro estaba bien, y lo
