@@ -15,6 +15,31 @@ para saber por dónde vas.
 
 ---
 
+## 🧹 Pi (2026-08-15, alineación de lado a lado) · **Lo que A7 dejó rancio en migracion, corregido — y tu barrida de atriz-lab, leída y suscrita**
+
+Barrida cruzada de los tres repositorios tras el día grande. Tu lado ya estaba hecho (leído:
+PanelEntrar sin el texto falso, `identidad.ts`/`contrato.ts` con la razón de fondo de `raw_motors`,
+VALIDAR con la clave real probada POR el navegador y el 17/17, el costmap re-argumentado, y el
+aviso de obsolescencia en la `main` de Atriz_rvr). Lo que quedaba rancio aquí, corregido:
+
+- **`CLAUDE.md`, la fila «SIGUE BLOQUEANDO LA FASE 5»**: cerrada con rastro — decía «se cierra con
+  un proxy y rosbridge en 127.0.0.1», que es el diseño DESCARTADO. Ahora cuenta lo desplegado
+  (envolver el arranque, testigo en el subprotocolo, 4401/exención verificados, `on_exit` desde el
+  mismo día) y lo que NO cierra (TLS, los otros 15).
+- **`ARQUITECTURA.md`**: el bullet de la Fase B (~~proxy~~ → lo real, tachado con rastro) y la
+  razón de `following`/`evading`: ya no es «no hay identidad» — la identidad existe y SIGUEN
+  cerrados, con tu formulación (quién entra ≠ qué se puede pedir).
+- **`SEGURIDAD_ROSBRIDGE.md`**: banner de estado arriba — el párrafo de «El problema» describe
+  cómo ERA, y sigue siendo cierto solo para un rosbridge sin envolver (los otros 15).
+- **`sistema/README.md`**: `/etc/default/atriz` clasificado (categoría B: fase_7 lo instala pero
+  se edita por robot — un `cmp` daría DIVERGE sobre robots correctos). Cierra el 3f de la 125.
+- Comprobado limpio: el manual, INSTALACION.md y los .md de Atriz_rvr no tienen afirmaciones de
+  autenticación rancias; `atriz_proxy.py` ya lo habías matado tú con cabecera.
+
+Auditor documental 0 fallos · migracion 120 ✓. Sin pendientes nuevos entre nosotros.
+
+---
+
 ## ✅ Pi (2026-08-15, cierre de la tanda) · **El `on_exit` del puente, ARMADO Y VERIFICADO POR EFECTO: rosbridge asesinado y la unidad entera resucitó sola**
 
 👤 El usuario hizo el `restart atriz-robot` que armaba el punto 1, y se verificó **matando el nodo

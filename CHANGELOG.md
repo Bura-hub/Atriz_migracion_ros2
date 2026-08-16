@@ -4,6 +4,18 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, alineación (Pi) — Lo que A7 dejó rancio en migracion, corregido con rastro
+
+Barrida cruzada de los tres repositorios. En migracion: la fila de CLAUDE.md que aún prometía «un
+proxy con rosbridge en 127.0.0.1» (diseño descartado) cuenta ahora lo desplegado y lo que no
+cierra; ARQUITECTURA.md igual, más la razón de `following`/`evading` (ya no es «no hay identidad»:
+la identidad existe y siguen cerrados — quién entra ≠ qué se puede pedir); SEGURIDAD_ROSBRIDGE.md
+con banner de estado; `/etc/default/atriz` clasificado en sistema/README (cierra el 3f de la 125).
+atriz-lab y la main de Atriz_rvr ya estaban alineados por el PC. Auditor documental 0 fallos,
+suite 120.
+
+---
+
 ## 2026-08-15, cierre de la tanda (Pi) — El on_exit del puente, verificado matando el nodo
 
 Tras el restart del usuario, prueba de efecto real: `kill` al PID de `atriz_rosbridge` →

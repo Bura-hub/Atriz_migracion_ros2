@@ -51,6 +51,7 @@ Nunca se versiona copia. Detección de deriva: **una aserción de efecto**, no u
 | `noatime` en `/etc/fstab` | es un `sed -i` sobre un fichero de la distro | sección 4: `findmnt` |
 | `/boot/firmware/cmdline.txt` | edición parcial | sección 12 |
 | `/etc/netplan/60-atriz.yaml` | lo genera `first-boot.sh` desde `red.txt` | **y lleva la PSK del WiFi: jamás al repositorio** |
+| `/etc/default/atriz` | lo instala `fase_7` desde `sistema/atriz-defaults`, pero DESPUÉS **se edita por robot** (`ATRIZ_MAPA` — fase_6 lo comenta, cada aula pone el suyo): un `cmp` daría DIVERGE sobre robots correctos | la usa el propio arranque; el mapa se cruza en la sección de navegación. Clasificado el 2026-08-15 (evidencia 125, 3f: estaba sin categoría) |
 
 Versionar una copia de `wifi-no-powersave.service` sería el error que este criterio evita: la copia
 diría `wlan0` para siempre, y en el primer robot cuya interfaz se llame `wlan1` sería falsa.

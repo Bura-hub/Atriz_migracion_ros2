@@ -1,5 +1,10 @@
 # Cómo se asegura rosbridge en los 16 robots
 
+> ✅ **ESTADO (2026-08-15): la Fase B está DESPLEGADA en rvr-01** — rosbridge exige testigo
+> Ed25519 desde la red y exime a `127.0.0.1` (§ «REDISEÑADA EL 2026-08-15», evidencia 124). El
+> párrafo siguiente describe el problema TAL COMO ERA cuando se diseñó esto, y sigue siendo
+> cierto para un rosbridge sin envolver — o sea, para los otros 15 hasta que les llegue.
+
 > **El problema.** `robot.launch.py` levanta `rosbridge_websocket` en el **9090, sin autenticación
 > ni TLS, escuchando en todas las interfaces**, y expone **doce** de los 19 servicios del driver más los **dos** del supervisor de navegación — incluido
 > `raw_motors`, que se salta el `collision_monitor` y el watchdog y **no tiene corte automático**.

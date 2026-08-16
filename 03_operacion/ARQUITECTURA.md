@@ -191,8 +191,11 @@ activo el robot se mueve **sin pasar por `cmd_vel`**, así que ni el watchdog ni
 `collision_monitor` lo ven, y hasta esa fecha **nada en ROS sabía que se estaba moviendo**.
 
 📌 **En rosbridge se abren los dos topics y `send_infrared_message`.** `following` y `evading` se
-quedan **cerrados a propósito** mientras rosbridge no tenga identidad por usuario: abrirlos sería
-que cualquiera en el aula pueda poner a conducir cualquier robot.
+quedan **cerrados a propósito**. Cuando se escribió esto la razón era «rosbridge no tiene
+identidad»; desde el 2026-08-15 la identidad EXISTE (Fase B, testigo) **y siguen cerrados**,
+porque la razón de fondo es otra y la dejó escrita el PC: la Fase B cierra **quién entra**; la
+lista blanca cierra **qué se puede pedir** — y poner al robot a conducir saltándose la capa de
+seguridad sigue siendo eso, lo pida un desconocido o un alumno identificado.
 
 ⚠️ **`/start_scan` y `/stop_scan` NO son del driver**: son servicios del **nodo del YDLIDAR**.
 Buscarlos en el driver es media hora tirada.
@@ -267,9 +270,13 @@ Y el JWT de la Decisión 2 está en FastAPI, **explícitamente fuera de la ruta 
   alcanzable**, ni `move_timed`, ni los servicios IR, ni **publicar en `/cmd_vel`** — que era el
   agujero más silencioso, porque salta el `collision_monitor` entero. ✅ Verificado con el **efecto
   físico**, no solo con el log: `raw_motors` al 30 % por WebSocket → **0.00 cm** (evidencia 53).
-- **Fase B, con la Fase 5:** proxy que valida el **JWT de FastAPI en cada robot**, con rosbridge
-  atado a `127.0.0.1`. Va en el robot y no en el centro para que los 10.3 Mbit/s **no atraviesen
-  FastAPI** y la Decisión 2 se mantenga.
+- ✅ **Fase B, CERRADA EL 2026-08-15 en rvr-01 — y no como decía esta línea.** ~~Proxy que valida
+  el JWT en cada robot, con rosbridge atado a `127.0.0.1`~~: el proxy quedó **descartado** (un
+  salto de Python en la ruta de 80,7 kB/s). Lo desplegado: `atriz_rosbridge.py` envuelve el
+  arranque del nodo y parchea `RosbridgeWebSocket.open` para exigir el **testigo Ed25519 en el
+  subprotocolo** — mismo puerto, sin salto extra, `127.0.0.1` exento para las herramientas del
+  robot. Verificado por los dos lados (4401 con motivo desde la red; testigo bueno entra).
+  Evidencia 124 y `SEGURIDAD_ROSBRIDGE.md`. Sigue abierto: TLS, y desplegarlo en los otros 15.
 
 🔴 **De las tres opciones que planteaba este párrafo, «token en el propio WebSocket» quedó
 DESCARTADA POR IMPOSIBLE:** rosbridge 2.7.0 en Jazzy **no tiene autenticación** — `rosauth` no es
