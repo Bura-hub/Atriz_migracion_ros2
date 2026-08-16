@@ -1200,7 +1200,8 @@ mkdir -p ~/atriz_ws/src && cd ~/atriz_ws/src
 git clone -b ros2 https://github.com/Bura-hub/Atriz_rvr.git
 #            ↑ `ros2` es la rama por defecto desde el 2026-08-04: el `-b` ya no
 #              hace falta. Se deja explícito porque `main` sigue existiendo y es
-#              ROS 1 (catkin), no compila con colcon y va 75 commits detrás.
+#              ROS 1 (catkin), no compila con colcon y va 132 commits detrás
+#              (medido el 2026-08-15; antes ponía 75, del 2026-08-04).
 
 # Regla nº1 del proyecto: fetch ANTES de mirar el código
 git -C ~/atriz_ws/src/Atriz_rvr fetch origin

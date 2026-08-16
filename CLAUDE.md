@@ -16,7 +16,7 @@ Tres repositorios:
 | Repo | Qué es |
 |---|---|
 | **este** (`Atriz_migracion_ros2`) | Auditoría, plan, manual, scripts, documentación de operación |
-| `Bura-hub/Atriz_rvr` | Código del robot. Rama de trabajo: **`ros2`**, y desde el 2026-08-04 es también **la rama por defecto**: un `git clone` a secas ya da la buena (verificado clonando). ⚠️ `main` sigue existiendo, es ROS 1 (catkin) y está **75 commits por detrás**: no lo uses |
+| `Bura-hub/Atriz_rvr` | Código del robot. Rama de trabajo: **`ros2`**, y desde el 2026-08-04 es también **la rama por defecto**: un `git clone` a secas ya da la buena (verificado clonando). ⚠️ `main` sigue existiendo, es ROS 1 (catkin) y está **132 commits por detrás** (medido el 2026-08-15; el «75» de antes era del 2026-08-04 y envejeció solo): no lo uses. 🔴 **Y su README NO avisa de nada** — describe con confianza un driver de Noetic, en un repositorio PÚBLICO. 👤 Poner un aviso ahí es del usuario: tocar esa rama es una acción de cara al público |
 | `Bura-hub/Atriz_web_server` | Plataforma web. **Se aborda al final**, no antes |
 
 ---

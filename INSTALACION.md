@@ -462,7 +462,8 @@ mkdir -p ~/atriz_ws/src && cd ~/atriz_ws/src
 git clone -b ros2 https://github.com/Bura-hub/Atriz_rvr.git
 #            ↑ `ros2` es la rama por defecto desde el 2026-08-04, así que el
 #              `-b` ya no hace falta; se deja explícito porque `main` sigue
-#              existiendo y es ROS 1 (catkin), 75 commits por detrás.
+#              existiendo y es ROS 1 (catkin), 132 commits por detrás
+#              (medido el 2026-08-15; el 75 era del 2026-08-04).
 
 # Con el RVR ENCENDIDO:
 python3 ~/atriz_migracion/scripts/fase_1_validar_sdk_py312.py
