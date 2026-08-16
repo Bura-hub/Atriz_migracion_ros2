@@ -26,6 +26,35 @@ lista blanca de rosbridge (lo dejó abierto el PC en su 121).
 
 ---
 
+## 2026-08-15, las ramas: un aviso en público y una rama menos
+
+👤 Autorizadas las dos por el usuario. Son acciones **de cara al público** (repositorio abierto),
+por eso no se hicieron por iniciativa propia.
+
+**1 · `Atriz_rvr/main` ya avisa de que está obsoleta** (commit `a382bf9`). Su README describía con
+confianza un driver de **ROS 1 (Noetic, EOL desde mayo de 2025)** sin una sola señal de que la
+rama buena es `ros2`. Cualquiera que cambiara de rama a mano en GitHub se ponía a seguir
+instrucciones que ya no valen para este robot. Se antepone el aviso con la tabla de diferencias y
+el enlace a este repositorio; **el contenido viejo se conserva intacto debajo**.
+
+**2 · `feat/estado-robot` borrada.** Antes, tres controles y los tres coincidiendo:
+
+```
+commits suyos que ros2 no tiene   0
+ficheros que difieren de ros2     0
+merge-base --is-ancestor          SÍ (contenida del todo)
+```
+
+SHA `2fdcf6c` anotado y el objeto sigue vivo: se rehace con
+`git push origin 2fdcf6c:refs/heads/feat/estado-robot`.
+
+🔴 **Y esto NO cierra la exposición de credenciales, conviene decirlo.** `ros2` y `main` siguen
+sirviéndolas en su historial: borrar una rama solo reduce el número de referencias. Lo que la
+cerró fue **rotar** la PSK y la contraseña el 2026-08-04. Aquí lo que se gana es que
+`CLAUDE.md` decía «quedan dos ramas» y ahora **es verdad**.
+
+---
+
 ## 2026-08-15, A7 · la regresión que el barrido encontró: los robots 2-16 habrían salido invisibles
 
 🔴 Revisando **qué ficheros quedaban pendientes** de la Fase B —no midiendo— apareció que

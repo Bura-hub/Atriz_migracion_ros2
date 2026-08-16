@@ -16,7 +16,7 @@ Tres repositorios:
 | Repo | Qué es |
 |---|---|
 | **este** (`Atriz_migracion_ros2`) | Auditoría, plan, manual, scripts, documentación de operación |
-| `Bura-hub/Atriz_rvr` | Código del robot. Rama de trabajo: **`ros2`**, y desde el 2026-08-04 es también **la rama por defecto**: un `git clone` a secas ya da la buena (verificado clonando). ⚠️ `main` sigue existiendo, es ROS 1 (catkin) y está **132 commits por detrás** (medido el 2026-08-15; el «75» de antes era del 2026-08-04 y envejeció solo): no lo uses. 🔴 **Y su README NO avisa de nada** — describe con confianza un driver de Noetic, en un repositorio PÚBLICO. 👤 Poner un aviso ahí es del usuario: tocar esa rama es una acción de cara al público |
+| `Bura-hub/Atriz_rvr` | Código del robot. Rama de trabajo: **`ros2`**, y desde el 2026-08-04 es también **la rama por defecto**: un `git clone` a secas ya da la buena (verificado clonando). ⚠️ `main` sigue existiendo, es ROS 1 (catkin) y está **132 commits por detrás** (medido el 2026-08-15; el «75» de antes era del 2026-08-04 y envejeció solo): no lo uses. ✅ **Su README lleva un aviso desde el 2026-08-15** (commit `a382bf9`, autorizado por el usuario): dice que es ROS 1, que la buena es `ros2`, y enlaza a este repositorio. El contenido viejo se conserva debajo, intacto |
 | `Bura-hub/Atriz_web_server` | Plataforma web. **Se aborda al final**, no antes |
 
 ---
@@ -90,11 +90,12 @@ fichero y otras dos credenciales:** la PSK del WiFi del laboratorio y la contras
 documentos (tarea 12, commit `d543cdd`), pero **siguen en el historial** de `main` y `ros2` —
 medido el 2026-08-02 sobre las cuatro ramas remotas que entonces existían, 11 coincidencias en
 cada una, ningún tag afectado, 2 commits tocan el valor. El 2026-08-03 se **borraron**
-`migracion-ros2` y `wip/scripts-estudiantes`. 🔴 **CORREGIDO el 2026-08-15: quedan TRES, no dos.**
-Existe además **`feat/estado-robot`** (del 2026-08-04), **totalmente fusionada** —0 commits propios,
-54 por detrás— y **su historial contiene esos mismos commits**, así que también las sirve. 👤
-Borrarla es del usuario, y es higiene barata: no aporta nada. Solo la punta de `main` las expone en
-el contenido; **eso no cierra nada**: el historial de `main` y `ros2` las
+`migracion-ros2` y `wip/scripts-estudiantes`. ⚠️ El 2026-08-15 apareció que quedaban **TRES**, no
+dos: existía además `feat/estado-robot`, fusionada del todo. 👤 **Borrada ese mismo día** con
+autorización del usuario (SHA `2fdcf6c`, recuperable). **Hoy quedan DOS: `ros2` y `main`.**
+🔴 **Y eso NO cierra nada**: `ros2` y `main` siguen sirviéndolas en su historial. Lo que cerró la
+exposición fue **rotar** la PSK y la contraseña el 2026-08-04; borrar ramas solo reduce el número
+de referencias. Solo la punta de `main` las expone en el contenido; **eso no cierra nada**: el historial de `main` y `ros2` las
 conserva igual. Reescribir el
 contenido no cierra la exposición: **rotar la PSK y la contraseña es lo único que lo hace**, y
 es acción del usuario. Purgar el historial después es higiene y es incompleta — no llega a los
