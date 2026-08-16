@@ -15,6 +15,46 @@ para saber por dónde vas.
 
 ---
 
+## 🔴 Pi (2026-08-15, escalado) · **AUDITORÍA DE ESCALADO A LA IMAGEN DORADA Y A rvr-02 — evidencia 125. El código escala; la CADENA DE REPARTO no**
+
+Cuatro auditores aislados en paralelo, hallazgos cruzados y los cuatro críticos re-verificados a
+mano. **Nada arreglado aún: es el mapa, pedido por el usuario.** Detalle completo en la evidencia
+**125**; lo que le toca a cada cual:
+
+**👤 Usuario (bloqueante antes del dd):**
+- El **PAT subió de gravedad**: `atriz-agente` corre como `sphero`, así que **el código de
+  cualquier alumno puede leer `~/.git-credentials`** — y `fase_6` solo lo LISTA, no lo borra.
+- `~/.ssh/authorized_keys.bak` lleva una clave ed25519 REAL y `~/.claude.json.tmp.*` un
+  `oauthAccount`: los patrones de `fase_6` no ven ninguno de los dos.
+- **Decisión: la fuente de verdad de `/etc/atriz/testigo.pub`** — hoy no la instala NADIE (cero
+  «testigo» en provision/first-boot/fase_6/MANIFIESTO; `fase_7` solo avisa): solo viajaría por
+  `dd`, o sea la regla «gana el script» invertida. Es PÚBLICA: versionarla + MANIFIESTO +
+  `fase_7` la instala sería seguro, y el reparto a 16 se vuelve `git pull` en vez de 16 SSH.
+
+**Robot (Pi, pendiente de autorización — no tocado):**
+- 🔴 El nodo `puente` **sin `on_exit=Shutdown()` ni `respawn`** (`robot.launch.py:437`): sin clave,
+  `atriz_rosbridge` muere y el robot queda **verde sin rosbridge** — y un robot recién
+  aprovisionado nace justo sin clave. El agente en cambio falla alto.
+- 🔴 `fase_7 --id 2` sobre un clon con `profile.d` heredado **dice `ok` y no hace nada**
+  (`fase_7:190`): el clon queda como robot 1 y rechaza TODOS los testigos con 4404 — y el
+  verificador lo pasaría en verde, porque **no tiene ni una comprobación del agente** (ni unidad,
+  ni 9443, ni id↔robot_id.txt).
+- `fase_6`: no menciona `atriz-agente`; `__pycache__`/IDEs (~800 MB)/logs fuera de glob/
+  `.bash_history` reescrito al salir. `python3-cryptography` fuera de PAQUETES de provision.
+  `red.txt` sin el cual el clon conserva los `.network` de rvr-01 (dos robots con `10.14.7.7`).
+- 📌 Estructural: **el MANIFIESTO no lo lee ningún instalador** (17 `install` a mano en fase_7) —
+  dos fuentes de verdad; y `/etc/default/atriz` no tiene fila.
+
+**PC (web):** el diseño escala (audiencia en el JWT por petición, endpoint paramétrico, lista
+derivada) — pero `NEXT_PUBLIC_ATRIZ_TESTIGO` es **global y de build** (flota mixta = 1006 mudo en
+el lado sin parchear, sin posición intermedia y con el orden de despliegue solo en un comentario);
+**override por IP + interruptor=1 = bucle infinito sin testigo** (el escape de mDNS muere);
+`PanelTerminal` arma el host a mano y `useAgente` pide testigo ignorando el interruptor; pruebas
+reales cableadas a rvr-01 y la única de testigo apunta al 9091 que la web no usa. FLOTA.md sin una
+sola mención de «testigo/agente/taller».
+
+---
+
 ## ✅ Pi (2026-08-15, noche) · **A7 verificado en vivo desde la Pi, las dos direcciones — con un instrumento propio, no con tus notas**
 
 Leída la tanda entera de A7 (F1→F4 y el cableado, con el bit de ejecución y el symlink-install).

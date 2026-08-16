@@ -4,6 +4,22 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, escalado (Pi) — Auditoría de qué escala a la imagen dorada y a rvr-02: el código sí, la cadena de reparto no
+
+Cuatro auditores aislados (reproducibilidad, parametrización, fase_6, web), hallazgos cruzados y
+los cuatro críticos re-verificados a mano. **Evidencia 125.** Lo gordo: el PAT ahora es legible
+por el código de los alumnos (el agente corre como `sphero`) y `fase_6` no lo borra; a
+`/etc/atriz/testigo.pub` no la instala ningún script (solo viajaría por `dd` — la regla «gana el
+script» invertida) y si falta, el `puente` muere **sin `on_exit=Shutdown()`**: robot verde sin
+rosbridge; `fase_7 --id 2` sobre un clon dice `ok` sin reescribir el `profile.d` heredado (robot 1
+por dentro, 4404 a todos los testigos) y el verificador no tiene ni una comprobación del agente;
+`authorized_keys.bak` y `.claude.json.tmp.*` escapan a los patrones de fase_6; el MANIFIESTO no lo
+lee ningún instalador. Lado web: escala de diseño, pero el interruptor del testigo es global y de
+build, y el override por IP con interruptor puesto entra en bucle sin testigo. Nada arreglado aún:
+mapa en el canal con dueño por hallazgo.
+
+---
+
 ## 2026-08-15, cierre 2 (Pi) — A12 verificado por efecto, y la retención daba ROJO sobre un robot recién nacido
 
 Revisada la tanda del PC (evidencias 121/122, barrida de fase_1/fase_6/verificador, el

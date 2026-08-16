@@ -1,0 +1,130 @@
+═══════════════════════════════════════════════════════════════════════════════
+125 · AUDITORÍA DE ESCALADO: LO DE HOY CONTRA LA IMAGEN DORADA Y CONTRA rvr-02
+      — cuatro auditores aislados, hallazgos cruzados y verificados a mano
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-15, noche · rvr-01 · pedida por el usuario
+Método:  Cuatro agentes de SOLO LECTURA en paralelo, cada uno ciego a los demás:
+         (1) reproducibilidad scripts↔robot vivo, (2) parametrización por robot,
+         (3) fase_6/imagen dorada, (4) escalado del lado web a 16.
+         Los cuatro hallazgos de más peso se re-verificaron a mano después
+         (fase_7:190, robot.launch.py:437, fase_6:353, grep de testigo): los
+         cuatro confirmados. Nada de esto se ha ARREGLADO aún: es el mapa.
+
+RESUMEN
+  El código de hoy escala bien (ni un número de robot cableado; el testigo
+  lleva la audiencia dentro y la clave pública es una para los 16). Lo que NO
+  escala es la CADENA DE REPARTO: la clave no la instala ningún script, la
+  imagen dorada dejaría secretos al alcance del código de los alumnos, y un
+  clon con fase_7 --id 2 se quedaría siendo el robot 1 sin decirlo.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · BLOQUEANTES ANTES DE CONSTRUIR LA IMAGEN (fase_6)
+───────────────────────────────────────────────────────────────────────────────
+  1a 🔴🔴 EL PAT SUBIÓ DE GRAVEDAD CON EL TALLER. ~/.git-credentials existe
+     (69 B, tocado hoy 22:08) y fase_6:353-375 solo lo LISTA — el borrado es
+     una línea manual de FLOTA.md:465. Lo nuevo: atriz-agente corre con
+     User=sphero, así que EL CÓDIGO DE CUALQUIER ALUMNO puede leerlo — en los
+     16 robots si viaja. 👤 shred -u (decisión ya pendiente, ahora urgente).
+  1b 🔴 ~/.ssh/authorized_keys.bak lleva una clave ssh-ed25519 REAL (91 B,
+     2026-08-03) y el patrón de fase_6 no casa authorized_keys*. Restaurarlo
+     abre los 16. Y ~/.claude.json.tmp.1445.* (47,9 KB, con oauthAccount)
+     escapa al filtro '-name .claude.json'.
+  1c ⚠️ Residuos que viajan: 35 __pycache__ bajo src/ (incluido el agente),
+     ~800 MB de IDEs (~/.antigravity-ide-server, ~/.vscode-server, ~/.warp),
+     /var/log/atriz-first-boot.log DE rvr-01 (falsea el «recién nacido»),
+     subdirectorios de /var/log fuera del glob, y el .bash_history que la
+     sesión interactiva reescribe al salir (falta history -c; unset HISTFILE).
+  1d ⚠️ fase_6 no menciona atriz-agente NI UNA VEZ (puerta y paso 4 solo miran
+     atriz-robot; hoy se pararía de rebote por PartOf, pero no comprueba que no
+     haya una ejecución de alumno viva). FLOTA.md: cero ocurrencias de
+     «testigo», «agente» o «taller»; su «solo encontrará ~/.git-credentials y
+     ~/.claude/.credentials.json» (FLOTA.md:442) es FALSO hoy (1b).
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LA CLAVE DEL TESTIGO INVIERTE LA REGLA DEL PROYECTO
+───────────────────────────────────────────────────────────────────────────────
+  /etc/atriz/testigo.pub (pública Ed25519, 113 B, una para los 16) NO la
+  instala NADIE: cero ocurrencias de «testigo» en provision.sh, first-boot.sh,
+  fase_6 y MANIFIESTO.tsv; fase_7:411 solo AVISA si falta; ni siquiera hay un
+  install -d /etc/atriz. Hoy la única vía de reparto sería el dd — «la imagen
+  es el atajo; provision.sh es la verdad» quedaría al revés para esta pieza.
+  📌 Es una clave PÚBLICA: versionarla en migracion + fila de MANIFIESTO +
+     install en fase_7 sería seguro y devolvería la regla a su sitio.
+     👤 Decisión (el PC propuso repartirla por SSH ×16: peor).
+
+  🔴 Y LA CONSECUENCIA SI FALTA ES EL PEOR MODO DE FALLO: el nodo puente
+  (robot.launch.py:437) NO lleva on_exit=Shutdown() ni respawn — compárese con
+  el driver (:213) y el collision_monitor (:289). atriz_rosbridge.py:154 muere
+  sin clave → robot «active» SIN rosbridge y sin señal. Un robot recién
+  aprovisionado (sin clave, ver arriba) nace exactamente en ese estado. El
+  agente en cambio falla ruidoso (exit 1 + Restart=always).
+
+───────────────────────────────────────────────────────────────────────────────
+3 · BLOQUEANTES PARA DUPLICAR EN rvr-02 (clon dd o provision)
+───────────────────────────────────────────────────────────────────────────────
+  3a 🔴 fase_7 --id 2 SOBRE UN CLON NO HACE NADA Y DICE ok: si
+     /etc/profile.d/atriz-robot.sh existe (heredado del dd), fase_7:190 lo da
+     por bueno sin comparar su número con robot_id.txt. El clon queda como
+     robot 1: agente y rosbridge rechazarían TODOS los testigos con 4404
+     (atriz_testigo.py:125) y el síntoma sería «el terminal no abre en ese
+     robot». En provision-desde-cero no muerde (no hay profile.d previo); el
+     camino previsto (fase_6 borra el profile.d y first-boot lo regenera)
+     tampoco — muerde el atajo dd-sin-fase_6 y el reaprovisionado a medias.
+  3b 🔴 red.txt: preparar_tarjeta.sh:391 solo RECUERDA copiarlo. Sin él (o sin
+     LAB_SSID+LAB_IP), first-boot:133 se salta la regeneración y el clon
+     conserva los .network de rvr-01 → dos robots con 10.14.7.7 y rvr-02.local
+     resolviendo a la IP de otro. fase_6 no borra /etc/systemd/network.
+  3c ⚠️ atriz_testigo.py (dependencia de arranque de agente y rosbridge) se
+     busca en ~/atriz_migracion: ningún script garantiza ese clon ni su ruta.
+     Viaja en el dd; en un robot limpio depende de un paso humano.
+  3d ⚠️ python3-cryptography no está en PAQUETES de provision.sh:182 — hoy
+     está instalado por herencia de la imagen base (marcado automatic).
+  3e 🔴 verificar_robot.sh: CERO cobertura del agente — ni la unidad, ni el
+     9443, ni que el --robot case con robot_id.txt (el fallo de 3a pasaría el
+     verificador en verde).
+  3f 📌 MANIFIESTO.tsv NO LO LEE NINGÚN INSTALADOR (solo el verificador):
+     fase_7 lleva 17 install a mano. Son dos fuentes de verdad — añadir una
+     fila al manifiesto no instala nada. Y /etc/default/atriz (vivo, fase_7
+     lo instala) no tiene fila: la sección 13 no lo cubre.
+
+───────────────────────────────────────────────────────────────────────────────
+4 · EL LADO WEB ANTE 16 ROBOTS (para el PC; lo bueno primero)
+───────────────────────────────────────────────────────────────────────────────
+  ✅ Escala de diseño: audiencia por robot DENTRO del JWT firmado por petición;
+     endpoint paramétrico (?robot=NN, 1..16); lista de robots derivada de
+     TOTAL_ROBOTS; urlDeRobot() genérico; doble del agente paramétrico.
+  🔴 El interruptor NEXT_PUBLIC_ATRIZ_TESTIGO es GLOBAL y DE BUILD: no hay
+     estado por robot, y cambiarlo exige rebuild (se hornea en el bundle). Con
+     flota mixta (rvr-01 parcheado, rvr-02 no) no existe posición intermedia, y
+     el lado sin parchear cae en el 1006 mudo medido (rechazo.ts no clasifica
+     1006 como credencial). El orden de despliegue vive SOLO en un comentario
+     (proveedor_testigo.ts:20); no hay .env.example ni runbook.
+  🔴 Override por IP + interruptor=1 → proveedor_testigo devuelve null →
+     reintento infinito: el camino de escape de mDNS muere justo cuando haría
+     falta. Y PanelTerminal arma el host a mano (sin override) y useAgente pide
+     testigo SIEMPRE, ignorando el interruptor.
+  ⚠️ Menores: 16 JWT por ronda de backoff sin caché ni límite; tope de flota
+     duplicado en 4 sitios; pruebas reales cableadas a rvr-01 (solo
+     testigo_real parametriza) y esa única prueba apunta al 9091, un puerto que
+     la web no puede usar (urlDeRobot fija 9090).
+
+───────────────────────────────────────────────────────────────────────────────
+5 · LO QUE SÍ ESTÁ CUBIERTO (verificado, no supuesto)
+───────────────────────────────────────────────────────────────────────────────
+  · agente: wrapper+unit instalados por fase_7 (cmp idéntico), enable en :448;
+    --robot sale del entorno (first-boot lo genera) y FALLA ALTO si falta.
+  · atriz_rosbridge.py: colcon --symlink-install + bit +x EN GIT (100755),
+    verificado test -x en install/ — el tropiezo del cableado no se repite.
+  · journald: fase_1 instala el conf (cmp idéntico) y para rsyslog idempotente.
+  · testigo.pub y ROS_DOMAIN_ID: por-robot bien resuelto EN EL CÓDIGO (falla
+    alto, exención localhost constante); ni un rvr-01 cableado fuera de
+    comentarios y tests.
+  · /run/atriz es tmpfs: las sesiones de alumnos no viajan en la imagen.
+  · fase_6 sí cubre: Claude Code (~/.claude, ~/.local/share/claude), mapas +
+    ATRIZ_MAPA (el sed ataca /etc/default/atriz, que es donde está), journal
+    rotado+vaciado conservando SystemMaxUse=256M, identidad (machine-id, hosts
+    SSH, profile.d), logs de rsyslog en curso.
+
+CRUDOS
+  Informes íntegros de los cuatro auditores en los transcriptos de la sesión;
+  las verificaciones a mano son las citas fichero:línea de cada apartado.
