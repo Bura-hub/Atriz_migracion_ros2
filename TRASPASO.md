@@ -5,6 +5,46 @@
 > contexto desde cero.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-15 · EL TALLER VALIDADO CONTRA EL ROBOT, Y DOS PENDIENTES CERRADOS
+> (evidencias 118-123)**
+> ═══════════════════════════════════════════════════════════════════════════════
+> Día largo, con el robot delante y un navegador de verdad. Lo que quedó:
+>
+> - ✅ **EL TALLER, CERRADO DE EXTREMO A EXTREMO.** Las **16 casillas** de
+>   `VALIDAR_CON_EL_ROBOT.md` §4, contra rvr-01 y con navegador. Incluida la que nadie había
+>   medido nunca: **un Ctrl-C por el PTY para al robot en 1,9 cm de mediana (n=5)**, contados
+>   **desde el clic del navegador** — WiFi, agente, `killpg` y deceleración incluidos
+>   (evidencia 118).
+> - 🔴 **Y aparecieron OCHO fallos de producto, varios en código que ya estaba «en verde»**:
+>   una regresión mía que **mataba la página entera** (`base64url` viajando al navegador desde
+>   un módulo `'use client'`), `atriz.py` **apagando el barrido de otro** 3 de 5 veces (un plazo
+>   de 1 s contra una latencia de descubrimiento DDS de hasta 1,7 s), y un **doble que mentía
+>   sobre su manejo de errores** — daba verde sobre un camino que en el robot devuelve HTTP 500
+>   (evidencias 119 y 120).
+> - 🔴🔴 **`/initialpose` ESTABA DECLARADO Y SIN CONSTRUIR, y al construirlo el gesto MOVIÓ EL
+>   ROBOT hasta enredarlo** (evidencia 121): un arrastre dispara además un `click`, y la guarda
+>   escrita para impedirlo **se desactivaba a sí misma dos líneas antes**. El arreglo no puede
+>   ser un `useState`; va en un `ref`, que se lee síncrono.
+> - ✅ **A12 CERRADO: el log se escribía DOS VECES** (evidencia 122). `/var/log` de **106 a
+>   40 MB**, retención de **23 h a ~7 días**, `rsyslog` parado. Y `ForwardToSyslog=no` **no
+>   basta** —`imklog` lee el anillo del kernel sin pasar por journald—. Va en `fase_1`, así que
+>   **la imagen dorada lo lleva sin tocar nada más**.
+> - ✅ **A13 CERRADO, y su premisa RETIRADA** (evidencia 123): **apagar el RVR NO reinicia la
+>   Pi** —`boot_id` idéntico, medido con control—. Lo que la reinicia es **cortar** la
+>   corriente, o sea **manipular el robot: cinco veces en un día, sin un error en ningún log**.
+>   Arranque en frío medido: **31 s** de la corriente a robot útil.
+> - 📝 **Tres correcciones a afirmaciones MÍAS**, todas escritas sin medir: que
+>   `MaxRetentionSec` diera retención (solo recorta), que apagar el RVR reiniciara la Pi, y un
+>   control de retención que **daba rojo sobre el robot recién arreglado**. Van doce fallos
+>   propios del verificador.
+> - 📌 **Y dos veces el mismo patrón: la respuesta ya estaba en el repositorio.** La refutación
+>   de la premisa de A13 llevaba escrita desde el 2026-08-06 sin cruzarse con ella, y el drop-in
+>   del journal nació en un heredoc que el propio guion prohíbe catorce líneas más arriba.
+>
+> **Lo que queda:** A5 (¿es correcta la pose fijada? — necesita mapa fresco), **A7 · Fase B**
+> (cerrar rosbridge de verdad, el único que bloquea la Fase 5) y A8 (el aula).
+>
+> ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-14 · EL DÍA EN QUE EL ROBOT APRENDIÓ A CURARSE SOLO (evidencias 109-115)**
 > ═══════════════════════════════════════════════════════════════════════════════
 > Sesión remota (el robot en casa del usuario), tratando uno a uno los pendientes que no
