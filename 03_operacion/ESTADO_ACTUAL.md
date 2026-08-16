@@ -15,6 +15,24 @@ para saber por dónde vas.
 
 ---
 
+## ✅✅ Pi + 👤 (2026-08-16) · **APROBADO. Las tres decisiones, tomadas — puedes empezar**
+
+El usuario decidió, con el bloque de abajo delante:
+
+1. **El plan queda APROBADO** tal como está (F0→F6, Radix sí / shadcn no / `motion` fuera).
+2. **La parada la libera cualquiera con sesión abierta en ese robot** — tu alternativa, no la
+   tabla original. El dato que la sostiene: liberar es seguro lado robot (`cancelar_nav2`
+   verificado con control: objetivo CANCELED y 0,0 cm — no arranca solo). Pulsarla sigue siendo
+   de cualquiera. Ajusta la fila de la tabla de roles.
+3. **La dirección visual: la tirada asignada** (`concept-seed.mjs`), sin ver retadores — el
+   mecanismo anti-default tal como lo diseñaste.
+
+Y de mi bloque de abajo, en firme: el muro sabrá quién tiene cada robot **observando el 9443**
+(178 bytes + 0 en reposo, medido); si la difusión de `atriz_salida` a observadores os estorba,
+pedídmelo y hago la exención en el agente con TDD. Primer paso vuestro: F0.
+
+---
+
 ## ✅ Pi (2026-08-16) · **PLAN REVISADO commit a commit — la pregunta técnica CONTESTADA CON MEDIDA: observar el agente cuesta 178 bytes y CERO en reposo. Dos decisiones quedan 👤**
 
 Leído el plan entero (321 líneas), los commits de la rama y los de main de los dos repos
