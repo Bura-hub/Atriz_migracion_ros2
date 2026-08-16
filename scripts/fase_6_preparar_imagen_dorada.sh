@@ -183,6 +183,15 @@ say "4/6 · Limpiar logs, cachés e historial"
 journalctl --rotate >/dev/null 2>&1 || true
 journalctl --vacuum-time=1s >/dev/null 2>&1 || true
 rm -rf /var/log/*.gz /var/log/*.[0-9] /var/log/journal/* 2>/dev/null
+# 🔴 Los ficheros de rsyslog EN CURSO no los cubre el glob de arriba, que solo
+#    caza los ROTADOS. En rvr-01 el 2026-08-15 `/var/log/syslog` tenía 16 MB
+#    vivos: sin esto, la imagen dorada repartiría el log del robot que la
+#    construyó a los otros 15. Desde esa fecha fase_1 para rsyslog, así que en
+#    una imagen nueva estarán vacíos — pero una construida sobre un robot
+#    anterior no, y el coste de vaciarlos es cero.
+: > /var/log/syslog   2>/dev/null || true
+: > /var/log/kern.log 2>/dev/null || true
+: > /var/log/auth.log 2>/dev/null || true
 : > /var/log/wtmp  2>/dev/null || true
 : > /var/log/btmp  2>/dev/null || true
 : > /var/log/lastlog 2>/dev/null || true

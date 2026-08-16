@@ -800,6 +800,46 @@ repitió igual. Evidencia 113.
 → 📝 `verificar_robot.sh` ya usa esta regla para el puente del `.bashrc` («lanzando un shell
   limpio con `env -i`, no con un `grep`») — estaba en el repo y no se aplicó aquí.
 
+**🔴🔴 EL NOMBRE DE UN DROP-IN DECIDE QUIÉN GANA, Y `99-` PIERDE CONTRA UN NOMBRE DE UBUNTU.**
+systemd ordena **TODOS** los drop-ins por nombre de FICHERO, sin importar si vienen de `/etc` o de
+`/usr`. El de Ubuntu para el journal se llama `syslog.conf`, así que el reflejo natural —
+`99-atriz.conf` — habría ordenado **antes** (`'9' < 's'`) y su `ForwardToSyslog=no` lo habría
+pisado el `yes` de Ubuntu: **fichero puesto y sin efecto**. Se llama `zz-atriz.conf`.
+→ **Compruébalo siempre con el ÚLTIMO valor efectivo, nunca con que el fichero exista:**
+```bash
+systemd-analyze cat-config systemd/journald.conf | grep -E '^ForwardToSyslog=' | tail -1
+```
+→ 📌 Tercer caso de la misma familia en el proyecto: el `chmod` sobre vfat y el `usercfg.txt` de
+  24.04. **Configuración que existe y no hace nada.** Y es primo del `EnvironmentFile=` de arriba:
+  las dos son reglas de precedencia de systemd que no se pueden deducir mirando tu fichero.
+
+**🔴🔴 Y `ForwardToSyslog=no` NO BASTA: rsyslog TIENE UNA SEGUNDA ENTRADA QUE NO PASA POR
+JOURNALD.** Medido el 2026-08-15 con marcas conocidas por los dos caminos y **control positivo**
+—las dos tienen que salir en el journal, o «0 en syslog» no distingue «cortado» de «la marca nunca
+se generó»—:
+
+```
+logger -t ...              journal SÍ · /var/log/syslog NO    ✅ cortado por ForwardToSyslog=no
+echo ... > /dev/kmsg       journal SÍ · /var/log/syslog SÍ    🔴 SE COLABA
+```
+
+rsyslog escucha el socket de reenvío de journald **y además** carga `imklog`, que lee el anillo del
+kernel por su cuenta. → **Hay que parar el servicio**; ningún ajuste de journald cierra ese camino.
+→ 🔴 **Y esto importaba de verdad: cada línea se estaba grabando DOS VECES en la microSD.**
+  `/var/log` en **106 MB** contra un tope de journal de 32M — el triple, y fuera de su alcance.
+  Retención real: **23 h 08 min**. Hoy: reenvío quitado, rsyslog parado, `SystemMaxUse=256M`,
+  ~**7 días**, y `/var/log` en 40 MB.
+→ ⚠️ **`kern.log` daba 0 en esa misma prueba y despista:** una escritura de usuario a `/dev/kmsg`
+  sale con facility **`user`**, no `kern`, así que cae en `*.*` (syslog) y no en `kern.*`. Mi
+  predicción escrita era «si `kern.log` sale ≠ 0, el reenvío no basta» — **acerté el mecanismo y
+  fallé el fichero**, y con esa predicción el `0` se habría leído como «bastó», la conclusión
+  contraria. **Lo que salvó la medida fue mirar CUÁL de las dos marcas se coló, no cuántas.**
+→ 🔴 **`MaxRetentionSec` y `SystemMaxFiles` NO dan retención: solo la RECORTAN.** `TRASPASO.md`
+  decía lo contrario y era mío. Lo que la produce es `SystemMaxUse ÷ ritmo`, y por eso **no está
+  garantizada**: una inundación como la del ydlidar sin parchear (2,17 M líneas/día) hunde los 7
+  días a minutos. El verificador **la mide por efecto**; antes solo miraba el TAMAÑO, y por eso
+  este robot pasó meses en verde con 23 h. Evidencia 122.
+
 **🔴 UN Ctrl-C MATA TAMBIÉN AL `tee` DE `exec > >(tee …)` Y BASH MUERE SIN EJECUTAR EL TRAP
 `EXIT`.** El 2026-08-13 un ^C del usuario dejó el sistema sucio —nav corriendo, drop-in
 instalado, `$TMP` sin borrar, barrido encendido— porque la señal llega **al grupo de procesos

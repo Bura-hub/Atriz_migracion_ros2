@@ -38,6 +38,7 @@ scripts/atriz-nav.service	/etc/systemd/system/atriz-nav.service	644	fase_7_syste
 scripts/sistema/atriz-ros.sh	/etc/profile.d/atriz-ros.sh	644	fase_7_systemd.sh	-
 scripts/sistema/99-rvr.rules	/etc/udev/rules.d/99-rvr.rules	644	fase_0_1_fix_uart.sh	-
 scripts/sistema/cpu-performance.service	/etc/systemd/system/cpu-performance.service	644	fase_1_higiene_so.sh	-
+scripts/sistema/journald-zz-atriz.conf	/etc/systemd/journald.conf.d/zz-atriz.conf	644	fase_1_higiene_so.sh	-
 scripts/first-boot.sh	/usr/local/sbin/atriz-first-boot.sh	755	fase_6_preparar_imagen_dorada.sh	opcional
 scripts/first-boot.service	/etc/systemd/system/atriz-first-boot.service	644	fase_6_preparar_imagen_dorada.sh	opcional
 scripts/atriz-vigia-dds.sh	/usr/local/bin/atriz-vigia-dds	755	fase_7_systemd.sh	-

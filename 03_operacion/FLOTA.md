@@ -740,8 +740,9 @@ Obligatorio en la imagen dorada:
 
 | Medida | Por qué |
 |---|---|
-| `journald.conf`: `Storage=volatile` o `SystemMaxUse=32M` | Era el mayor generador de escrituras |
-| `log2ram` o `/var/log` en tmpfs | Idem |
+| **Quitar la copia DOBLE del log**: `ForwardToSyslog=no` **y** parar `rsyslog` | 🔴 **Lo que de verdad era el mayor generador de escrituras, y no se supo hasta el 2026-08-15.** Ubuntu activa el reenvío a syslog, así que **cada línea se grababa dos veces**: `/var/log` en **106 MB** contra un tope de journal de 32. Lo aplica `fase_1_higiene_so.sh` (paso 3/9). ⚠️ **Y quitar el reenvío NO basta**: `rsyslog` carga `imklog`, que lee el anillo del kernel sin pasar por journald — hay que **parar el servicio**. Evidencia 122 |
+| `journald.conf.d/zz-atriz.conf`: `SystemMaxUse=256M` | ~**7 días** de retención a los 37 MB/día medidos. 🔴 **Subirlo NO aumenta las escrituras** —el ritmo lo fijan los servicios, no el tope: cuesta espacio, no I/O—, y como en la misma pasada desaparece la copia de rsyslog el **balance neto BAJA**. 🔴 El fichero se llama `zz-` a propósito: systemd ordena los drop-ins por nombre y `99-` perdería contra el `syslog.conf` de Ubuntu |
+| ~~`log2ram` o `/var/log` en tmpfs~~ | **Descartado por innecesario el 2026-08-15**: quitando la copia doble, `/var/log` bajó de 106 a 40 MB sin añadir una pieza más al arranque de los 16 |
 | `noatime` en `/etc/fstab` | Evita una escritura por cada lectura |
 | Sin swap | Evita bloqueos y desgaste |
 | Timers `apt-daily` desactivados | 1 min 27 s + 1 min 14 s martilleando la tarjeta |

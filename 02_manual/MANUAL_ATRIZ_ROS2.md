@@ -992,7 +992,7 @@ GNOME ni xrdp), pero `cloud-init`, `snapd`, los timers de `apt` y el conflicto d
 | Medida | Evidencia que la motiva |
 |---|---|
 | Governor a **`performance`** | La CPU pasaba **59.6 %** del tiempo a 600 MHz con `ondemand`, teniendo 60 °C y cero throttling. Causa nº1 de la sensación de lentitud |
-| `journald`: `Storage=volatile` o `SystemMaxUse=32M` | **784 MB** de journal sin límite; `journald.conf` estaba vacío |
+| `journald`: **`ForwardToSyslog=no`** + `SystemMaxUse=256M`, y **`rsyslog` parado** | **784 MB** de journal sin límite; `journald.conf` estaba vacío. 🔴 **Revisado el 2026-08-15**: el tope de 32M que se puso entonces dejaba **23 h de retención** y **no limitaba la mitad de las escrituras** —Ubuntu reenvía a rsyslog y cada línea se grababa dos veces: `/var/log` en 106 MB—. Evidencia 122 |
 | WiFi **power-save OFF** | `Power Management: on` provocaba latencias aleatorias de 100–300 ms |
 | Deshabilitar **`cloud-init`** | ~20 de los 27 s de userspace del arranque |
 | Purgar **`snapd`** (y LXD si aparece) | 6 loop devices y ~11 s de arranque, sin función en un robot |
@@ -1062,7 +1062,7 @@ uname -r                            # ¿cambió el kernel en este reinicio?
 |---|---|---|
 | Default target | `graphical.target` | ✅ `multi-user.target` |
 | Governor | `ondemand` | ✅ `performance` |
-| Journal | sin tope | ✅ `SystemMaxUse=32M`, recortado |
+| Journal | sin tope | ✅ `SystemMaxUse=32M`, recortado — ⚠️ **cifra de aquel día: hoy son 256M y sin reenvío a syslog** (evidencia 122) |
 | WiFi power-save | (`iw` no instalado) | ✅ `Power save: off` |
 | `cloud-init` | habilitado | ✅ `/etc/cloud/cloud-init.disabled` |
 | Timers de `apt` | habilitados | ✅ `apt-daily`, `apt-daily-upgrade`, `motd-news`, `fstrim`: disabled |
@@ -1086,7 +1086,7 @@ uname -r                            # ¿cambió el kernel en este reinicio?
 | Arranque, userspace | 1 min 39 s | **8.7 s** | < 15 s ✅ |
 | `multi-user.target` alcanzado | 31.8 s | **8.6 s** | — |
 | Servicio más lento | `cloud-final` 1 min 7 s | `snapd.seeded` 3.5 s | — |
-| Journal | 17.7 MB | 14.1 MB, con tope de 32M | decenas de MB ✅ |
+| Journal | 17.7 MB | 14.1 MB, con tope de 32M | decenas de MB ✅ — ⚠️ **el tope es 256M desde el 2026-08-15** (evidencia 122) |
 | Governor | `ondemand` | `performance` | ✅ |
 | WiFi power-save | (`iw` no instalado) | `Power save: off` | ✅ |
 | Default target | `graphical.target` | `multi-user.target` | ✅ |

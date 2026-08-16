@@ -429,7 +429,7 @@ de optimizar**:
 | `systemd-analyze` (userspace) | **1 min 39 s** (`cloud-final` = 1 min 7 s) | **< 15 s** |
 | `ps -e \| wc -l` | **187 tareas** | ⚠️ **< 120 estaba MAL PLANTEADO** — ver abajo |
 | governor | `ondemand` | `performance` |
-| `journalctl --disk-usage` | 17.7 MB | decenas de MB (con tope de 32M) |
+| `journalctl --disk-usage` | 17.7 MB | decenas de MB, tope **256M** (~7 días). 🔴 Los 32M de antes daban 23 h: evidencia 122 |
 | `cat /proc/pressure/io` | `full total` 74.6 s / 34 min | mucho menor |
 | `iw dev wlan0 get power_save` | (`iw` no instalado) | **`Power save: off`** |
 | `systemctl get-default` | `graphical.target` | `multi-user.target` |

@@ -24,7 +24,12 @@
 #   governor            la CPU pasaba 59.6 % del tiempo a 600 MHz con 'ondemand',
 #                       teniendo 60 °C y cero throttling
 #   journal             784 MB sin límite; journald.conf estaba vacío. Causaba
-#                       47 s de bloqueo global por I/O en 42 min de sistema ocioso
+#                       47 s de bloqueo global por I/O en 42 min de sistema ocioso.
+#                       🔴 REVISADO el 2026-08-15: el tope de 32M que se puso
+#                       entonces dejaba 23 h de retención y NO limitaba la mitad
+#                       de las escrituras -Ubuntu reenvía todo a rsyslog, y
+#                       /var/log estaba en 106 MB-. Ahora: reenvío QUITADO y
+#                       tope a 256M (~7 días). Ver el paso 3/9
 #   WiFi power-save     latencias aleatorias de 100-300 ms
 #   cloud-init          ~20 de los 27 s de userspace del arranque
 #   timers de apt       1 min 27 s + 1 min 14 s martilleando la microSD
@@ -89,23 +94,128 @@ systemctl disable --now ondemand 2>/dev/null && ok "ondemand.service deshabilita
 avis "governor actual: $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null)"
 
 # ─────────────────────────────────────────────────────────────────────────────
-say "3/9 · Limitar el journal (era el mayor generador de escrituras en la SD)"
-respalda /etc/systemd/journald.conf
-if grep -q '^SystemMaxUse=' /etc/systemd/journald.conf 2>/dev/null; then
-    salta "SystemMaxUse ya configurado"
+say "3/9 · El journal: quitar la copia DOBLE y darle una semana de retención"
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔴🔴 EL TOPE DE 32M RESOLVÍA MEDIO PROBLEMA, Y COSTABA EL DIAGNÓSTICO
+# ═══════════════════════════════════════════════════════════════════════════
+# Aquí había `SystemMaxUse=32M`, puesto por una razón medida y buena: 784 MB de
+# journal sin límite daban 47 s de bloqueo por I/O en 42 min de reposo.
+#
+# Medido en rvr-01 el 2026-08-15, ese tope resultó tener dos problemas:
+#
+#   1. RETENCIÓN DE 23 HORAS. El registro más antiguo era de hacía 23 h 08 min
+#      (35,7 MB a ~37 MB/día). Se comió la evidencia del único incidente que se
+#      ha querido investigar de verdad — M6, irrecuperable.
+#
+#   2. 🔴 Y NO LIMITABA LA MITAD DE LAS ESCRITURAS. Ubuntu trae
+#      `/usr/lib/systemd/journald.conf.d/syslog.conf` con `ForwardToSyslog=yes`
+#      —deshaciendo el defecto de systemd—, y `rsyslog` estaba ACTIVO: cada
+#      línea se escribía DOS veces. Medido: `/var/log` en **106 MB**, más del
+#      TRIPLE del tope del journal, y fuera de su control.
+#
+# ✅ Por eso el arreglo va en este orden, y las dos mitades se pagan entre sí:
+#      (a) se corta la copia doble -> el desgaste REAL de la SD se parte por la
+#          mitad, que es lo que la medida original perseguía. Y son DOS cosas,
+#          no una: `ForwardToSyslog=no` NO BASTA. Ver el bloque de rsyslog de
+#          más abajo, medido con control;
+#      (b) y sólo entonces se sube el tope -> 256M a ~37 MB/día son ~7 días.
+#
+# 🔴 SUBIR EL TOPE NO AUMENTA LA ESCRITURA. El ritmo lo fijan los servicios, no
+#    el tope: 256M cuesta ESPACIO, no I/O. El balance neto de escrituras BAJA.
+#
+# 🔴 Y `MaxRetentionSec` NO se pone, aunque parezca lo natural. `TRASPASO.md`
+#    decía «subir el tope no garantiza retención: eso lo dan SystemMaxFiles o
+#    MaxRetentionSec», y eso es AL REVÉS: `MaxRetentionSec` es una edad MÁXIMA
+#    —borra lo más viejo— y `SystemMaxFiles` un número máximo de ficheros. Los
+#    dos sólo pueden RECORTAR. Lo que da retención es `SystemMaxUse ÷ ritmo`, y
+#    nada más. Ponerlo aquí sólo tiraría días que caben.
+# 📝 El fichero vive en scripts/sistema/journald-zz-atriz.conf, NO en un heredoc
+#    aquí — misma razón que cpu-performance.service dos pasos más arriba: un
+#    heredoc no deja nada contra lo que comparar, así que su deriva respecto al
+#    repositorio es invisible. Con el fichero versionado y su fila en
+#    MANIFIESTO.tsv, verificar_robot.sh sección 13 la detecta con un `cmp`.
+#    🔴🔴 Y su nombre empieza por `zz-` A PROPÓSITO: systemd ordena TODOS los
+#       drop-ins por nombre de fichero, vengan de /etc o de /usr. El de Ubuntu
+#       se llama `syslog.conf`, así que `99-atriz.conf` ordenaría ANTES
+#       ('9' < 's') y el reenvío seguiría activo — con el fichero puesto y sin
+#       efecto, que es la forma de fallo que este proyecto persigue.
+DIR_JD=/etc/systemd/journald.conf.d
+JD_SRC="$SCRIPTS_DIR/sistema/journald-zz-atriz.conf"
+install -d -m 755 "$DIR_JD"
+if [[ -f "$JD_SRC" ]]; then
+    install -m 644 "$JD_SRC" "$DIR_JD/zz-atriz.conf"
 else
-    cat >> /etc/systemd/journald.conf <<'EOF'
-
-# Higiene de microSD — añadido por fase_1_higiene_so.sh
-# El sistema anterior acumuló 784 MB de journal sin límite, y era la causa
-# principal de los 47 s de bloqueo por I/O medidos en 42 min de reposo.
-SystemMaxUse=32M
-RuntimeMaxUse=16M
-EOF
-    ok "SystemMaxUse=32M"
+    avis "no encuentro $JD_SRC: el journal se queda como esté"
+    avis "ejecuta este script desde su sitio en el repositorio, no una copia suelta"
+    NO_APLICADO+=("zz-atriz.conf del journal (falta $JD_SRC)")
 fi
-journalctl --vacuum-size=32M >/dev/null 2>&1 && ok "journal recortado a 32M"
+ok "journald: ForwardToSyslog=no · SystemMaxUse=256M (~7 días)"
 systemctl restart systemd-journald 2>/dev/null || true
+
+# El tope viejo, si estaba, se retira del fichero principal: dejarlo confunde a
+# quien lo lea, aunque el drop-in gane.
+if grep -q '^SystemMaxUse=32M' /etc/systemd/journald.conf 2>/dev/null; then
+    respalda /etc/systemd/journald.conf
+    sed -i 's/^SystemMaxUse=32M/#SystemMaxUse=32M  # lo fija zz-atriz.conf/'         /etc/systemd/journald.conf
+    ok "el SystemMaxUse=32M viejo queda comentado, apuntando al drop-in"
+fi
+
+# ⚠️ COMPROBACIÓN POR EFECTO, no por «el fichero está puesto». Este proyecto
+#    tiene dos casos de configuración que existe y no hace nada -el chmod sobre
+#    vfat y el usercfg.txt de 24.04-; el orden de los drop-ins sería el tercero.
+if systemd-analyze cat-config systemd/journald.conf 2>/dev/null \
+   | grep -E '^ForwardToSyslog=' | tail -1 | grep -q 'no'; then
+    ok "verificado por efecto: el reenvío a syslog queda DESACTIVADO"
+else
+    printf '  \033[1;31m🔴\033[0m %s\n' \
+        "ForwardToSyslog NO quedó en 'no': mira el orden de los drop-ins"
+    NO_APLICADO+=("ForwardToSyslog sigue activo (orden de los drop-ins)")
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔴🔴 Y `ForwardToSyslog=no` NO BASTA: rsyslog TIENE UNA SEGUNDA ENTRADA
+# ═══════════════════════════════════════════════════════════════════════════
+# Medido en rvr-01 el 2026-08-15 inyectando una marca conocida por los DOS
+# caminos, con control positivo -las dos tienen que aparecer en el journal, o
+# la prueba no distingue «cortado» de «la marca nunca se generó»-:
+#
+#   logger -t ...              journal SÍ · /var/log/syslog NO    ✅ cortado
+#   echo ... > /dev/kmsg       journal SÍ · /var/log/syslog SÍ    🔴 SE COLABA
+#
+# rsyslog escucha en /run/systemd/journal/syslog -el socket de reenvío de
+# journald, ya cortado- PERO ADEMÁS carga `imklog`, que lee el anillo del
+# kernel por su cuenta y no pasa por journald. Ese camino no lo cierra ningún
+# ajuste de journald: hay que parar el servicio.
+#
+# 📝 Y `kern.log` daba 0 en esa misma prueba, lo que despista: una escritura de
+#    usuario a /dev/kmsg sale con facility `user`, no `kern`, así que cae en la
+#    regla `*.*` (syslog) y no en `kern.*` (kern.log). Es exactamente para lo
+#    que está el `permitnonkernelfacility="on"` de /etc/rsyslog.conf.
+#
+# 👤 Decisión del usuario, 2026-08-15: «quédate solo con journalctl». No se
+#    pierde ningún registro -journald guarda los mismos, incluidos los de sudo
+#    y ssh que iban a auth.log- y ahora con ~7 días en vez de 23 h.
+if systemctl is-enabled rsyslog >/dev/null 2>&1 || systemctl is-active rsyslog >/dev/null 2>&1; then
+    if systemctl disable --now rsyslog >/dev/null 2>&1; then
+        ok "rsyslog parado: se acaban ~37 MB/día de escrituras DUPLICADAS sobre la microSD"
+    else
+        avis "no se pudo parar rsyslog: el journal seguirá copiándose a /var/log/syslog"
+        NO_APLICADO+=("rsyslog sigue corriendo (copia doble del log)")
+    fi
+else
+    salta "rsyslog ya estaba parado"
+fi
+
+# Lo que rsyslog dejó escrito no lo limpia nadie: en rvr-01 eran 67 MB, y
+# `syslog.1` solo se llevaba 42. No se toca `auth.log`: es pequeño y guarda más
+# historia de sudo/ssh que el journal de 23 h que había hasta hoy.
+if [[ -f /var/log/syslog ]] || compgen -G '/var/log/syslog.*' >/dev/null; then
+    ANTES_LOG="$(du -sh /var/log 2>/dev/null | cut -f1)"
+    rm -f /var/log/syslog.[0-9] /var/log/syslog.[0-9].gz \
+          /var/log/kern.log.[0-9] /var/log/kern.log.[0-9].gz
+    truncate -s 0 /var/log/syslog /var/log/kern.log 2>/dev/null || true
+    ok "/var/log: $ANTES_LOG -> $(du -sh /var/log 2>/dev/null | cut -f1)"
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 say "4/9 · Desactivar el ahorro de energía del WiFi"

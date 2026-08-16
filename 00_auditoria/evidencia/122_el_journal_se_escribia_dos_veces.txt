@@ -1,0 +1,236 @@
+═══════════════════════════════════════════════════════════════════════════════
+EVIDENCIA 122 · A12 — EL JOURNAL SE ESTABA ESCRIBIENDO DOS VECES, Y EL TOPE SOLO
+                       CONTROLABA UNA DE LAS DOS COPIAS
+═══════════════════════════════════════════════════════════════════════════════
+Fecha       2026-08-15
+Robot       rvr-01 (Ubuntu Server 24.04, systemd 255)
+Pendiente   A12 · «el journal no aguanta un incidente ni dos días»
+Cierra      A12
+Toca        scripts/fase_1_higiene_so.sh · scripts/sistema/journald-zz-atriz.conf
+            scripts/sistema/MANIFIESTO.tsv · scripts/verificar_robot.sh
+            scripts/fase_6_preparar_imagen_dorada.sh
+
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LO QUE SE FUE A MEDIR, Y LO QUE APARECIÓ
+───────────────────────────────────────────────────────────────────────────────
+A12 se abrió porque el incidente M6 se perdió antes de poder investigarlo. La
+hipótesis escrita en el plan era simple: `SystemMaxUse=32M` es poco.
+
+Medido:
+
+    registro más antiguo del journal   2026-08-14T19:29:56
+    ahora                              2026-08-15T18:37:42
+    RETENCIÓN                          23 h 08 min        <- peor de lo escrito
+    journal                            35,7 MB   -> ~37 MB/día
+    arranques conservados              7
+
+Hasta aquí, confirmado. Pero al mirar `/var/log` apareció otra cosa:
+
+    /var/log                                   106 MB     <- el TRIPLE del tope
+      /var/log/journal                          36 MB
+      /var/log/syslog                           16 MB
+      /var/log/syslog.1                         42 MB     <- un solo fichero
+      /var/log/syslog.2.gz                     6,4 MB
+      /var/log/kern.log{,.1,.2.gz}             2,7 MB
+      resto (sysstat, apt, ...)                  2 MB
+
+    ForwardToSyslog=yes   <- /usr/lib/systemd/journald.conf.d/syslog.conf
+    rsyslog.service       active
+
+🔴 O sea: **cada línea de log se estaba escribiendo DOS veces en la microSD**, y
+   `SystemMaxUse` solo gobernaba una de las dos copias. La otra, la más grande,
+   estaba fuera de su alcance por completo.
+
+📝 Ubuntu ACTIVA el reenvío. El defecto de systemd es `no`; Ubuntu lo deshace con
+   un drop-in propio en /usr/lib. O sea que no es un descuido de este proyecto:
+   es una decisión de la distribución que hay que revertir a propósito.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2 · 🔴🔴 EL NOMBRE DEL FICHERO DECIDE QUIÉN GANA, Y `99-` HABRÍA PERDIDO
+───────────────────────────────────────────────────────────────────────────────
+El reflejo era llamar al drop-in `99-atriz.conf`. Habría sido un fichero puesto y
+sin efecto.
+
+systemd ordena **TODOS** los drop-ins por nombre de FICHERO, sin importar el
+directorio del que vengan. El de Ubuntu se llama `syslog.conf`:
+
+    99-atriz.conf  <  syslog.conf     ('9' < 's')   -> gana Ubuntu, sigue en yes
+    zz-atriz.conf  >  syslog.conf     ('z' > 's')   -> gana Atriz    ✅
+
+Verificado por efecto tras instalarlo, mirando el ÚLTIMO valor y no la existencia
+del fichero:
+
+    $ systemd-analyze cat-config systemd/journald.conf | grep -E '^(ForwardToSyslog|SystemMaxUse)='
+    SystemMaxUse=32M
+    ForwardToSyslog=yes          <- Ubuntu
+    ForwardToSyslog=no           <- nuestro, y va DESPUÉS
+    SystemMaxUse=256M
+
+📌 Misma familia que el `chmod` sobre vfat y el `usercfg.txt` de 24.04: la
+   configuración existe y no hace nada. Es el tercer caso del proyecto.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3 · 🔴🔴 `ForwardToSyslog=no` NO BASTA — rsyslog TIENE UNA SEGUNDA ENTRADA
+───────────────────────────────────────────────────────────────────────────────
+Con el drop-in ya aplicado y journald reiniciado, se inyectó una marca conocida
+por los DOS caminos que alimentan a rsyslog, con **control positivo**: las dos
+marcas TIENEN que aparecer en el journal, o «0 en syslog» no distinguiría
+«cortado» de «la marca nunca se generó».
+
+    MARCA="atriz-reenvio-$(date +%s)"
+    logger -t atriz-prueba "$MARCA"                        # imuxsock
+    echo "$MARCA-kernel" | sudo tee /dev/kmsg >/dev/null    # imklog
+
+    CONTROL POSITIVO   journal          2      ✅ la prueba vale
+    MEDIDO             syslog           1      🔴 una se coló
+                       kern.log         0
+
+    $ sudo grep -a "$MARCA" /var/log/syslog
+    2026-08-15T18:48:23.995802-05:00 rvr-01 kernel: atriz-reenvio-1786837703-kernel
+                                                ^^^^^^ la del KERNEL
+
+La causa, leída y no supuesta:
+
+    $ sudo ss -xlp | grep -E '/dev/log|journal/syslog'
+    /run/systemd/journal/syslog   users:(("rsyslogd",pid=704,fd=3),("systemd",pid=1,fd=36))
+
+    $ grep -rhE '^\s*module' /etc/rsyslog.conf /etc/rsyslog.d/
+    module(load="imuxsock")
+    module(load="imklog" permitnonkernelfacility="on")
+
+rsyslog escucha en el socket de reenvío de journald —ya cortado— **pero además
+carga `imklog`, que lee el anillo del kernel por su cuenta y no pasa por
+journald**. Ese camino no lo cierra ningún ajuste de journald.
+
+📝 Y `kern.log` daba 0, lo que despista: una escritura de usuario a `/dev/kmsg`
+   sale con facility **`user`**, no `kern`, así que cae en la regla `*.*`
+   (syslog) y no en `kern.*` (kern.log). Es exactamente para lo que está el
+   `permitnonkernelfacility="on"`.
+
+⚠️ MI PREDICCIÓN FALLÓ EN LA MITAD QUE IMPORTABA. Escribí, antes de medir: «si
+   kern.log sale ≠ 0, el reenvío no basta». Acerté el mecanismo (imklog) y fallé
+   el fichero, porque di por hecho que escribir en /dev/kmsg da facility `kern`.
+   Con esa predicción, `kern.log = 0` se habría leído como «el reenvío bastó» —
+   la conclusión contraria a la verdad. Lo que salvó la medida fue mirar CUÁL de
+   las dos marcas se coló, no cuántas.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4 · EL ARREGLO, Y SU VERIFICACIÓN CON CONTROL
+───────────────────────────────────────────────────────────────────────────────
+👤 Decisión del usuario: «quédate solo con journalctl y pon 7 días».
+
+    sudo systemctl disable --now rsyslog
+
+Repetida la misma prueba, con el mismo control:
+
+    CONTROL POSITIVO   journal          2      ✅ sigue recibiendo las dos
+    MEDIDO             syslog           0      ✅ ya no recibe ninguna
+
+Y el espacio, reclamando lo que rsyslog dejó escrito (sin tocar `auth.log`: es
+pequeño y guardaba más historia de sudo/ssh que el journal de 23 h):
+
+    ANTES     /var/log 106M    /  libre 20G de 29G
+    DESPUÉS   /var/log  40M    /  libre 20G
+
+    rm -f /var/log/syslog.1 /var/log/syslog.2.gz /var/log/kern.log.1 /var/log/kern.log.2.gz
+    truncate -s 0 /var/log/syslog /var/log/kern.log
+
+✅ No se pierde ningún registro: journald guarda los mismos —incluidos los de
+   `sudo` y `ssh` que iban a `auth.log`— y ahora con ~7 días en vez de 23 h.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5 · POR QUÉ 256M, Y POR QUÉ **NO** `MaxRetentionSec`
+───────────────────────────────────────────────────────────────────────────────
+    256 MB ÷ 37 MB/día ≈ 6,9 días
+
+🔴 SUBIR EL TOPE NO AUMENTA LA ESCRITURA. El ritmo lo fijan los servicios, no el
+   tope: 256M cuesta ESPACIO (el 1,3 % de lo libre), no I/O. Y como el mismo
+   cambio elimina la copia de rsyslog, **el balance neto de escrituras BAJA**
+   ~37 MB/día — que es exactamente lo que la medida original de 2026-07-30
+   perseguía cuando puso los 32M contra 47 s de bloqueo por I/O.
+
+🔴 `MaxRetentionSec` NO SE PONE, Y TRASPASO.md DECÍA LO CONTRARIO. Ahí ponía
+   «subir el tope no garantiza retención: eso lo dan `SystemMaxFiles` o
+   `MaxRetentionSec`». **Está al revés, y lo escribí yo.** `MaxRetentionSec` es
+   una edad **MÁXIMA** —borra lo más viejo— y `SystemMaxFiles` un número
+   **máximo** de ficheros. Los dos solo pueden **RECORTAR**. Lo que produce
+   retención es `SystemMaxUse ÷ ritmo`, y nada más. Ponerlos aquí solo tiraría
+   días que caben.
+
+⚠️ LA RETENCIÓN SIGUE SIN ESTAR GARANTIZADA, y conviene no venderla como tal: es
+   un cociente. Una inundación como la del ydlidar sin parchear (2,17 millones de
+   líneas/día) la hundiría a minutos. Son **8× más margen, no una promesa**. Por
+   eso el verificador la MIDE por efecto en vez de leer el parámetro.
+
+
+───────────────────────────────────────────────────────────────────────────────
+6 · LO QUE CAMBIA EN EL REPOSITORIO — PARA QUE LLEGUE A LOS 16
+───────────────────────────────────────────────────────────────────────────────
+La imagen dorada se construye EJECUTANDO `provision.sh`, y `provision.sh` llama a
+`fase_1_higiene_so.sh` en su paso 4/9. Así que basta con que el cambio viva ahí.
+
+  · scripts/sistema/journald-zz-atriz.conf   NUEVO. El drop-in completo.
+  · MANIFIESTO.tsv                           + su fila -> verificar_robot.sh
+                                               sección 13 detecta deriva con cmp
+  · fase_1_higiene_so.sh paso 3/9            instala el fichero (no un heredoc),
+                                               para rsyslog, reclama /var/log, y
+                                               comprueba POR EFECTO el orden
+  · verificar_robot.sh sección 4             tres comprobaciones nuevas
+  · fase_6_preparar_imagen_dorada.sh         vacía syslog/kern.log/auth.log EN
+                                               CURSO (el glob solo cazaba los
+                                               ROTADOS: la imagen habría repartido
+                                               16 MB del log del robot que la
+                                               construyó a los otros 15)
+
+🔴 Y UN FALLO PROPIO, CAZADO POR EL PROPIO REPOSITORIO. El drop-in se escribió
+   primero con un **heredoc**, que es justo lo que el paso 2/9 del mismo guion
+   dice en un comentario que no se haga: «un heredoc no deja nada contra lo que
+   comparar, así que su deriva respecto al repositorio es invisible». Se movió a
+   `scripts/sistema/` antes de commitear. La regla estaba escrita catorce líneas
+   más arriba del código que la incumplía.
+
+📝 Y cambió de CATEGORÍA sin que cambiara lo que configura: era **B** (un append
+   a un fichero de la distro, indiferenciable con `cmp`) y pasó a **A** (fichero
+   propio y completo) solo porque el arreglo dejó de tocar el fichero de Ubuntu.
+   La categoría es del CÓDIGO QUE ESCRIBE el fichero, no del fichero.
+
+
+───────────────────────────────────────────────────────────────────────────────
+7 · LAS COMPROBACIONES NUEVAS DEL VERIFICADOR, Y POR QUÉ SON TRES Y NO UNA
+───────────────────────────────────────────────────────────────────────────────
+Antes solo se miraba el TAMAÑO del journal, y por eso este robot pasó meses en
+verde con 23 h de retención. El tamaño no es el síntoma.
+
+  1. ForwardToSyslog efectivo    el ÚLTIMO valor de `systemd-analyze cat-config`,
+                                 no que el fichero exista (orden de drop-ins)
+  2. rsyslog parado              porque lo anterior no basta (apartado 3)
+  3. RETENCIÓN en horas          por efecto: la edad del registro más antiguo.
+                                 <48 h avisa, <... falla
+
+⚠️ Y ninguna la cubre el `cmp` del manifiesto. Un fichero byte-idéntico al del
+   repositorio **solo dice que es el nuestro**: que gane el orden, que rsyslog
+   esté parado y que la retención sea real son tres efectos distintos.
+
+📝 La retención se saca de `journalctl --list-boots -o json`, NO de
+   `journalctl | head -1`: eso leería el journal entero y además es el patrón
+   `productor | grep` que reventó seis comprobaciones el 2026-08-14 (grep cierra
+   el pipe, pipefail espera al productor, timeout lo mata -> 124).
+
+
+───────────────────────────────────────────────────────────────────────────────
+8 · LO QUE QUEDA SIN MEDIR
+───────────────────────────────────────────────────────────────────────────────
+⏳ Que la retención sea de verdad ~7 días. Hoy es una división: 256 ÷ 37. Se
+   confirma dejando pasar una semana y mirando `--list-boots`. El verificador ya
+   lo mide, así que se cerrará solo.
+⏳ El ritmo de 37 MB/día es de UNA ventana de 23 h sobre un robot que ese día se
+   usó mucho. Un robot en reposo escribirá menos y un día de clase más.
+⏳ No se ha medido el efecto en el I/O. La medida original (47 s de bloqueo en
+   42 min) era contra 784 MB sin límite; no se ha repetido con 256M. El
+   argumento de que baja es aritmético —una copia menos—, no medido.
+⚠️ n=1, un robot. rvr-02 y la imagen dorada, pendientes.

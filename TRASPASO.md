@@ -152,8 +152,21 @@
 > aritmética exacta** — cada aparición cae en el instante en que la última muestra de `/scan`
 > era vieja porque el barrido estaba apagado a propósito. Con nav activa y barrido encendido:
 > 0 apariciones. Y la hipótesis del NTP era falsa: era la edad del `/scan`, no el reloj.
-> **A12** · con 32 MB este robot no conserva un incidente ni dos días. ⚠️ Y subir el tope **no
-> garantiza retención**: eso lo dan `SystemMaxFiles` o `MaxRetentionSec`.
+> ~~**A12** · con 32 MB este robot no conserva un incidente ni dos días. ⚠️ Y subir el tope **no
+> garantiza retención**: eso lo dan `SystemMaxFiles` o `MaxRetentionSec`.~~
+> ✅ **CERRADO el 2026-08-15 (evidencia 122).** Retención medida: **23 h 08 min**, peor de lo que
+> decía esta línea. Y **la advertencia era AL REVÉS y mía**: `MaxRetentionSec` es una edad
+> **máxima** y `SystemMaxFiles` un número máximo de ficheros — los dos solo pueden **RECORTAR**.
+> Lo que da retención es `SystemMaxUse ÷ ritmo`, y nada más. Con 37 MB/día medidos, **256M ≈ 7
+> días**.
+> 🔴 **Y el tope de 32M no controlaba ni la mitad de las escrituras:** Ubuntu trae
+> `ForwardToSyslog=yes` y rsyslog estaba activo, así que **cada línea se escribía dos veces** —
+> `/var/log` en **106 MB**, el triple del tope, y fuera de su alcance. 🔴 **Y quitar el reenvío
+> tampoco basta**: rsyslog carga `imklog`, que lee el anillo del kernel **sin pasar por
+> journald**. Medido con control en las dos direcciones; hubo que **parar el servicio**.
+> ⚠️ **La retención sigue sin estar garantizada** —es un cociente, y una inundación como la del
+> ydlidar la hundiría—: son 8× más margen, no una promesa. Por eso el verificador la mide **por
+> efecto**, no lee el parámetro.
 >
 > ~~**M10 sigue en pie y NO caduca:** ese guion mide si systemd propaga un **reinicio** a una
 > unidad atada, de lo que depende que

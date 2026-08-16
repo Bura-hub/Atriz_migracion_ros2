@@ -150,7 +150,7 @@ awk '{s+=$2} END {print s}' /sys/devices/system/cpu/cpu0/cpufreq/stats/time_in_s
 |---|---|
 | `systemctl set-default multi-user.target`; deshabilitar `gdm` | dos Xorg + dos gnome-shell (208 + 395 MB), 273 tareas |
 | Governor a `performance` (unidad systemd) | 59.6 % del tiempo a 600 MHz, con 60 °C y cero throttling |
-| `journald.conf`: `SystemMaxUse=32M` + `Storage=volatile` | 784 MB de journal, `io.full total = 46.97 s` en 42 min |
+| `journald.conf.d/zz-atriz.conf`: **`ForwardToSyslog=no`** + `SystemMaxUse=256M`, y **`rsyslog` parado** | 784 MB de journal, `io.full total = 46.97 s` en 42 min. 🔴 **Revisado el 2026-08-15:** los 32M que se pusieron entonces daban **23 h de retención** y no gobernaban la copia de rsyslog —`/var/log` en 106 MB—. Evidencia 122 |
 | WiFi power-save OFF (`iw dev wlan0 set power_save off` persistente) | `Power Management: on`, 797 reintentos Tx, latencias de 100–300 ms |
 | Purgar: `ubuntu-desktop`, `xrdp`, `cups*`, `ModemManager`, `whoopsie`, `switcheroo-control`, `openvpn`, `iscsi*`, `multipath*`, `snapd`+`lxd`, `tracker-*`, `evolution-*` | ~25 servicios inútiles; LXD en un robot; 6 loop devices |
 | Deshabilitar `cloud-init` (`/etc/cloud/cloud-init.disabled`) | ~20 de los 27 s de userspace del boot |

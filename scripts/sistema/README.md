@@ -34,6 +34,7 @@ Detección de deriva: **`cmp`**.
 |---|---|
 | `99-rvr.rules` | `fase_0_1_fix_uart.sh` |
 | `cpu-performance.service` | `fase_1_higiene_so.sh` |
+| `journald-zz-atriz.conf` | `fase_1_higiene_so.sh` |
 
 ### B — el repositorio tiene el GENERADOR → NO va aquí
 
@@ -46,13 +47,35 @@ Nunca se versiona copia. Detección de deriva: **una aserción de efecto**, no u
 |---|---|---|
 | `/etc/profile.d/atriz-robot.sh` | interpola el `ROBOT_ID`: **distinto en cada robot** | sección 12, contra `robot_id.txt` |
 | `/etc/systemd/system/wifi-no-powersave.service` | interpola la interfaz y la ruta de `iw` **detectadas** | sección 4: `iw … power_save` |
-| bloque de `/etc/systemd/journald.conf` | es un append a un fichero de la distro | sección 4: tamaño del journal |
+| ~~bloque de `/etc/systemd/journald.conf`~~ | **pasó a A el 2026-08-15** | ver abajo |
 | `noatime` en `/etc/fstab` | es un `sed -i` sobre un fichero de la distro | sección 4: `findmnt` |
 | `/boot/firmware/cmdline.txt` | edición parcial | sección 12 |
 | `/etc/netplan/60-atriz.yaml` | lo genera `first-boot.sh` desde `red.txt` | **y lleva la PSK del WiFi: jamás al repositorio** |
 
 Versionar una copia de `wifi-no-powersave.service` sería el error que este criterio evita: la copia
 diría `wlan0` para siempre, y en el primer robot cuya interfaz se llame `wlan1` sería falsa.
+
+### 🔴 El journal cambió de categoría el 2026-08-15, y el porqué vale para más casos
+
+Era **B** con toda la razón: `fase_1_higiene_so.sh` hacía un **append** a
+`/etc/systemd/journald.conf`, que es un fichero de la distribución, y de un append no se puede
+sacar un `cmp`.
+
+Al revisar la retención dejó de serlo. El arreglo ya no toca el fichero de Ubuntu: escribe **su
+propio drop-in completo** en `/etc/systemd/journald.conf.d/zz-atriz.conf`. Eso es exactamente la
+definición de **A** —fichero completo, propio de Atriz, idéntico en los 16—, así que se movió a
+`journald-zz-atriz.conf` y entró en el manifiesto.
+
+📝 **La lección de método: la categoría es del CÓDIGO QUE ESCRIBE el fichero, no del fichero.**
+Cambiar un `append` por un `drop-in` cambia la categoría sin cambiar de qué se está configurando.
+Y estuvo a punto de colarse: el drop-in se escribió primero con un heredoc, que es justo lo que
+el paso 2/9 del mismo guion —`cpu-performance.service`— dice en un comentario que no se haga.
+
+⚠️ **Y la comprobación de la sección 4 tampoco se hereda.** Decía «tamaño del journal», y con un
+tope de 32M el robot daba **verde con 23 h de retención**. Un drop-in en el manifiesto se comprueba
+con `cmp`, pero **eso solo dice que el fichero es el nuestro**: que gane el orden de los drop-ins,
+que rsyslog esté parado y que la retención sea real son tres efectos distintos, y los tres se
+comprueban aparte. Un fichero correcto puede no hacer nada.
 
 ### C — es una ENTRADA del operador → solo el `.ejemplo`
 

@@ -4,6 +4,38 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, A12 (PC + rvr-01) — El journal se estaba escribiendo DOS veces, y el tope solo controlaba una
+
+**A12 CERRADO.** Se fue a medir «32 MB es poco» y salió algo mayor: retención real **23 h 08 min**
+(peor de lo escrito), pero sobre todo `/var/log` en **106 MB** —el TRIPLE del tope del journal—
+porque Ubuntu trae `ForwardToSyslog=yes` y `rsyslog` estaba activo: **cada línea se grababa dos
+veces en la microSD**, y `SystemMaxUse` no gobernaba la copia grande.
+
+🔴 **Y quitar el reenvío NO basta.** Medido con marcas conocidas por los dos caminos y **control
+positivo**: el `logger` quedó cortado, pero la escritura a `/dev/kmsg` seguía llegando a
+`/var/log/syslog` porque `rsyslog` carga **`imklog`**, que lee el anillo del kernel sin pasar por
+journald. 👤 Decisión del usuario: «quédate solo con journalctl». `rsyslog` parado y deshabilitado.
+Repetida la prueba: journal 2, syslog **0**. `/var/log` **106 → 40 MB**.
+
+🔴 **El nombre del drop-in decide quién gana:** systemd ordena TODOS los drop-ins por nombre de
+fichero, así que `99-atriz.conf` habría perdido contra el `syslog.conf` de Ubuntu (`'9' < 's'`) —
+puesto y sin efecto, la tercera vez que aparece esa forma en el proyecto. Se llama **`zz-`**.
+
+🔴 **Corregida una afirmación mía de `TRASPASO.md`:** decía que la retención la dan
+`SystemMaxFiles` o `MaxRetentionSec`. **Es al revés** — los dos solo **RECORTAN**. La retención es
+`SystemMaxUse ÷ ritmo` y nada más: 256M a 37 MB/día son ~7 días. ⚠️ Y sigue sin estar garantizada:
+es un cociente, no una promesa.
+
+**Para los 16:** `journald-zz-atriz.conf` versionado en `scripts/sistema/` (no un heredoc — el
+propio guion dice catorce líneas más arriba por qué) + fila en `MANIFIESTO.tsv`; `fase_1` instala,
+para rsyslog y reclama `/var/log`; **tres** comprobaciones nuevas en `verificar_robot.sh` —orden
+efectivo, rsyslog parado y **retención medida por efecto**, porque antes solo se miraba el TAMAÑO y
+por eso este robot pasó meses en verde con 23 h—; y `fase_6` vacía `syslog`/`kern.log` **en curso**
+(el glob solo cazaba los rotados: la imagen habría repartido 16 MB del log del robot que la
+construyó a los otros 15). Evidencia 122.
+
+---
+
 ## 2026-08-15, aislamiento (PC) — La anomalía de la cinta no era un fallo, y las dos hipótesis eran falsas
 
 Corridas **las dos vías seguidas** con el RVR caliente, misma marca y misma orden nominal:

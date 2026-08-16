@@ -244,10 +244,22 @@ y ya no se puede.**
 **A12 · El journal no aguanta un incidente ni dos días.** Con 16 robots y fallos
 intermitentes que se diagnostican *a posteriori*, eso es un problema de diseño y no una
 molestia.
-⚠️ **Subir `SystemMaxUse` no garantiza retención**: solo pone un techo, y con un emisor
+~~⚠️ **Subir `SystemMaxUse` no garantiza retención**: solo pone un techo, y con un emisor
 constante cualquier techo se consume en un tiempo proporcional — más grande solo compra
 horas. Lo que garantiza N arranques es **`SystemMaxFiles`**, y lo que garantiza tiempo es
-**`MaxRetentionSec`**. Las tres opciones no son alternativas.
+**`MaxRetentionSec`**. Las tres opciones no son alternativas.~~
+
+🔴 **RETIRADO el 2026-08-15: está AL REVÉS.** `MaxRetentionSec` es una edad **máxima** —borra lo
+más viejo— y `SystemMaxFiles` un número **máximo** de ficheros. Los dos solo pueden **RECORTAR**
+la retención; ninguno la garantiza. Lo único que la produce es `SystemMaxUse ÷ ritmo`.
+📝 Lo que **sí** era cierto y se conserva: «más grande solo compra horas». La retención es un
+cociente, no una promesa: una inundación como la del ydlidar (2,17 M líneas/día) hundiría los 7
+días a minutos. Por eso el verificador **la mide**, en vez de leer el parámetro.
+
+✅ **A12 CERRADO el 2026-08-15, evidencia 122.** Y lo que se encontró al medir era mayor que lo
+planteado aquí: el tope de 32M **no controlaba ni la mitad de las escrituras**, porque Ubuntu
+reenvía a rsyslog y cada línea se grababa dos veces (`/var/log` en 106 MB). Ver el fichero de
+evidencia.
 
 **A11 · Callar al `collision_monitor` es lo que ataca la causa.** Y antes de silenciarlo hay
 que saber si el aviso es benigno, porque dice **«Ignoring the source»** y la fuente que
@@ -340,4 +352,6 @@ caducado. Y en ese estado el robot no conduce de todos modos.
 ✅ **Lo que sí se sostiene de aquel análisis, y es lo importante:** dos días de retención son pocos
 para un laboratorio donde los fallos son intermitentes y se diagnostican a posteriori.
 📝 Y el matiz que lo corrige: **`SystemMaxUse` es un techo, no una retención.** Subirlo solo compra
-horas. Lo que garantiza arranques conservados es `SystemMaxFiles` o `MaxRetentionSec`.
+horas. ~~Lo que garantiza arranques conservados es `SystemMaxFiles` o `MaxRetentionSec`.~~
+🔴 **Esa segunda frase está RETIRADA (2026-08-15): los dos solo RECORTAN.** Ver la corrección en la
+sección A12 de este mismo plan.

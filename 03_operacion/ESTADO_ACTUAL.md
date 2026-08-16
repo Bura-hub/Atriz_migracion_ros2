@@ -15,6 +15,42 @@ para saber por dónde vas.
 
 ---
 
+## 🔴 PC + rvr-01 (2026-08-15, A12) · **EL JOURNAL SE ESCRIBÍA DOS VECES — A12 CERRADO**
+
+Evidencia **122**. 👤 **Ya aplicado en rvr-01 por el usuario**; esto va para que lo sepas y para que
+no lo deshagas.
+
+**Lo que cambió en el robot, y es visible desde tu lado:**
+
+- **`rsyslog` está parado y deshabilitado.** `/var/log/syslog`, `kern.log` y `auth.log` **ya no
+  crecen**. Si buscabas algo ahí, ahora **todo está en `journalctl`** y solo ahí. No lo vuelvas a
+  arrancar: era una copia literal del journal.
+- **Retención del journal: de 23 h a ~7 días** (`SystemMaxUse=256M` en
+  `/etc/systemd/journald.conf.d/zz-atriz.conf`). Ahora un incidente de viernes se puede investigar
+  el lunes.
+- `/var/log` pasó de **106 MB a 40**.
+
+**Lo que necesito de ti, si tocas esto:**
+
+1. 🔴 **El drop-in se llama `zz-atriz.conf` A PROPÓSITO.** systemd ordena TODOS los drop-ins por
+   nombre de fichero, vengan de `/etc` o de `/usr`, y el de Ubuntu se llama `syslog.conf`: un
+   `99-` ordenaría **antes** y el reenvío seguiría activo, con el fichero puesto y sin efecto. Si
+   lo renombras, compruébalo con
+   `systemd-analyze cat-config systemd/journald.conf | grep '^ForwardToSyslog=' | tail -1`.
+2. 🔴 **`ForwardToSyslog=no` no basta por sí solo.** `rsyslog` carga `imklog`, que lee el anillo del
+   kernel **sin pasar por journald**. Medido: con el reenvío ya cortado, un `echo > /dev/kmsg`
+   seguía apareciendo en `/var/log/syslog`. Por eso hay que **parar el servicio**.
+3. ⚠️ **La retención NO está garantizada:** es `SystemMaxUse ÷ ritmo`. Si algún servicio se pone a
+   inundar el log —como hacía el ydlidar sin parchear, 2,17 M líneas/día—, los 7 días se hunden a
+   minutos. `verificar_robot.sh` ahora **mide la retención por efecto** y avisa por debajo de 48 h.
+
+**En el repositorio (ya subido):** `scripts/sistema/journald-zz-atriz.conf` + su fila en
+`MANIFIESTO.tsv`, `fase_1_higiene_so.sh` paso 3/9 reescrito, tres comprobaciones nuevas en
+`verificar_robot.sh` sección 4, y `fase_6` vaciando los logs **en curso**. Como `provision.sh`
+llama a `fase_1`, **la imagen dorada lo lleva sin hacer nada más**.
+
+---
+
 ## 🔴 PC (2026-08-15, A5) · **`/initialpose` ESTABA DECLARADO Y SIN CONSTRUIR — y al construirlo, el gesto movió el robot hasta enredarlo**
 
 Evidencia **121**. 👤 Nada que hacer en la Pi; va para que lo sepas y por si lo revisas.

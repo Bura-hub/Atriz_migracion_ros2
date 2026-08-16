@@ -282,12 +282,58 @@ else
          "sudo sed -i '0,/^Suites: noble\$/s//Suites: noble noble-updates/' /etc/apt/sources.list.d/ubuntu.sources && sudo apt update"
 fi
 
+# --- El journal: tamaño, copia doble y RETENCIÓN (revisado 2026-08-15) -------
+# 🔴 Aquí sólo se miraba el TAMAÑO, y por eso este robot pasó meses con 23 h de
+#    retención dando verde. El tamaño no es el sintoma: la retencion lo es.
 JOUR="$(journalctl --disk-usage 2>/dev/null | grep -oE '[0-9.]+[MG]' | head -1 || echo '?')"
 case "$JOUR" in
-    *G) _mal "journal ocupa $JOUR: castiga la microSD" "SystemMaxUse=32M en /etc/systemd/journald.conf" ;;
+    *G) _mal "journal ocupa $JOUR: castiga la microSD y pasa del tope de 256M" \
+             "bash scripts/fase_1_higiene_so.sh   (instala zz-atriz.conf)" ;;
     *M) _ok "journal: $JOUR" ;;
     *)  _avi "no se pudo leer el tamaño del journal" ;;
 esac
+
+# La copia DOBLE. Se mira el ULTIMO valor efectivo, no que el fichero exista:
+# systemd ordena los drop-ins por nombre y `zz-` tiene que ganarle a `syslog.conf`.
+# 📝 Capturado a variable antes de grep-ear: `cmd | grep -q` bajo `set -o pipefail`
+#    es la bomba intermitente del 2026-08-14 (grep cierra el pipe y el productor
+#    muere con 124/141). Misma regla que _ros2_cap.
+JD_EFECTIVO="$(systemd-analyze cat-config systemd/journald.conf 2>/dev/null || true)"
+if grep -E '^ForwardToSyslog=' <<<"$JD_EFECTIVO" | tail -1 | grep -q 'no'; then
+    _ok "journald no reenvía a syslog (sin copia doble)"
+else
+    _mal "journald REENVÍA a syslog: cada línea se escribe dos veces en la microSD" \
+         "bash scripts/fase_1_higiene_so.sh   (el drop-in debe llamarse zz-, no 99-)"
+fi
+# Y `ForwardToSyslog=no` NO BASTA: rsyslog carga `imklog`, que lee el anillo del
+# kernel sin pasar por journald. Medido con control el 2026-08-15, evidencia 122.
+if systemctl is-active rsyslog >/dev/null 2>&1; then
+    _mal "rsyslog está ACTIVO: sigue copiando el log del kernel a /var/log/syslog" \
+         "sudo systemctl disable --now rsyslog"
+else
+    _ok "rsyslog parado (solo journalctl)"
+fi
+
+# La RETENCIÓN, que es lo que de verdad se quería. Se mide por EFECTO: la edad
+# del registro más antiguo que queda, no el valor de un parámetro.
+# 📝 Se saca del PRIMER arranque que queda, con `--list-boots -o json`. NO con
+#    `journalctl | head -1`: eso lee el journal entero y además es el patrón
+#    `productor | grep` que reventó seis comprobaciones el 2026-08-14. La lista
+#    de arranques son unas pocas líneas.
+JD_LB="$(journalctl --list-boots -o json --no-pager 2>/dev/null || true)"
+JD_VIEJO="$(grep -oE '"first_entry" *: *[0-9]+' <<<"$JD_LB" | head -1 | grep -oE '[0-9]+$' || true)"
+[[ "${JD_VIEJO:-}" =~ ^[0-9]{13,}$ ]] && JD_VIEJO=$(( JD_VIEJO / 1000000 ))   # µs -> s
+if [[ "${JD_VIEJO:-}" =~ ^[0-9]+$ ]]; then
+    JD_HORAS=$(( ( $(date +%s) - JD_VIEJO ) / 3600 ))
+    if   [[ "$JD_HORAS" -ge 96 ]]; then _ok  "retención del journal: ${JD_HORAS} h (~$((JD_HORAS/24)) días)"
+    elif [[ "$JD_HORAS" -ge 48 ]]; then _avi "retención del journal: solo ${JD_HORAS} h" \
+             "no cubre un incidente de fin de semana. ¿Hay algún servicio inundando el log?"
+    else _mal "retención del journal: solo ${JD_HORAS} h — un incidente se pierde antes de investigarlo" \
+              "mira quién inunda: journalctl -b -o json --output-fields=_SYSTEMD_UNIT | sort | uniq -c | sort -rn | head"
+    fi
+else
+    _avi "no se pudo medir la retención del journal"
+fi
 
 FALL="$(systemctl --failed --no-legend --no-pager 2>/dev/null | wc -l)"
 comprobar "servicios en fallo" "$FALL" "0" "systemctl --failed  para ver cuáles"
