@@ -439,9 +439,13 @@ estática está mal, sigues llegando al robot. Evidencia 39.
 - ✅ `fase_6` **endurecido antes de su estreno**: la puerta del driver-activo se cruza ANTES de
   borrar la identidad (el orden viejo dejaba un robot a medio preparar); `--breve` existe;
   `first-boot.sh/.service` en el repo.
-- ✅ Sin credenciales sorpresa: la búsqueda recursiva solo encontrará `~/.git-credentials` (se
-  hace `shred -u` en el momento) y `~/.claude/.credentials.json` (la borra el propio guion).
-  La copia vieja de `respaldo_pre_migracion` ya no existe.
+- ⚠️ Credenciales: la búsqueda recursiva (ampliada el 2026-08-15 con `authorized_keys*` y
+  `.claude.json*` — evidencia 125) encontrará en rvr-01 al menos **tres** cosas que decidir en el
+  momento: `~/.git-credentials` (se hace `shred -u` — y desde el Taller es urgente: el agente
+  corre como `sphero`, así que el código de un alumno podría leerlo), `~/.ssh/authorized_keys.bak`
+  (una clave ed25519 real: restaurarla abriría los 16) y `~/.claude.json.tmp.*` (lleva
+  `oauthAccount`). Una versión anterior de esta línea decía «solo encontrará…» y quedó falsa: la
+  lista de arriba es de lo MEDIDO hoy, no una promesa.
 - 📝 Tarjeta: 8 GB usados de 29 — el `dd` crudo pesa ~30 GB; con `pishrink` baja a ~8.
 
 **Las cuatro consecuencias que se aceptan a sabiendas al ejecutarla:**
@@ -454,6 +458,11 @@ estática está mal, sigues llegando al robot. Evidencia 39.
    aula mapea el suyo (evidencia 84).
 4. **La identidad muere**: huella SSH nueva al renacer como robot 01, y ⚠️ **no arrancar la
    tarjeta entre `fase_6` y el `dd`** — el first-boot regeneraría la identidad en la imagen.
+5. **El Taller viaja, y los 16 exigirán testigo** (desde el 2026-08-15): la imagen lleva
+   `atriz-agente` y `/etc/atriz/testigo.pub` **a propósito** — `fase_6` se niega a construir sin
+   la clave—, así que ningún clon hablará con una web que no firme con la privada del PC. Si la
+   clave rota, hay que repartir la nueva a los 16 (hoy: a mano; la decisión de versionarla está
+   abierta — evidencia 125, apartado 2).
 
 **El procedimiento, el día autorizado:**
 
@@ -679,7 +688,12 @@ olvida):
 - `machine-id` (`/etc/machine-id` vacío → systemd lo regenera)
 - hostname y `/etc/profile.d/atriz-robot.sh` (el `ROS_DOMAIN_ID`)
 - la marca `/var/lib/atriz-first-boot.done`, para que first-boot vuelva a correr
-- `~/.bash_history`, logs
+- `~/.bash_history`, logs (incluidos los EN CURSO, el `atriz-first-boot.log` del robot de
+  referencia y los subdirectorios de apt), Claude Code entero, el estado de IDEs
+  (`.vscode-server`, `.antigravity-ide-server`, `.warp`, ~800 MB), los `__pycache__` del
+  workspace, los mapas y `ATRIZ_MAPA`
+- ⚠️ lo que **NO** borra y hay que decidir a mano cuando lo liste: `~/.git-credentials`
+  (`shred -u`), `authorized_keys*` y `.claude.json*` — ver arriba
 
 🔴 **La imagen es material sensible:** lleva la PSK del WiFi y la contraseña del usuario. No
 sale del laboratorio, no va a git, y no se comparte por servicios en la nube.
@@ -1053,7 +1067,8 @@ hardware si hay que reclamar algo al administrador de red.
 ```bash
 bash ~/atriz_migracion/scripts/verificar_robot.sh --hardware
 ```
-36+ comprobaciones y **código de salida ≠ 0 si algo falla**. No des el robot por bueno sin
+~160 comprobaciones (incluido el agente del Taller desde el 2026-08-15; la cifra «36+» que
+estuvo aquí era de una versión muy anterior) y **código de salida ≠ 0 si algo falla**. No des el robot por bueno sin
 esto: los fallos de este proyecto son los que no se manifiestan como error. Si sale limpio,
 comprueba además las frecuencias, que dependen de ROS 2:
 ```bash

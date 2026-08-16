@@ -1283,6 +1283,47 @@ else
 fi
 
 
+# ── El agente del Taller ──────────────────────────────────────────────────────
+# 🔴 Hasta el 2026-08-15 aquí no había NI UNA comprobación del agente: un clon
+#    con la identidad heredada (robot 1 por dentro) rechazaba todos los
+#    testigos con 4404 y este guion lo pasaba en verde. Evidencia 125, 3e.
+if [[ -f /etc/systemd/system/atriz-agente.service ]]; then
+    if systemctl is-active atriz-agente.service >/dev/null 2>&1; then
+        _ok "atriz-agente activo ($(systemctl is-enabled atriz-agente.service 2>/dev/null || echo '?'))"
+    else
+        _mal "atriz-agente.service instalado pero NO activo: el terminal del Taller no abre" \
+             "systemctl status atriz-agente · journalctl -u atriz-agente -n 20"
+    fi
+    # Por EFECTO: el puerto escuchando, no la unidad en verde.
+    SS_9443="$(ss -ltn 2>/dev/null | grep -c ':9443 ' || true)"
+    if [[ "${SS_9443:-0}" -ge 1 ]]; then
+        _ok "el 9443 escucha (el terminal del alumno tiene puerta)"
+    else
+        _mal "nada escucha en el 9443 con la unidad instalada" \
+             "journalctl -u atriz-agente -n 20 · ¿falta /etc/atriz/testigo.pub?"
+    fi
+    # 🔴 La IDENTIDAD, por efecto: el --robot del PROCESO contra el profile.d.
+    #    Es la comprobación que caza el clon dd sin fase_6: fase_7 ya reescribe
+    #    la identidad heredada, pero un agente arrancado ANTES del arreglo
+    #    seguiría corriendo con el número viejo hasta el restart.
+    AG_ROBOT="$(pgrep -af 'agente_sesion\.py' 2>/dev/null | grep -oP -- '--robot \K[0-9]+' | head -1)"
+    PROF_ROBOT="$(grep -oP '^export ATRIZ_ROBOT_ID=\K[0-9]+' /etc/profile.d/atriz-robot.sh 2>/dev/null | head -1)"
+    if [[ -n "$AG_ROBOT" && -n "$PROF_ROBOT" ]]; then
+        if (( 10#$AG_ROBOT == 10#$PROF_ROBOT )); then
+            _ok "el agente corre como robot $((10#$AG_ROBOT)), igual que la identidad del sistema"
+        else
+            _mal "el agente corre como robot $((10#$AG_ROBOT)) y la identidad dice $((10#$PROF_ROBOT)): TODOS los testigos darán 4404" \
+                 "sudo systemctl restart atriz-agente  (y si es un clon: sudo bash fase_7_systemd.sh --id $((10#$PROF_ROBOT)))"
+        fi
+    elif [[ -n "$PROF_ROBOT" ]]; then
+        _avi "no pude leer el --robot del proceso del agente: identidad sin cruzar"
+    fi
+else
+    _avi "sin agente del Taller (atriz-agente.service)" \
+         "lo instala fase_7_systemd.sh; sin él no hay terminal del alumno"
+fi
+
+
 # ── 12. Red de la flota: mDNS, netplan y rosbridge ───────────────────────────
 # Nada de esto existía hasta el 2026-08-01, y es lo que permite que la web
 # encuentre a 16 robots sin saberse ninguna IP. Manual, cap. 19.

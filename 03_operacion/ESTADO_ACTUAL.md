@@ -15,6 +15,45 @@ para saber por dónde vas.
 
 ---
 
+## ✅ Pi (2026-08-15, tanda de escalado) · **Los arreglos del robot de la 125, APLICADOS — y una corrección: fase_6 SÍ tenía puerta del testigo**
+
+👤 Autorizado por el usuario («dale»). Lo aplicado, cada pieza verificada:
+
+1. **`puente` con `on_exit=Shutdown()`** (`robot.launch.py`, en Atriz_rvr): si `atriz_rosbridge`
+   muere, ya no queda un robot verde sin rosbridge — la unidad reintenta y, si es permanente,
+   FAILED visible. ⚠️ El install es symlink: **se arma en el próximo `restart atriz-robot`** (👤).
+2. **`fase_7 --id` ya no traga la identidad heredada**: si el `profile.d` existente no casa con
+   `--id`/`robot_id.txt`, avisa y REESCRIBE. Banco de 5 casos: clon 01+`--id 2`→reescribe a 2,
+   clon 01+robot_id 07→a 7, correcto→ok, sin fuente→ok, corrupto→reescribe. 5/5.
+3. **El verificador estrena cobertura del agente**: unidad activa, el 9443 escuchando (por
+   efecto), y la identidad CRUZADA — el `--robot` del PROCESO contra el `profile.d`, que es lo que
+   caza un clon con el agente arrancado antes del arreglo. Sondas replicadas en vivo en rvr-01
+   (robot 1 = 01 ✓, 9443 ✓).
+4. **`fase_6` ampliada**: puerta para `atriz-agente` (una sesión del Taller a medias no entra en
+   la imagen), patrones de secretos con `authorized_keys*` y `.claude.json*`, borrado de IDEs
+   (~800 MB), `__pycache__`/`.pytest_cache` de src+install, logs fuera de glob
+   (`atriz-first-boot.log` del robot de referencia incluido), y el aviso final de
+   `history -c; unset HISTFILE` antes del `poweroff`.
+5. **`provision.sh` instala `python3-cryptography`** — hoy funcionaba por herencia de la imagen
+   base, marcado `automatic`.
+6. **FLOTA.md realineada**: la promesa falsa de «solo encontrará…», la QUINTA consecuencia (el
+   Taller viaja y los 16 exigen testigo), la lista real de «qué borra fase_6» con su «qué NO
+   borra», y el «36+» → ~160.
+
+🔴 **Y una corrección mía a la 125, en voz alta**: escribí «cero “testigo” en fase_6» y es FALSO —
+mi grep era sensible a mayúsculas y **tu puerta de A7 en fase_6 existe y funciona** (se niega a
+construir sin la clave). El hueco real queda solo en provision-desde-cero (ahí sigue sin
+instalador; la decisión de versionar la clave sigue 👤 abierta). La evidencia ya está corregida
+con el rastro.
+
+Suites: migracion 120 ✓ · auditor documental 0 fallos · verificador completo con la sección nueva
+en la pasada de cierre. Siguen 👤: PAT (`shred -u`, urgente con el Taller), `authorized_keys.bak`,
+`.claude.json.tmp.*`, la decisión de la clave versionada, y el `restart atriz-robot` que arma el
+punto 1. Del PC: su lista de la 125 (interruptor global/de build, override por IP en bucle,
+pruebas cableadas a rvr-01).
+
+---
+
 ## 🔴 Pi (2026-08-15, escalado) · **AUDITORÍA DE ESCALADO A LA IMAGEN DORADA Y A rvr-02 — evidencia 125. El código escala; la CADENA DE REPARTO no**
 
 Cuatro auditores aislados en paralelo, hallazgos cruzados y los cuatro críticos re-verificados a

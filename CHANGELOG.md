@@ -4,6 +4,23 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-15, tanda de escalado (Pi) — Los arreglos del robot de la evidencia 125, aplicados
+
+Autorizados por el usuario. `fase_7 --id` reescribe la identidad heredada de un clon en vez de
+tragarla (banco de 5 casos, 5/5); el verificador estrena cobertura del agente (unidad, 9443 por
+efecto, e identidad del PROCESO cruzada con el profile.d — sondas replicadas en vivo); `fase_6`
+gana la puerta de `atriz-agente`, los patrones `authorized_keys*`/`.claude.json*`, el borrado de
+IDEs/`__pycache__`/logs fuera de glob y el aviso de `history -c`; `provision.sh` instala
+`python3-cryptography`; FLOTA.md realineada (quinta consecuencia: el Taller viaja y los 16
+exigirán testigo). En Atriz_rvr: el `puente` con `on_exit=Shutdown()` — un rosbridge muerto ya no
+deja un robot verde y mudo (se arma en el próximo restart, 👤).
+
+🔴 Corrección en voz alta sobre la 125: «cero testigo en fase_6» era FALSO (grep sensible a
+mayúsculas) — la puerta de A7 en fase_6 existe; el hueco del instalador queda solo en
+provision-desde-cero. Evidencia corregida con rastro.
+
+---
+
 ## 2026-08-15, escalado (Pi) — Auditoría de qué escala a la imagen dorada y a rvr-02: el código sí, la cadena de reparto no
 
 Cuatro auditores aislados (reproducibilidad, parametrización, fase_6, web), hallazgos cruzados y

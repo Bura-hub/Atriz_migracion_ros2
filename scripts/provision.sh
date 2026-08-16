@@ -179,7 +179,11 @@ say "2/9 · Paquetes del sistema"
 #                  importa, aunque solo se USE para consultar el firmware por web.
 # python3-serial   pyserial, el enlace serie.
 # python3-pip      necesario solo para pyserial-asyncio, que no está en apt.
-PAQUETES=(iw python3-serial python3-aiohttp python3-pip git patch)   # `patch`: aplica el parche del ydlidar
+# python3-cryptography  verifica el testigo Ed25519 (atriz_rosbridge y el agente
+#                       del Taller). Hoy viene de la imagen base de Ubuntu, pero
+#                       marcado `automatic`: sin esta línea, funcionaba por
+#                       herencia y no por cadena. Evidencia 125, 3d.
+PAQUETES=(iw python3-serial python3-aiohttp python3-pip python3-cryptography git patch)   # `patch`: aplica el parche del ydlidar
 FALTANTES=()
 for p in "${PAQUETES[@]}"; do
     dpkg -l "$p" 2>/dev/null | grep -q '^ii' && salta "$p ya instalado" || FALTANTES+=("$p")

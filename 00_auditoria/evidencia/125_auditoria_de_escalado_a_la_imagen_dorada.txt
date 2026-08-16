@@ -44,10 +44,16 @@ RESUMEN
 2 · LA CLAVE DEL TESTIGO INVIERTE LA REGLA DEL PROYECTO
 ───────────────────────────────────────────────────────────────────────────────
   /etc/atriz/testigo.pub (pública Ed25519, 113 B, una para los 16) NO la
-  instala NADIE: cero ocurrencias de «testigo» en provision.sh, first-boot.sh,
-  fase_6 y MANIFIESTO.tsv; fase_7:411 solo AVISA si falta; ni siquiera hay un
-  install -d /etc/atriz. Hoy la única vía de reparto sería el dd — «la imagen
-  es el atajo; provision.sh es la verdad» quedaría al revés para esta pieza.
+  instala NADIE en el camino provision-desde-cero: cero ocurrencias (grep -i)
+  en provision.sh, first-boot.sh y MANIFIESTO.tsv; fase_7:411 solo AVISA si
+  falta; ni siquiera hay un install -d /etc/atriz.
+  🔴 CORRECCIÓN sobre la primera versión de este apartado: decía «cero en
+  fase_6» y es FALSO — el grep de verificación era sensible a mayúsculas.
+  fase_6 TIENE una puerta desde A7 (fase_6:118-139): se NIEGA a construir la
+  imagen sin la clave, así que el camino del dd está guardado. Lo que sigue en
+  pie: un robot aprovisionado desde cero no la recibe de ningún script — «la
+  imagen es el atajo; provision.sh es la verdad» sigue al revés para esta
+  pieza, pero solo en esa vía.
   📌 Es una clave PÚBLICA: versionarla en migracion + fila de MANIFIESTO +
      install en fase_7 sería seguro y devolvería la regla a su sitio.
      👤 Decisión (el PC propuso repartirla por SSH ×16: peor).

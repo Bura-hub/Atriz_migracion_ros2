@@ -188,7 +188,25 @@ comprobar "existe sistema/atriz-ros.sh en el repo" "[[ -f $SCRIPTS_DIR/sistema/a
 CREAR_IDENTIDAD=no
 ID_NUM=""
 if [[ -f /etc/profile.d/atriz-robot.sh ]]; then
-    ok "/etc/profile.d/atriz-robot.sh (de donde sale ROS_DOMAIN_ID)"
+    # 🔴 «Existe» NO basta: en un clon dd al que no se le pasó fase_6, este
+    #    fichero es EL DE OTRO ROBOT. La versión anterior decía `ok` sin mirar
+    #    dentro, así que `--id 2` sobre un clon no hacía NADA y no lo decía: el
+    #    robot quedaba siendo el 1 por dentro, y el agente y rosbridge
+    #    rechazaban TODOS los testigos con 4404 («ese testigo es de otro
+    #    robot») con el verificador en verde. Evidencia 125, apartado 3a.
+    ID_ACTUAL=$(grep -oP '^export ATRIZ_ROBOT_ID=\K[0-9]+' /etc/profile.d/atriz-robot.sh | head -1)
+    ID_ESPERADO="$ID_FORZADO"
+    if [[ -z "$ID_ESPERADO" && -f /boot/firmware/robot_id.txt ]]; then
+        ID_ESPERADO=$(grep -oP '^\s*ROBOT_ID\s*=\s*\K[0-9]+' /boot/firmware/robot_id.txt | head -1)
+    fi
+    if [[ -n "$ID_ESPERADO" ]] && { [[ -z "$ID_ACTUAL" ]] || (( 10#$ID_ACTUAL != 10#$ID_ESPERADO )); }; then
+        mal "identidad HEREDADA: /etc/profile.d/atriz-robot.sh dice robot ${ID_ACTUAL:-¿?} y este robot es el $((10#$ID_ESPERADO))"
+        avis "se reescribirá con el $((10#$ID_ESPERADO)) — sin esto, el agente y rosbridge rechazan todos los testigos (4404)"
+        ID_NUM=$((10#$ID_ESPERADO))
+        CREAR_IDENTIDAD=si
+    else
+        ok "/etc/profile.d/atriz-robot.sh (de donde sale ROS_DOMAIN_ID${ID_ACTUAL:+, robot $((10#${ID_ACTUAL:-0}))})"
+    fi
 else
     ID_NUM="$ID_FORZADO"
     if [[ -z "$ID_NUM" && -f /boot/firmware/robot_id.txt ]]; then

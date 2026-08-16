@@ -115,6 +115,18 @@ if systemctl is-active --quiet atriz-robot 2>/dev/null; then
 fi
 ok "atriz-robot está parada: se puede preparar la imagen"
 
+# El agente del Taller es PartOf=atriz-robot, así que parar atriz-robot lo para
+# — pero un `start atriz-agente` A MANO con atriz-robot ya parada lo deja vivo,
+# con una posible ejecución de alumno dentro. La imagen no se hace con una
+# sesión del Taller a medias. Evidencia 125, 1d.
+if systemctl is-active --quiet atriz-agente 2>/dev/null; then
+    echo >&2
+    echo "  ✗ atriz-agente está ACTIVO (¿arrancado a mano?). Páralo primero:" >&2
+    echo "        sudo systemctl stop atriz-agente" >&2
+    exit 1
+fi
+ok "atriz-agente parado: sin sesiones del Taller a medias"
+
 # 🔴🔴 LA CLAVE PÚBLICA DEL TESTIGO — PUERTA DESDE EL 2026-08-15 (A7, Fase B)
 #
 #    Desde que rosbridge exige testigo, `/etc/atriz/testigo.pub` **deja de ser
@@ -218,9 +230,23 @@ rm -rf /var/log/*.gz /var/log/*.[0-9] /var/log/journal/* 2>/dev/null
 : > /var/log/wtmp  2>/dev/null || true
 : > /var/log/btmp  2>/dev/null || true
 : > /var/log/lastlog 2>/dev/null || true
+# 🔴 Y los que el glob de rotados no caza (evidencia 125, 1c): el first-boot DE
+#    ESTE robot —que en los clones falsearía el «recién nacido»—, dmesg,
+#    cloud-init, apport, bootstrap y los subdirectorios de apt.
+rm -f /var/log/atriz-first-boot.log /var/log/dmesg /var/log/apport.log \
+      /var/log/bootstrap.log /var/log/cloud-init.log /var/log/cloud-init-output.log \
+      2>/dev/null || true
+find /var/log/apt /var/log/unattended-upgrades -type f -delete 2>/dev/null || true
 apt-get clean
 rm -f  "$REAL_HOME/.bash_history" /root/.bash_history
 rm -rf "$REAL_HOME/.cache/pip"
+# 🔴 Estado de IDEs y herramientas de desarrollo del robot de referencia:
+#    ~800 MB medidos en rvr-01 (evidencia 125, 1c) y estado de sesión que no
+#    pinta nada en 16 robots de aula. Misma decisión que Claude Code.
+rm -rf "$REAL_HOME/.antigravity-ide-server" "$REAL_HOME/.vscode-server" \
+       "$REAL_HOME/.warp" "$REAL_HOME/.gemini" "$REAL_HOME/.config/warp-terminal" \
+       "$REAL_HOME/.pytest_cache" 2>/dev/null || true
+rm -f  "$REAL_HOME/.lesshst" "$REAL_HOME/.wget-hsts" 2>/dev/null || true
 
 # 🔴 ~/.ros/log NO SE BORRA CON EL DRIVER CORRIENDO.
 #
@@ -262,6 +288,13 @@ rm -f  "$REAL_HOME/atriz_ws"/frames_*.gv "$REAL_HOME/atriz_ws"/frames_*.pdf
 #    A cualquier profundidad — el que había en rvr-01 estaba cuatro niveles
 #    abajo y la guarda de compilar.sh, que solo miraba uno, no lo veía.
 find "$REAL_HOME/atriz_ws/src" -type d \( -name build -o -name install -o -name log \) \
+     -prune -exec rm -rf {} + 2>/dev/null
+
+# Y los .pyc rancios: 35 __pycache__ bajo src/ (incluidos el agente y las
+# prácticas que el agente EJECUTA) y 37 bajo install/ medidos en rvr-01. Python
+# los regenera; clonarlos reparte cachés del robot de referencia. Ev. 125, 1c.
+find "$REAL_HOME/atriz_ws/src" "$REAL_HOME/atriz_ws/install" \
+     -type d \( -name __pycache__ -o -name .pytest_cache \) \
      -prune -exec rm -rf {} + 2>/dev/null
 
 # 🔴🔴 LOS MAPAS DEL ROBOT DE REFERENCIA NO SE CLONAN, Y ESTO NO ES HIGIENE:
@@ -376,8 +409,13 @@ PROB=0
 ENCONTRADOS="$(find "$REAL_HOME" -xdev \
         \( -name '.git-credentials' -o -name 'id_rsa' -o -name 'id_ed25519' \
            -o -name 'id_ecdsa' -o -name '.netrc' -o -name '.credentials.json' \
-           -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' \) \
+           -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' \
+           -o -name 'authorized_keys*' -o -name '.claude.json*' \) \
         -type f 2>/dev/null)"
+# 📝 `authorized_keys*` y `.claude.json*` entraron el 2026-08-15 (ev. 125, 1b):
+#    en rvr-01 había un authorized_keys.bak con una clave ed25519 REAL —
+#    restaurarlo abriría los 16— y un ~/.claude.json.tmp.* con oauthAccount, y
+#    ninguno de los dos casaba con los patrones de arriba.
 if [[ -n "$ENCONTRADOS" ]]; then
     while IFS= read -r f; do
         case "$f" in
@@ -432,6 +470,13 @@ cat <<EOF
   APAGA AHORA — no vuelvas a arrancar esta tarjeta antes del dd, o el
   first-boot se ejecutará y volverá a generar la identidad:
 
+      sudo poweroff
+
+  ⚠️ TU SHELL REESCRIBIRÁ ~/.bash_history AL SALIR — este script lo borró,
+     pero el historial de TU sesión vive en memoria y se vuelca al cerrarla
+     (13,9 KB medidos en rvr-01). Antes de apagar, en TU terminal:
+
+      history -c; unset HISTFILE
       sudo poweroff
 
   Desde un PC, con la tarjeta fuera:
