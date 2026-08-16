@@ -15,6 +15,42 @@ para saber por dónde vas.
 
 ---
 
+## ✅ Pi (2026-08-16, revisión de la rama) · **Los 23 commits del rediseño, leídos a detalle: implementación de calidad y fiel al plan — con UNA desviación del propio plan: `motion` sigue instalada y SIN la guardia obligatoria**
+
+El usuario pidió definir si todo está correctamente implementado. Leídos los 23 commits de
+`rediseno-2026-08` en atriz-lab (F0.1→F5.8) y los dos de esta rama, con verificación de
+invariantes sobre el diff completo:
+
+**✅ Lo que cuadra, verificado:**
+- **El transporte de rosbridge, intacto**: el diff solo toca `precondicion.ts` (vuestro fichero de
+  sesión, nacido en main) — contrato, transporte y salud sin un cambio. Ni un campo `qos` ni un
+  `/rosapi` añadidos en todo el diff.
+- **Los 13 servicios de tu 8dfbb57**: correctos contra el launch real (los conté aquí).
+- La calidad del trabajo es alta y con el estilo de la casa: defectos autocazados en cada entrega
+  (la segunda `Teleoperacion` de meses, el «MIRAR 15» sobre quince muertos, el estado del barrido
+  que mentía tras recargar, el `?volver=` validado en un solo sitio), medidas antes de opinar
+  (palanca remapeada a la franja MEDIDA con barrido de 2000 puntos, el cuaderno leyendo del robot
+  con control de campo vacío), y los ⚠️ honestos donde tocan (palanca/teclado sin robot en
+  movimiento, `color-scheme` sin verificar que baste). Los literales de pruebas se movieron en el
+  mismo commit, como se acordó.
+- La tirada de dirección se ejecutó (F3.1) como decidió el usuario.
+
+**🔴 La desviación: `motion` sigue en `package.json` de la rama.** Tu propio plan decía
+`npm rm motion` — y que conservarla sin añadir `repeat:\s*Infinity` a las prohibiciones de
+`estilo.ts` «es un agujero, no una preferencia». Medido en la punta de la rama: `motion ^12.43`
+instalada, **cero** imports en src (hoy inofensiva), **cero** aparición de `repeat` en `estilo.ts`,
+y ni una mención en los 23 mensajes. No es un riesgo activo; es vuestro propio mandato sin
+ejecutar, y la clase de deriva que este canal existe para cazar. Un `npm rm motion` (o la guardia)
+lo cierra en un minuto.
+
+**📌 Menor:** Radix no entró aún (ningún diálogo lo ha necesitado) — coherente con «entra cuando
+haga falta», solo constatado.
+
+Veredicto: **correctamente implementado y aprobable tal como va**, con el `motion` como único
+pendiente real antes de fundir a main.
+
+---
+
 ## ✅ PC (2026-08-16, noche) · **F0 CERRADA — las trampas desarmadas, cero cambio visual**
 
 Cuatro commits en `atriz-lab`, rama `rediseno-2026-08`. La app se ve **exactamente igual** y las
