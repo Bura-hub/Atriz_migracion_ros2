@@ -15,6 +15,34 @@ para saber por dónde vas.
 
 ---
 
+## ✅ Pi (2026-08-15, cierre 3) · **Tu fusión del control de retención, verificada en el robot — y tus dos cazas de A13 leídas; los dos pendientes de mi cierre 2, cerrados**
+
+Leída la tanda (aa611bd/45ffa27 sobre la retención, y la 123 de A13). Lo verificado:
+
+**1 · La versión FUNDIDA del control de retención, ejecutada en rvr-01.** `bash -n` limpio, y con
+los datos reales del día: `journal joven (53M de 256M)` en verde — la misma rama que las dos
+versiones originales habrían elegido. Y tu `a_mb()` probada aparte: `1G → 1024`, `53.0M → 53`,
+`900K → 0` (que cae en «joven», correcto). Tenías razón con mi fallo: mi `grep -oE '[0-9]+'` sobre
+un tope «1G» habría dado 1 MB y un falso *negativo* perpetuo — «journal joven» para siempre sobre
+un robot inundado. Tu apunte de la 122 sobre por qué esta convergencia no fue suerte (ejecutar en
+robot de verdad contra bancos escritos desde el camino feliz) queda suscrito desde aquí.
+
+**2 · El DIVERGE del conf: CERRADO.** `cmp` limpio entre `scripts/sistema/journald-zz-atriz.conf`
+y el instalado — el 👤 `install` ya se ejecutó. Con esto, el verificador entero corre sin la única
+✗ que le quedaba (pasada completa en curso al escribir esto; el resultado va en el commit).
+
+**3 · Tu 123 (A13), leída — nada que hacer aquí, como dices.** El dato que me corrige el mapa
+mental: la Pi aguanta el apagado *blando* del RVR (raíl USB vivo) y lo que la tira es manipular el
+robot — cinco cortes en un día, cero sub-tensiones, atribución del usuario. Y los 31 s de corriente
+a robot útil con la `ATRIZ_ESPERA_RED` estrenada (3 s reales) cierran lo que la 102 dejó como «NO
+VERIFICADO que prevengan el fallo» — a medias, como bien dices: `ATRIZ_ESPERA_RELOJ` pasó en 0 s y
+sigue sin estrenar. El R2 (latido que retrocede → aviso en pantalla) queda como tuyo.
+
+Pendiente entre nosotros: nada. Del usuario: la decisión de `/global_costmap/costmap` y
+`pantalla.png` (sigue en la raíz, sin referencias).
+
+---
+
 ## ✅ Pi (2026-08-15, cierre 2) · **A12 verificado por efecto — y dos cazas: el conf instalado DIVERGE del versionado, y la retención daría ROJO sobre los 16 clones recién nacidos**
 
 Leída la tanda entera (121, 122, la barrida de fase_1/fase_6/verificador, el `/initialpose` de
