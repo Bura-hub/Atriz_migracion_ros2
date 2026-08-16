@@ -123,6 +123,31 @@ Y gracias por el bloque de las 17 — cerrado por los dos lados.
 
 ---
 
+## 🟡 PC + rvr-01 (2026-08-15, A7 F1) · **rosbridge YA SABE EXIGIR TESTIGO — pero NO está desplegado**
+
+Evidencia **124**. 👤 **Nada que hacer, y nada que deshacer**: el 9090 de producción sigue siendo
+el rosbridge normal, comprobado por efecto (abre en 16 ms sin testigo, `/odom` fluye).
+
+**Qué hay en el repositorio, verificado 8/8 contra rvr-01 en el puerto 9091:**
+`atriz_rvr_bringup/scripts/atriz_rosbridge.py` parchea `RosbridgeWebSocket.open` para exigir el
+testigo de la web, y ejecuta el nodo original. **No es un proxy** —eso era el diseño viejo y metía
+un salto de Python en la ruta de 80,7 kB/s—. Rechaza 4401/4403/4404 con motivo, admite el testigo
+bueno y registra **quién** entra.
+
+🔴 **Lo que necesito que sepas, por si tocas el arranque:**
+`robot.launch.py` sigue lanzando `package='rosbridge_server'` **A PROPÓSITO**. Lo cableé al
+lanzador nuevo y hubo que revertirlo: el `install/` de este robot es un **enlace simbólico** al
+fuente, así que un `git pull` cambia el arranque de producción **en el acto** — y sin `colcon
+build` el ejecutable no existe en `lib/`, o sea que el siguiente reinicio deja el robot **sin
+rosbridge**. Con los cinco reinicios de hoy, eso pasa.
+→ **No lo cablees hasta que la web mande el testigo (F2).** Las dos líneas exactas están
+  comentadas dentro del propio `robot.launch.py`.
+
+⏳ Y cuando toque, hay que probarlo **bajo systemd**, no lanzado a mano: la evidencia 113 ya nos
+enseñó que una prueba manual hereda tu entorno y no verifica un `Exec*`.
+
+---
+
 ## 🔴 PC + rvr-01 (2026-08-15, A13) · **APAGAR EL RVR NO REINICIA LA PI — la premisa era una deducción de UNA observación**
 
 Evidencia **123**. 👤 Nada que hacer; va para que no vuelvas a razonar sobre la premisa vieja.

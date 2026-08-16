@@ -112,6 +112,42 @@ que comprobar las dos direcciones:
 Va en tres sitios: una herramienta nueva de banco, una comprobación en `verificar_robot.sh`, y la
 fase **F8** de la prueba de aceptación.
 
+### 🔴 REDISEÑADA EL 2026-08-15: la Fase B NO es un proxy (evidencia 124)
+
+Lo de abajo se conserva porque explica el problema, pero **el proxy no se
+construye**. Al leer el fuente de rosbridge en la Pi apareció que la clase del
+manejador se importa **por nombre**:
+
+```
+rosbridge_websocket.py:54   from rosbridge_server import ... RosbridgeWebSocket
+rosbridge_websocket.py:221  handlers = [(r"/", RosbridgeWebSocket), ...]
+```
+
+así que basta con parchear sus métodos y ejecutar el nodo original con `runpy`.
+`atriz_rvr_bringup/scripts/atriz_rosbridge.py`, ~250 líneas con sus comentarios.
+
+| | proxy (lo planeado) | parche en el sitio (lo hecho) |
+|---|---|---|
+| ruta de datos | 🔴 **un salto de Python a 80,7 kB/s por robot** | **cero** |
+| puerto / unidad | uno nuevo de cada | ninguno |
+| `address: 127.0.0.1` | imprescindible | innecesario |
+| TLS | había que implementarlo | `certfile`/`keyfile`, ya soportados |
+
+🔴 Y el proxy **contradecía en silencio la Decisión 2 de `ARQUITECTURA.md`**:
+este documento afirmaba que «los datos siguen yendo robot → navegador directos»,
+y con un relevo eso dejaba de ser cierto dentro de la Pi.
+
+✅ **Verificado contra rvr-01, 8/8** (puerto 9091, sin tocar el 9090 de
+producción): 4401 sin testigo · 4401 sin subprotocolo · 4403 firma mala · 4404
+robot ajeno · y los tres controles positivos, incluido `/odom` fluyendo.
+El requisito 1 queda demostrado: el robot sabe **quién** entra.
+
+⏳ **Y NADA ESTÁ DESPLEGADO**: `robot.launch.py` sigue lanzando el rosbridge
+normal a propósito. Falta el cliente (F2), el doble (F3), las herramientas y el
+verificador (F4) y TLS (F5). Detalle y lo que salió mal: **evidencia 124**.
+
+---
+
 ### Fase B — Proxy autenticador en cada robot (con la Fase 5)
 
 ```

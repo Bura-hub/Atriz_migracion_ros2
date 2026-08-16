@@ -831,6 +831,40 @@ uptime     32 min -> 35 min · NRestarts 0 -> 0               la Pi ni se inmuta
   driver**, así que un `latido` que RETROCEDE es prueba directa de que hubo reinicio. Es el remedio
   R2 del plan del 2026-08-06. Evidencia 123.
 
+**🔴🔴 CON `--symlink-install`, SUBIR AL REPOSITORIO **ES** DESPLEGAR.** El 2026-08-15 cableé un
+lanzador nuevo en `robot.launch.py` en el primer commit, dando por hecho que haría falta un
+`colcon build` para activarlo. No hacía falta:
+
+```
+~/atriz_ws/install/atriz_rvr_bringup/share/.../robot.launch.py
+    -> /home/sphero/atriz_ws/src/Atriz_rvr/.../robot.launch.py     🔴 ENLACE
+```
+
+El `git pull` que pedí **para probar** cambió también el arranque **de producción**, en el acto. Y
+como nadie había recompilado el paquete, el ejecutable no existía en `lib/`: el siguiente reinicio
+no habría dado «pide testigo» sino **«no hay rosbridge»**.
+→ 🔴 **Y no era latente:** la evidencia 123 midió **cinco reinicios en un día**, los cinco por
+  manipular el robot. Un fallo que espera a un reinicio, en un sistema que se reinicia por tocarlo,
+  ocurre.
+→ **La regla: el cableado en el arranque es el ÚLTIMO paso de una migración, no el primero.** Lo
+  demás —el guion, sus pruebas, la verificación contra el robot— puede subirse antes sin activar
+  nada. Evidencia 124.
+
+**🔴🔴 UN `getattr(x, 'campo', defecto)` CONVIERTE UNA VIOLACIÓN DE CONTRATO EN UNA RESPUESTA
+SILENCIOSA Y EQUIVOCADA.** El mismo día, el núcleo del testigo hacía `getattr(v, 'valido', False)`
+y el campo real de `atriz_testigo.Veredicto` se llama **`ok`**. Medido contra rvr-01: los cuatro
+rechazos funcionaban y **todos los testigos buenos se rechazaban**, con `codigo=0` y motivo vacío.
+→ Con `v.ok` a secas habría reventado con `AttributeError` en el primer testigo bueno, en el primer
+  segundo, con la traza señalando el sitio. **El acceso defensivo no protegió: escondió.**
+→ 🔴 **Y las 24 pruebas pasaban**, porque el doble de esas pruebas también lo llamaba `valido`: el
+  doble de acuerdo con el autor y los dos en desacuerdo con la clase real. Es la lección de la
+  evidencia 120 cometida **en el fichero que la cita**.
+→ ⚠️ **Falló hacia el lado seguro por CASUALIDAD.** Con la comparación al revés
+  —`getattr(v, 'invalido', False)`— el mismo error habría dejado entrar a cualquiera, con las
+  mismas 24 pruebas en verde.
+→ ✅ Lo cierra una prueba que compara el doble con la clase REAL (`set(vars(...))`), no dos copias
+  del mismo malentendido. Evidencia 124.
+
 **🔴🔴 EL NOMBRE DE UN DROP-IN DECIDE QUIÉN GANA, Y `99-` PIERDE CONTRA UN NOMBRE DE UBUNTU.**
 systemd ordena **TODOS** los drop-ins por nombre de FICHERO, sin importar si vienen de `/etc` o de
 `/usr`. El de Ubuntu para el journal se llama `syslog.conf`, así que el reflejo natural —

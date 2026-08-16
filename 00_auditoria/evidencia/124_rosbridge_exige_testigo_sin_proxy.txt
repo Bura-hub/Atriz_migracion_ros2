@@ -1,0 +1,219 @@
+═══════════════════════════════════════════════════════════════════════════════
+EVIDENCIA 124 · A7 F1 — rosbridge EXIGE TESTIGO, Y NO HIZO FALTA NINGÚN PROXY
+═══════════════════════════════════════════════════════════════════════════════
+Fecha       2026-08-15
+Robot       rvr-01
+Pendiente   A7 · Fase B de SEGURIDAD_ROSBRIDGE.md
+Estado      F1 CERRADO y verificado contra el robot (8/8)
+            ⏳ F2 cliente · F3 doble · F4 herramientas y verificador · F5 TLS
+            🔴 NADA DESPLEGADO: el cableado del launch está revertido a propósito
+
+
+───────────────────────────────────────────────────────────────────────────────
+1 · EL DISEÑO CAMBIÓ AL LEER EL FUENTE, Y A MEJOR
+───────────────────────────────────────────────────────────────────────────────
+`SEGURIDAD_ROSBRIDGE.md` planteaba la Fase B como un **proxy** en otro puerto que
+relevara hasta `ws://127.0.0.1:9090`. Se escribió antes de que existiera el
+Taller. Leyendo el fuente de rosbridge en la Pi apareció otra cosa:
+
+    rosbridge_websocket.py:54   from rosbridge_server import ... RosbridgeWebSocket
+    rosbridge_websocket.py:221  handlers = [(r"/", RosbridgeWebSocket), ...]
+
+La clase se importa **por nombre**, así que basta con parchear sus métodos antes
+de ejecutar el nodo original con `runpy`. Contra el proxy:
+
+  · **cero relevo.** El proxy metía un salto de Python en la ruta de 80,7 kB/s
+    por robot, sobre una Pi que con el stack completo va al ~89 % de un núcleo.
+    🔴 Y el documento afirmaba que «los datos siguen yendo robot → navegador
+    directos»: con un relevo eso dejaba de ser cierto DENTRO de la Pi, o sea que
+    el diseño contradecía en silencio la Decisión 2 de ARQUITECTURA.md.
+  · sin puerto nuevo, sin unidad nueva, sin atar rosbridge a 127.0.0.1;
+  · **TLS deja de ser código**: `certfile`/`keyfile` ya están soportados
+    (`rosbridge_websocket.py:66-67`, usados en `:234-239`).
+
+🔴 SE PARCHEAN LOS MÉTODOS EN EL SITIO, NO SE SUBCLASA — y la razón se leyó, no
+   se supuso: `websocket_handler.py:60`, dentro de `_log_exception()`, hace
+
+       node_handle = RosbridgeWebSocket.node_handle
+       assert isinstance(node_handle, Node), "Node handle was not set"
+
+   sobre la clase ORIGINAL, mientras el nodo (`:133`) asigna ese atributo sobre
+   **el nombre que importó**. Con una subclase dejan de ser la misma clase y ese
+   `assert` revienta justo al registrar una excepción.
+
+📌 Y todo lo caro ya estaba hecho por el Taller: `atriz_testigo.verificar()`, el
+   testigo en el subprotocolo, la clave pública en `/etc/atriz/testigo.pub`, y el
+   patrón del envoltorio. La Fase B resultó ser ensamblaje.
+
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LO QUE SE MIDIÓ CONTRA rvr-01
+───────────────────────────────────────────────────────────────────────────────
+Lanzado en el puerto **9091** a propósito, dejando intacto el 9090 que usa la
+web: así el robot siguió usable durante toda la verificación.
+
+    ATRIZ_ROBOT=1 ATRIZ_URL_TESTIGO=ws://192.168.1.200:9091 \
+      npx vitest run src/lib/rosbridge/testigo_real.test.ts
+
+    8 passed (8)
+
+    · sin testigo                    -> 4401, con motivo
+    · sin ofrecer subprotocolo       -> 4401 limpio, NO un HTTP 500
+    · testigo inventado              -> 4403 «la firma no es válida»
+    · testigo BIEN FIRMADO, robot 2  -> 4404 «es para el robot 2, y este es el 1»
+    · testigo bueno                  -> ADMITIDO
+    · el subprotocolo devuelto       -> uno de los ofrecidos
+    · ya dentro                      -> llegan mensajes de /odom
+
+Y en el log del robot, que es el otro lado de la misma medida:
+
+    RECHAZADA la conexión de 192.168.1.2 [prueba-a7] · 4404 · este testigo es
+      para el robot 2, y este es el 1
+    rosbridge: admitido prueba-a7 desde 192.168.1.2
+    [Client fcdc9447-...] Subscribed to /odom
+
+✅ **El requisito 1 queda demostrado**: el robot distingue un testigo para él de
+   uno para otro, y sabe **quién** es. Hasta hoy no había forma de responder a
+   «¿quién movió el robot 7 a las 11:40?».
+
+🔴 Los TRES controles positivos no son adorno. Sin ellos, los cuatro rechazos
+   pasarían igual con un rosbridge que rechazara a TODO EL MUNDO, o que dejara
+   entrar y estuviera roto por dentro.
+
+
+───────────────────────────────────────────────────────────────────────────────
+3 · 🔴🔴 MI DOBLE LLAMABA `valido` A UN CAMPO QUE SE LLAMA `ok`
+───────────────────────────────────────────────────────────────────────────────
+Primera tanda contra el robot. Los cuatro rechazos funcionaban y **todos los
+testigos buenos se rechazaban**, con `codigo=0` y motivo vacío:
+
+    RECHAZADA la conexión de 192.168.1.2 [prueba-a7] · 0 ·
+
+La causa: el núcleo hacía `getattr(v, 'valido', False)` y el campo real de
+`atriz_testigo.Veredicto` se llama **`ok`** (`codigo` y `motivo` valen 0 y '' por
+defecto, que es exactamente lo que se imprimió).
+
+🔴 Y LAS 24 PRUEBAS PASABAN, porque el doble de esas pruebas **también** lo
+   llamaba `valido`. El doble de acuerdo con el autor, y los dos en desacuerdo
+   con la clase real. Es la lección de la evidencia 120 —«lo que un doble no
+   puede reproducir…»— cometida **en el fichero que la cita**, el mismo día.
+
+📝 Y LA LECCIÓN DE SEGUNDO ORDEN ES LA QUE VALE:
+
+    **un `getattr(x, 'campo', defecto)` convierte una violación de contrato en
+    una respuesta silenciosa y equivocada.**
+
+   Con `v.ok` a secas habría reventado con `AttributeError` en el primer testigo
+   bueno, en el primer segundo, con la traza señalando el sitio. El acceso
+   defensivo no protegió: escondió.
+
+⚠️ Y falló hacia el lado seguro **por casualidad**. Con la comparación escrita al
+   revés —`getattr(v, 'invalido', False)`— el mismo error habría dejado entrar a
+   cualquiera, con las mismas 24 pruebas en verde.
+
+✅ Cerrado con `test_la_forma_de_Veredicto_no_ha_cambiado`, que compara el doble
+   contra la clase DE VERDAD (`set(vars(...))`) y ejercita `decidir` con un
+   `Veredicto` real en las dos direcciones. Verificado que discrimina: al
+   devolver `valido` al doble, **5 pruebas caen**.
+
+
+───────────────────────────────────────────────────────────────────────────────
+4 · Y DOS FALLOS MÁS QUE SOLO APARECEN AL PARCHEAR UNA PUERTA DE ENTRADA
+───────────────────────────────────────────────────────────────────────────────
+**a) `on_close` reventaba en CADA rechazo.** `websocket_handler.py:192` hace
+`self.protocol.outgoing = ...`, y `self.protocol` solo existe si el `open`
+original llegó a correr. Al rechazar no corre:
+
+    AttributeError: 'RosbridgeWebSocket' object has no attribute 'protocol'
+    Uncaught exception GET / (192.168.1.2)          <- una traza por intento
+
+Dos consecuencias, las dos malas: el journal se llena —lo mismo que costó A11— y
+**el cliente recibe un 1006 en vez del código y el motivo**, o sea que el rechazo
+con explicación se convierte en un corte mudo. Igual con `on_message` y
+`self.incoming_queue`. ✅ Los dos guardados.
+
+**b) `onopen` SE DISPARA AUNQUE EL TESTIGO SEA MALO.** Un rechazo **con motivo**
+solo se puede mandar DESPUÉS del apretón: tornado ya aceptó la conexión cuando
+`open()` llama a `close(4401, ...)`. Así que el navegador ve `open` y **luego**
+`close`.
+
+🔴 **Y esto estuvo escondido detrás del fallo (a).** En la primera tanda mi
+   expectativa «no abrió» PASABA — pero solo porque el servidor reventaba y
+   abortaba la conexión con 1006. Al arreglar el servidor apareció el
+   comportamiento de verdad y la expectativa cayó. **Un fallo estaba tapando un
+   malentendido**, y los dos eran míos.
+
+→ **Consecuencia para F2, y es un requisito, no un matiz: la pantalla NO puede
+  decir «conectado» en `onopen`.** Hay que esperar al cierre inmediato. Está
+  convertido en prueba, no en comentario.
+
+
+───────────────────────────────────────────────────────────────────────────────
+5 · 🔴🔴 Y UN FALLO DE MÉTODO CON CONSECUENCIA REAL: CABLEÉ EL ARRANQUE PRIMERO
+───────────────────────────────────────────────────────────────────────────────
+En el primer commit cambié `robot.launch.py` para que lanzara el guion nuevo,
+dando por hecho que haría falta un `colcon build` para activarlo.
+
+    $ ls -l ~/atriz_ws/install/atriz_rvr_bringup/share/.../robot.launch.py
+    lrwxrwxrwx ... -> /home/sphero/atriz_ws/src/Atriz_rvr/.../robot.launch.py
+
+**Es un enlace simbólico.** El workspace se construyó con `--symlink-install`, así
+que el `git pull` que pedí para *probar* cambió también el arranque de
+*producción*, en el acto. Y como nadie había recompilado el paquete,
+`lib/atriz_rvr_bringup/atriz_rosbridge.py` **no existía**: el resultado del
+siguiente reinicio no habría sido «pide testigo» sino **«no hay rosbridge»**.
+
+🔴 Y no era hipotético: la evidencia 123 midió **cinco reinicios en un día**, los
+   cinco por manipular el robot. Un fallo latente que espera a un reinicio, en un
+   sistema que se reinicia por tocarlo, no es latente.
+
+✅ Revertido en el REPOSITORIO, no a mano en el robot, y comprobado por efecto
+   (`grep` encuentra `package='rosbridge_server'` tras el pull).
+
+📝 **La regla: el cableado en el arranque es el ÚLTIMO paso de una migración, no
+   el primero. Con `--symlink-install`, subir al repositorio ES desplegar.**
+   Queda escrita dentro del propio `robot.launch.py`, junto a las dos líneas que
+   hay que cambiar cuando F2 esté hecho.
+
+
+───────────────────────────────────────────────────────────────────────────────
+6 · DECISIONES TOMADAS, CON SU RAZÓN
+───────────────────────────────────────────────────────────────────────────────
+**Se exime a `127.0.0.1` y `::1`.** No regala nada: quien corre dentro de la Pi
+alcanza `raw_motors` con `import rclpy`, saltándose el `collision_monitor` — está
+escrito en el README del agente como límite conocido del Taller. A cambio,
+mantiene vivas las herramientas de banco que corren en el robot.
+⚠️ NO cubre `probar_conexion_web.html` ni `medir_aula.html`, que corren en el
+   navegador del PC. Esas necesitan testigo o se jubilan (decisión de F4).
+
+**Falla CERRADO, al revés que el vigía de DDS.** Un vigía que se equivoca deja un
+robot inservible y eso es peor que el fallo que evita; **un control de acceso que
+se salta solo no es un control**. Cuatro caminos de fallo ejercitados: sin
+`atriz_testigo`, sin `ATRIZ_ROBOT_ID`, con un id no numérico (`rvr-01` en vez de
+`1`, que es la equivocación natural) y sin clave pública.
+
+**Con salida de emergencia explícita**: `ATRIZ_ROSBRIDGE_SIN_TESTIGO=1` arranca
+el nodo original. Existe para no tener que entrar por SSH a 16 robots si el
+parche se rompe. ⏳ `verificar_robot.sh` tiene que dar **FALLO** si la encuentra
+puesta — una salida de emergencia que nadie ve es una puerta trasera. **Sin hacer
+(F4).**
+
+
+───────────────────────────────────────────────────────────────────────────────
+7 · LO QUE FALTA
+───────────────────────────────────────────────────────────────────────────────
+⏳ F2 · el cliente: `Transporte` abre con `atriz.token.<jwt>`. La ruta que emite
+       el testigo YA existe (`/api/sesion/testigo?robot=NN`, del Taller). Y con
+       el requisito nuevo: no fiarse de `onopen`.
+⏳ F3 · `rosbridge_de_mentira.mjs` aprende el apretón, con pruebas en las dos
+       direcciones. ⚠️ Recordando que un doble NO puede probar el manejo de
+       errores de tornado: eso solo lo prueba el robot.
+⏳ F4 · las dos herramientas HTML, el verificador (incluida la salida de
+       emergencia), y ENTONCES el cableado del launch.
+⏳ F5 · TLS. Ya no es código: es decidir entre CA del laboratorio y autofirmado
+       por robot, sabiendo que lo segundo obliga al alumno a aceptar una
+       excepción en cada uno de los 16 y eso educa a dar a «aceptar siempre».
+
+⚠️ n=1, un robot. Y el parche **no se ha probado bajo systemd**, solo lanzado a
+   mano — que es exactamente la trampa de la evidencia 113: una prueba manual
+   hereda tu entorno y no verifica un `Exec*`.

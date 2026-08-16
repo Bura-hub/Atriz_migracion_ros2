@@ -26,6 +26,38 @@ lista blanca de rosbridge (lo dejó abierto el PC en su 121).
 
 ---
 
+## 2026-08-15, A7 F1 (PC + rvr-01) — rosbridge exige testigo, y no hizo falta ningún proxy
+
+**Fase B rediseñada al leer el fuente.** `RosbridgeWebSocket` se importa **por nombre**
+(`rosbridge_websocket.py:54` y `:221`), así que se parchean sus métodos y se ejecuta el nodo
+original con `runpy`. Contra el proxy planeado: **cero relevo** —el proxy metía un salto de Python
+en la ruta de 80,7 kB/s por robot, contradiciendo en silencio la Decisión 2—, sin puerto ni unidad
+nuevos, y TLS pasa a ser cuestión de certificados (`certfile`/`keyfile` ya soportados).
+
+✅ **Verificado contra rvr-01, 8/8**, en el puerto 9091 para no tocar el 9090 de producción: 4401
+sin testigo · 4401 sin subprotocolo · 4403 firma mala · 4404 robot ajeno · y tres controles
+positivos, incluido `/odom` fluyendo. **El requisito 1 demostrado**: el robot sabe quién entra.
+
+🔴 **Tres fallos que solo aparecieron con el robot delante, los tres míos:**
+1. El núcleo leía `v.valido` y el campo se llama **`ok`** → todos los testigos buenos rechazados,
+   **con las 24 pruebas en verde**, porque el doble también lo llamaba `valido`. La lección de
+   segundo orden: **un `getattr` con defecto convierte una violación de contrato en una respuesta
+   silenciosa**; `v.ok` habría reventado en el primer testigo.
+2. `on_close` reventaba en cada rechazo (`self.protocol` solo existe si el `open` original corrió),
+   llenando el journal y dando al cliente un **1006 en vez del código con motivo**.
+3. **`onopen` se dispara aunque el testigo sea malo** — un rechazo con motivo va después del
+   apretón. Estuvo escondido detrás del fallo 2: **un fallo tapaba un malentendido**. Requisito
+   nuevo para F2: la pantalla no puede decir «conectado» en `onopen`.
+
+🔴 **Y un fallo de método con consecuencia real:** cableé el lanzador en `robot.launch.py` en el
+primer commit. El `install/` del robot es un **enlace simbólico**, así que el `git pull` de prueba
+cambió el arranque de producción en el acto, y sin el paquete recompilado el siguiente reinicio
+habría dejado el robot **sin rosbridge** — con cinco reinicios medidos hoy, no era hipotético.
+Revertido en el repositorio y comprobado por efecto: 9090 abre en 16 ms sin testigo y `/odom`
+fluye. **La regla: el cableado en el arranque es el ÚLTIMO paso.** Evidencia 124.
+
+---
+
 ## 2026-08-15, A13 (PC + rvr-01) — Apagar el RVR no reinicia la Pi. Manipular el robot sí, y pasó cinco veces hoy
 
 **A13 reformulado y medido.** Su premisa —«la Pi se alimenta del USB del RVR, así que apagar el RVR
