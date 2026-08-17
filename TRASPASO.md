@@ -5,6 +5,30 @@
 > contexto desde cero.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-17, tarde · «LAS PESTAÑAS VAN LENTAS»: ERA `next dev`**
+> ═══════════════════════════════════════════════════════════════════════════════
+> Medido contra rvr-01 encendido, del CLIC al contenido:
+>
+> ```
+> next dev en frío   1369-1665 ms  ·  caliente  195-238 ms  ·  PRODUCCIÓN  13-39 ms
+> ```
+>
+> - 🔴🔴 **Setenta y cinco veces**, y en producción no había nada que optimizar.
+>   Van **nueve** veces que miente el instrumento; la primera en que el
+>   instrumento es el entorno de desarrollo entero.
+> - 🔴 **La pantalla de carga que se pedía habría empeorado el producto**: un
+>   destello sobre una transición de 20 ms. No se hizo, y por qué está escrito.
+> - ✅ **Lo que sí costaba, y no era la red:** la cascada `.escalonado` se repetía
+>   en cada pestaña (~540 ms, el **96 %** de la espera) → ahora una vez por robot;
+>   y las tarjetas arrancaban vacías hasta **30 s** (`/battery_state`) → el
+>   `Transporte` recuerda el último mensaje y `useTopicFechado` se siembra de él.
+> - 🔴 **El recuerdo muere con el enlace** y el hook obliga a llevar la edad al
+>   lado: un robot caído no puede seguir enseñando su último voltaje.
+> - ⏳ **Falta el ojo**, y no lo cubre ninguna prueba: `VALIDAR_CON_EL_ROBOT.md`
+>   **§6j** — la cascada, `prefers-reduced-motion`, y que un robot caído deje de
+>   enseñar el voltaje viejo.
+>
+> ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-17 · LA PUERTA DE SESIÓN, MEDIDA EN LAS TRECE RUTAS**
 > ═══════════════════════════════════════════════════════════════════════════════
 > Sin cambios de producto: lo que cambia es que la puerta pasa de estar escrita a

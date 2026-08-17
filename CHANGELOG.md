@@ -4,6 +4,80 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-17, tarde (PC) — «Las pestañas van lentas»: era `next dev`, y lo que sí costaba no era la red
+
+👤 Encargo del usuario: auditar el rendimiento al pulsar las pestañas de un robot, y/o meter
+pantallas de carga «para darle tiempo al sistema». Medido contra **rvr-01 encendido** —lo pidió
+él, y con razón: contra un doble la conexión con el robot no aparece—.
+
+```
+por pestaña, del CLIC al contenido        ruta -> contenido
+next dev, en frío                          1369-1665 ms     <- compila bajo demanda
+next dev, caliente                           195-238 ms
+PRODUCCIÓN (next build + next start)          13-39 ms      <- lo que ve el aula
+```
+
+🔴🔴 **La lentitud era el servidor de desarrollo. Setenta y cinco veces.** En producción cambiar
+de pestaña cuesta ~20 ms y no había nada que optimizar. Van **nueve** veces que miente el
+instrumento y no lo medido, y es la primera en que el instrumento es el **entorno de desarrollo
+entero**.
+
+🔴 **Y eso invierte la segunda idea del encargo**, que era la razonable a primera vista: una
+pantalla de carga sobre una transición de 20 ms **mete un destello donde no había espera**. Es el
+anti-brief del propio plan —«más bonito y más lento de usar»— a punto de cometerse por medir con
+el instrumento equivocado. No se hizo.
+
+**Dos hipótesis mías cayeron por su propio control**, que es para lo que estaban:
+- **Dark Reader**: el navegador de pruebas arranca con extensiones aunque se le dé un perfil
+  temporal (Edge las reinstala por sincronización). Se corrieron dos tandas con una sola variable
+  de diferencia y el guion **contó los estilos inyectados**: **0 en las dos**, o sea sin contraste
+  que medir. La hipótesis quedó sin apoyo.
+- **El WebSocket reabriéndose por pestaña**: falsa. El layout del robot persiste, así que el coste
+  de mDNS (2,7 s en frío) se paga al entrar al robot, no en cada pestaña.
+
+📝 **Y dos fallos de método míos, del mismo día:** el primer medidor llevaba `| tail -30`, que
+bufferiza toda la salida hasta el final — diez minutos sin ver una línea sobre un proceso que
+avanzaba (la trampa de `head` que este repositorio tiene escrita, cometida con `tail`). Y una
+orden mía imprimió «confirmado: .next no existe» porque el `||` capturó el fallo del `rm`: un
+mensaje que afirma un efecto sin comprobarlo, en la sesión que persigue exactamente eso.
+
+### Lo que SÍ costaba tiempo en producción, y no lo veía nadie
+
+**La cascada de entrada se reproducía en CADA pestaña.** `.escalonado` vive en el `<main>` del
+marco, que no se desmonta; lo que se desmonta son sus hijos. Con la navegación en 20 ms, esos
+~540 ms de tarjetas apareciendo eran **el 96 % de la espera**: la animación dejó de estar encima
+del tiempo de carga y se convirtió EN el tiempo de carga. Ahora corre una vez por robot.
+
+**Las tarjetas arrancaban vacías, hasta 30 s.** `useTopic` vuelve a `null` al montar y rosbridge no
+reentrega: tras cada cambio de pestaña, rayas hasta la siguiente publicación — y `/battery_state`
+llega **cada 30,0 s exactos**. Ahora el `Transporte` recuerda el último mensaje y un hermano nuevo
+—`useTopicFechado`— se siembra de él, **sin tocar `useTopic`**.
+
+🔴 **Con dos condiciones que son la mitad del diseño:** el recuerdo **muere con el enlace** (si no,
+un robot caído seguiría enseñando su último voltaje: el modo de fallo de siempre), y el hook
+devuelve `{valor, recibidoEn}` para que **no se pueda usar sin la edad al lado**. Es
+`antiguedad_termico_s` del robot, aplicado a la web.
+
+👤 **Decisión del usuario:** de las dos formas de hacerlo eligió la de menor alcance —hook hermano
+opt-in en vez de cambiarle el suelo a las siete pestañas—. Al diseñarla apareció que esa opción,
+tal cual, **no arreglaba nada** (el hermano también arrancaría vacío): la retención tiene que vivir
+en el transporte en las dos variantes, y lo que se elige es **quién la ve**. Se le dijo antes de
+escribir código, y así quedó.
+
+**Verificado por efecto, las dos:** la cascada con control positivo en un navegador (al entrar
+anima, al cambiar de pestaña no vuelve); la batería a **410 ms** del clic dando `8,32 V · hace
+2,1 s` — con `/battery_state` cada 30 s, en 410 ms no pudo llegar por el socket.
+⚠️ Salvedad del instrumento: el control inicial casó el mínimo de la **escala impresa** («6,00 V»)
+en vez de una lectura. El veredicto se sostiene porque «hace 2,1 s» solo se pinta con lectura real.
+
+`tsc` y `eslint` limpios · **1219 pruebas** (eran 1210).
+
+⏳ **Lo que ninguna prueba de ese repositorio puede ver** —no hay jsdom y no se va a instalar— queda
+en `atriz-lab/VALIDAR_CON_EL_ROBOT.md` §6j: la cascada a ojo, `prefers-reduced-motion`, y sobre todo
+que un robot **caído** deje de enseñar el voltaje viejo.
+
+---
+
 ## 2026-08-17 (Pi) — F5 revisada contra el robot real, y el caudal de /estado_ir medido
 
 Los 9 commits nuevos de `atriz-lab` (`b847c41`..`c4cdb29`) leídos a detalle, y **cada afirmación
