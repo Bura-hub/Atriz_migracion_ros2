@@ -99,5 +99,10 @@ LO QUE SIGUE
      la plataforma será «telemetría vieja con latido vivo», el discriminador
      es un servicio IR (contesta → cuelgue parcial, ST) y el remedio es el
      botón del RVR: la Pi se reanuda sola al volver.
+  📌 COLETILLA DEL REMEDIO, medida después: tras el ciclo de energía el yaw
+     de /odom quedó en 71,2° EN REPOSO — el RVR arrancó de cero pero la
+     corrección de marcos del driver era la de su arranque (16:10). Un
+     `restart atriz-robot` lo re-ancló a 0,0°. La receta completa es:
+     botón del RVR → esperar el «VOLVIÓ» → reiniciar atriz-robot.
   ⏳ Decidir si se intenta reproducir (off sobre following, en tanda) — con
      el robot en banco y el usuario delante, nunca en clase.

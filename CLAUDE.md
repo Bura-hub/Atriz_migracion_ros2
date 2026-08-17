@@ -158,6 +158,9 @@ evidencia 126 está instrumentado y habría dicho «PERDIDO». La batería estab
   parcial del firmware.
 - **Remedio:** el botón del RVR. La Pi se reanuda SOLA al volver (verificado: «el RVR
   VOLVIÓ tras 19 intentos», sondeo IR fuera de pausa, /odom a 16,5 Hz, sin tocar nada).
+  ⚠️ Y DESPUÉS, reiniciar `atriz-robot`: el RVR arranca de cero pero la corrección de
+  marcos del driver es la de SU arranque — el yaw quedó a 71,2° en reposo hasta el
+  restart (medido; con Nav2 eso es un robot que «llega» a otro sitio).
 - n=1 y la ráfaga sospechosa (stops sobre un following activo) corrió dos veces más sin
   colgar: si es una carrera, no es determinista. No afirmes causa; cita la 129.
 
