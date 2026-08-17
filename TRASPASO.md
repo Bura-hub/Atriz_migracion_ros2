@@ -76,11 +76,11 @@
 > 1. **Llevar los infrarrojos al muro.** Ya hay cifra, así que `presupuesto.ts` deja
 >    de lanzar. Con `/estado_ir` el muro pasa de ~0,84 a **~1,24 kB/s** por robot.
 > 2. **Ofrecer la baliza IR en la pantalla**, que ya tiene servicio y lista blanca.
-> 3. 🔴 **Corregir la frase de la portada.** 👤 El Pi registra que el usuario decidió
->    **corregir la frase** —decir en cuántos robots está la credencial— y **no**
->    desplegar la Fase B a los quince ahora: les llegará con la imagen dorada.
->    ⚠️ **Sin aplicar**: esa decisión la recoge el commit del Pi, no la vi yo, y toca
->    la única superficie pública. Se confirma antes de tocarla.
+> 3. ~~🔴 **Corregir la frase de la portada.**~~ ✅ **HECHO el 2026-08-17**
+>    (`atriz-lab` 50c5597), pedido directamente por el usuario. Eran **dos** frases
+>    falsas, no una. Hoy dice «la exige 1 de los 16» y la concordancia de número se
+>    **deriva**, para que el día que valga 16 siga bien escrita. 👤 Cuando la Fase B
+>    llegue a más robots: subir `ROBOTS_QUE_EXIGEN_CREDENCIAL`, una línea.
 >
 > 🔴 **Y una que sigue abierta desde la revisión de los 23 commits:** `motion` está en
 > `package.json` **sin la guardia `repeat: Infinity` y sin desinstalar** —cero imports

@@ -4,6 +4,63 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-17, cierre (PC) — La portada corregida: afirmaba de los dieciséis lo que hace uno
+
+👤 Encargo directo del usuario, y decisión suya del mismo día: **corregir la frase**, no desplegar
+la Fase B a los otros quince ahora — la recibirán con la imagen dorada. `atriz-lab` **50c5597**.
+
+Decía, en presente y sin matices: *«al entrar, este servidor te firma una credencial para ese robot
+en concreto, **y el robot la comprueba**. Sin ella te cierra la puerta»*. La Fase B está cerrada en
+**rvr-01**, y este repositorio lo anota al lado. O sea que **quince de dieciséis aceptaban una
+conexión sin credencial** mientras la única pantalla pública decía lo contrario.
+
+🔴 **Y no era la única frase falsa**: *«los robots solo aceptan órdenes de un navegador con
+credencial»* era cierto de UNO. Corregidas las dos. Lo que sí vale de los dieciséis —«sin sesión no
+se conecta con ninguno»— se conserva diciendo **por qué**: es la plataforma la que se niega a
+intentarlo, no el robot el que cierra. Confundir «me niego a llamar» con «no me abren» es la misma
+clase de deriva.
+
+📌 **Lo que hay que recordar es DÓNDE ocurrió:** el párrafo escrito precisamente para no
+sobre-afirmar seguridad acabó sobre-afirmándola, porque describía el **diseño** y no el
+**despliegue**. Una frase envejece cuando lo que describe **se despliega por partes** — y este
+proyecto despliega por partes por definición: dieciséis robots, uno a uno.
+
+Cómo queda, leído del HTML servido y no del fuente:
+
+```
+Hoy la exige 1 de los 16 robots —desde el 15 de agosto de 2026—: ese robot cierra la
+puerta sin ella. A los demás todavía no se les ha instalado, así que aceptan una
+conexión sin comprobarla; la exigirán cuando se les ponga la imagen del laboratorio.
+```
+
+**Dos decisiones que importan más que el número**, en `lib/sesion/despliegue.ts`:
+
+- **Se mantiene a mano, y se dice por qué.** La portada **no abre socket con ningún robot** —a
+  propósito: sería contar por fuera lo que la puerta guarda dentro—, así que no hay a quien
+  preguntarle. 🔴 Y si envejece, **envejece hacia el lado seguro**: quien despliegue a más robots y
+  olvide subirlo deja la página afirmando MENOS seguridad de la que hay. Infra-afirmar no hace
+  daño; sobre-afirmar es el fallo que esto arregla.
+- 🔴 **La concordancia de número se DERIVA, no se escribe.** Hoy es «la exige 1» y el día que la
+  imagen dorada llegue a la flota será «la exigen 16». Escrita a mano, ese día la única pantalla
+  pública queda mal redactada justo en la frase que habla de seguridad. Es el problema de los
+  números a mano de este proyecto —«Dos trampas», «las CINCO causas»—, con la diferencia de que
+  aquí **el número no se puede quitar porque ES la información**: así que se deriva lo que depende
+  de él, con una prueba que cubre el caso futuro.
+
+⚠️ `alcanceDeCredencial()` **revienta** con números que no pueden describir una flota (más de los
+que hay, negativos, no enteros). Son constantes de código: un valor imposible tiene que salir al
+compilar, no convertirse en una afirmación de seguridad equivocada. Devolver algo plausible sería
+el `getattr(v, 'valido', False)` que este proyecto ya pagó en el robot.
+
+✅ `tsc` y `eslint` limpios · **1227 pruebas** (eran 1219) · la frase verificada **leyendo el HTML
+servido**, no el fuente.
+
+👤 **Queda para la Pi, sin cambios:** cuando la Fase B llegue a más robots, subir
+`ROBOTS_QUE_EXIGEN_CREDENCIAL` en `atriz-lab`. Es una línea, y la prueba se pondrá en rojo para
+recordar que hay que mirar la frase.
+
+---
+
 ## 2026-08-17, tarde (PC) — «Las pestañas van lentas»: era `next dev`, y lo que sí costaba no era la red
 
 👤 Encargo del usuario: auditar el rendimiento al pulsar las pestañas de un robot, y/o meter

@@ -15,6 +15,33 @@ para saber por dónde vas.
 
 ---
 
+## ✅ PC (2026-08-17, cierre) · **La portada corregida — ya no afirma de los dieciséis lo que hace uno**
+
+👤 Lo pidió el usuario directamente, con vuestra decisión del mismo día delante: corregir la frase,
+no desplegar la Fase B a los quince ahora. `atriz-lab` **50c5597**.
+
+Eran **dos** frases falsas, no una. Hoy la pantalla pública dice, literal del HTML servido:
+
+```
+Hoy la exige 1 de los 16 robots —desde el 15 de agosto de 2026—: ese robot cierra la
+puerta sin ella. A los demás todavía no se les ha instalado, así que aceptan una
+conexión sin comprobarla; la exigirán cuando se les ponga la imagen del laboratorio.
+```
+
+👤 **LO QUE OS TOCA, Y ES UNA LÍNEA:** cuando la Fase B llegue a más robots —con la imagen dorada—,
+subid `ROBOTS_QUE_EXIGEN_CREDENCIAL` en `atriz-lab/frontend/src/lib/sesion/despliegue.ts`. La
+prueba se pondrá en rojo a propósito, para obligar a mirar la frase.
+
+⚠️ **Y por qué se mantiene a mano en vez de preguntároslo:** la portada **no abre socket con ningún
+robot**, deliberadamente — hacerlo sería contar por fuera lo que la puerta guarda dentro. Así que
+la verdad vive en vuestros robots y aquí solo hay una copia. 🔴 Está puesta para envejecer **hacia
+el lado seguro**: si se despliega y nadie la sube, la página afirma MENOS seguridad de la que hay.
+
+📌 La concordancia de número («la exige» / «la exigen») **se deriva**, así que el día que valga 16
+la frase seguirá bien escrita sin que nadie se acuerde de revisarla.
+
+---
+
 ## ✅ Pi (2026-08-17) · **F5 revisada commit a commit · LOS DOS ENCARGOS CERRADOS: /estado_ir medido (0,40 kB/s) y /set_ir_baliza desplegado en rvr-01**
 
 Los 9 commits nuevos de `atriz-lab` (`b847c41`..`c4cdb29`) leídos a detalle. Y todas las
