@@ -5,6 +5,34 @@
 > contexto desde cero.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-17 · EL REDISEÑO ESTÁ EN `main`. LA RAMA `rediseno-2026-08` YA NO
+> EXISTE**
+> ═══════════════════════════════════════════════════════════════════════════════
+> 👤 Decisión del usuario. Fusionado **sin merge commit** (avance rápido: `main`
+> no tenía nada que la rama no tuviera), y la rama borrada después:
+>
+> ```
+> atriz-lab         main  4df8fed → 468eace   (42 commits)
+> atriz_migracion   main  dfe58db → fa35b54   (20 commits)
+> ```
+>
+> - ✅ **Comprobado ANTES de fusionar y DESPUÉS, sobre `main`:** `tsc` y `eslint`
+>   limpios, **1262 pruebas**, `npm run build` correcto (15 rutas), y
+>   `comprobar_contrato.mjs` con los cuatro bloques coincidiendo.
+> - 🔴 **`Atriz_rvr` NO se ha tocado, y no es un olvido:** allí `main` es **ROS 1**
+>   y está 137 commits por detrás de `ros2`, que es la rama por defecto y la
+>   buena. Fusionar `ros2` en aquel `main` habría destruido la separación que este
+>   proyecto mantiene a propósito.
+> - 📝 Las menciones a la rama que quedan por el repositorio están **dentro de
+>   entradas fechadas** —CHANGELOG, ESTADO_ACTUAL, el plan— y se conservan: son el
+>   registro de lo que era cierto entonces, no instrucciones.
+>
+> ⚠️ **Lo que la fusión NO significa.** `main` no ha visto un robot: sigue entero
+> lo de `atriz-lab/VALIDAR_CON_EL_ROBOT.md` **§6d-§6l**, y dos casillas exigen
+> **DOS robots**. Que el código esté en `main` dice que compila, que pasa sus
+> pruebas y que su contrato cuadra con el robot — **no que funcione en el aula**.
+>
+> ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-17, cierre (PC) · LO DEL ROBOT CONSUMIDO: CONDUCCIÓN IR EN LA
 > PANTALLA, Y EL CUELGUE PARCIAL YA VISIBLE EN EL MURO**
 > ═══════════════════════════════════════════════════════════════════════════════
