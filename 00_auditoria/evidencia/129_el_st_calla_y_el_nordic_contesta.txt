@@ -4,9 +4,11 @@
 ═══════════════════════════════════════════════════════════════════════════════
 Fecha:   2026-08-17, 16:12-16:3x · rvr-01 · detectado al cierre del banco de
          /set_ir_conduccion (evidencia 128)
-Estado:  ⏳ ABIERTO — la recuperación exige ciclo de energía del RVR (botón),
-         que es paso del usuario. El diagnóstico está aislado; la causa raíz
-         del firmware, fuera de nuestro alcance (es código de Sphero).
+Estado:  ✅ RECUPERADO a las 16:27:57 con ciclo de energía del RVR (botón,
+         usuario) — la reanudación del driver completó el ciclo SOLA, sin
+         tocar nada de la Pi. La causa raíz del firmware sigue fuera de
+         nuestro alcance (es código de Sphero); la hipótesis de disparo queda
+         anotada en el apartado 4.
 
 RESUMEN
   A las 16:12:05, EXACTAMENTE al ejecutarse el `off` que apagaba un
@@ -73,12 +75,29 @@ RESUMEN
   colgaría el robot otra vez — se decide con el usuario, no en un banco.
 
 ───────────────────────────────────────────────────────────────────────────────
+5 · LA RECUPERACIÓN, MEDIDA (16:27:57)
+───────────────────────────────────────────────────────────────────────────────
+  El usuario apagó y encendió el RVR. La escalera de reanudación del driver
+  (evidencia 116) hizo el resto SOLA — cero intervención en la Pi:
+
+    «el RVR VOLVIÓ: primera muestra tras 19 intento(s) de reanudación sin
+     respuesta.»  ·  «sondeo IR reanudado: el enlace volvió.»
+
+    /odom                    16,5 Hz          (nominal ~16,7)
+    rvr_responde             true
+    antiguedad_odom_s        0,045 s
+    reanudaciones_fallidas   0                (el contador se limpió)
+    lecturas_validas (IR)    True             (el sondeo salió de pausa solo)
+    batería                  8,15 V · 96 %    ← DESCARTA batería del todo:
+                                               el cuelgue fue con la batería
+                                               prácticamente llena
+
+───────────────────────────────────────────────────────────────────────────────
 LO QUE SIGUE
 ───────────────────────────────────────────────────────────────────────────────
-  👤 Ciclo de energía del RVR (botón), y al volver: verificar reanudación
-     (/odom a ~16,7 Hz, rvr_responde=true, sondeo IR reanudado solo).
   ⏳ Si reaparece en el aula: este fichero es la referencia — el síntoma en
-     la plataforma será «telemetría vieja con latido vivo», y el
-     discriminador es un servicio IR (contesta → cuelgue parcial, ST).
+     la plataforma será «telemetría vieja con latido vivo», el discriminador
+     es un servicio IR (contesta → cuelgue parcial, ST) y el remedio es el
+     botón del RVR: la Pi se reanuda sola al volver.
   ⏳ Decidir si se intenta reproducir (off sobre following, en tanda) — con
      el robot en banco y el usuario delante, nunca en clase.

@@ -15,14 +15,17 @@ para saber por dónde vas.
 
 ---
 
-## ⏳ Pi (2026-08-17, noche·2) · **rvr-01 DEGRADADO al cierre del banco: el ST calla, el Nordic contesta — evidencia 129, pendiente de ciclo de energía**
+## ✅ Pi (2026-08-17, noche·2) · **rvr-01 se degradó al cierre del banco y YA ESTÁ RECUPERADO — evidencia 129 (cerrada)**
 
-Si el muro dice «telemetría vieja con latido vivo» de rvr-01, es esto. A las 16:12:05, justo al
-apagar un `following`, el RVR dejó de dar telemetría/keepalive pero **sigue ACKeando comandos IR**
-(probado dos veces, minutos después): cuelgue PARCIAL del firmware — ni dormido (12+ reanudaciones
-fallidas; el dormido vuelve a la primera, medido 3/3), ni apagado (contesta), ni el puerto de la
-126 (instrumentado: cero «PERDIDO»). n=1, hipótesis de carrera en el apagado del modo IR — anotada
-sin afirmar. 👤 Recuperación: botón del RVR; al volver se verifica la reanudación.
+A las 16:12:05, justo al apagar un `following`, el RVR dejó de dar telemetría/keepalive pero
+siguió ACKeando comandos IR: cuelgue PARCIAL del firmware — ni dormido, ni apagado (batería al
+96 %), ni el puerto de la 126. n=1, hipótesis de carrera en el apagado del modo IR, anotada sin
+afirmar. El usuario cicló la energía del RVR a las 16:27 y **la escalera de reanudación completó
+el ciclo sola** («el RVR VOLVIÓ tras 19 intentos» · «sondeo IR reanudado»): /odom a 16,5 Hz,
+`rvr_responde=true`, contador a 0 — cero intervención en la Pi.
+
+Si reaparece en el aula: el síntoma en el muro es «telemetría vieja con latido vivo», el
+discriminador es un servicio IR (contesta → cuelgue parcial) y el remedio es el botón del RVR.
 
 ✅ Y la parte buena: **el caso degradado de la 126 quedó verificado en ocurrencia natural** —
 latido a 1,000 Hz medidos DURANTE el fallo y sondeo IR en pausa honesta (`lecturas_validas=False`).
