@@ -5,6 +5,38 @@
 > contexto desde cero.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-17, cierre (PC) · LO DEL ROBOT CONSUMIDO: CONDUCCIÓN IR EN LA
+> PANTALLA, Y EL CUELGUE PARCIAL YA VISIBLE EN EL MURO**
+> ═══════════════════════════════════════════════════════════════════════════════
+> `atriz-lab` **a108416** y **8a4c5f5**. **1262 pruebas**, `tsc` y `eslint`
+> limpios, `comprobar_contrato.mjs` con **15 servicios coincidiendo**.
+>
+> - ✅ **Los tres pasos que la Pi dejó anotados, hechos**: `/set_ir_conduccion`
+>   en `contrato.ts`, el mando «Seguir o huir de otro robot» en Acciones, y la
+>   prueba que **lee `SetIRConduccion.srv`** en vez de copiar el número.
+> - 🔴🔴 **Y esa prueba pasó en verde DOS VECES sin leer nada.** La ruta estaba
+>   mal (dos niveles, luego seis; son **cinco**) y las dos veces pasó, porque al
+>   no encontrar el fichero se iba por un `return` con un `console.warn`.
+>   **La aritmética no era el defecto: el `return` sí.** Una comprobación que se
+>   salta cuando no encuentra su fuente **no distingue «todo bien» de «no he
+>   mirado»**, y avisar por consola no lo arregla — nadie lee la consola de una
+>   tanda en verde. Es la **nº14 del verificador del robot** cometida otra vez,
+>   en la sesión que la cita. Ahora **falla**, ensayado en las dos direcciones.
+> - 🔴 **La evidencia 129 afirmaba algo de la web que era cierto y no
+>   cumplíamos**: «síntoma en el muro: telemetría vieja con latido vivo». **No se
+>   podía ver** — el latido de la baldosa es `/motor_status`, que el driver
+>   **republica a 1 Hz con su propio temporizador**, así que sigue puntual con el
+>   RVR medio colgado: la baldosa salía **en verde con el voltaje congelado**.
+>   ✅ Ya lo dice, con umbral **en mensajes perdidos y derivado** (tres
+>   publicaciones de `/battery_state` = 90 s), callando si el latido está caído y
+>   sin disparar con `null`. Se presenta como **sospecha**: n=1, y un mal rato de
+>   WiFi lo produce igual.
+> - ⏳ **Todo lo que queda necesita robots delante**: `VALIDAR_CON_EL_ROBOT.md`
+>   §6d-§6l. **§6l exige DOS robots y medio metro libre** —el `collision_monitor`
+>   no interviene con `seguir`/`huir`— y la casilla que importa es que **se
+>   apague solo al vencer el plazo**. Si no lo hace, el diseño entero no sirve.
+>
+> ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-17, noche (Pi) · LOS DOS SERVICIOS IR NUEVOS DESPLEGADOS — Y UN
 > CUELGUE PARCIAL DEL RVR, CAZADO, DOCUMENTADO Y RECUPERADO**
 > ═══════════════════════════════════════════════════════════════════════════════
@@ -17,9 +49,10 @@
 >   solo. TDD 10 pruebas (suite del driver 16/16) y los seis puntos del encargo
 >   verificados por efecto con control y sellos del journal — **evidencia 128**.
 >   El rearme apaga a 4,02 s de la SEGUNDA petición; la parada activa rechaza;
->   la parada en caliente cancela el plazo. 👉 Al PC le quedan sus tres pasos:
->   `contrato.ts`, `PanelInfrarrojos`, y la prueba que ate `TOPE_SEGUNDOS` a
->   `Atriz_rvr/atriz_rvr_msgs/srv/SetIRConduccion.srv`.
+>   la parada en caliente cancela el plazo. ~~👉 Al PC le quedan sus tres pasos.~~
+>   ✅ **LOS TRES HECHOS el mismo día** (`atriz-lab` a108416): `contrato.ts` con
+>   quince servicios coincidiendo, el mando en `PanelInfrarrojos`, y la prueba
+>   que **lee** `SetIRConduccion.srv` — ver el bloque de arriba.
 > - **El caudal de `/estado_ir`, medido**: 412-414 B/msg a ~1 Hz = **0,40 kB/s**
 >   (0,41 de cota) — evidencia 127. `presupuesto.ts` puede dejar de lanzar.
 > - 🔴 **Evidencia 129 — modo de fallo NUEVO del RVR**: al apagar un `following`,
