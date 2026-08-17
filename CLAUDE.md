@@ -147,6 +147,28 @@ reproduce el fallo a propósito.
   **ritmo**, no si el nodo o el topic existen — las dos cosas eran ciertas mientras estaba
   mudo. Y un `systemd` con `Restart=always` no habría arreglado nada: el proceso no muere.
 
+**🔴🔴 EL RVR PUEDE COLGARSE A MEDIAS: EL ST CALLA Y EL NORDIC CONTESTA.** Visto el
+2026-08-17 (evidencia 129), justo al apagar un `following`: la telemetría, el keepalive y
+`get_system_info` muertos — y los comandos IR contestando `success=True` minutos después.
+No es ninguno de los casos de arriba: un dormido no ACKea nada y vuelve al PRIMER intento
+de reanudación (medido 3/3; aquí fallaron 19), un apagado no contesta, y el puerto de la
+evidencia 126 está instrumentado y habría dicho «PERDIDO». La batería estaba al 96 %.
+- **Síntoma en el muro:** «telemetría vieja con latido vivo».
+- **Discriminador:** un servicio IR inocuo (`/set_ir_baliza` apagar). Contesta → cuelgue
+  parcial del firmware.
+- **Remedio:** el botón del RVR. La Pi se reanuda SOLA al volver (verificado: «el RVR
+  VOLVIÓ tras 19 intentos», sondeo IR fuera de pausa, /odom a 16,5 Hz, sin tocar nada).
+- n=1 y la ráfaga sospechosa (stops sobre un following activo) corrió dos veces más sin
+  colgar: si es una carrera, no es determinista. No afirmes causa; cita la 129.
+
+**🔴 EL CLI DE `ros2` TARDA ~2-4 s POR LLAMADA EN LA Pi, Y ESO CONVIERTE EN MENTIRA
+CUALQUIER BANCO CON VENTANAS CORTAS.** El primer banco del rearme de `/set_ir_conduccion`
+(bash + `ros2 service call` + `sleep`) «demostró» que el rearme no extendía el plazo; el
+journal, con sellos, mostró que la segunda petición llegó a los 6 s de la primera — el
+descubrimiento de servicios se comió la ventana de 5 s y las peticiones nunca se solaparon.
+Para medir tiempos por debajo de ~10 s: cliente `rclpy` (llamada en ~0,1 s) y el journal
+como reloj, nunca la cronología del script.
+
 **🔴🔴 UN PROGRAMA TIENE MÁS CAMINOS DE SALIDA DE LOS QUE SE TE OCURREN, Y CADA UNO PUEDE
 DEJAR EL LIDAR ENCENDIDO.** `atriz.py` prometía apagar el barrido «pase lo que pase» y fallaba en
 **cuatro** caminos. Ninguno lo vio ninguna de las trece revisiones por separado: solo aparecen al

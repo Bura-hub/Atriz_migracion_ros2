@@ -175,8 +175,8 @@ expone 19**, y **todos son alcanzables por rosbridge**, así que conviene saber 
 | Configuración | `set_drive_parameters`, `set_pos_and_yaw` | bajo |
 | Parada | `release_emergency_stop` | — |
 | 🔴 **Movimiento** | `move_timed`, `raw_motors`, `move_to_pose`, `move_to_pos_and_yaw` | **alto** |
-| 🔴 **Infrarrojos** | `set_ir_mode` (`following`), `set_ir_evading` | **alto** — hacen CONDUCIR al robot por firmware |
-| Infrarrojos, lo que no mueve | `set_ir_mode` (`broadcasting`, `off`), `send_infrared_message` | ninguno: solo encienden emisores |
+| 🔴 **Infrarrojos** | `set_ir_mode` (`following`), `set_ir_evading`, 🆕 `set_ir_conduccion` (2026-08-17) | **alto** — hacen CONDUCIR al robot por firmware. `set_ir_conduccion` es el ÚNICO abierto a la web: `modo` entero cerrado y plazo obligatorio en (0, 30] con temporizador que lo apaga solo (evidencia 128) |
+| Infrarrojos, lo que no mueve | `set_ir_mode` (`broadcasting`, `off`), `send_infrared_message`, 🆕 `set_ir_baliza` (2026-08-17: baliza continua, `bool encender` — no puede expresar `following`) | ninguno: solo encienden emisores |
 
 🆕 **Y dos topics de IR desde el 2026-08-11** (rediseño completo del subsistema; diseño en
 `docs/superpowers/specs/2026-08-11-sistema-ir-robot-a-robot-design.md`):
@@ -418,9 +418,11 @@ filtro**. Son situaciones opuestas.
 sabe que perdió el enlace, seguirá dando órdenes al vacío.
 
 🔴 **Lo que estas defensas NO cubren:** los servicios de movimiento del driver
-(`move_timed`, `raw_motors`, `move_to_pose`, `move_to_pos_and_yaw`, `set_ir_evading` y
-**`set_ir_mode('following')`**) hablan al RVR **por el puerto serie**, así que ni el watchdog ni el
-`collision_monitor` los ven. Solo los para la parada de emergencia.
+(`move_timed`, `raw_motors`, `move_to_pose`, `move_to_pos_and_yaw`, `set_ir_evading`,
+**`set_ir_mode('following')`** y 🆕 `set_ir_conduccion`) hablan al RVR **por el puerto serie**, así
+que ni el watchdog ni el `collision_monitor` los ven. Solo los para la parada de emergencia —
+salvo `set_ir_conduccion`, que además lleva su propio plazo con tope: se apaga solo aunque nadie
+mire (evidencia 128).
 
 ⚠️ **`set_ir_mode('following')` FALTABA en esta lista**, y no es casualidad que fuera justo el que
 no comprobaba la parada: la lista y el código se equivocaban igual. `set_ir_evading` no la

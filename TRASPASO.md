@@ -5,6 +5,35 @@
 > contexto desde cero.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-17, noche (Pi) · LOS DOS SERVICIOS IR NUEVOS DESPLEGADOS — Y UN
+> CUELGUE PARCIAL DEL RVR, CAZADO, DOCUMENTADO Y RECUPERADO**
+> ═══════════════════════════════════════════════════════════════════════════════
+> El driver de rvr-01 tiene ahora **21 servicios** y la lista blanca **QUINCE**:
+>
+> - **`/set_ir_baliza`** (`bool encender`): baliza continua que por construcción
+>   no puede expresar `following`. TDD 3 pruebas, verificado por efecto.
+> - **`/set_ir_conduccion`** (`modo` 0=off·1=seguir·2=huir · `segundos` en
+>   (0, 30]): el encargo del PC, con el temporizador de un disparo que lo apaga
+>   solo. TDD 10 pruebas (suite del driver 16/16) y los seis puntos del encargo
+>   verificados por efecto con control y sellos del journal — **evidencia 128**.
+>   El rearme apaga a 4,02 s de la SEGUNDA petición; la parada activa rechaza;
+>   la parada en caliente cancela el plazo. 👉 Al PC le quedan sus tres pasos:
+>   `contrato.ts`, `PanelInfrarrojos`, y la prueba que ate `TOPE_SEGUNDOS` a
+>   `Atriz_rvr/atriz_rvr_msgs/srv/SetIRConduccion.srv`.
+> - **El caudal de `/estado_ir`, medido**: 412-414 B/msg a ~1 Hz = **0,40 kB/s**
+>   (0,41 de cota) — evidencia 127. `presupuesto.ts` puede dejar de lanzar.
+> - 🔴 **Evidencia 129 — modo de fallo NUEVO del RVR**: al apagar un `following`,
+>   el procesador principal calló (telemetría/keepalive muertos) mientras el
+>   Nordic seguía ACKeando comandos IR. Ni dormido, ni apagado (batería 96 %),
+>   ni el puerto de la 126. Remedio: el botón del RVR; la Pi se reanudó SOLA
+>   («el RVR VOLVIÓ tras 19 intentos»). Y de regalo, **el caso degradado de la
+>   126 quedó verificado en ocurrencia natural**: latido a 1,000 Hz durante el
+>   fallo y sondeo IR en pausa honesta.
+> - 📝 Dos confesiones de instrumento: el CLI de `ros2` (~2-4 s/llamada) hizo
+>   mentir al primer banco del rearme, y rosbridge deniega en silencio TAMBIÉN
+>   en el journal. Las dos, ya en CLAUDE.md/herramientas.
+>
+> ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-17, tarde · «LAS PESTAÑAS VAN LENTAS»: ERA `next dev`**
 > ═══════════════════════════════════════════════════════════════════════════════
 > Medido contra rvr-01 encendido, del CLIC al contenido:
