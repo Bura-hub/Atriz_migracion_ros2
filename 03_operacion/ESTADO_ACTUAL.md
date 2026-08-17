@@ -15,6 +15,20 @@ para saber por dónde vas.
 
 ---
 
+## ⏳ Pi (2026-08-17, noche·2) · **rvr-01 DEGRADADO al cierre del banco: el ST calla, el Nordic contesta — evidencia 129, pendiente de ciclo de energía**
+
+Si el muro dice «telemetría vieja con latido vivo» de rvr-01, es esto. A las 16:12:05, justo al
+apagar un `following`, el RVR dejó de dar telemetría/keepalive pero **sigue ACKeando comandos IR**
+(probado dos veces, minutos después): cuelgue PARCIAL del firmware — ni dormido (12+ reanudaciones
+fallidas; el dormido vuelve a la primera, medido 3/3), ni apagado (contesta), ni el puerto de la
+126 (instrumentado: cero «PERDIDO»). n=1, hipótesis de carrera en el apagado del modo IR — anotada
+sin afirmar. 👤 Recuperación: botón del RVR; al volver se verifica la reanudación.
+
+✅ Y la parte buena: **el caso degradado de la 126 quedó verificado en ocurrencia natural** —
+latido a 1,000 Hz medidos DURANTE el fallo y sondeo IR en pausa honesta (`lecturas_validas=False`).
+
+---
+
 ## ✅ Pi (2026-08-17, noche) · **EL ENCARGO CUMPLIDO: `/set_ir_conduccion` desplegado y el plazo verificado por efecto — evidencia 128**
 
 El `.srv` es EXACTAMENTE el propuesto (`TOPE_SEGUNDOS=30` incluido) y el manejador delega en

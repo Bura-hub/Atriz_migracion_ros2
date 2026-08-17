@@ -1,0 +1,84 @@
+═══════════════════════════════════════════════════════════════════════════════
+129 · EL ST CALLA Y EL NORDIC CONTESTA: CUELGUE PARCIAL DEL FIRMWARE DEL RVR
+      TRAS APAGAR UN FOLLOWING — NI DORMIDO, NI APAGADO, NI EL PUERTO DE LA 126
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-17, 16:12-16:3x · rvr-01 · detectado al cierre del banco de
+         /set_ir_conduccion (evidencia 128)
+Estado:  ⏳ ABIERTO — la recuperación exige ciclo de energía del RVR (botón),
+         que es paso del usuario. El diagnóstico está aislado; la causa raíz
+         del firmware, fuera de nuestro alcance (es código de Sphero).
+
+RESUMEN
+  A las 16:12:05, EXACTAMENTE al ejecutarse el `off` que apagaba un
+  `following` activo, el RVR dejó de enviar telemetría y de contestar al
+  keepalive y a las consultas del sondeo IR — pero SIGUIÓ contestando (ACK,
+  success=True) a los comandos de modo IR durante minutos, y AÚN contesta.
+  Un procesador del RVR calla (el principal, ST — telemetría, keepalive,
+  system_info) y el otro sigue vivo (Nordic — comandos IR). Es un modo de
+  fallo NUEVO: ni el sueño, ni el apagado, ni el puerto muerto de la 126.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LA CRONOLOGÍA, CON SELLOS DEL JOURNAL
+───────────────────────────────────────────────────────────────────────────────
+  16:10:17  reinicio de atriz-robot (despliegue de /set_ir_conduccion)
+  16:11:37  following (plazo 5 s) → venció y apagó a las 16:11:42   ✅
+  16:11:58  following por set_ir_mode DIRECTO (control sin plazo)   ✅
+  16:12:05  `off` del control (stop broadcasting/following/evading)
+            → ÚLTIMA muestra de telemetría (antiguedad_odom lo fija)
+  16:12:08  sondeo IR: «lecturas: el RVR no contestó en 3 s»
+  16:12:11  «lleva 6.8 s sin enviar telemetría … intento nº 1»
+  16:12:27  primer «keepalive FALLÓ: TimeoutError» — y cada 30 s desde ahí
+  16:12:42  following (banco del rearme): ACK success=True          ← ¡!
+  16:12:47  su plazo venció y mandó los stops                        ✅
+  16:14:33  dos following más del banco rclpy: ACK success=True     ← ¡!
+  16:14:39  último vencimiento; después, silencio de comandos míos
+  16:2x     get_system_info: TODOS los campos «no contestó en 5 s»
+  16:3x     /set_ir_baliza(apagar): **success=True — el Nordic AÚN contesta**
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LO QUE SE DESCARTÓ, CON SU EVIDENCIA
+───────────────────────────────────────────────────────────────────────────────
+  · ¿El puerto muerto de la 126?  NO: cero líneas «PERDIDO/REABIERTO» (el
+    puerto está instrumentado desde la 126 y habría hablado), y el fd a
+    /dev/ttyAMA0 sigue abierto en el proceso del driver.
+  · ¿Dormido?  NO: un RVR dormido no ACKea comandos, y «un RVR dormido
+    vuelve al PRIMER intento de reanudación (medido, 3 de 3)» — van 12+
+    fallidos con espera creciente (la escalera de la evidencia 116).
+  · ¿Apagado / batería agotada / cable?  NO: contesta success=True a
+    comandos IR AHORA MISMO, minutos después. Un RVR apagado no contesta
+    nada. (El voltaje real no se puede leer: viaja por la telemetría del ST.)
+  · ¿La Pi o el driver?  NO: el driver está sano y HONESTO — durante todo el
+    cuelgue el latido de /estado_robot siguió a 1,000 Hz medidos y el sondeo
+    IR se puso en PAUSA con `lecturas_validas=False` y su aviso.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · Y LA PARTE BUENA: EL CASO DEGRADADO DE LA 126, VERIFICADO EN NATURAL
+───────────────────────────────────────────────────────────────────────────────
+  Los dos arreglos de la 126 esperaban «la próxima ocurrencia natural» de un
+  enlace caído para su caso degradado. Ocurrió hoy, y pasaron los dos:
+    ✅ latido a 1,000 Hz DURANTE el fallo (g_latido separado: antes, 0,2 Hz)
+    ✅ sondeo IR en pausa con aviso único y `lecturas_validas=False`
+       («sondeo IR EN PAUSA: el enlace con el RVR está caído…»)
+  La plataforma web, si mira, dirá la verdad: latido vivo, telemetría vieja.
+
+───────────────────────────────────────────────────────────────────────────────
+4 · HIPÓTESIS DE DISPARO (sin confirmar — UNA ocurrencia)
+───────────────────────────────────────────────────────────────────────────────
+  El sello coincide con la ráfaga de apagado sobre un following activo:
+  `stop_broadcasting` (con espera) + `stop_following` + `stop_evading` (sin
+  espera), saliendo del sistema de control 8 (infrared_follow_and_evade).
+  PERO la misma ráfaga corrió al menos DOS veces más hoy sin cuelgue
+  (16:11:42 y 16:12:47), así que si es esto, es una CARRERA, no un
+  determinismo. n=1: se anota, no se afirma. Reproducirlo a propósito
+  colgaría el robot otra vez — se decide con el usuario, no en un banco.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE
+───────────────────────────────────────────────────────────────────────────────
+  👤 Ciclo de energía del RVR (botón), y al volver: verificar reanudación
+     (/odom a ~16,7 Hz, rvr_responde=true, sondeo IR reanudado solo).
+  ⏳ Si reaparece en el aula: este fichero es la referencia — el síntoma en
+     la plataforma será «telemetría vieja con latido vivo», y el
+     discriminador es un servicio IR (contesta → cuelgue parcial, ST).
+  ⏳ Decidir si se intenta reproducir (off sobre following, en tanda) — con
+     el robot en banco y el usuario delante, nunca en clase.
