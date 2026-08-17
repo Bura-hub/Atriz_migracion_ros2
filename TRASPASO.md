@@ -5,6 +5,44 @@
 > contexto desde cero.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-16 · F5 CERRADA — siete pantallas rehechas, y el instrumento que
+> miraba mentía**
+> ═══════════════════════════════════════════════════════════════════════════════
+> Ocho commits en `atriz-lab`, rama `rediseno-2026-08` (`2dca601`..`ce40b7e`).
+> **1210 pruebas**, `tsc` y `eslint` limpios, siete pantallas vistas en un navegador
+> de verdad contra el doble. **Nada de esto toca el robot.**
+>
+> - 🔴🔴 **Lo primero, porque contamina lo demás: la herramienta de capturas
+>   devolvía imágenes de OTRA pantalla**, enteras y nítidas. El CSS decía
+>   `rgb(246, 245, 243)` y el píxel del PNG `rgb(24, 26, 27)`. Tres caminos lo
+>   provocan y el tercero —desplazar la página— envenena hasta la captura simple.
+>   Van **ocho** veces que miente el instrumento en este proyecto, y es la primera
+>   en que el instrumento es el que existe para MIRAR. Hoy `recorte.mjs` compara la
+>   foto con el token de fondo y **avisa** cuando no cuadran.
+>   📝 Perseguirlo por parecido costó **cuatro atribuciones falsas** seguidas; lo
+>   cerró una tabla cambiando una cosa cada vez.
+> - **Muro, Navegar, Medidas, Conducir, Acciones, Lo que ve, Taller y Si no
+>   obedece.** El detalle, en `CHANGELOG.md`.
+> - 🔴 **Defectos de producto encontrados mirando, no leyendo:** el muro decía
+>   «MIRAR 15» sobre quince baldosas que decían «no llegó»; la rueda de color
+>   **descartaba el radio** y dibujaba un eje de saturación no seleccionable en el
+>   **51,8 %** de su área; «Apagar» **destruía la saturación**; el tope de 0,20 m/s
+>   era **el único de toda la cadena** mientras el Taller ya daba 0,40 por el mismo
+>   topic; el teclado de conducir era **un segundo mapeo sin pruebas**; y
+>   `dentroDeLoMedido` **no se llamaba en ningún sitio**.
+> - 🔴🔴 **Y uno que sigue abierto: la portada afirma de los dieciséis lo que hoy
+>   hace uno.** Dice que «el robot comprueba» la credencial; la Fase B está cerrada
+>   **en rvr-01**. Quince robots aceptan hoy una conexión sin credencial.
+>   👤 Revisado y propuesto el arreglo; **sin aplicar**, a la espera de decidir si
+>   se corrige la frase o se despliega la Fase B a los otros quince.
+> - ⏳ **Nada ha visto un robot.** Las casillas nuevas están en
+>   `atriz-lab/VALIDAR_CON_EL_ROBOT.md` **§6d-6h**, y una **exige DOS robots**.
+> - 👤 **Dos cosas para la Pi**, en `03_operacion/ESTADO_ACTUAL.md`: medir el caudal
+>   de `/estado_ir` —sin esa cifra el IR no puede llegar al muro— y decidir si se
+>   abre una **baliza IR** con un servicio que por construcción no pueda expresar
+>   `following`.
+>
+> ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-15 · EL TALLER VALIDADO CONTRA EL ROBOT, Y DOS PENDIENTES CERRADOS
 > (evidencias 118-123)**
 > ═══════════════════════════════════════════════════════════════════════════════

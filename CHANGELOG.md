@@ -4,6 +4,166 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-16, noche (PC) — F5 cerrada: siete pantallas, y el instrumento que miraba mentía
+
+Ocho commits en `atriz-lab`, rama `rediseno-2026-08`, de `2dca601` a `ce40b7e`. Cierra la fase de
+«pantalla por pantalla» del rediseño y las peticiones que fueron llegando durante la sesión.
+
+```
+tsc limpio · eslint limpio · 1210 pruebas (eran 1095) · siete pantallas vistas en un navegador
+```
+
+👤 **Nada de esto toca el robot.** Lo que sí necesita decisión o medida de la Pi va al final.
+
+---
+
+### 🔴🔴 Lo primero, porque contamina todo lo demás: LA HERRAMIENTA DE CAPTURAS MENTÍA
+
+Las capturas salían con el **fondo del navegador** en vez del papel de la aplicación, y **nada lo
+decía**. Aislado con control, sobre la misma página y el mismo instante, leyendo el píxel del PNG:
+
+```
+                              viewport   beyondViewport   beyond+clip
+   tal cual                      255           255             24
+   con --hide-scrollbars         255            24             24
+   tras DESPLAZAR la página       24            24             24
+```
+
+Y a la vez, en esa misma página, `getComputedStyle(document.body).backgroundColor` seguía diciendo
+`rgb(246, 245, 243)`. **El CSS estaba bien y la foto estaba mal.**
+
+🔴 El modo de fallo es el peor de este proyecto: la captura sale entera, nítida y legible. Solo que
+es **otra pantalla**. Se juzgó jerarquía y peso visual sobre composiciones así. Van **ocho** veces
+que miente el instrumento y no lo medido, y es la primera en la que el instrumento es el que existe
+para MIRAR.
+
+🔴 Y **cuatro atribuciones mías fueron falsas** antes de aislar la variable: culpé a
+`prefers-color-scheme` (lo emulé a `light`: captura idéntica), al modo oscuro automático de Chromium
+(`--disable-features=WebContentsForceDark`: idéntica), al fondo del `body` (estaba bien pintado) y a
+`setDefaultBackgroundColorOverride` (sin efecto). Lo cerró **una tabla de nueve capturas cambiando
+una cosa cada vez**, no una teoría. Perseguirlo por parecido costó cuatro intentos.
+
+→ `recorte.mjs` pide la página entera por el único camino medido correcto, recorta el PNG con
+`zlib` —sin dependencias— y **compara la foto con el token `--background`**: si no cuadran, repite,
+y si sigue sin cuadrar **avisa de que esa captura no sirve para juzgar color**.
+
+📌 Y de rebote apareció que la aplicación **no declaraba `color-scheme`**. Se añade
+`:root { color-scheme: light }`, que es lo correcto para un tema fijo. ⚠️ **NO está verificado que
+baste**: con la línea servida, aquella máquina seguía dando `rgb(24, 26, 27)`.
+
+---
+
+### Las siete pantallas
+
+**El muro** (`2dca601`). Las dos cifras más grandes eran el caudal; ahora son las cuatro que se
+deciden —`hay que ir · mirar · en línea · sin señal`— con una prueba que exige que sumen los
+dieciséis sobre las 144 combinaciones. 🔴 **La captura destapó un defecto que mis nueve pruebas no
+vieron**: pintaba «MIRAR 15» sobre quince baldosas que decían «no llegó». `BaldosaRobot` ya aplicaba
+esa precedencia al PINTAR y el contador no al CONTAR; ninguna prueba sabía qué pinta la baldosa.
+👤 Y el cuadro de direcciones dejó de abrirse con «nadie responde»: al empezar cada clase los
+dieciséis están apagados, así que salía desplegado **siempre** — un aviso que salta siempre deja de
+leerse.
+
+**Navegar** (`b847c41`). El desenlace de un objetivo eran ~400 caracteres de prosa (600 al fallar)
+que se leen justo cuando el robot acaba de pararse. Ahora es una lectura: **lo medido primero** —el
+desplazamiento por `/odom`— y lo que dijo Nav2 debajo. Esa inversión es lo que la hace honesta:
+`SUCCEEDED` está medido a 41,3 cm y `ABORTED` sobre un robot que llegó. Ninguno de los dos se lleva
+la marca entera del tercer código. El fichero baja de 715 líneas a cinco piezas.
+
+**Medidas** (`f5580d2`). 👤 La superficie luminosa era un disparo y la normal cambiaba sola, y **no
+era capricho**: con el LED apagado `/color` publica **ceros** (medido: 40/40 no-cero con luz, 0/39
+sin ella), así que el dato solo existe llamando al servicio. Ahora sondea a **4 Hz**, que cae entre
+los dos topes medidos —el sensor refresca a ~21 Hz y por encima de ~8 no se lee—. Se rinde a los
+tres fallos seguidos, y el sello de hora sale de la región viva: con él dentro, un lector de
+pantalla **anunciaría una vez por segundo, para siempre**.
+
+**Conducir** (`fb4aebf`). 👤 Sí estaba topado en 0,20 m/s, y la asimetría era **al revés de lo
+razonable**: el alumno controlaba el eje peligroso y no el seguro. Girar sobre el eje tiene
+desplazamiento **cero** —el robot se queda en el círculo de 14,4 cm que ya ocupaba—, así que el giro
+se abre entero a 2,0 rad/s y el lineal lleva pestillo hasta 0,40.
+🔴 Y **el tope de 0,20 era el único de toda la cadena**: `_cb_cmd_vel` pasa los valores al SDK sin
+clamp. Pero `atriz.py` ya da 0,40 y 2,0 **por el mismo topic** desde el Taller, así que era un badén
+en una de dos puertas. Dos defectos estructurales cerrados: el teclado era **un segundo mapeo sin
+pruebas** que este cambio habría roto en silencio, y `dentroDeLoMedido` **no se llamaba en ningún
+sitio** — un control que solo corre en su test no es un control.
+
+**Acciones** (`5899386`, `90a9604`). Tres afirmaciones falsas en pantalla: el rótulo decía
+`/set_leds` y se llama `/set_led_rgb` (semánticas de confirmación distintas), «estas TRES piezas» con
+dos movidas, y **«aquí solo se mira» copiado en dos sitios** mientras el selector de modo enciende un
+LED blanco físico.
+👤 La sección de **infrarrojos**: `infrarrojos.ts` eran 263 líneas probadas que **ninguna pantalla
+usaba**, con cinco prácticas de IR ya en el Taller. El alumno podía hacerlo todo y no podía verlo. No
+hizo falta tocar el robot: los dos canales ya estaban en la lista blanca.
+👤 Los **LEDs por grupo**: la pantalla ofrecía **uno de doce**. Y la rueda de color mentía en las dos
+direcciones —dibujaba un eje de saturación en el **51,8 %** de su área y descartaba el radio, y su
+marcador iba clavado en el borde—. La sustituye una tira, que es de un eje y por tanto un
+`<input type="range">` nativo. De paso, «Apagar» **destruía la saturación**, y la paleta era de
+pantalla usada como paleta de emisor: cinco de ocho bajo el 67 % de brillo, dos a 16° de tono y sin
+verde.
+
+**Lo que ve** (`b3a1c30`). Se dibujan los dos polígonos y el punto ciego del LIDAR, con una lectura
+de qué está haciendo la capa de seguridad ahora mismo — **dicho como deducción**, porque lo que de
+verdad hace lo publica `/collision_monitor_state`. 🔴 El módulo nació con **un solo `min_points`** y
+en el YAML son dos (`Aproximacion` 2, `Precaucion` 4): había citado la fuente sin abrirla.
+
+**El Taller** (`515eeb2`). 👤 Consola oscura con seis colores de sintaxis, todos medidos sobre el
+fondo real y con **el instrumento validado antes** reproduciendo las tres cifras que el fichero ya
+afirmaba. Al oscurecer se rompían dos colores medidos para papel: `--muted-foreground` cae a
+**2,11:1** y el filete de una traza a **3,39:1**.
+🔴🔴 Y la pantalla completa **no** usa la Fullscreen API: habría hecho **desaparecer** la parada de
+emergencia —el portal la manda a un nodo que es hermano y no antepasado—. El modo expandido respeta
+los 272 px del raíl. **Hoy tapar la parada deja las 1210 pruebas en verde**: la única guardia mira
+contención en el DOM, no visibilidad.
+Dos defectos de accesibilidad cerrados: la salida **no era enfocable** (con teclado no se podía
+desplazar) y **no tenía `aria-live`**.
+
+**Si no obedece** (`ce40b7e`). Faltaba la causa más común de un aula: un programa del Taller publica
+en **el mismo `/cmd_vel_raw`** que la palanca, así que el robot obedece — a otro. La pantalla no lo
+puede ver sin abrir un segundo socket, así que se lista en `NO_SE_SABE` con el remedio de ir a
+mirarlo: **omitirla haría que la lista pareciera completa sin estarlo**.
+
+---
+
+### ⏳ Lo que queda, y no se ha tocado
+
+🔴 **LA PORTADA AFIRMA DE LOS DIECISÉIS LO QUE HOY HACE UNO.** Dice, en presente y sin matices:
+*«al entrar, este servidor te firma una credencial para ese robot en concreto, y el robot la
+comprueba. Sin ella te cierra la puerta»*. La Fase B está cerrada **en rvr-01**, y este mismo
+repositorio lo anota al lado: *«lo que la Fase B no cierra: TLS y los otros 15 robots»*. Hoy
+**quince de dieciséis aceptan una conexión sin credencial**. La frase de la otra columna —«sin
+sesión no se conecta con ninguno»— describe lo que la web se niega a intentar, no lo que el robot
+exige. Es el defecto que esa pantalla existe para no cometer: es la única superficie pública y su
+argumento entero es que no afirma lo que no ha medido. **Arreglo: decir en cuántos robots está
+puesto.** 👤 Revisado y propuesto; sin aplicar.
+
+⏳ Y tres de maqueta en la misma pantalla, menores: dos pares de frases duplicadas en columnas
+distintas, el aviso ámbar de diez líneas como segundo bloque de la página —mezcla lo que la sesión
+hace, que importa al entrar, con lo que no protege, que importa a quien monta el laboratorio— y las
+columnas sin equilibrar (izquierda ~1300 px, derecha ~1060).
+
+### 👤 Para la Raspberry Pi — dos cosas que no puede decidir el PC
+
+1. **Medir el caudal de `/estado_ir` en kB/s.** Es la única cifra que falta para que los
+   infrarrojos puedan llegar al muro: `presupuesto.ts` **lanza** ante un topic sin caudal medido, a
+   propósito. Referencia: `/estado_robot` son 348 bytes exactos a 1 Hz = 0,35 kB/s (evidencia 110).
+   Estimarlo sería justo lo que ese módulo existe para impedir.
+2. **Un servicio `/set_ir_baliza`**, si se quiere que la web pueda emitir como baliza continua. Hoy
+   `broadcasting` y `following` viajan en el **mismo** `set_ir_mode` con `mode` como cadena libre, y
+   la lista blanca filtra por servicio y no por argumento — así que abrirlo abriría también lo que
+   conduce. Un servicio que **por construcción** no pueda expresar `following` lo resuelve sin tocar
+   esa decisión. Propuesta completa en el informe de la sesión.
+   ⚠️ Tocar un `.srv` obliga a `rm -rf build/atriz_rvr_msgs install/atriz_rvr_msgs` antes de
+   recompilar, y tras cambiar los globs hay que pasar `probar_lista_blanca.py`: rosbridge **deniega
+   en silencio**.
+
+### ⏳ Y lo que sigue sin verificar contra un robot
+
+Nada de esta sesión ha visto rvr-01. En `atriz-lab/VALIDAR_CON_EL_ROBOT.md` §6 quedan anotadas las
+casillas: que 2,0 rad/s sea gobernable, que 0,40 m/s sea razonable en un pasillo de aula, que dos
+colores de LED se distingan **en el robot**, y los infrarrojos —que **exigen dos robots**—.
+
+---
+
 ## 2026-08-16, tarde (PC) — «La web no ve al robot»: era del PC, y la pantalla culpaba al robot
 
 👤 **No hay nada que hacer en la Pi.** Todo el lado del robot estaba bien, y se verificó también

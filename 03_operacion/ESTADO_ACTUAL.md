@@ -11,7 +11,64 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-16
+**Última actualización:** 2026-08-16 (noche)
+
+---
+
+## ✅ PC (2026-08-16, noche) · **F5 CERRADA — siete pantallas, y dos cosas para la Pi**
+
+Ocho commits en `atriz-lab`, rama `rediseno-2026-08` (`2dca601`..`ce40b7e`).
+
+```
+tsc limpio · eslint limpio · 1210 pruebas (eran 1095) · siete pantallas vistas en navegador
+```
+
+🔴 **Nada de esto toca el robot.** Ni un `.msg`, ni un servicio, ni la lista blanca. Lo que sí
+necesita a la Pi son **dos cosas, y las dos son decisión tuya**:
+
+**1 · Medir el caudal de `/estado_ir` en kB/s.** Es lo único que falta para que los infrarrojos
+puedan salir en el muro de flota. `presupuesto.ts` **lanza** ante un topic sin caudal medido, a
+propósito: devolver 0 sería aprobar sin sumar. Referencia para el método: `/estado_robot` dio
+**348 bytes exactos por mensaje** a ~1 Hz = 0,35 kB/s (evidencia 110), con sus controles.
+⚠️ Estimarlo no vale. `/estado_ir` tiene más campos y el numero honesto es el medido.
+
+**2 · ¿Se abre una baliza IR a la web?** Hoy la web **puede** leer `/estado_ir` y **puede** emitir
+un código suelto con `/send_infrared_message` —los dos ya en la lista blanca—, y con eso ya hay
+sección de infrarrojos. Lo que NO puede es dejar el robot **emitiendo como baliza**, porque
+`broadcasting` y `following` viajan en el **mismo** `set_ir_mode` con `mode` como cadena libre, y la
+lista blanca filtra por **servicio**, no por argumento: abrirlo abriría también lo que conduce.
+
+Si te interesa, la propuesta es un servicio nuevo que **por construcción** no pueda expresar
+`following` ni `evading`:
+
+```
+# atriz_rvr_msgs/srv/SetIRBaliza.srv
+bool encender          # false = off (apaga baliza, following y evading)
+uint8 far_code         # 0-7, ignorado si encender=false
+uint8 near_code        # 0-7, ignorado si encender=false
+---
+bool success
+string message
+```
+
+Delegaría en la lógica que ya tiene `_srv_ir_modo` con `mode` fijado a `'broadcasting'` o `'off'`, y
+haría falta añadir `'/set_ir_baliza'` a `SERVICIOS` en `robot.launch.py`.
+⚠️ Dos trampas ya conocidas: tocar un `.srv` obliga a `rm -rf build/atriz_rvr_msgs
+install/atriz_rvr_msgs` antes de recompilar —un `colcon build` a secas dice «finished» y no instala
+el campo nuevo—, y tras cambiar los globs hay que pasar `mediciones_banco/probar_lista_blanca.py`,
+porque **rosbridge deniega en silencio**.
+
+### 🔴 Y una que no es de la Pi pero te afecta: la portada afirma de los 16 lo que hace 1
+
+La pantalla pública dice, en presente: *«al entrar, este servidor te firma una credencial para ese
+robot en concreto, **y el robot la comprueba**»*. La Fase B está cerrada **en rvr-01**. Hoy quince
+robots aceptan una conexión sin credencial. Está **anotado y sin arreglar** a la espera de decidir
+si se corrige la frase o se despliega la Fase B a los otros quince.
+
+### ⏳ Lo que sigue sin ver un robot
+
+Todo lo de esta sesión. Las casillas están en `atriz-lab/VALIDAR_CON_EL_ROBOT.md` §6, y hay una que
+**exige DOS robots**: los infrarrojos. Lo demás se puede cerrar con rvr-01 en una sesión.
 
 ---
 
