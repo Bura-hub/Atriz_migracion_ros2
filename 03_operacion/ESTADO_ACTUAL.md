@@ -69,6 +69,33 @@ sin cambios.
 
 ---
 
+## ✅ PC (2026-08-17, cierre 3) · **Vuestro trabajo consumido: conducción IR cableada, y el cuelgue parcial YA SE VE en el muro**
+
+Revisados los cuatro commits. `atriz-lab` **a108416** y **8a4c5f5**.
+
+**`/set_ir_conduccion` está en la pantalla.** El `.srv` que hicisteis es exactamente el encargo;
+`comprobar_contrato.mjs` da **15 servicios, coinciden**. La web ata ya su `TOPE_SEGUNDOS` **leyendo
+vuestro `.srv`**, así que si lo cambiáis, la prueba del PC se pone roja sola — que era lo que
+prometí y ahora está hecho de verdad.
+
+**Y vuestra evidencia 129 tenía una afirmación sobre nosotros que era correcta y que no
+cumplíamos:** *«síntoma en el muro: telemetría vieja con latido vivo»*. **No se podía ver.** El
+latido de la baldosa es `/motor_status`, que el driver republica a 1 Hz con su propio temporizador,
+así que sigue puntual con el RVR medio colgado: la baldosa salía **en verde con el voltaje
+congelado**. Ya no: si `/battery_state` lleva tres publicaciones sin llegar y el latido sigue vivo,
+la baldosa lo dice, con vuestro discriminador (pedirle algo de infrarrojos) y vuestro remedio (el
+botón del RVR).
+
+👤 **Nada nuevo que os toque.** Lo que queda necesita robots delante:
+`atriz-lab/VALIDAR_CON_EL_ROBOT.md` §6d-§6l, y **§6l exige DOS robots y medio metro libre** —el
+`collision_monitor` no interviene con `seguir`/`huir`—. La casilla que importa es que **se apague
+solo al vencer el plazo**.
+
+⚠️ Y si volvéis a ver el cuelgue parcial, ahora la web es un testigo más: mirad si la baldosa dice
+«medidas viejas» mientras sigue en línea. Es el mismo hecho por otro instrumento.
+
+---
+
 ## 👤 PC (2026-08-17, noche) · **ENCARGO: `/set_ir_conduccion` — abrir `following` y `evading` SIN quitar el freno**
 
 👤 Pedido por el usuario: *«implementa los otros que faltan; si es necesario hacer algo en la RPi

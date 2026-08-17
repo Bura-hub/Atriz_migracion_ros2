@@ -24,6 +24,54 @@ Al PC le quedan sus tres pasos (contrato.ts, PanelInfrarrojos, la prueba que ata
 
 ---
 
+## 2026-08-17, cierre 3 (PC) — Lo del robot revisado y consumido: la conducción IR cableada y el cuelgue parcial visible en el muro
+
+Revisados los cuatro commits que subió la Pi. `atriz-lab` **a108416** y **8a4c5f5**.
+
+### `/set_ir_conduccion` cableado
+
+El `.srv` que llegó es exactamente el encargo, con `uint8 modo` y `TOPE_SEGUNDOS=30`. La web ya
+ofrece «Seguir o huir de otro robot» en Acciones, con selector, plazo y dos botones, diciendo sin
+suavizarlo que **ni el vigilante ni el `collision_monitor` intervienen**. `comprobar_contrato.mjs`:
+**15 servicios, coinciden**.
+
+🔴🔴 **Y la prueba que prometí —atar `TOPE_SEGUNDOS` al `.srv`— pasó en verde DOS VECES sin leer
+nada.** La escribí con la ruta mal (dos niveles, luego seis; son **cinco**), y las dos veces pasó
+porque cuando no encontraba el fichero se iba por un `return` con un `console.warn`.
+→ **La aritmética no era el defecto: el `return` sí.** Una comprobación que se salta cuando no
+  encuentra su fuente **no puede distinguir «todo bien» de «no he mirado»**, y avisar por consola
+  no lo arregla: nadie lee la consola de una tanda en verde. Es la comprobación **nº14** del
+  verificador del robot —la que se saltó sola y en silencio— cometida en la sesión que la cita.
+→ Ahora **falla** si el `.srv` no está. Ensayado en las dos direcciones.
+→ 📝 Dos papercuts del mismo rato: en una plantilla de JS `` es un **retroceso**, no un límite de
+  palabra; y un `json.dumps` con emoji reventó a mitad de escritura y **dejó un fichero vacío**
+  —restaurado del último commit—. Desde ahí, ediciones precisas en vez de reescribir ficheros.
+
+### El cuelgue parcial, ahora visible en el muro
+
+La evidencia 129 afirma cuál es el síntoma en la plataforma —«telemetría vieja con latido vivo»— y
+**la web no podía distinguirlo**, comprobado antes de tocar nada: el latido de la baldosa es
+`/motor_status`, que el driver **republica a 1 Hz con su propio temporizador**, así que sigue
+puntual con el RVR medio colgado. Una baldosa salía **en verde, «en línea», con el voltaje
+congelado** — el RVR dormido con el nodo vivo, en la pantalla que existe para no cometer eso.
+
+✅ El umbral se expresa en **mensajes perdidos** y se **deriva** de `RITMO_MEDIDO_HZ`: tres
+publicaciones de `/battery_state` = 90 s, no un número a mano. Con el latido caído **no dice
+nada** (ahí ya hay un aviso mejor fundado), `null` **no dispara** («aún no ha llegado» ≠ «dejó de
+llegar»), y el motivo va **delante del atasco y la batería**, porque si el robot está medio
+colgado todo lo demás sale de datos viejos.
+
+⚠️ Se presenta como **sospecha** y las pruebas lo exigen: n=1, y un mal rato de WiFi lo produce
+igual. Lo medido es el **discriminador** (un servicio IR contesta mientras la telemetría calla) y
+el **remedio** (el botón del RVR; la Pi se reanuda sola).
+
+`tsc` y `eslint` limpios · **1262 pruebas** (eran 1235 al empezar).
+
+⏳ `VALIDAR_CON_EL_ROBOT.md` **§6l**: exige DOS robots y medio metro libre alrededor, y la casilla
+que importa es que **se apague solo al vencer el plazo**.
+
+---
+
 ## 2026-08-17, cierre 2 (PC) — `following` y `evading`: la lógica lista, y un encargo para la Pi
 
 👤 Del usuario: *«¿qué pasó con following, evade y demás? recuerda afinar muy bien la herramienta»*,
