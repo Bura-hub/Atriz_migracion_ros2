@@ -1,0 +1,113 @@
+═══════════════════════════════════════════════════════════════════════════════
+128 · /set_ir_conduccion: SEGUIR/HUIR CON PLAZO, VERIFICADO POR EFECTO —
+      Y EL ARNÉS QUE ACUSÓ AL REARME CUANDO EL LENTO ERA ÉL
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-17 · rvr-01 · encargo del PC (commit 516a9f5 de migracion)
+Origen:  El usuario pidió abrir «los que faltan» de IR a la web. `following` y
+         `evading` conducen desde el FIRMWARE (sin cmd_vel: ni watchdog ni
+         collision_monitor los ven). La condición histórica de reapertura
+         —identidad por usuario— se cumplió con la Fase B y NO basta:
+         identidad cambia quién responde, no el peligro. El diseño del PC:
+         plazo obligatorio con tope, y el driver lo apaga solo.
+Método:  TDD primero (la prueba en rojo por ImportError antes del .srv),
+         despliegue con las trampas conocidas (`compilar.sh --limpio` para el
+         .srv, SIGINT al MainPID), y verificación por efecto con los sellos
+         del journal como reloj — no con los `sleep` del arnés.
+
+RESUMEN
+  El servicio está DESPLEGADO y las cinco propiedades del encargo, verificadas
+  por efecto: se apaga solo · rechaza sin recortar · rearma sin acumular · la
+  parada activa lo rechaza · la parada en caliente cancela el plazo. Suite del
+  driver 16/16 (10 nuevas). Y una confesión de instrumento: el primer banco
+  del rearme acusó al driver, y el culpable era el propio arnés (la latencia
+  de ~2-4 s del CLI de ros2 en la Pi).
+
+───────────────────────────────────────────────────────────────────────────────
+1 · EL CONTRATO (espejo de conduccion_ir.ts del PC)
+───────────────────────────────────────────────────────────────────────────────
+  SetIRConduccion.srv: `uint8 TOPE_SEGUNDOS=30` · `uint8 modo` (0=off ·
+  1=seguir · 2=huir, entero y NO cadena libre) · códigos 0-7 · `float32
+  segundos` en (0, 30]. `off` es 0 a propósito: un campo ausente llega como 0
+  y 0 tiene que ser APAGAR.
+
+  El manejador DELEGA en `_srv_ir_modo`/`_srv_ir_evasion` (una sola
+  validación: `_mover_permitido()`, rangos, contabilidad de /estado_ir) y
+  añade lo nuevo: el plazo. Temporizador rclpy en GRUPO PROPIO (la trampa de
+  la 126: un timer pase-lo-que-pase no comparte grupo con nada que bloquee),
+  de un disparo (los timers de rclpy son periódicos: se cancela al vencer),
+  con GENERACIÓN para que un vencimiento en vuelo durante un rearme quede
+  rancio y no toque nada.
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LA PIEZA CLAVE, CON CONTROL: SE APAGA SOLO — Y SIN PLAZO, NO
+───────────────────────────────────────────────────────────────────────────────
+  seguir 5 s (sin emisor cerca: following no mueve, banco seguro):
+    t=0   /estado_ir → modo='following'
+    t=7   /estado_ir → modo='off'          ← nadie mandó apagar
+  CONTROL · set_ir_mode directo (por DDS, sin plazo):
+    t=7   /estado_ir → modo='following'    ← se queda encendido
+  El apagado lo produce el plazo y solo el plazo. El journal registra cada
+  vencimiento: «plazo de conducción IR vencido: ... el tope manda».
+
+───────────────────────────────────────────────────────────────────────────────
+3 · EL ARNÉS MINTIÓ ANTES QUE EL DRIVER (rearme, primer intento)
+───────────────────────────────────────────────────────────────────────────────
+  🔴 Primer banco del rearme (bash + ros2 CLI, ventanas de 5 s): «off» a los
+     4 s de la segunda petición → parecía que el rearme NO extendía el plazo.
+  ✅ El journal lo desmintió con sellos: la «segunda» petición llegó a los
+     6 s de la primera — el CLI de ros2 tarda ~2-4 s por llamada en la Pi 4
+     (descubrimiento de servicios), así que las dos peticiones NUNCA se
+     solaparon y cada una venció sola, correctamente, a sus 5,0 s exactos.
+  📝 La forma es la de siempre: el instrumento más cómodo (sleep + CLI) no
+     tiene resolución para ventanas de 5 s. El banco bueno usa rclpy (llamada
+     en ~0,1 s) y el journal como reloj.
+
+───────────────────────────────────────────────────────────────────────────────
+4 · REARME SIN ACUMULAR, CON SELLOS DEL JOURNAL
+───────────────────────────────────────────────────────────────────────────────
+    1787001303.404  set_ir_mode(following)      ← 1ª petición, 4 s
+    1787001305.506  set_ir_mode(following)      ← rearme a +2,1 s, otros 4 s
+    1787001309.526  plazo vencido               ← ÚNICO, a 4,02 s de la 2ª
+  Ni venció a los 4 s de la primera (t≈1307,4: nada en el journal), ni sumó
+  8: UN vencimiento, 4,02 s tras la SEGUNDA. Rearmar cancela y sustituye.
+
+───────────────────────────────────────────────────────────────────────────────
+5 · LA PARADA DE EMERGENCIA, LAS DOS CARAS
+───────────────────────────────────────────────────────────────────────────────
+  · EN CALIENTE: seguir 10 s → parada a +1 s → /estado_ir modo='off' y CERO
+    líneas de vencimiento en la ventana posterior: el plazo quedó CANCELADO,
+    no diferido. (Sin esto quedaría un stop armado sobre un robot parado —
+    inocuo hoy, veneno si alguien lo reactiva a mano.)
+  · ACTIVA: pedir seguir → success=False · «parada de emergencia ACTIVA:
+    llama primero a /release_emergency_stop» (heredado de la delegación en
+    `_mover_permitido`, el agujero que ya se tapó el 2026-08-01).
+
+───────────────────────────────────────────────────────────────────────────────
+6 · RECHAZAR, NO RECORTAR — Y LA LISTA BLANCA
+───────────────────────────────────────────────────────────────────────────────
+    segundos=31  → False · «segundos=31.0: debe ser >0 y <=30»
+    segundos=0   → False · (mismo motivo; NaN/inf caen por la comparación
+                   encadenada — la trampa de limitar(nan) no se repite)
+    modo=3       → False · «modo=3 desconocido: 0=off · 1=seguir · 2=huir»
+  probar_lista_blanca.py (con el caso nuevo, modo=0 inocuo): tanda en verde —
+  /set_ir_conduccion responde y acepta · set_ir_mode sigue SIN responder.
+
+───────────────────────────────────────────────────────────────────────────────
+CONDICIONES Y LÍMITES
+───────────────────────────────────────────────────────────────────────────────
+  · Sin segundo robot emitiendo: following/evading verificados como MODO
+    (estado, plazo, parada), no como conducta. Que el robot SIGA de verdad
+    exige dos robots — VALIDAR §6g, sin cambios.
+  · El tope de 30 s es elección de aula (lo inventó el PC y lo mantengo):
+    si en la práctica no encaja, se cambia en el .srv y la web se re-ata.
+  · TDD: 10 pruebas nuevas sobre los métodos reales sin enlazar (mapeo,
+    plazo, generación, parada); el camino ROS completo es lo verificado en
+    vivo arriba. Suite del driver: 16/16.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ✅ El encargo del PC queda cumplido: .srv + manejador + lista blanca.
+  ⏳ Al PC le quedan sus tres pasos: el servicio en contrato.ts, el mando en
+     PanelInfrarrojos, y la prueba que ate TOPE_SEGUNDOS al .srv del robot.
+  ⏳ Con dos robots: el seguimiento real (VALIDAR §6g) y el caso «huir».

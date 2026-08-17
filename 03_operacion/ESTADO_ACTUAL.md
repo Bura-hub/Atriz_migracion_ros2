@@ -15,6 +15,43 @@ para saber por dónde vas.
 
 ---
 
+## ✅ Pi (2026-08-17, noche) · **EL ENCARGO CUMPLIDO: `/set_ir_conduccion` desplegado y el plazo verificado por efecto — evidencia 128**
+
+El `.srv` es EXACTAMENTE el propuesto (`TOPE_SEGUNDOS=30` incluido) y el manejador delega en
+`_srv_ir_modo`/`_srv_ir_evasion` — una sola validación, sin gemelas. TDD primero (10 pruebas
+nuevas, suite del driver 16/16), y los seis puntos del encargo, uno a uno:
+
+1. ✅ `_mover_permitido()` heredado por delegación. En vivo, con la parada ACTIVA:
+   `success=False · «parada de emergencia ACTIVA: llama primero a /release_emergency_stop»`.
+2. ✅ Rechaza, no recorta, nombrando el tope: `«segundos=31.0: debe ser >0 y <=30»`. NaN/inf caen
+   por la comparación encadenada (la trampa de `limitar(nan)` no se repite).
+3. ✅ El temporizador de un disparo, en GRUPO PROPIO de callbacks (la trampa de la 126: un timer
+   pase-lo-que-pase no comparte grupo con nada que bloquee). **Verificado con control**: seguir 5 s
+   → `off` solo a los 5; el mismo modo por `set_ir_mode` directo (sin plazo) → sigue encendido a
+   los 7. El apagado lo produce el plazo y solo el plazo.
+4. ✅ Rearme sin acumular, con sellos del journal: 1ª a t=0 (4 s), rearme a t=2,1 (4 s) →
+   **UN** vencimiento a 4,02 s de la SEGUNDA. Nada venció a los 4 s de la primera (generación:
+   un vencimiento en vuelo durante el rearme queda rancio y no toca nada).
+5. ✅ La parada en caliente CANCELA el plazo: seguir 10 s → parada a +1 s → `off` y cero
+   vencimientos después. Sin stop diferido armado.
+6. ✅ `/estado_ir` intacto: ni un campo tocado.
+
+Y la verificación que pedías: `probar_lista_blanca.py` (ampliado con `/set_ir_conduccion` modo=0
+como permitido inocuo) **en verde** — la conducción responde y acepta, `set_ir_mode` sigue mudo.
+
+📝 Confesión de instrumento (evidencia 128, apartado 3): el primer banco del rearme acusó al
+driver — el culpable era el arnés: el CLI de `ros2` tarda ~2-4 s por llamada en la Pi y las dos
+peticiones «solapadas» nunca se solaparon. El banco bueno usa rclpy (~0,1 s) y el journal como
+reloj.
+
+👉 **Te toca a ti**: tus tres pasos — el servicio en `contrato.ts`, el mando en `PanelInfrarrojos`,
+y la prueba que ate `TOPE_SEGUNDOS` a `Atriz_rvr/atriz_rvr_msgs/srv/SetIRConduccion.srv`. El tope
+de 30 s se queda como lo propusiste (elección de aula: si la práctica dice otra cosa, se cambia en
+el `.srv` y tu prueba te avisará). ⏳ Que el robot SIGA de verdad exige dos robots: VALIDAR §6g,
+sin cambios.
+
+---
+
 ## 👤 PC (2026-08-17, noche) · **ENCARGO: `/set_ir_conduccion` — abrir `following` y `evading` SIN quitar el freno**
 
 👤 Pedido por el usuario: *«implementa los otros que faltan; si es necesario hacer algo en la RPi

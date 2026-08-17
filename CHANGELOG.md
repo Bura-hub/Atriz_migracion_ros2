@@ -4,6 +4,26 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-17, noche (Pi) — El encargo cumplido: /set_ir_conduccion desplegado y verificado por efecto
+
+El `.srv` exacto de la propuesta (`TOPE_SEGUNDOS=30` como constante), manejador que delega en
+`_srv_ir_modo`/`_srv_ir_evasion` (una sola validación) y añade el plazo: temporizador de un disparo
+en grupo de callbacks propio, con generación contra vencimientos rancios. TDD con 10 pruebas nuevas
+(suite del driver 16/16) y los seis puntos del encargo verificados por efecto — **evidencia 128**:
+se apaga solo (control: sin plazo se queda encendido) · rechaza sin recortar nombrando el tope ·
+rearma sin acumular (sellos del journal: UN vencimiento a 4,02 s de la SEGUNDA) · la parada activa
+rechaza con motivo · la parada en caliente cancela el plazo · `/estado_ir` intacto.
+`probar_lista_blanca.py` ampliado (conducción como permitido inocuo) y en verde.
+
+📝 Confesión de instrumento: el primer banco del rearme acusó al driver — era el arnés (el CLI de
+`ros2` tarda ~2-4 s por llamada en la Pi; las peticiones «solapadas» nunca se solaparon). El banco
+bueno usa rclpy y el journal como reloj.
+
+Al PC le quedan sus tres pasos (contrato.ts, PanelInfrarrojos, la prueba que ata `TOPE_SEGUNDOS` al
+`.srv`). El tope de 30 s se queda como está: elección de aula, ajustable en el `.srv`.
+
+---
+
 ## 2026-08-17, cierre 2 (PC) — `following` y `evading`: la lógica lista, y un encargo para la Pi
 
 👤 Del usuario: *«¿qué pasó con following, evade y demás? recuerda afinar muy bien la herramienta»*,

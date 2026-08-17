@@ -241,6 +241,12 @@ def main() -> int:
                             'service': '/set_ir_baliza',
                             'args': {'encender': False, 'far_code': 0,
                                      'near_code': 0}}),
+        # 🆕 2026-08-17: la conducción IR con plazo. Se manda modo=0 (apagar),
+        #    que es inocuo, no valida nada y no depende del estado.
+        ('/set_ir_conduccion', {'op': 'call_service', 'id': 'a4',
+                                'service': '/set_ir_conduccion',
+                                'args': {'modo': 0, 'far_code': 0,
+                                         'near_code': 0, 'segundos': 0.0}}),
     ]
     for nombre, msg in permitidos:
         p.enviar(msg)
