@@ -4,6 +4,70 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-17, noche (PC) — Los tres pendientes del PC, cerrados
+
+`atriz-lab` **bc02eaf** y **cfe980b**. Ninguno toca el robot.
+
+### 1 · `motion` fuera — y era lo único que separaba la rama de `main`
+
+Llevaba meses instalada con **cero imports**. Se desinstala, y el motivo de fondo no es el peso:
+las guardias de estilo de ese repositorio leen **CSS**, así que una animación infinita escrita en
+JavaScript —`{ repeat: Infinity }`— habría pasado por delante de todas ellas. Y lo infinito sobre
+dato, enlace o salud está prohibido por una razón medida: una interfaz que se mueve sola sobre un
+robot mudo **parece viva**.
+
+✅ Una prueba nueva impide que vuelva **de puntillas**, que es lo que hizo daño: si entra una
+biblioteca que anime desde JS, exige que exista antes la guardia contra lo infinito.
+🔴 **Y ese fichero nació con el error que existe para impedir:** buscaba una prohibición cuyo
+NOMBRE contuviera «infinit», y ya hay una —«animation: … infinite»— que solo mira CSS. Daba la
+guardia por puesta sin cubrir JavaScript. Ahora comprueba si algún patrón **casa la cadena**, que
+no se puede fingir con un nombre bien elegido. Ensayado en las dos direcciones.
+
+### 2 · `/estado_ir` anotado, y una prueba que protegía una coincidencia
+
+La cifra medida por la Pi (0,40 kB/s) entra en `CAUDAL_KBS`. 🔴 Y cayó una estimación mía: había
+escrito ~421 B suponiendo que mandaría el nombre del modo, y mandan los `float32` en JSON.
+⚠️ **Tener la cifra no es llevarlo al muro:** subiría el coste por robot un 48 %, y eso es una
+decisión de producto, no un hueco que rellenar porque ya se pueda. `TOPICS_MURO` no se toca.
+
+🔴 Al anotarlo saltó una prueba: «los tres del muro son los tres más baratos de todos los medidos»
+—**sin que el muro hubiera cambiado**—. Describía el contenido de la tabla, no una propiedad del
+muro: un test que falla cuando el sistema mejora no protege nada. Sustituida por techos (ningún
+topic del muro pasa de 1 kB/s; los dieciséis, de 25), comprobando antes que **siguen cazando lo
+malo**: con `/odom` dentro revientan.
+
+### 3 · La baliza IR llega a la pantalla
+
+`/set_ir_baliza` estaba desplegado y **la web no lo ofrecía**. Ahora «Acciones» tiene «Baliza
+continua».
+
+🔴 **Y casi lo hago mal:** mi clon de `Atriz_rvr` estaba **dos commits por detrás** y el `.srv` no
+aparecía. Es la regla nº1 de este proyecto y el error más caro de su historia. Al leer el contrato
+de verdad resultó llevar **dos códigos**, no el booleano suelto que yo tenía anotado.
+
+**Lo que la pantalla confirma y lo que no, por separado:** `/estado_ir` publica `modo`, así que sí
+puede decir que el robot **dice** estar emitiendo. Que la luz salga **no**: es invisible y el robot
+no se escucha a sí mismo.
+
+🔴 **Apagar funciona siempre, aunque los códigos sean basura** —el `.srv` los ignora al apagar, así
+que validarlos haría que un valor raro impidiera apagar la baliza—. Y la pantalla avisa de que
+**apagar apaga TRES cosas**: baliza, seguimiento y evasión.
+
+📌 El cable trampa del contrato (`toHaveLength`) hizo su trabajo: obligó a mirar las dos
+enumeraciones explícitas, donde aparecieron **números rancios en los títulos** —«los DIEZ
+servicios» con trece en la lista—. Los títulos pierden el número.
+
+✅ `comprobar_contrato.mjs`: **SERVICIOS 14 entradas, coinciden** con la lista blanca del robot.
+`tsc` y `eslint` limpios · **1235 pruebas** (eran 1227 al empezar la tanda).
+
+### ⏳ Lo que queda, y ya no es del PC
+
+Todo lo pendiente necesita **un robot delante**: `atriz-lab/VALIDAR_CON_EL_ROBOT.md` §6d-§6k. Dos
+casillas —los infrarrojos y la baliza— **exigen DOS robots**, porque el único testigo de que se
+emitió es el «último código» del otro.
+
+---
+
 ## 2026-08-17, cierre (PC) — La portada corregida: afirmaba de los dieciséis lo que hace uno
 
 👤 Encargo directo del usuario, y decisión suya del mismo día: **corregir la frase**, no desplegar

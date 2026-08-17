@@ -71,20 +71,24 @@
 >   epílogo de `probar_lista_blanca.py` aconsejaba un `grep` que no podía encontrar
 >   nada; ahora manda comprobar por efecto.
 >
-> **⏳ TRES COSAS QUE AHORA SON DEL PC** —las dos primeras las habilita lo de arriba:
+> **✅ LAS TRES COSAS DEL PC, CERRADAS EL 2026-08-17** (`bc02eaf`, `cfe980b`):
 >
-> 1. **Llevar los infrarrojos al muro.** Ya hay cifra, así que `presupuesto.ts` deja
->    de lanzar. Con `/estado_ir` el muro pasa de ~0,84 a **~1,24 kB/s** por robot.
-> 2. **Ofrecer la baliza IR en la pantalla**, que ya tiene servicio y lista blanca.
+> 1. ✅ **`/estado_ir` anotado** (0,40 kB/s). ⚠️ Tener la cifra **no** es llevarlo al
+>    muro: subiría el coste por robot un 48 % y eso es decisión de producto, no un
+>    hueco que rellenar porque ya se pueda. `TOPICS_MURO` sigue con tres.
+> 2. ✅ **La baliza IR ya está en «Acciones»**, con los dos códigos del `.srv`.
 > 3. ~~🔴 **Corregir la frase de la portada.**~~ ✅ **HECHO el 2026-08-17**
 >    (`atriz-lab` 50c5597), pedido directamente por el usuario. Eran **dos** frases
 >    falsas, no una. Hoy dice «la exige 1 de los 16» y la concordancia de número se
 >    **deriva**, para que el día que valga 16 siga bien escrita. 👤 Cuando la Fase B
 >    llegue a más robots: subir `ROBOTS_QUE_EXIGEN_CREDENCIAL`, una línea.
 >
-> 🔴 **Y una que sigue abierta desde la revisión de los 23 commits:** `motion` está en
-> `package.json` **sin la guardia `repeat: Infinity` y sin desinstalar** —cero imports
-> por ahora—. Es **lo único que separa la rama de `main`**.
+> ✅ **`motion` DESINSTALADA** —era lo único que separaba la rama de `main`—, con una
+> prueba que impide que vuelva sin la guardia contra lo infinito.
+>
+> **⏳ Y a partir de aquí, todo lo que queda necesita un ROBOT DELANTE:**
+> `atriz-lab/VALIDAR_CON_EL_ROBOT.md` **§6d-§6k**. Dos casillas —infrarrojos y baliza—
+> **exigen DOS robots**: el único testigo de que se emitió es el otro robot.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-16 · F5 CERRADA — siete pantallas rehechas, y el instrumento que
