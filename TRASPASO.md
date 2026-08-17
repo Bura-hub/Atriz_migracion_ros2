@@ -5,6 +5,64 @@
 > contexto desde cero.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-17 · LA PUERTA DE SESIÓN, MEDIDA EN LAS TRECE RUTAS**
+> ═══════════════════════════════════════════════════════════════════════════════
+> Sin cambios de producto: lo que cambia es que la puerta pasa de estar escrita a
+> estar **medida**, con un comando repetible que vive en `atriz-lab/CLAUDE.md`.
+>
+> ```
+> /   200   ·   /entrar   307 -> /   ·   las otras once   307 -> /?volver=<ruta>
+> ```
+>
+> - 🔴 **La portada no sirve de comprobación:** es pública, así que da 200 con el
+>   `middleware.ts` roto. Lo que prueba la puerta es que **las otras doce
+>   redirijan**.
+> - ✅ **`/robot/99` redirige a la puerta en vez de dar 404, y eso está BIEN.**
+>   Parece un fallo —solo hay dieciséis robots— y no lo es: el `notFound()` vive
+>   detrás de la puerta, así que un 404 diría a quien no tiene sesión **qué
+>   identificadores existen**. Queda escrito para que nadie lo «arregle».
+> - 🔑 **`crear-cuenta.mjs` no escribe `rol`**, así que lo que crea se lee como
+>   **profesor**. Los dos caminos de la API sí fallan cerrado (individual exige
+>   `profesor` explícito, el lote clava `alumno`). ⚠️ **No es un agujero** —quien
+>   puede ejecutarlo ya tiene shell en el servidor—, es higiene. 👤 La línea que lo
+>   cierra está propuesta y **sin aplicar**.
+> - ✅ **Regla 5:** `usuarios.json` está en `.gitignore`; ni un hash en el
+>   repositorio, que importa porque `atriz-lab` es público.
+> - ⏳ **Las once pantallas de dentro NO se han visto** en esta tanda: la barrida
+>   mide la puerta, y pasar de ella exige credenciales.
+>
+> **✅ Y EL MISMO DÍA EL PI CERRÓ LOS DOS ENCARGOS**, así que lo que el bloque de
+> abajo pedía **ya está hecho** y lo que queda es del PC:
+>
+> - ✅ **`/estado_ir` medido: 412-414 B/msg a ~1,0 Hz = 0,40 kB/s por robot** (n=2,
+>   con un control que reprodujo la evidencia 110 **al byte**). 🔴 Y mi estimación de
+>   ~421 B quedó **refutada por su propia medición**: mandan los `float32`
+>   serializados a JSON, no el nombre del modo. Presupuesto del muro con los cuatro
+>   topics: **~1,24 kB/s por robot, ~19,8 los dieciséis**. Evidencia 127.
+> - ✅ **`/set_ir_baliza` desplegado en rvr-01** y en la lista blanca: `bool encender`,
+>   así que **por construcción no existe la petición que produzca `following`** — que
+>   era la condición. Verificado por efecto en vivo.
+> - 📌 De rebote, un hallazgo que corrige a este repositorio: **rosbridge deniega en
+>   silencio TAMBIÉN en el journal** (3 denegaciones provocadas → 0 líneas). El
+>   epílogo de `probar_lista_blanca.py` aconsejaba un `grep` que no podía encontrar
+>   nada; ahora manda comprobar por efecto.
+>
+> **⏳ TRES COSAS QUE AHORA SON DEL PC** —las dos primeras las habilita lo de arriba:
+>
+> 1. **Llevar los infrarrojos al muro.** Ya hay cifra, así que `presupuesto.ts` deja
+>    de lanzar. Con `/estado_ir` el muro pasa de ~0,84 a **~1,24 kB/s** por robot.
+> 2. **Ofrecer la baliza IR en la pantalla**, que ya tiene servicio y lista blanca.
+> 3. 🔴 **Corregir la frase de la portada.** 👤 El Pi registra que el usuario decidió
+>    **corregir la frase** —decir en cuántos robots está la credencial— y **no**
+>    desplegar la Fase B a los quince ahora: les llegará con la imagen dorada.
+>    ⚠️ **Sin aplicar**: esa decisión la recoge el commit del Pi, no la vi yo, y toca
+>    la única superficie pública. Se confirma antes de tocarla.
+>
+> 🔴 **Y una que sigue abierta desde la revisión de los 23 commits:** `motion` está en
+> `package.json` **sin la guardia `repeat: Infinity` y sin desinstalar** —cero imports
+> por ahora—. Es **lo único que separa la rama de `main`**.
+>
+> ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-16 · F5 CERRADA — siete pantallas rehechas, y el instrumento que
 > miraba mentía**
 > ═══════════════════════════════════════════════════════════════════════════════
@@ -37,10 +95,10 @@
 >   se corrige la frase o se despliega la Fase B a los otros quince.
 > - ⏳ **Nada ha visto un robot.** Las casillas nuevas están en
 >   `atriz-lab/VALIDAR_CON_EL_ROBOT.md` **§6d-6h**, y una **exige DOS robots**.
-> - 👤 **Dos cosas para la Pi**, en `03_operacion/ESTADO_ACTUAL.md`: medir el caudal
->   de `/estado_ir` —sin esa cifra el IR no puede llegar al muro— y decidir si se
->   abre una **baliza IR** con un servicio que por construcción no pueda expresar
->   `following`.
+> - ~~👤 **Dos cosas para la Pi**: medir el caudal de `/estado_ir` y decidir si se abre
+>   una **baliza IR**.~~ ✅ **LAS DOS CERRADAS POR EL PI EL 2026-08-17**, el día
+>   siguiente: 0,40 kB/s medidos y `/set_ir_baliza` desplegado. Ver el bloque de
+>   arriba.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-15 · EL TALLER VALIDADO CONTRA EL ROBOT, Y DOS PENDIENTES CERRADOS

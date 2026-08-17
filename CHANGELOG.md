@@ -37,6 +37,66 @@ sin desinstalar — cero imports aún; sigue siendo lo único entre la rama y ma
 
 ---
 
+## 2026-08-17 (PC) — La puerta de sesión, medida en las trece rutas: 200 en la portada y 307 en las doce
+
+Se relanzó la aplicación y **se recorrió entera**, que es lo que separa «el puerto escucha» de «la
+aplicación funciona». No toca el robot ni cambia una línea de producto: lo que cambia es que la
+puerta pasa de estar escrita a estar **medida**, y con un comando repetible.
+
+```
+/                     200
+/entrar               307 -> /
+las otras once        307 -> /?volver=<la ruta>
+```
+
+🔴 **La portada no sirve de comprobación, y era la trampa evidente:** es pública, así que devuelve
+200 con el `middleware.ts` roto. Lo que prueba que la puerta existe es que **las otras doce
+redirijan**, y que lo hagan con `?volver=` es lo que prueba además que devuelve a donde ibas.
+
+✅ **Y una conducta que PARECE un fallo y es la correcta: `/robot/99` redirige a la puerta en vez de
+dar 404.** Solo hay dieciséis robots, así que el 404 parece lo suyo. El `notFound()` por
+identificador inválido vive **detrás** de la puerta, o sea que contestar 404 a quien no tiene sesión
+le diría **qué identificadores existen** probando URLs. La autenticación va antes que la existencia,
+y queda escrito en `atriz-lab/CLAUDE.md` **para que nadie lo "arregle"**: corregirlo abriría una
+fuga de enumeración.
+
+📌 El comando de la barrida queda en `CLAUDE.md`, no en la memoria de una sesión. Es la regla de
+este proyecto —lo que no está en un guion se salta— aplicada a una comprobación de trece líneas.
+
+### 🔑 Y un hallazgo de rebote: `crear-cuenta.mjs` no escribe `rol`
+
+Los dos caminos de la API fallan **cerrado** y están bien: el alta individual exige
+`rol: 'profesor'` explícito, y el lote lo clava en `'alumno'` para los dieciséis de una clase. El
+guion de arranque **no escribe el campo**, y `rolDe()` lee su ausencia como `profesor`.
+
+→ ⚠️ **No es un agujero, y decirlo importa para no exagerar el aviso:** quien puede ejecutar ese
+  guion tiene shell en la máquina que sirve la aplicación, y eso ya supera a cualquier rol. Es
+  higiene.
+→ ✅ **La asimetría de los dos valores por defecto es deliberada**, y conviene no «unificarla»: al
+  LEER la ausencia vale `profesor` —porque las cuentas que ya estaban en disco son las de
+  administración, y leerlas como alumno dejaría la instalación **sin nadie capaz de crear cuentas**—
+  y al ESCRIBIR vale `alumno`. Cada lado falla hacia donde debe. Es el caso contrario al
+  `getattr(v, 'valido', False)` del testigo: allí un valor por defecto escondía una violación de
+  contrato; aquí cada default está elegido por lo que había antes, no por cuál es «el menor».
+→ 💡 **Sin aplicar, y es una línea:** que el guion escriba `rol: 'profesor'` explícito. No cambia el
+  comportamiento de nada — convierte un privilegio **implícito** en uno **registrado en el fichero**,
+  que es lo que se puede auditar después. 👤 Se deja a decisión del usuario porque toca el arranque
+  de la instalación.
+
+✅ **Regla 5 comprobada de paso:** `usuarios.json` está en `.gitignore` (`frontend/.gitignore:45`,
+verificado con `git check-ignore -v`), así que ni un hash ha salido al repositorio. Importa porque
+`atriz-lab` es público.
+
+### ⏳ Lo que sigue sin comprobar, y no se disimula
+
+**Las once pantallas de dentro no se han visto en esta tanda.** La barrida mide la PUERTA; pasar de
+ella exige credenciales, y la única cuenta es `bura_hub` con la contraseña en hash. Así que de las
+once solo está medido que **redirigen**, no que **pinten**. Lo que se vio en un navegador es lo de
+la sesión del 16, que está en su propia entrada.
+
+
+---
+
 ## 2026-08-16, noche (PC) — F5 cerrada: siete pantallas, y el instrumento que miraba mentía
 
 Ocho commits en `atriz-lab`, rama `rediseno-2026-08`, de `2dca601` a `ce40b7e`. Cierra la fase de
