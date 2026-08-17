@@ -4,6 +4,63 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-17, cierre 2 (PC) — `following` y `evading`: la lógica lista, y un encargo para la Pi
+
+👤 Del usuario: *«¿qué pasó con following, evade y demás? recuerda afinar muy bien la herramienta»*,
+y después *«implementa los otros que faltan; si es necesario hacer algo en la RPi dime»*.
+`atriz-lab` **9fa955b** y **8291e6e**.
+
+### 🔴🔴 Afinar la herramienta destapó una frase FALSA en la web, y de la peor clase
+
+El aviso de `/estado_ir` terminaba: *«No se puede parar desde aquí — se para en el robot»*.
+**La parada de emergencia sí los corta**: el driver manda `stop_..._evading()` y `stop_..._following()`
+explícitamente, porque `drive_stop()` no basta con modos de firmware.
+
+🔴 **Y lo hace desde el 2026-08-01**, en un commit del robot titulado *«La parada de emergencia no
+cubría la evasión IR, y el manual decía que sí»* — o sea que el proyecto **ya había pagado este
+mismo error una vez**. La web lo repitió el **2026-08-16**, quince días después, **en el commit que
+arreglaba «los dos rótulos falsos»** de esa misma pestaña.
+
+⚠️ Es la peor dirección para equivocarse: mandaba a una persona a **perseguir el robot por el aula**
+en vez de pulsar el botón rojo que tiene delante.
+
+🔴🔴 **Lo mantenía vivo una PRUEBA que fijaba la mentira**, con este comentario: *«ofrecer un botón
+que no existe es peor que no ofrecer nada»*. El argumento es correcto — aplicado a un hecho falso,
+porque el botón sí existe. **Un buen razonamiento sobre una premisa equivocada pasa todas las
+revisiones.** Hoy exige lo contrario y lleva control negativo.
+
+📌 Y había un segundo camino que tampoco se decía: **«Apagar» en la baliza apaga las tres cosas**,
+así que corta un seguimiento **sin bloquear el robot entero**.
+
+📝 De paso, corrijo algo que yo mismo había dicho mal: **`evading` NO va dentro de `set_ir_mode`**,
+tiene su propio servicio `set_ir_evading`. Lo dije de memoria y el código decía otra cosa.
+
+### La lógica de conducción por IR, escrita y probada — sin cablear
+
+`conduccion_ir.ts` + 12 pruebas. **No está conectada a ninguna pantalla a propósito**: el servicio
+no existe aún en el robot, y ofrecer un botón que contestará «no disponible» es peor que no
+ofrecerlo — evidencia 124, cablear es el ÚLTIMO paso.
+
+🔴 **La condición de reapertura se cumplió y aun así no basta.** `robot.launch.py` decía «se reabre
+cuando exista identidad por usuario, no antes», y la Fase B la trajo el 2026-08-15. Pero identidad
+cambia **quién responde**, no el peligro: un alumno identificado se salta el `collision_monitor`
+igual que uno anónimo. Lo que sí lo reduce es que **no pueda quedarse encendido**.
+
+### 👤 EL ENCARGO PARA LA PI, completo en `ESTADO_ACTUAL.md`
+
+`/set_ir_conduccion` con `uint8 modo` (0=off · 1=seguir · 2=huir) —**entero, no cadena libre**— y
+un `float32 segundos` obligatorio con tope. La pieza que justifica el servicio entero es el
+**temporizador de un disparo** que lo apaga solo; y hay cuatro detalles que van escritos porque se
+olvidan: rearmar en vez de acumular, cancelar el temporizador en la parada, `_mover_permitido()`
+primero, y `probar_lista_blanca.py` después porque **rosbridge deniega en silencio**.
+
+⚠️ **El tope de 30 s me lo he inventado**: es una elección de aula, no una medida. Y hasta que el
+`.srv` exista, la constante de la web es una **copia**; si se separan, manda el robot.
+
+`tsc` y `eslint` limpios · **1248 pruebas** (eran 1235).
+
+---
+
 ## 2026-08-17, noche (PC) — Los tres pendientes del PC, cerrados
 
 `atriz-lab` **bc02eaf** y **cfe980b**. Ninguno toca el robot.

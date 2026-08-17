@@ -15,6 +15,78 @@ para saber por dónde vas.
 
 ---
 
+## 👤 PC (2026-08-17, noche) · **ENCARGO: `/set_ir_conduccion` — abrir `following` y `evading` SIN quitar el freno**
+
+👤 Pedido por el usuario: *«implementa los otros que faltan; si es necesario hacer algo en la RPi
+dime»*. **Esto es lo que hace falta en la Pi.** El lado del PC ya está escrito y probado
+(`atriz-lab/src/lib/robot/conduccion_ir.ts`, 12 pruebas), **sin cablear a ninguna pantalla** hasta
+que el servicio exista — cablear antes es la evidencia 124.
+
+### Por qué no vale con añadir los dos servicios que ya existen a la lista blanca
+
+Es la opción barata (dos cadenas en `robot.launch.py`) y **no la recomiendo**:
+
+- `set_ir_mode` recibe **`string mode` libre**, y la lista blanca filtra por SERVICIO, no por
+  argumento: abrirlo abre todo lo que la cadena admita, hoy y el día que alguien añada un modo.
+- **Ninguno de los dos tiene plazo.** Un alumno arranca un seguimiento, se va a otra mesa, y el
+  robot conduce por el aula indefinidamente **con el `collision_monitor` fuera del circuito**.
+- La condición que el propio `robot.launch.py` escribió —*«se reabre cuando exista identidad por
+  usuario, no antes»*— **se cumplió con la Fase B el 2026-08-15**. Pero identidad cambia **quién
+  responde**, no el peligro: un alumno identificado se salta la capa de seguridad igual que uno
+  anónimo. La condición está cumplida y **no basta**.
+
+### El `.srv` propuesto
+
+```
+# atriz_rvr_msgs/srv/SetIRConduccion.srv
+# Modos IR que CONDUCEN el robot, acotados en el tiempo POR CONSTRUCCIÓN.
+uint8 TOPE_SEGUNDOS=30
+
+uint8 modo             # 0=off · 1=seguir · 2=huir   (entero, NO cadena libre)
+uint8 far_code         # 0-7
+uint8 near_code        # 0-7
+float32 segundos       # >0 y <=TOPE_SEGUNDOS. Con modo=0 se ignora.
+---
+bool success
+string message
+```
+
+🔴 **`off` es 0 a propósito:** un cuerpo mal formado o un campo que falte llega como 0, y 0 tiene
+que ser APAGAR. Si `seguir` fuera 0, un mensaje incompleto pondría el robot en marcha.
+
+### Lo que tiene que hacer el manejador
+
+1. **`self._mover_permitido()` primero**, como ya hace `_srv_ir_evasion` — con la parada activa se
+   rechaza. Ese agujero ya se tapó una vez el 2026-08-01; no se reabre por una puerta nueva.
+2. **Rechazar, no recortar**, fuera de rango. Con el motivo en `message`, nombrando el tope.
+3. **Armar un temporizador de un disparo** que al vencer llame a `stop_..._following()` y
+   `stop_..._evading()` y deje `_ir_modo='off'`. **Es la pieza que justifica el servicio entero.**
+4. **Rearmar, no acumular:** una petición nueva cancela el temporizador anterior. Dos peticiones
+   seguidas no pueden sumar 60 s.
+5. **La parada de emergencia tiene que cancelar ese temporizador**, o quedaría un `stop` diferido
+   disparando sobre un robot ya parado — inocuo hoy, veneno el día que alguien lo reactive a mano.
+6. **`/estado_ir` no cambia**: `modo` y `conduciendo_por_ir` ya cuentan lo que hace falta, y tocar
+   un `.msg` obliga a `rm -rf build/ install/` del paquete de mensajes.
+
+### Verificación que pediría antes de darlo por bueno
+
+- **Por efecto y con control:** pedir `seguir` 5 s con otro robot emitiendo → `/estado_ir` pasa a
+  `following` y `conduciendo_por_ir=true`; **a los ~5 s vuelve a `off` solo**, sin que nadie mande
+  nada. El control es que sin el temporizador se quedaría encendido.
+- **Con la parada activa:** rechaza, y `success=false` con motivo.
+- **Rearme:** dos peticiones de 5 s seguidas apagan a los ~5 s de la SEGUNDA, no a los 10.
+- `probar_lista_blanca.py` tras tocar los globs: **rosbridge deniega en silencio**, así que la
+  única forma de saber que quedó bien es por efecto.
+
+### Y una cosa que os toca a vosotros decidir
+
+**El tope de 30 s me lo he inventado yo** — es una elección de aula, no una medida. Si en la
+práctica se queda corto o largo, mandadlo y lo cambio en la web. ⚠️ Cuando el `.srv` exista, la web
+atará su constante a la vuestra con una prueba que lea el fichero, como `cascada.test.ts` lee
+`globals.css`; hasta entonces es una **copia**, y si se separan **manda el robot**.
+
+---
+
 ## ✅ PC (2026-08-17, cierre) · **La portada corregida — ya no afirma de los dieciséis lo que hace uno**
 
 👤 Lo pidió el usuario directamente, con vuestra decisión del mismo día delante: corregir la frase,
