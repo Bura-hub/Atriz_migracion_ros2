@@ -13,12 +13,12 @@ Método:  `probar_rosbridge.py` (el cliente WebSocket sin dependencias de
          con los arreglos de la evidencia 126 desplegados, atriz-robot activo.
 
 RESUMEN
-  /estado_ir cuesta **412 bytes/mensaje a ~1,0 Hz = 0,40 kB/s por robot**
-  (n=2 corridas + inspección por mensaje). CON UNA SALVEDAD QUE EstadoRobot NO
-  TIENE: el mensaje lleva `string modo`, así que el tamaño depende del modo.
-  Lo medido es con `modo='off'` (3 caracteres); con `'broadcasting'` (12) son
-  ~421 B ≈ 0,42 kB/s. Para el presupuesto vale 0,42 como cota, 0,40 como
-  medida.
+  /estado_ir cuesta **412-414 bytes/mensaje a ~1,0 Hz = 0,40 kB/s por robot**,
+  medido en los DOS modos accesibles hoy (off: 412-413 · broadcasting:
+  413-414; n=2 corridas de 60/30 s + inspección mensaje a mensaje). Para
+  `presupuesto.ts`: 0,41 kB/s cubre todo lo observado.
+  ~~Con 'broadcasting' serían ~421 B ≈ 0,42 kB/s (estimado)~~ — la estimación
+  se refutó al medirla el mismo día; el detalle, en el apartado 2.
 
 ───────────────────────────────────────────────────────────────────────────────
 1 · LA MEDIDA, CON SU CONTROL
@@ -40,21 +40,26 @@ RESUMEN
     `lecturas_validas=True`, `antiguedad=0.000`).
 
 ───────────────────────────────────────────────────────────────────────────────
-2 · LA SALVEDAD: ESTE MENSAJE NO ES DE TAMAÑO FIJO
+2 · LA SALVEDAD: ESTE MENSAJE NO ES DE TAMAÑO FIJO — Y MI ESTIMACIÓN ERA FALSA
 ───────────────────────────────────────────────────────────────────────────────
   EstadoRobot es de tamaño fijo y por eso la 110 pudo decir «348 exactos».
-  EstadoIR lleva `string modo` — `off`/`broadcasting`/`following`/`evading` —
-  así que el JSON crece con el nombre del modo:
+  EstadoIR lleva `string modo`, y la primera versión de este apartado ESTIMÓ
+  el efecto: ~~broadcasting ≈ 421 B (off + 9 caracteres)~~. El mismo día se
+  pudo MEDIR (el /set_ir_baliza nuevo permitió encender la baliza) y la
+  estimación era falsa:
 
-    modo            longitud   bytes/msg (estimado sobre lo medido)
-    off                 3          412   ← MEDIDO
-    evading             7         ~416
-    following           9         ~418
-    broadcasting       12         ~421
+    modo            bytes/msg MEDIDOS (5 mensajes por modo, mismo día)
+    off             412-413
+    broadcasting    413-414      ← no ~421
 
-  Solo la fila `off` está medida; las otras son la misma trama con más
-  caracteres, no una medición. Si el muro quiere UNA cifra: 0,42 kB/s cubre
-  el peor caso con margen.
+  Los +9 caracteres del nombre del modo se pierden en un ruido mayor: los
+  float32 se serializan a JSON con hasta 22 caracteres
+  (`"antiguedad_lectura_s":5.5789947509765625e-5`, visto en un mensaje real)
+  y esa variación por mensaje domina sobre el nombre del modo.
+
+  📝 La lección es la del propio encargo: «estimarlo no vale» — y le valió
+  también a la estimación que acompañaba a la medición. Para el presupuesto:
+  **412-414 B en los dos modos medidos; 0,41 kB/s cubre lo observado.**
 
 ───────────────────────────────────────────────────────────────────────────────
 3 · LO QUE SIGNIFICA PARA EL PRESUPUESTO DEL MURO
@@ -81,7 +86,13 @@ RESUMEN
 ───────────────────────────────────────────────────────────────────────────────
 LO QUE SIGUE ABIERTO
 ───────────────────────────────────────────────────────────────────────────────
-  ✅ El encargo nº 1 del PC queda respondido: 0,40 kB/s medido (0,42 de cota)
+  ✅ El encargo nº 1 del PC queda respondido: 0,40 kB/s medido (0,41 de cota)
      → `presupuesto.ts` ya puede dejar de lanzar por /estado_ir.
-  ⏳ El encargo nº 2 —el servicio /set_ir_baliza— es una decisión de alcance:
-     anotada en el canal, a la espera del usuario.
+  ✅ El encargo nº 2 —/set_ir_baliza— lo aprobó el usuario el mismo día y está
+     DESPLEGADO en rvr-01: TDD (6/6), servicio vivo, validación heredada
+     comprobada por efecto (far_code=200 → «0 a 7»; off→broadcasting→off en
+     /estado_ir), lista blanca verde con probar_lista_blanca.py ampliado.
+  📌 Y un hallazgo del cierre: rosbridge deniega en silencio TAMBIÉN en el
+     journal (tres denegaciones provocadas → cero líneas entre 41 de
+     rosbridge). El consejo del epílogo de probar_lista_blanca.py prometía
+     una línea que no existe; corregido hacia la comprobación por efecto.

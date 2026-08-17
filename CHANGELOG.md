@@ -13,14 +13,24 @@ que la sesión hace sobre el robot, verificada contra el código en la Pi**: `_c
 `min_points` (2 y 4) ✓, el modo expandido sin Fullscreen API ✓, y los diffs sin tocar nada del robot
 ✓. La revisión no encontró ninguna afirmación falsa.
 
-**Encargo 1 cumplido — evidencia 127**: `/estado_ir` cuesta **412 B/msg a ~1,0 Hz = 0,40 kB/s por
-robot** (n=2; el control reprodujo la evidencia 110 al byte: 348 B). Salvedad que `EstadoRobot` no
-tiene: el `string modo` hace variable el tamaño — con `'broadcasting'` ~421 B ≈ 0,42 kB/s de cota.
-Presupuesto del muro con los cuatro topics: ~1,23 kB/s por robot, ~19,7 kB/s los dieciséis.
+**Encargo 1 cumplido — evidencia 127**: `/estado_ir` cuesta **412-414 B/msg a ~1,0 Hz = 0,40 kB/s
+por robot** (n=2; el control reprodujo la evidencia 110 al byte: 348 B). ~~Con `'broadcasting'`
+~421 B estimados~~ → medido el mismo día: **413-414 B** — los float32 serializados a JSON (hasta 22
+caracteres) dominan sobre el nombre del modo, y la estimación quedó refutada por su propia
+medición. Presupuesto del muro con los cuatro topics: ~1,24 kB/s por robot, ~19,8 kB/s los dieciséis.
 
-**Encargo 2 (`/set_ir_baliza`) y la frase de la portada**: anotados en el canal, a decisión del
-usuario — el servicio es alcance nuevo, no un arreglo, y la portada compite con desplegar la Fase B
-a los quince (que llegará sola con la imagen dorada: fase_6 ya se niega a construir sin testigo).
+**Encargo 2 cumplido — `/set_ir_baliza` desplegado en rvr-01** (aprobado por el usuario el mismo
+día): `SetIRBaliza.srv` con `bool encender` —por construcción no existe la petición que produzca
+`following`—, manejador que delega entero en `_srv_ir_modo`, TDD 3 pruebas nuevas (suite del driver
+6/6), entrada en la lista blanca, y verificación POR EFECTO en vivo: off→broadcasting(3,5)→off en
+`/estado_ir`, `far_code=200` rechazado con «0 a 7» a través de la delegación, y
+`probar_lista_blanca.py` —ampliado con `set_ir_mode` en RECHAZAR y la baliza en PERMITIR— en verde.
+📌 De la tanda salió un hallazgo: **rosbridge deniega en silencio también en el journal** (3
+denegaciones provocadas → 0 líneas); el epílogo de `probar_lista_blanca.py` aconsejaba un grep que
+nunca encontrará nada y ahora aconseja comprobar por efecto.
+
+**La portada**: el usuario decidió corregir la frase (decir en cuántos robots está la credencial),
+no desplegar la Fase B a los quince ahora — les llegará con la imagen dorada. Queda en manos del PC.
 
 🔴 Pendiente del PC, sin cambios: `motion` sigue en `package.json` sin guardia `repeat: Infinity` y
 sin desinstalar — cero imports aún; sigue siendo lo único entre la rama y main.

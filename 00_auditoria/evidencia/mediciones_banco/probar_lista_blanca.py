@@ -191,6 +191,14 @@ def main() -> int:
         ('move_timed', 'servicio', {
             'op': 'call_service', 'id': 'p2', 'service': '/move_timed',
             'args': {'linear': 0.0, 'angular': 0.0, 'duration': 0.1}}),
+        # 🔴 set_ir_mode es LA RAZÓN de que exista /set_ir_baliza: lleva
+        #    `broadcasting` y `following` en el mismo `mode`, y `following`
+        #    conduce el robot sin watchdog ni collision_monitor. Si esto
+        #    respondiera, la baliza habría abierto la puerta equivocada.
+        #    Se manda 'off' a propósito: inocuo incluso si la lista fallara.
+        ('set_ir_mode', 'servicio', {
+            'op': 'call_service', 'id': 'p3', 'service': '/set_ir_mode',
+            'args': {'mode': 'off', 'far_code': 0, 'near_code': 0}}),
     ]
     for nombre, clase, msg in prohibidos:
         p.enviar(msg)
@@ -227,6 +235,12 @@ def main() -> int:
                               'service': '/set_pos_and_yaw',
                               'args': {'position': {'x': 0.0, 'y': 0.0, 'z': 0.0},
                                        'yaw': 0.0}}),
+        # 🆕 2026-08-17: la baliza IR que la web SÍ puede tocar. Se manda
+        #    apagar (encender=false), que es inocuo y no depende del estado.
+        ('/set_ir_baliza', {'op': 'call_service', 'id': 'a3',
+                            'service': '/set_ir_baliza',
+                            'args': {'encender': False, 'far_code': 0,
+                                     'near_code': 0}}),
     ]
     for nombre, msg in permitidos:
         p.enviar(msg)
@@ -270,10 +284,13 @@ def main() -> int:
     print('  ⚠️ Y ESTO NO BASTA. Quedan dos cosas que esta herramienta NO puede')
     print('     comprobar sola, y hay que hacerlas a mano:')
     print()
-    print('  1. Que el LOG DEL SERVIDOR registre las denegaciones. Un publish')
-    print('     nunca responde, así que la única prueba de que /cmd_vel se')
-    print('     bloqueó está ahí:')
-    print('       journalctl -u atriz-robot --since "-2 min" | grep -i "not allowed\\|glob"')
+    print('  1. 🔴 EL JOURNAL NO SIRVE PARA ESTO — medido el 2026-08-17: tras una')
+    print('     tanda con TRES denegaciones provocadas, cero líneas de denegación')
+    print('     entre 41 de rosbridge. Deniega en silencio también en el log.')
+    print('     La única prueba de que /cmd_vel se bloqueó es POR EFECTO: deja un')
+    print('     `ros2 topic echo /cmd_vel` escuchando, repite el publish de esta')
+    print('     herramienta con un valor DISTINTIVO (p. ej. linear.y=0.123) y')
+    print('     comprueba que ese valor no aparece nunca en el echo.')
     print()
     print('  2. 🔴 QUE EL ROBOT NO SE MUEVA. Que no llegue respuesta NO prueba')
     print('     que la orden no pasara. Con el RVR encendido y espacio libre,')

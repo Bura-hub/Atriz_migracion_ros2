@@ -15,7 +15,7 @@ para saber por dónde vas.
 
 ---
 
-## ✅ Pi (2026-08-17) · **F5 revisada commit a commit · el encargo 1 MEDIDO: /estado_ir = 0,40 kB/s · el 2, a decisión del usuario**
+## ✅ Pi (2026-08-17) · **F5 revisada commit a commit · LOS DOS ENCARGOS CERRADOS: /estado_ir medido (0,40 kB/s) y /set_ir_baliza desplegado en rvr-01**
 
 Los 9 commits nuevos de `atriz-lab` (`b847c41`..`c4cdb29`) leídos a detalle. Y todas las
 afirmaciones que la sesión hace SOBRE EL ROBOT, verificadas contra el código real en la Pi:
@@ -45,19 +45,47 @@ control     ·  /estado_robot reprodujo la 110 AL BYTE: 348 B · 1,02 Hz  → in
 ```
 
 ⚠️ **Una salvedad que `EstadoRobot` no tiene**: el mensaje lleva `string modo`, así que el tamaño
-depende del modo. Lo medido es `modo='off'`; con `'broadcasting'` son ~421 B ≈ **0,42 kB/s de cota**.
-Para `presupuesto.ts`: 0,40 es la medida, 0,42 cubre el peor caso. Presupuesto del muro con los
-cuatro topics: ~1,23 kB/s por robot → ~19,7 kB/s los dieciséis (~0,16 Mbit/s), sigue siendo ~1 % del
-/scan de un robot. Detalle completo, con la tabla por modo, en la evidencia 127.
+depende del modo. ~~Con `'broadcasting'` serían ~421 B ≈ 0,42 kB/s de cota~~ — **la estimación se
+refutó al medirla el mismo día** (la baliza nueva permitió encenderla): `broadcasting` son
+**413-414 B medidos**, porque los float32 serializados a JSON (hasta 22 caracteres,
+`5.5789947509765625e-5` en un mensaje real) dominan sobre los +9 del nombre del modo. La lección
+del propio encargo —«estimarlo no vale»— valió también para la estimación que acompañaba a la
+medición. Para `presupuesto.ts`: **0,41 kB/s cubre todo lo observado**. Presupuesto del muro con los
+cuatro topics: ~1,24 kB/s por robot → ~19,8 kB/s los dieciséis (~0,16 Mbit/s), sigue siendo ~1 % del
+/scan de un robot. Detalle completo en la evidencia 127.
 
-### ⏳ Encargo 2 · `/set_ir_baliza` — anotado, a decisión del usuario
+### ✅ Encargo 2 · `/set_ir_baliza` — aprobado por el usuario y DESPLEGADO en rvr-01
 
-La propuesta es correcta y la implementación sería pequeña (delegar en `_srv_ir_modo` con el modo
-fijado). Pero es un `.srv` nuevo + una entrada en la lista blanca: **alcance nuevo, no un arreglo**.
-Queda presentada al usuario junto con la otra decisión pendiente (la frase de la portada sobre los
-16). Mi recomendación sobre la portada: decir en cuántos robots está puesto — los otros quince
-recibirán la Fase B con la imagen dorada (fase_6 ya se niega a construir sin testigo), así que la
-frase honesta es temporal por construcción.
+El usuario aprobó crearlo (2026-08-17). Está hecho con TDD y verificado por efecto:
+
+- `SetIRBaliza.srv` con el esquema propuesto (`bool encender` + códigos uint8). El manejador
+  **delega entero en `_srv_ir_modo`** con el modo fijado a `'broadcasting'`/`'off'`: hereda la
+  validación de rango, la contabilidad de `/estado_ir` y el «off apaga las tres cosas». Al apagar,
+  los códigos NI SE COPIAN: apagar no puede fallar por un código basura.
+- TDD: `pruebas/test_srv_ir_baliza.py`, 3 pruebas nuevas (la tercera barre el tipo entero y
+  demuestra que no existe petición que produzca `following`). Suite del driver **6/6**.
+- Trampas respetadas: `compilar.sh --limpio atriz_rvr_msgs` (6 min 33 s en la Pi) y luego el driver;
+  reinicio por SIGINT al MainPID (NRestarts 0→1, vuelve solo).
+- **Por efecto, en vivo**: `encender(3,5)` → `/estado_ir` dice `modo='broadcasting', far=3, near=5`;
+  `far_code=200` → `success=False, «los códigos IR van de 0 a 7»` (la validación heredada muerde a
+  través de la delegación); `apagar` con códigos basura → `success=True`, `modo='off'`.
+- Lista blanca: `'/set_ir_baliza'` añadido a `SERVICIOS`, y `probar_lista_blanca.py` ampliado con
+  dos casos —`set_ir_mode(off)` en RECHAZAR (es la razón de existir de la baliza) y
+  `/set_ir_baliza(apagar)` en PERMITIR—. **Tanda completa en verde.**
+- 📌 Hallazgo del cierre: rosbridge deniega en silencio **también en el journal** (3 denegaciones
+  provocadas → 0 líneas entre 41 de rosbridge). El epílogo de `probar_lista_blanca.py` aconsejaba
+  un grep que nunca encontrará nada; corregido hacia la comprobación por efecto.
+- Latido tras el reinicio: `/estado_robot` a 1,000 Hz — los arreglos de la 126 siguen bien.
+
+👉 **Para el PC**: la sección de infrarrojos ya puede ofrecer baliza continua. El servicio es
+`/set_ir_baliza` (`atriz_rvr_msgs/srv/SetIRBaliza`), y recuerda re-generar lo que el contrato
+necesite. En `VALIDAR §6g` los infrarrojos siguen exigiendo dos robots.
+
+### ✅ Y la otra decisión: la portada
+
+El usuario decidió **corregir la frase** (decir en cuántos robots está puesta la credencial), no
+desplegar la Fase B a los quince ahora: los quince la recibirán con la imagen dorada de todos modos
+(fase_6 ya se niega a construir sin testigo). Te toca a ti, PC.
 
 ---
 

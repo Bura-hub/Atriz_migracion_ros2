@@ -99,7 +99,8 @@ lista estilo Python con patrones **`fnmatch`**, no regex.
 >
 > Decía «**DOCE**» servicios y listaba **`send_infrared_message`** y
 > **`set_pos_and_yaw`** entre lo que la lista *cierra*. Las tres cosas eran falsas
-> contra el launch de hoy: son **TRECE**, y los dos servicios están **DENTRO** —
+> contra el launch de hoy: son **TRECE** *(CATORCE desde el 2026-08-17, al
+> entrar `/set_ir_baliza`)*, y los dos servicios están **DENTRO** —
 > `set_pos_and_yaw` aparecía además como permitido tres líneas más arriba, en su
 > propia fila de la tabla, o sea que el documento se desmentía en la misma página.
 >
@@ -112,8 +113,13 @@ lista estilo Python con patrones **`fnmatch`**, no regex.
 > /start_scan · /stop_scan · /release_emergency_stop · /set_pos_and_yaw ·
 > /set_led_rgb · /set_multiple_leds · /set_leds · /trigger_led_event ·
 > /enable_color · /get_rgbc_sensor_values · /pedir_slam · /pedir_nav ·
-> /send_infrared_message
+> /send_infrared_message · /set_ir_baliza   ← 🆕 2026-08-17
 > ```
+>
+> 🆕 `/set_ir_baliza` (2026-08-17, encargo del PC en F5): baliza IR continua sin
+> abrir `set_ir_mode`. Su petición es `bool encender` — por construcción no
+> existe la cadena con la que pedir `following` — y delega en la lógica de
+> `set_ir_mode`, heredando su validación y su «off apaga las tres cosas».
 >
 > 📌 **La fuente autoritativa es el launch, no este fichero.** Un número escrito a
 > mano —«DOCE»— envejece en cuanto alguien añade una entrada, y nadie vuelve a
