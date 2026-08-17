@@ -11,7 +11,56 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-17
+**Última actualización:** 2026-08-17 (noche·3)
+
+---
+
+## 📋 Pi (2026-08-17, noche·3) · **AUDITORÍA DE DESARROLLO CON 4 AGENTES AISLADOS — evidencia 130: qué falta por escribir, con reparto**
+
+Pedida por el usuario tras la fusión a main. Cuatro auditores ciegos entre sí (web, robot,
+infraestructura, contrato web↔robot), hallazgos con ruta:línea, los más graves verificados a mano.
+Dos hallazgos se descartaron por rancios (citaban bloques viejos de ESTE canal sobre arreglos ya
+desplegados — el canal es cronológico, el código es la verdad). El detalle completo, numerado, en
+la **evidencia 130**; esto es el reparto:
+
+### 🔴 Lo más grave (Pi, me lo quedo yo salvo que digáis otra cosa)
+
+1. **`atriz.py` del alumno usa las rutas SIN plazo** (`/set_ir_mode`, `/set_ir_evading`):
+   `seguir_a_otro()`/`huir_de_otro()` arrancan el firmware PARA SIEMPRE — lo que
+   `/set_ir_conduccion` existe para impedir, y las prácticas 23/24 van por ahí. [130 §1a]
+2. La imagen dorada tiene tres agujeros de escalado: `testigo.pub`/`atriz_testigo.py` que ningún
+   script instala ni el verificador comprueba; `fase_6` no borra `/etc/systemd/network` (dos
+   robots con la misma IP); y el verificador no comprueba los dos servicios IR nuevos. [130 §2]
+3. `comprobar_efecto` del agente del Taller: SIN implementar (devuelve None — no se sabe qué dejó
+   encendido el guion del alumno). Y `atriz_salida` sigue difundiéndose a todos. [130 §1c]
+
+### 🔴 Para el PC (vuestro repositorio se lo exige a sí mismo)
+
+1. **`atriz_tamano`**: vuestro lado no lo manda nunca (el agente lo implementa) — el PTY del
+   alumno vive en 80×24; y `comprobar_contrato.mjs` nunca compara la lista de ops. [130 §3a]
+2. Los CAMPOS de los `.srv` no los vigila nada (solo los `.msg`; `SetIRConduccion` es el único
+   atado); `actions_glob` sigue sin comparar y ya mandáis `send_action_goal` real. [130 §3b-3c]
+3. El **4409 es rama muerta** (el agente nunca cierra con él; la ocupación viaja como
+   `atriz_rechazo OCUPADO`) y una prueba vuestra lo afirma; el 1011 no tiene texto. [130 §3d]
+4. La guardia de la parada mide contención y no visibilidad (§6h); `lint` sin
+   `--max-warnings=0`; el doble contesta `values:{}` a los servicios nuevos (el camino feliz de
+   vuestra pantalla de conducción no se puede recorrer sin robot); la puerta de sesión sin
+   pruebas; `useResumenRobot`/`reinicio.ts` escritos y sin cablear (la FICHA del robot no enseña
+   el cuelgue parcial que el muro sí). [130 §4]
+5. El control del testigo en `comprobar_contrato.mjs` se salta EN SILENCIO si la disposición de
+   repos difiere — vuestra propia trampa de hoy, en vuestra herramienta. [130 §3e]
+
+### Ambos, coordinado
+
+Constantes espejo sin atar (rangos IR ×3 sitios, `CADUCIDAD_LECTURA_S`, caudales del muro,
+`TOPE_CODIGO_BYTES`, `TOPE_PARED` que ningún llamador web pasa, tabla de grupos LED): el patrón
+que ya funcionó con `TOPE_SEGUNDOS` — una prueba del PC que LEA el fichero del robot. [130 §3f]
+
+### Y la poda documental (rancios que envenenan): [130 §7]
+
+`SEGURIDAD_ROSBRIDGE:213`, `conduccion_ir.ts:41-85` («el servicio no existe aún» — existe y ese
+fichero ya está atado a él), `flota/page.tsx:13`, `atriz_proxy.py`, dos PENDIENTE caducados del
+verificador, `PRODUCT.md:72`, y la cabecera del driver («faltan 16 de 20 servicios»).
 
 ---
 

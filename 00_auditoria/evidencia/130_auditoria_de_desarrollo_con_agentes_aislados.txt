@@ -1,0 +1,141 @@
+═══════════════════════════════════════════════════════════════════════════════
+130 · AUDITORÍA DE DESARROLLO CON CUATRO AGENTES AISLADOS: QUÉ FALTA POR
+      ESCRIBIR — TRAS LA FUSIÓN DEL REDISEÑO A MAIN
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-17, noche · pedida por el usuario tras fundir el rediseño
+Método:  Cuatro agentes de solo-lectura, cada uno ciego a los demás: (1) web
+         atriz-lab@468eace, (2) robot Atriz_rvr@a6576d3, (3) infraestructura
+         atriz_migracion@f609533, (4) el contrato web↔robot leyendo AMBOS
+         árboles. Sus hallazgos con ruta:línea; los tres más graves los
+         verifiqué a mano antes de firmar esto. Se excluye a propósito la
+         validación física (VALIDAR §6 ya la inventaría).
+
+DESCARTADOS POR RANCIOS (verificado contra el código antes de publicar)
+  · «connection_lost sigue siendo pass» — FALSO: arreglado y desplegado
+    (evidencia 126); el agente leyó un bloque viejo del canal.
+  · «/estado_robot cae a 0,2 Hz en reintentos» — FALSO: g_latido lo arregló
+    (126) y HOY pasó su caso degradado real a 1,000 Hz (129).
+  La lección de siempre: el canal es cronológico; el código es la verdad.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LO MÁS GRAVE — SEGURIDAD DE AULA (lado Pi)
+───────────────────────────────────────────────────────────────────────────────
+  1a 🔴🔴 `scripts/estudiantes/atriz.py:428,1284,1301` — LA BIBLIOTECA DEL
+     ALUMNO USA LAS RUTAS SIN PLAZO (verificado a mano): `seguir_a_otro()`/
+     `huir_de_otro()` llaman `/set_ir_mode` y `/set_ir_evading` — el firmware
+     conduce PARA SIEMPRE, exactamente lo que /set_ir_conduccion existe para
+     impedir. Las prácticas 23/24 van por ahí. Falta migrar atriz.py al
+     servicio con plazo.
+  1b 🔴 `rvr_driver_node.py` — `_srv_ir_modo('following')` y `_srv_ir_evasion`
+     siguen sin plazo: dos caminos al mismo peligro y solo uno acotado.
+     Decidir: darles plazo o dejarlos solo-banco documentado.
+  1c 🔴 Agente del Taller: `atriz_salida` se difunde a TODOS los clientes del
+     robot (`agente_sesion.py:280`) — el pendiente conocido de la exención de
+     observador; y `comprobar_efecto` (`:236-260`) está SIN IMPLEMENTAR
+     (devuelve None/false: no se sabe qué dejó encendido el guion del alumno).
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LO QUE BLOQUEA LA IMAGEN DORADA (lado Pi / migracion)
+───────────────────────────────────────────────────────────────────────────────
+  2a 🔴 `testigo.pub` no la instala NINGÚN script (fase_7 solo avisa) y
+     `atriz_testigo.py` es dependencia de arranque de rosbridge Y del agente
+     buscada en ~/atriz_migracion/scripts — nada la garantiza y el verificador
+     no la comprueba (cero ocurrencias). Un robot desde cero nace invisible.
+  2b 🔴 `fase_6` NO borra `/etc/systemd/network`: los .network de rvr-01
+     viajan en la imagen; si al clon le falta red.txt, first-boot se salta la
+     regeneración → dos robots con 10.14.7.7.
+  2c 🔴 `verificar_robot.sh` no comprueba `/set_ir_baliza` ni
+     `/set_ir_conduccion` en la lista blanca (piezas del 17/08): un clon sin
+     ellas pasaría en verde.
+  2d MANIFIESTO.tsv: su cabecera dice «lo leen los instaladores» y es falso
+     (solo el verificador); fase_7 lleva sus listas a mano (instalar Y
+     --quitar) y faltan filas (/etc/default/atriz, atriz_testigo.py,
+     atriz_rosbridge.py). Tres fuentes de verdad.
+  2e El drop-in de mDNS por enlace (wlan0) sigue sin escribirse (el aviso
+     del verificador lo pide desde hace días; manual cap. 19.5).
+
+───────────────────────────────────────────────────────────────────────────────
+3 · EL CONTRATO WEB↔ROBOT — huecos que fallarían EN SILENCIO
+───────────────────────────────────────────────────────────────────────────────
+  3a 🔴 `atriz_tamano`: el agente lo implementa (agente_nucleo.py:270) y la
+     web NO lo manda nunca (verificado: cero ocurrencias en frontend/src) —
+     el PTY del alumno se queda en 80×24 para siempre, sin error. Y
+     comprobar_contrato.mjs nunca compara la lista de ops.
+  3b 🔴 Solo los .msg tienen instantánea vigilada; los CAMPOS de los .srv no
+     (campos_msg.json: 6 msg, 0 srv). SetIRConduccion es el único atado por
+     prueba. Un renombre de campo en el robot = efecto ausente sin error.
+  3c 🔴 `actions_glob` sigue inline y sin comparar — y ya no es teórico:
+     PanelNavegar manda send_action_goal real.
+  3d Código de cierre 4409: la web lo rama y lo PRUEBA; el agente no cierra
+     nunca con él (la ocupación viaja como atriz_rechazo OCUPADO). Rama
+     muerta afirmada por una prueba. Y el 1011 del agente («no puedo crear
+     carpeta») no tiene texto en la web.
+  3e El control del testigo en comprobar_contrato.mjs se salta EN SILENCIO
+     si la disposición de repos difiere (if existsSync sin else) — la trampa
+     «prueba que se salta sola» que el propio PC documentó hoy, en su propia
+     herramienta.
+  3f Constantes espejo sin atar (solo TOPE_SEGUNDOS lo está): rangos IR
+     (0-7, fuerza 0-64) en TRES sitios; CADUCIDAD_LECTURA_S y NOMBRE_MODO_IR
+     contra EstadoIR.msg; caudales/RITMO_MEDIDO_HZ del muro; TOPE_CODIGO_BYTES
+     y TOPE_PARED (que además ningún llamador web pasa); tabla de grupos LED.
+
+───────────────────────────────────────────────────────────────────────────────
+4 · LADO WEB (PC) — lo que su propio repositorio se exige y no cumple
+───────────────────────────────────────────────────────────────────────────────
+  4a 🔴 La guardia de la parada mide CONTENCIÓN, no visibilidad — §6h lo
+     admite; es la única casilla de §6 que es código.
+  4b 🔴 `lint` sin `--max-warnings=0`: eslint sale 0 con warnings, y el
+     README documenta un defecto funcional que solo eslint delató.
+  4c 🔴 El doble (rosbridge_de_mentira) responde `values: {}` a todo servicio
+     no especializado → el camino feliz de la pantalla de conducción IR recién
+     cableada NO se puede recorrer sin robot. Tampoco maneja advertise/publish
+     (la ESCRITURA entera sin doble) ni verifica la firma del testigo.
+  4d 🔴 La puerta de sesión (peticion.ts/servidor.ts/almacen.ts/reglas.ts) es
+     el único subconjunto de lib/sesion SIN pruebas al lado.
+  4e Escrito y sin cablear: useResumenRobot (la ficha del robot NO enseña el
+     cuelgue parcial que el muro sí), reinicio.ts entero (detecta el reinicio
+     de la Pi y ninguna pantalla lo pinta).
+  4f vitest no descubre pruebas en src/componentes/** (una prueba ahí nunca
+     correría); resaltado.test.ts usa it.skipIf contra la regla del día; el
+     contraste se vigila por lista a mano (26 pares de 83 tokens); cero CI.
+
+───────────────────────────────────────────────────────────────────────────────
+5 · DRIVER Y CONFIG (lado Pi) — calidad, no seguridad
+───────────────────────────────────────────────────────────────────────────────
+  5a MoveTimed/MoveToPose/MoveToPosAndYaw sin campo `message`: rechazos sin
+     motivo. `_srv_drive_params` sin validación de rango ni message. `_ir_a`
+     no acota speed (move_timed sí).
+  5b `localizacion_amcl.yaml`: initial_pose 0,0,0 a fuego para los 16.
+  5c Candidato NUEVO de la 129: al detectar «el RVR VOLVIÓ», el driver podría
+     re-anclar el yaw solo (hoy receta manual: botón → VOLVIÓ → restart).
+  5d Sin pruebas de banco: _mover_permitido y su propagación, watchdog,
+     conversiones de ángulos, supervisor_navegacion entero (7 estados, 0
+     tests), atriz.py entero (1359 líneas, 0 tests). Las listas blancas sin
+     prueba EN el repo del robot.
+  5e `/ambient_light` publica y no está en LEER (o se añade o se documenta).
+  5f Poda: cabecera del driver dice «faltan 16 de 20 servicios» (falso desde
+     julio); ConfigureStreaming/StartStreaming/BatteryState.srv se compilan y
+     nadie los sirve; 28 ficheros rospy (ROS 1) como trampa en las carpetas;
+     REFERENCIAS/GUIA del alumno sin las prácticas 20-24 ni la API IR.
+     (No existe ninguna «práctica 63»: los huecos de numeración son por temas.)
+
+───────────────────────────────────────────────────────────────────────────────
+6 · SEGURIDAD DE RED — abierto y aceptado, sin código
+───────────────────────────────────────────────────────────────────────────────
+  TLS (testigo y telemetría en claro; falta decidir CA vs autofirmado ×16) ·
+  jti/nonce anti-reenvío del testigo (cero ocurrencias en atriz_testigo.py) ·
+  el PAT ~/.git-credentials sigue en disco (fase_6 lo lista, no lo borra).
+
+───────────────────────────────────────────────────────────────────────────────
+7 · PODA DOCUMENTAL (rancios que envenenan la lectura)
+───────────────────────────────────────────────────────────────────────────────
+  SEGURIDAD_ROSBRIDGE:213 «nada está desplegado» (falso desde el 15/08) ·
+  conduccion_ir.ts:41-85 «el servicio no existe aún» (existe, y el mismo
+  fichero ya está atado a él) · flota/page.tsx:13 «Fase B no escrita» ·
+  atriz_proxy.py (367 líneas muertas confirmadas) · dos PENDIENTE caducados
+  en verificar_robot.sh:36,834 · PRODUCT.md:72 declara abierta una trama ya
+  implementada.
+
+LO QUE SIGUE
+  El reparto y las prioridades, en el canal (ESTADO_ACTUAL.md). Los números
+  de sección de aquí son el índice para reclamar cada pieza.
