@@ -1,0 +1,87 @@
+═══════════════════════════════════════════════════════════════════════════════
+127 · EL CAUDAL DE /estado_ir, MEDIDO: 412 B/msg A ~1 Hz = 0,40 kB/s POR ROBOT
+═══════════════════════════════════════════════════════════════════════════════
+Fecha:   2026-08-17 · rvr-01 · encargo nº 1 del PC (sesión F5, commit 1d51e39)
+Origen:  `presupuesto.ts` LANZA ante un topic sin caudal medido, a propósito:
+         devolver 0 sería aprobar sin sumar. Los infrarrojos no pueden salir en
+         el muro de flota hasta que exista este número. El PC pidió medirlo, no
+         estimarlo, con el método de la evidencia 110.
+Método:  `probar_rosbridge.py` (el cliente WebSocket sin dependencias de
+         mediciones_banco) contra rosbridge en 127.0.0.1:9090 (exento de
+         testigo), contando los bytes del JSON que salen de verdad por el
+         socket — que es lo que viajará al navegador. Robot en reposo, driver
+         con los arreglos de la evidencia 126 desplegados, atriz-robot activo.
+
+RESUMEN
+  /estado_ir cuesta **412 bytes/mensaje a ~1,0 Hz = 0,40 kB/s por robot**
+  (n=2 corridas + inspección por mensaje). CON UNA SALVEDAD QUE EstadoRobot NO
+  TIENE: el mensaje lleva `string modo`, así que el tamaño depende del modo.
+  Lo medido es con `modo='off'` (3 caracteres); con `'broadcasting'` (12) son
+  ~421 B ≈ 0,42 kB/s. Para el presupuesto vale 0,42 como cota, 0,40 como
+  medida.
+
+───────────────────────────────────────────────────────────────────────────────
+1 · LA MEDIDA, CON SU CONTROL
+───────────────────────────────────────────────────────────────────────────────
+  corrida 1 · 60 s, /estado_ir + /estado_robot a la vez:
+
+    topic              Hz    bytes/msg    kB/s     control (evidencia 110)
+    ─────────────     ────   ─────────   ─────     ───────────────────────
+    /estado_ir        0,99      412       0,40     — (lo que se mide)
+    /estado_robot     1,02      348       0,35     348 B · ~1 Hz  ✅
+
+  corrida 2 · 30 s, /estado_ir solo:  1,01 Hz · 412 B · 0,40 kB/s
+
+  · El control REPRODUCE la evidencia 110 al byte (348 exactos): el
+    instrumento mide bien HOY, sobre este robot. Es lo que valida el 412.
+  · Inspección de 6 mensajes sueltos: [412, 412, 413, 412, 412, 412]. El 413
+    es un dígito más en un float serializado a JSON (las antigüedades), no
+    una fluctuación real: el contenido era idéntico (`modo='off'`,
+    `lecturas_validas=True`, `antiguedad=0.000`).
+
+───────────────────────────────────────────────────────────────────────────────
+2 · LA SALVEDAD: ESTE MENSAJE NO ES DE TAMAÑO FIJO
+───────────────────────────────────────────────────────────────────────────────
+  EstadoRobot es de tamaño fijo y por eso la 110 pudo decir «348 exactos».
+  EstadoIR lleva `string modo` — `off`/`broadcasting`/`following`/`evading` —
+  así que el JSON crece con el nombre del modo:
+
+    modo            longitud   bytes/msg (estimado sobre lo medido)
+    off                 3          412   ← MEDIDO
+    evading             7         ~416
+    following           9         ~418
+    broadcasting       12         ~421
+
+  Solo la fila `off` está medida; las otras son la misma trama con más
+  caracteres, no una medición. Si el muro quiere UNA cifra: 0,42 kB/s cubre
+  el peor caso con margen.
+
+───────────────────────────────────────────────────────────────────────────────
+3 · LO QUE SIGNIFICA PARA EL PRESUPUESTO DEL MURO
+───────────────────────────────────────────────────────────────────────────────
+  Con los cuatro topics baratos medidos:
+    0,03 (/battery_state) + 0,45 (/motor_status) + 0,35 (/estado_robot)
+    + 0,40 (/estado_ir)  ≈  1,23 kB/s por robot
+    → ~19,7 kB/s los dieciséis ≈ 0,16 Mbit/s.
+  Sigue siendo ~1 % del coste de /scan de UN robot: la conclusión operativa
+  —el muro solo con topics baratos— no cambia.
+
+───────────────────────────────────────────────────────────────────────────────
+4 · CONDICIONES Y LÍMITES
+───────────────────────────────────────────────────────────────────────────────
+  · Robot en reposo, un solo cliente, localhost (sin coste de radio). Mide el
+    CONTENIDO que sale del socket; el coste WiFi real se mide en el aula.
+  · n=2 en un robot, `modo='off'`. La frecuencia la fija `_sondear_ir` a 1 Hz
+    (`ir_sondeo_hz`); si ese parámetro cambia, el kB/s escala con él.
+  · Si EstadoIR.msg gana campos, el número caduca: re-medir al tocarlo.
+  · Medido con el sondeo IR VIVO (`lecturas_validas=True`): no es el caudal
+    de un robot con el sondeo pausado por enlace caído (evidencia 126), que
+    publicaría relleno del mismo tamaño aproximado.
+
+───────────────────────────────────────────────────────────────────────────────
+LO QUE SIGUE ABIERTO
+───────────────────────────────────────────────────────────────────────────────
+  ✅ El encargo nº 1 del PC queda respondido: 0,40 kB/s medido (0,42 de cota)
+     → `presupuesto.ts` ya puede dejar de lanzar por /estado_ir.
+  ⏳ El encargo nº 2 —el servicio /set_ir_baliza— es una decisión de alcance:
+     anotada en el canal, a la espera del usuario.

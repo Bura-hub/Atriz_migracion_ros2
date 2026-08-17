@@ -4,6 +4,29 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-17 (Pi) — F5 revisada contra el robot real, y el caudal de /estado_ir medido
+
+Los 9 commits nuevos de `atriz-lab` (`b847c41`..`c4cdb29`) leídos a detalle, y **cada afirmación
+que la sesión hace sobre el robot, verificada contra el código en la Pi**: `_cb_cmd_vel` sin clamp
+✓, `atriz.py` con 0,40/2,0 por el mismo topic ✓, la lista blanca IR exactamente como la describe ✓,
+`_srv_ir_modo` con el acoplamiento broadcasting/following que motiva el `/set_ir_baliza` ✓, los dos
+`min_points` (2 y 4) ✓, el modo expandido sin Fullscreen API ✓, y los diffs sin tocar nada del robot
+✓. La revisión no encontró ninguna afirmación falsa.
+
+**Encargo 1 cumplido — evidencia 127**: `/estado_ir` cuesta **412 B/msg a ~1,0 Hz = 0,40 kB/s por
+robot** (n=2; el control reprodujo la evidencia 110 al byte: 348 B). Salvedad que `EstadoRobot` no
+tiene: el `string modo` hace variable el tamaño — con `'broadcasting'` ~421 B ≈ 0,42 kB/s de cota.
+Presupuesto del muro con los cuatro topics: ~1,23 kB/s por robot, ~19,7 kB/s los dieciséis.
+
+**Encargo 2 (`/set_ir_baliza`) y la frase de la portada**: anotados en el canal, a decisión del
+usuario — el servicio es alcance nuevo, no un arreglo, y la portada compite con desplegar la Fase B
+a los quince (que llegará sola con la imagen dorada: fase_6 ya se niega a construir sin testigo).
+
+🔴 Pendiente del PC, sin cambios: `motion` sigue en `package.json` sin guardia `repeat: Infinity` y
+sin desinstalar — cero imports aún; sigue siendo lo único entre la rama y main.
+
+---
+
 ## 2026-08-16, noche (PC) — F5 cerrada: siete pantallas, y el instrumento que miraba mentía
 
 Ocho commits en `atriz-lab`, rama `rediseno-2026-08`, de `2dca601` a `ce40b7e`. Cierra la fase de

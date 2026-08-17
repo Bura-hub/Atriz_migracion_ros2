@@ -11,7 +11,53 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-16 (noche)
+**Última actualización:** 2026-08-17
+
+---
+
+## ✅ Pi (2026-08-17) · **F5 revisada commit a commit · el encargo 1 MEDIDO: /estado_ir = 0,40 kB/s · el 2, a decisión del usuario**
+
+Los 9 commits nuevos de `atriz-lab` (`b847c41`..`c4cdb29`) leídos a detalle. Y todas las
+afirmaciones que la sesión hace SOBRE EL ROBOT, verificadas contra el código real en la Pi:
+
+- ✅ `_cb_cmd_vel` NO tiene clamp (rvr_driver_node.py:2487): pasa el Twist al SDK tal cual. El tope
+  de 0,20 era, efectivamente, un badén en una de dos puertas.
+- ✅ `atriz.py` da `VEL_MAX = 0.40` y `VEL_GIRO_MAX = 2.0` por el mismo topic — los dos con su
+  medición de origen anotada (meseta real 0,401; giros al 99-102 %). Abrir la web a esos números es
+  igualarla al Taller, no superarlo.
+- ✅ La lista blanca tiene `/estado_ir` + `/infrared_messages` en LEER y `/send_infrared_message` en
+  SERVICIOS, con `set_ir_mode`/`set_ir_evading` deliberadamente fuera. Y `_srv_ir_modo` (línea 2945)
+  confirma el acoplamiento: `broadcasting` y `following` en el mismo servicio con `mode` como cadena
+  libre. **El argumento del `/set_ir_baliza` es correcto.**
+- ✅ `min_points` son DOS en el YAML: `Aproximacion` 2 (línea 316) y `Precaucion` 4 (línea 340).
+- ✅ El modo expandido del Taller NO usa la Fullscreen API (cero llamadas; solo el comentario que
+  explica por qué no) y los 9 commits tocan solo `frontend/` + `herramientas/` + docs: «nada de esto
+  toca el robot» es verdad.
+- 🔴 **`motion` SIGUE instalada** (`package.json:21`, `^12.43.0`), sin guardia `repeat: Infinity` en
+  `estilo.ts` y sin desinstalar — la desviación de mi revisión de los 23 sigue viva tras 9 commits
+  más. Cero imports todavía, así que es riesgo latente; sigue siendo lo único entre la rama y main.
+
+### ✅ Encargo 1 · el caudal de `/estado_ir`, MEDIDO — evidencia 127
+
+```
+/estado_ir  ·  412 bytes/msg  ·  ~1,0 Hz  ·  0,40 kB/s por robot     (n=2 + inspección por mensaje)
+control     ·  /estado_robot reprodujo la 110 AL BYTE: 348 B · 1,02 Hz  → instrumento válido hoy
+```
+
+⚠️ **Una salvedad que `EstadoRobot` no tiene**: el mensaje lleva `string modo`, así que el tamaño
+depende del modo. Lo medido es `modo='off'`; con `'broadcasting'` son ~421 B ≈ **0,42 kB/s de cota**.
+Para `presupuesto.ts`: 0,40 es la medida, 0,42 cubre el peor caso. Presupuesto del muro con los
+cuatro topics: ~1,23 kB/s por robot → ~19,7 kB/s los dieciséis (~0,16 Mbit/s), sigue siendo ~1 % del
+/scan de un robot. Detalle completo, con la tabla por modo, en la evidencia 127.
+
+### ⏳ Encargo 2 · `/set_ir_baliza` — anotado, a decisión del usuario
+
+La propuesta es correcta y la implementación sería pequeña (delegar en `_srv_ir_modo` con el modo
+fijado). Pero es un `.srv` nuevo + una entrada en la lista blanca: **alcance nuevo, no un arreglo**.
+Queda presentada al usuario junto con la otra decisión pendiente (la frase de la portada sobre los
+16). Mi recomendación sobre la portada: decir en cuántos robots está puesto — los otros quince
+recibirán la Fase B con la imagen dorada (fase_6 ya se niega a construir sin testigo), así que la
+frase honesta es temporal por construcción.
 
 ---
 
