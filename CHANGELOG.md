@@ -4,6 +4,48 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-18, mañana (Pi, laboratorio) — La arena MAPEADA con conducción autónoma, y el mapa guardado
+
+Primer pendiente del Bloque C cerrado en el sitio: **`~/mapas/arena.yaml` + `arena.pgm` existen y
+se verificaron por contenido**, no por código de salida.
+
+**Cómo se condujo:** un guion de exploración por rebote sobre `atriz.py` (la vía bendecida) —
+avanza hacia el hueco frontal, gira hacia el costado más despejado según el propio `/scan`, y cada
+tercer tramo gira aunque haya hueco, para cubrir el interior. 0,15 m/s, tramos ≤ 1,2 m, acotado en
+tramos y en tiempo. El guion vive en el scratchpad de la sesión; si se quiere de serie, se
+promociona a `mediciones_banco/` otro día.
+
+**La curva, que es lo que manda con un sistema que acumula (evidencia 96):**
+
+```
+recorrido    ocupadas   libres   desconocido
+    0 m          51        —        93,2 %      (mapa recién nacido)
+   12,1 m       517      5435       57,5 %      (18 tramos, cero atascos)
+   19,1 m       540      5427       57,4 %      <- MESETA: +7 m añaden +23 celdas (4 %)
+```
+
+La meseta es el criterio de parada, y el `.pgm` guardado contiene **exactamente las 540 ocupadas**
+del mapa vivo (contadas en el fichero: 540 oscuras · 5427 libres · 8040 gris-desconocido, cuadra
+al píxel). Giros del lazo cerrado en banda: −70 pedidos → −70,0 medidos.
+
+🔴 **Dos arranques en falso antes del bueno, y la lección es operativa:** las dos primeras tandas
+de SLAM se tiraron porque el robot **se movió a mano** con SLAM vivo (una vez recolocándolo, otra
+sujetándolo durante la conducción). El síntoma de la segunda engañaba: lecturas de `/scan`
+IDÉNTICAS tramo tras tramo y giros de 0,0° — parecía la congelación del `collision_monitor`
+(evidencia 93) y era una persona sujetando el robot. **Antes de atribuir un atasco al monitor,
+pregunta a quien está al lado del robot si lo está tocando.** Reinicio de `atriz-slam` y a
+empezar: con la meseta a los ~2 minutos de conducción, tirar un mapa contaminado cuesta menos que
+discutir con él.
+
+📝 `restart` no está en la lista blanca de polkit (a propósito): `stop` + `start`.
+
+**Batería:** 7,78 → 7,68 V en toda la sesión de conducción (~19 m).
+
+**⏳ Lo que queda, y el orden:** (1) 👤 apuntar `ATRIZ_MAPA` a `/home/sphero/mapas/arena.yaml` en
+`/etc/default/atriz` y `sudo systemctl restart atriz-robot` — hecho ESTO, (2) arrancar `atriz-nav`
+y cerrar **A5** (¿la pose fijada es correcta?) sobre el mapa fresco, y (3) el resto del Bloque C
+(AMCL con objetos en la arena, huecos 43/45). El barrido quedó apagado (reposo normal).
+
 ## 2026-08-17, noche (Pi) — El encargo cumplido: /set_ir_conduccion desplegado y verificado por efecto
 
 El `.srv` exacto de la propuesta (`TOPE_SEGUNDOS=30` como constante), manejador que delega en

@@ -5,6 +5,25 @@
 > contexto desde cero.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-18 (Pi, laboratorio) · LA ARENA ESTÁ MAPEADA: `~/mapas/arena.yaml`
+> EXISTE Y ESTÁ VERIFICADO POR CONTENIDO**
+> ═══════════════════════════════════════════════════════════════════════════════
+> Primer pendiente del Bloque C cerrado. Conducción **autónoma** con
+> `mediciones_banco/explorar_arena.py` (rebote sobre `atriz.py`): 19 m en dos
+> pasadas, cero atascos, y la **meseta de la curva** como criterio de parada
+> (12 m → 517 ocupadas · +7 m → 540, un 4 %). El `.pgm` contiene exactamente las
+> 540 del mapa vivo. Detalle y lecciones en el CHANGELOG del día — incluida la
+> nueva trampa: **una persona sujetando el robot con SLAM vivo produce el mismo
+> síntoma que la congelación del collision_monitor** (lecturas idénticas, giros
+> de 0,0°).
+>
+> ⏳ **El siguiente paso exacto, en orden:** 👤 (1) `ATRIZ_MAPA` →
+> `/home/sphero/mapas/arena.yaml` en `/etc/default/atriz` y
+> `sudo systemctl restart atriz-robot`; (2) `atriz-nav` sobre el mapa fresco y
+> cerrar **A5**; (3) resto del Bloque C (AMCL con objetos, huecos 43/45).
+> `atriz-slam` quedó parado y el barrido apagado (reposo normal).
+>
+> ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-17 · EL REDISEÑO ESTÁ EN `main`. LA RAMA `rediseno-2026-08` YA NO
 > EXISTE**
 > ═══════════════════════════════════════════════════════════════════════════════
