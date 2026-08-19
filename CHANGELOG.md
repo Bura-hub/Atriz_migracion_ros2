@@ -4,6 +4,51 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-19 (Pi, laboratorio) — AMCL CON OBJETOS en la arena: no se degrada, y el porqué es un número
+
+Mismo mapa, misma ruta, misma marca y mismo protocolo que A5 — **lo único que cambia son dos
+objetos** puestos por el usuario. Control limpio.
+
+```
+                    sin objetos   con objetos
+error de AMCL          2,7 cm       0,6 cm
+error de la odometria  3,1 cm       9,7 cm
+correccion map->odom   6,2 cm      16,5 cm
+```
+
+✅ **AMCL NO se degradó**: 0,6 cm contra la cinta. ⚠️ Y esa cifra **no se puede presentar como
+precisión de 6 mm**: la resolución de la medida es ~2 cm (cinta contra LIDAR difieren 1,9 cm sobre
+la misma pared). Lo honesto es **«sin degradación medible, ≤2 cm»**.
+
+🔴 **Y una atribución MÍA, retirada en el acto por los datos siguientes.** Al ver la corrección
+`map→odom` subir de 6,2 a 16,5 cm escribí que era *«el efecto de los objetos: AMCL trabaja más para
+cuadrar el barrido con un mapa que ya no describe la sala»*. **Falso.** La cinta enseñó que en esa
+tanda **la odometría se fue 9,7 cm** (contra 3,1 la vez anterior) y lo que AMCL corrigió fue **eso**.
+Una corrección grande no significa «el mapa está mal»: significa que **hay algo que corregir**, y
+puede venir de cualquiera de los dos lados. Lo escribí antes de tener el dato que lo separaba.
+
+📌 **Por qué no se degrada, con número: los objetos son el 2,6 % del barrido.** Medido en el sitio:
+**6 rayos de 240** en un barrido suelto, 50 de 1924 acumulando ocho. Las cuatro paredes —que **sí**
+están en el mapa— dominan el casado. Para estresar a AMCL de verdad no basta con «meter objetos»:
+hacen falta objetos que **ocupen una fracción grande del barrido** (cerca del robot, grandes, o
+muchos).
+
+⚠️ **Esto NO contradice el 1,68 m de la evidencia 90**, y conviene decirlo bien: aquella deriva es
+real **como medida**, pero su explicación —«AMCL casa contra un mapa sin los objetos»— quedó
+**RETIRADA en la evidencia 91**, porque repetida con SLAM (que sí mapea los objetos en vivo) el robot
+falló igual. Hoy no se derriba ningún hallazgo firme: se añade un punto en un régimen donde el
+mecanismo nunca se estableció.
+
+📝 **Y una trampa del manual, confirmada en vivo:** con **un solo barrido** el objeto lejano dio 1-2
+rayos y mi detector lo descartó — informé «solo veo un objeto» y era falso. Acumulando **ocho
+barridos** aparecen los dos. Es el *«el X2 no ve un objeto fino en un solo barrido»* del `CLAUDE.md`,
+cometido y corregido en la misma sesión.
+
+⏳ **n=1 en esta configuración**, con los objetos a ≥73 cm de la ruta. El siguiente escalón es la
+configuración dura: objetos **junto al camino** y ocupando bastante barrido.
+
+---
+
 ## 2026-08-19 (Pi, laboratorio) — A5 CERRADO: la pose que fija `/initialpose` es correcta, medida con cinta
 
 Sobre el mapa `arena.yaml` del mismo día. 👤 El usuario colocó el robot y midió; el resto es del
