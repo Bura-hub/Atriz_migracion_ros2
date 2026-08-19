@@ -30,9 +30,17 @@
 > 08-18 murió agotado **y el corte reinició la Pi**. No mapees por debajo de
 > ~7,6 V.
 >
-> ⏳ **El siguiente paso exacto: A5** — con cinta, comprobar que la pose que fija
-> `/initialpose` es correcta sobre este mapa. Detrás: resto del Bloque C (AMCL con
-> objetos, huecos 43/45). `ATRIZ_MAPA` ya apunta a `arena.yaml`.
+> ✅ **Y A5 QUEDÓ CERRADO EL MISMO DÍA, con cinta: la pose que fija
+> `/initialpose` es correcta.** n=2, **2,7 y 6,9 cm** contra una banda de ≤10 cm
+> declarada antes de medir, y con la **predicción escrita antes de que el usuario
+> midiera** las dos veces. Aquí AMCL **no** es peor que la odometría (3,1/3,6 cm),
+> al revés que en las tandas del 07-08 — ⚠️ contraste, no causa aislada.
+> ⚠️ El **rumbo no se contrastó con cinta**, y 6,9 cm no se distingue bien del
+> ruido de la medida (cinta contra LIDAR difieren ~2 cm sobre la misma pared).
+> Guion: `mediciones_banco/a5_pose_cinta.py`.
+>
+> ⏳ **Siguiente:** resto del Bloque C — **AMCL con objetos** en la arena y los
+> **huecos de 43/45 cm**. `ATRIZ_MAPA` ya apunta a `arena.yaml`.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-18 (Pi, laboratorio) · LA ARENA MAPEADA POR PRIMERA VEZ** *(mapa

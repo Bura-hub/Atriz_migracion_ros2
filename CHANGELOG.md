@@ -4,6 +4,50 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-19 (Pi, laboratorio) — A5 CERRADO: la pose que fija `/initialpose` es correcta, medida con cinta
+
+Sobre el mapa `arena.yaml` del mismo día. 👤 El usuario colocó el robot y midió; el resto es del
+robot. **n=2, peor caso 6,9 cm**, contra una banda de **≤10 cm declarada ANTES de medir**.
+
+```
+          cinta (map)        AMCL              err AMCL   err odometria
+marca 2   (+0.965,-0.790)   (+0.966,-0.763)      2,7 cm      3,1 cm
+marca 3   (+2.360,-1.925)   (+2.428,-1.939)      6,9 cm      3,6 cm
+```
+
+**El método, que es lo que hace creíble al número:**
+
+- **Dos distancias PERPENDICULARES a dos paredes**, nunca una diagonal — con una sola distancia,
+  dos hipótesis separadas 45 cm difieren 2 cm (evidencia 84).
+- **Predicción declarada antes de que el usuario midiera**, las dos veces: marca 2 «A 131 · B 151»
+  (midió 134 · 150,5); marca 3 «A 249 · B 297» (midió 247,5 · 290).
+- **Las dos marcas usan la MISMA conversión cinta→mapa**, así que un error de la referencia
+  (grosor del muro en el mapa) se va en la parte común y lo que queda es el error real.
+- El punto medido es el suelo **bajo el centro del tambor del LIDAR** (base_footprint está a 0,5 cm).
+- El rumbo se fijó con el **ajuste de una recta a la pared izquierda** (−1,99°, residuo 0,9 cm), no
+  suponiendo 0.
+
+🔴 **Y una corrección de método propia, cazada al primer contraste:** la conversión cinta→mapa usaba
+los **extremos de celda ocupada** del mapa (x −0,61 · y +0,70). Un extremo es un **valor atípico por
+construcción**, y daba 7 y 15 cm de sesgo contra la posición conocida del origen. Se ancló al
+**origen** —el único punto cuya coordenada tiene testigo (SLAM en (0,0,0))— con lo que el LIDAR leyó
+allí: 0,55 izquierda · 0,54 atrás.
+
+📌 **AMCL aquí NO es peor que la odometría** (2,7/6,9 contra 3,1/3,6 cm), al contrario de las tandas
+del 07-08 de agosto, donde era 4× peor (8,9-15,2 contra 2,2-4,2). ⚠️ **No lo atribuyo al mapa
+fresco**: no se aisló, y aquellas tandas tenían además otras diferencias. Lo que hay es el contraste.
+
+⚠️ **Lo que este resultado NO dice:** n=2 y en un solo sentido de marcha; el **rumbo no se contrastó
+con cinta** (AMCL −88,3° donde la odometría decía −90,6°); y **6,9 cm no se distingue bien del ruido
+de la propia medida** — en la marca 1 la cinta y el LIDAR diferían 1,9 cm sobre la misma pared.
+
+Guion: `mediciones_banco/a5_pose_cinta.py` (`fijar` / `comparar`). Sello **0** en `/initialpose`, que
+con `now()` AMCL la descarta por extrapolación (evidencia 88). Y recordatorio que costó un susto:
+**`/amcl_pose` no llega con el robot quieto** — la creencia de AMCL se lee por TF (`map →
+base_footprint`), que sí es continua.
+
+---
+
 ## 2026-08-19 (Pi, laboratorio) — El mapa BUENO de la arena: origen anclado a una esquina convenida
 
 `~/mapas/arena.yaml` rehecho, y esta vez **sirve**. Los dos mapas anteriores se conservan con

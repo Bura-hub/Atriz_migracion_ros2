@@ -11,7 +11,34 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-17 (noche·3)
+**Última actualización:** 2026-08-19
+
+---
+
+## ✅ Pi (2026-08-19) · **LA ARENA DEL LABORATORIO ESTÁ MAPEADA, Y A5 CERRADO CON CINTA**
+
+Lo que el PC necesita saber, en cuatro líneas:
+
+1. **`~/mapas/arena.yaml` existe y es bueno**, y `ATRIZ_MAPA` de rvr-01 ya apunta ahí. Arena
+   **cuadrada de ~3,95 × 4,00 m**, muros rectos y alineados con los ejes. Los dos mapas previos del
+   18 salieron **en rombo** y quedan como `DESCARTADO_*`.
+2. 🔑 **La convención de origen, que es lo que hay que enseñar en la web el día que un profesor
+   remapee un aula:** robot en una esquina a ~55 cm de cada pared, pared a su IZQUIERDA y morro
+   **PARALELO** a ella → `/set_pos_and_yaw(0,0,0)` → arrancar SLAM **después** → comprobar que
+   `map → base_footprint` da (0,0,0). Así el (0,0) del mapa **es** esa esquina.
+   🔴 **Y hace falta de verdad:** una arena cuadrada es **irresoluble** casando `/scan` contra el
+   mapa — tres candidatos con costes 0,003/0,004/0,004, y conducir 1 m **no** los desempató. Sin
+   rumbo absoluto (evidencia 42), la pose de partida la tiene que dar una persona: **es justo para
+   lo que existe `/initialpose` en la web.**
+3. ✅ **A5 cerrado: la pose fijada es correcta.** Cinta contra AMCL, **n=2: 2,7 y 6,9 cm**, banda
+   ≤10 cm declarada antes de medir, con predicción escrita antes de cada medición. Aquí AMCL **no**
+   es peor que la odometría (3,1/3,6 cm). ⚠️ El **rumbo no se contrastó con cinta**.
+4. 📌 **Para la pantalla, dos cosas medidas hoy:** `/amcl_pose` **no llega con el robot quieto**
+   (AMCL solo actualiza cada 15 cm) — si la web espera ese topic para pintar la pose, verá silencio
+   sobre un robot sano; la creencia continua está en TF `map → base_footprint`. Y `/initialpose`
+   necesita **sello 0**: con `now()` AMCL la descarta.
+
+⏳ Del Bloque C quedan **AMCL con objetos** en la arena y los **huecos de 43/45 cm**.
 
 ---
 
