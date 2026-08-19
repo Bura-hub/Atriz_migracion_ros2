@@ -4,6 +4,61 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-19 (Pi, laboratorio) — El mapa BUENO de la arena: origen anclado a una esquina convenida
+
+`~/mapas/arena.yaml` rehecho, y esta vez **sirve**. Los dos mapas anteriores se conservan con
+prefijo `DESCARTADO_` para que nadie los use por error.
+
+**Lo que cambió, y es todo el hallazgo:** el mapa no se juzga por «SLAM funcionando», se juzga por
+**la geometría del resultado contra el sitio real**.
+
+```
+                    lienzo        ocupadas   desconocido   forma
+v1 (08-18)       8,1 x 4,4 m         540        66 %       rombo, movido a mano a mitad
+v2 (08-18)       7,1 x 6,3 m         549        67 %       rombo (morro a ~45° de la pared)
+v3 (08-19)       6,0 x 4,7 m         511        47 %       ✅ RECTÁNGULO recto, ejes alineados
+   -> extension OCUPADA de v3: 3,95 x 4,00 m, que ES la arena (el resto es relleno del lienzo)
+```
+
+**El procedimiento que lo arregló** (👤 con el usuario colocando el robot), verificado paso a paso
+antes de mover una rueda:
+
+1. Robot en la esquina convenida: **~55 cm de cada pared**, pared a su IZQUIERDA y morro
+   **PARALELO** a ella. Comprobado con el LIDAR antes de arrancar: izq **0,55** · atrás **0,54** ·
+   frente **3,27** · derecha **3,22** m. De ahí sale la geometría del sitio: **arena cuadrada de
+   ~3,8-4,0 m**.
+2. `/set_pos_and_yaw(0,0,0)` → `/odom` en (0,000, 0,000, 0,0°) **medido**, no supuesto.
+3. `atriz-slam` arrancado DESPUÉS → `map → base_footprint` en **(0,000, 0,000, 0,0°)**.
+   👉 Con esto el (0,0) del mapa **es** esa esquina, por construcción y con testigo.
+4. `mediciones_banco/mapear_arena.py`: perímetro (2 vueltas, giros de −90° siguiendo la pared
+   izquierda — cierres de lazo) y luego relleno interior. **25,89 m, cero atascos.**
+
+🔴 **Lo que el morro no paralelo costaba, y no era cosmético:** con el robot a ~45° de la pared, los
+ejes del mapa salen a 45° de las paredes y el mapa ocupa un lienzo enorme lleno de desconocido. El
+mismo sitio pasó de **7,1 x 6,3 m con 67 % desconocido** a **4,1 x 4,0 m con 8,2 % al terminar el
+perímetro**.
+
+🔴 **Y una trampa NUEVA para el fichero de trampas, que costó dos mapas: mover el robot a mano con
+SLAM vivo produce el MISMO síntoma que la congelación del `collision_monitor`** — lecturas de
+`/scan` idénticas tramo tras tramo y giros de 0,0°. Se atribuyó a la evidencia 93 y era una persona
+sujetando el robot. **Pregunta a quien está al lado antes de atribuir.**
+
+📝 **Y la ambigüedad que esto elimina de raíz.** Con el mapa v1 se intentó localizar al robot
+casando `/scan` contra el mapa: **tres candidatos con costes 0,003 / 0,004 / 0,004** — una arena
+cuadrada es simétrica y ningún algoritmo puede desempatarla sin información externa. Conducir 1 m y
+recasar **no desempató** (0,418 vs 0,420). Es exactamente el hueco que este robot tiene por diseño
+(no hay rumbo absoluto, evidencia 42) y por el que existe `/initialpose`. **La convención de la
+esquina lo cierra sin código.**
+
+**Batería:** el mapeo v3 costó **8,31 → 8,22 V** en 4 min. ⚠️ El intento del 08-18 murió por batería
+(7,38 → agotada) y **la Pi se reinició con el corte**, llevándose el guion y `/tmp`. Con ~19 m de
+conducción por pasada, mapear con menos de ~7,6 V es arriesgar la sesión entera.
+
+**⏳ Lo que queda:** (1) **A5** — validar con cinta que la pose que fija `/initialpose` es correcta,
+ahora que hay mapa del sitio; (2) el resto del Bloque C (AMCL con objetos, huecos 43/45);
+(3) práctica 63 e imagen dorada. `ATRIZ_MAPA` ya apunta a `arena.yaml`; SLAM parado y barrido
+apagado (reposo normal).
+
 ## 2026-08-18, mañana (Pi, laboratorio) — La arena MAPEADA con conducción autónoma, y el mapa guardado
 
 Primer pendiente del Bloque C cerrado en el sitio: **`~/mapas/arena.yaml` + `arena.pgm` existen y

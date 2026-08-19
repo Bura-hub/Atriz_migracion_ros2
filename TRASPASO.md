@@ -5,8 +5,38 @@
 > contexto desde cero.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
-> 🆕 **2026-08-18 (Pi, laboratorio) · LA ARENA ESTÁ MAPEADA: `~/mapas/arena.yaml`
-> EXISTE Y ESTÁ VERIFICADO POR CONTENIDO**
+> 🆕 **2026-08-19 (Pi, laboratorio) · EL MAPA BUENO DE LA ARENA, CON ORIGEN
+> ANCLADO A UNA ESQUINA CONVENIDA**
+> ═══════════════════════════════════════════════════════════════════════════════
+> `~/mapas/arena.yaml` rehecho y **verificado por geometría**: extensión ocupada
+> **3,95 × 4,00 m** con los muros rectos y alineados con los ejes, que es la
+> arena real (medida con el LIDAR antes de arrancar: **cuadrada de ~3,8-4,0 m**).
+> Los dos mapas del 08-18 salieron **en rombo** y quedan como `DESCARTADO_*`.
+>
+> **La convención, que es lo que hay que repetir** (y está en
+> `mediciones_banco/mapear_arena.py`): robot en la esquina, **~55 cm de cada
+> pared**, pared a su IZQUIERDA y morro **PARALELO** a ella →
+> `/set_pos_and_yaw(0,0,0)` → arrancar `atriz-slam` **después** → comprobar que
+> `map → base_footprint` da (0,000, 0,000, 0,0°) → conducir. Así **el (0,0) del
+> mapa ES esa esquina**, con testigo, y desaparece la ambigüedad de una arena
+> cuadrada — que es real: casar `/scan` contra el mapa dio **tres candidatos
+> empatados** (0,003/0,004/0,004) y conducir 1 m **no** los desempató.
+>
+> 🔴 **Trampa nueva:** mover el robot a mano con SLAM vivo da el MISMO síntoma que
+> la congelación del `collision_monitor` (evidencia 93) — `/scan` idéntico tramo
+> tras tramo y giros de 0,0°. **Pregunta a quien está al lado del robot.**
+>
+> ⚠️ **Batería:** mapear cuesta ~0,1 V por pasada de 4 min, pero el intento del
+> 08-18 murió agotado **y el corte reinició la Pi**. No mapees por debajo de
+> ~7,6 V.
+>
+> ⏳ **El siguiente paso exacto: A5** — con cinta, comprobar que la pose que fija
+> `/initialpose` es correcta sobre este mapa. Detrás: resto del Bloque C (AMCL con
+> objetos, huecos 43/45). `ATRIZ_MAPA` ya apunta a `arena.yaml`.
+>
+> ═══════════════════════════════════════════════════════════════════════════════
+> 🆕 **2026-08-18 (Pi, laboratorio) · LA ARENA MAPEADA POR PRIMERA VEZ** *(mapa
+> superado por el del 08-19; el procedimiento de la curva sigue valiendo)*
 > ═══════════════════════════════════════════════════════════════════════════════
 > Primer pendiente del Bloque C cerrado. Conducción **autónoma** con
 > `mediciones_banco/explorar_arena.py` (rebote sobre `atriz.py`): 19 m en dos
