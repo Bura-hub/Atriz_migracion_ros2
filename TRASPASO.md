@@ -69,9 +69,20 @@
 > 📌 **Regla nueva: `hueco practicable ≈ 30 cm + 2 × deriva`** — 40 cm es el límite,
 > 45-50 lo cómodo, y eso es ADEMÁS de lo que pida el planificador.
 >
-> ⏳ **Siguiente:** el caso **engordado en la arena** (mapear con los objetos puestos) y la
-> **práctica 63**. ⚠️ La travesía **con Nav2** no se puede montar aquí: haría falta que el
-> hueco fuera el único camino. `ATRIZ_MAPA` ya apunta a `arena.yaml`.
+> ✅ **Y EL CASO ENGORDADO, CERRADO el 2026-08-20: el mismo hueco de 40 cm se CIERRA
+> cuando los objetos están en el mapa.** Remapeada la arena con la puerta intacta y Nav2
+> lanzado a mano sobre SLAM: **0 celdas transitables, 49/49 cerradas y sin parpadeo**,
+> contra **1 celda + 3 parpadeando** con el mapa sin los objetos. Confirma la predicción
+> del 2026-08-09 («se comportará como SLAM»), que llevaba once días escrita sin poder
+> comprobarse. Mapa en `~/mapas/arena_con_objetos.yaml`; `ATRIZ_MAPA` **sigue** en
+> `arena.yaml` (cambiarlo es `sudo` y decisión de operación).
+> 📌 **Para el aula:** un paso de 40 cm **existe si el mobiliario se puso DESPUÉS de mapear,
+> y no existe si estaba al mapear**.
+>
+> ⏳ **Con esto el Bloque C queda cerrado.** Fuera de él: la **práctica 63** (espera a la
+> línea en el suelo), la aceptación de un tirón, la foto del conector, y las dos decisiones
+> del usuario (reparto del mapa a la flota y Fase 6). ⚠️ La travesía **con Nav2** no se puede
+> montar aquí: haría falta que el hueco fuera el único camino.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-18 (Pi, laboratorio) · LA ARENA MAPEADA POR PRIMERA VEZ** *(mapa

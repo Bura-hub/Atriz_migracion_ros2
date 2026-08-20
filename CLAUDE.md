@@ -1447,9 +1447,20 @@ arena, mapa SIN los objetos            40,3 -> 1 celda    45,0 -> 2   48,1 -> 2
     Con la puerta en medio de la arena, 8 de 8 consultas dijeron RODEA **a los tres anchos, incluso
     con el canal abierto** — el desvío eran 78 cm por espacio libre. En un pasillo sí discrimina, y
     de ahí venía la curva de casa. **La métrica que transfiere entre salas es CONTAR CELDAS.**
-→ ⏳ **La casilla que falta, y es la del aula: AMCL sobre un mapa que SÍ contiene los objetos.** Los
-  mapas del aula se hacen con slam_toolbox y se guardan, así que lo que estuviera puesto al mapear
-  entra ya engordado en el fichero. **Predicción NO VERIFICADA: se comportará como SLAM.**
+→ ✅ **CERRADA EL 2026-08-20, Y LA PREDICCIÓN ERA CORRECTA: se comporta como SLAM.** Se remapeó la
+  arena **con los objetos donde estaban** (puerta intacta, verificado con el LIDAR: 39,9 cm) y se
+  lanzó Nav2 **a mano sobre SLAM**. Mismo hueco físico, mismo instrumento, 49 muestras del costmap:
+
+```
+mapa SIN los objetos (solo capa de obstaculos)   1 celda estable + 3 parpadeando
+mapa CON los objetos (capa estatica, engordada)  0 celdas · 49/49 CERRADAS, sin parpadeo
+```
+
+  **El engorde no es un matiz: es la diferencia entre pasar y no pasar con el hueco idéntico.**
+  📌 **La frase operativa para el aula: un paso de 40 cm EXISTE si el mobiliario se puso DESPUÉS de
+  mapear, y NO existe si estaba al mapear.** Con el mobiliario en el mapa, la regla son los ~49 cm.
+  📝 Y el mapa nuevo se verificó **por contenido**: el vacío tenía 0 celdas ocupadas en el interior,
+  éste **25** en dos grupos. Sin eso, «cerrado» podría haber sido un mapa mal hecho.
 → ✅ **Y explica el único `FALLO` de la prueba de aceptación del 2026-08-08:** montaje demasiado justo.
   Cadena completa: hueco 45 → mapa 35 → inflación lo cierra → rodeo → `collision ahead` →
   `failure_tolerance: 0.3` → `Controller patience exceeded` → `ABORTED`.

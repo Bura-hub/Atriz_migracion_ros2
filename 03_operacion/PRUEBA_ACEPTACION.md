@@ -402,9 +402,11 @@ un robot centrado**; con 40,1 sobran 5 cm por lado y la deriva del lazo abierto 
 a **15,0 cm exactos** de un objeto. **40 cm es el límite; 45-50 es lo cómodo**, y esto es *además*
 de lo que pida el planificador.
 
-⏳ **Sin verificar, y es la casilla del aula:** AMCL sobre un mapa que **sí** contiene los objetos.
-Los mapas del aula se hacen con slam_toolbox y se guardan, así que lo que estuviera puesto al
-mapear entra ya engordado en el fichero. **Predicción: se comportará como SLAM.**
+~~⏳ **Sin verificar, y es la casilla del aula:** AMCL sobre un mapa que **sí** contiene los
+objetos.~~ ✅ **VERIFICADO el 2026-08-20, y la predicción era correcta: se comporta como SLAM.**
+Remapeada la arena con los objetos donde estaban (puerta intacta: 39,9 cm) y Nav2 lanzado a mano
+sobre SLAM, **el mismo hueco de 40 cm da 0 celdas transitables** —49/49 cerradas, sin parpadeo—
+contra **1 celda estable + 3 parpadeando** con el mapa que no los contiene.
 
 ⚠️ **OJO, que son DOS casillas distintas y se confunden con facilidad** (2026-08-19):
 

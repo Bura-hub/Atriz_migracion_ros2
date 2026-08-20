@@ -51,7 +51,12 @@ robot **pasa reptando** — 41 % de lo mandado dentro de la puerta (`Precaucion`
 📌 **Para la web y para montar el aula: `hueco practicable ≈ 30 cm + 2 × deriva`.** El círculo de
 `Aproximacion` son 15 cm desde el centro del robot, así que 30 cm es el mínimo **para un robot
 centrado**; con 40 sobran 5 cm por lado y la deriva se los come. **45-50 cm es lo cómodo.**
-⏳ Queda el caso **engordado en la arena** (mapear con los objetos puestos).
+✅ **Y el caso engordado, cerrado el 2026-08-20:** remapeada la arena **con los objetos puestos** y
+Nav2 lanzado a mano sobre SLAM, el mismo hueco de **40 cm** da **0 celdas transitables (49/49
+cerradas, sin parpadeo)** contra **1 celda** con el mapa sin ellos.
+📌 **La frase para la pantalla: un paso de 40 cm existe si el mobiliario se puso DESPUÉS de mapear,
+y NO existe si estaba al mapear.** Con el mobiliario en el mapa, la regla son ~49 cm.
+**Con esto el Bloque C queda cerrado.**
 
 5. 🔴 **PARA LA WEB, lo más importante del día: `SUCCEEDED` de Nav2 NO significa que el robot haya
    llegado, y ahora está medido EN EL AULA.** n=2 sobre `arena.yaml`, con una cruz marcada en el

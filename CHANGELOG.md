@@ -4,6 +4,47 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-20, tarde (Pi, laboratorio) — EL CASO ENGORDADO: el mismo hueco de 40 cm se CIERRA cuando los objetos están en el mapa
+
+Última casilla del Bloque C, y cierra un ⏳ abierto desde el 2026-08-09. La arena se remapeó **con
+los objetos exactamente donde estaban** (👤 el usuario sólo recolocó el robot; la puerta no se tocó
+— verificado antes de arrancar: **39,9 cm**, contra los 40,1 de la tanda anterior), y se lanzó Nav2
+**a mano sobre SLAM**, que es como el mapa lleva la puerta en la **capa estática**.
+
+```
+mismo hueco fisico, misma arena, mismos objetos, mismo instrumento
+
+mapa SIN los objetos (solo capa de obstaculos)   1 celda estable + 3 parpadeando
+mapa CON los objetos (capa estatica, engordada)  0 celdas · 49/49 CERRADAS, sin parpadeo
+```
+
+✅ **La predicción del 2026-08-09 —«se comportará como SLAM»— era correcta**, y ahora está medida en
+vez de deducida. **El engorde de la capa estática no es un matiz: es la diferencia entre pasar y no
+pasar con el hueco idéntico.**
+
+📌 **Y da la cifra operativa para montar el aula, que es la que le falta a la web:** un paso de 40 cm
+**existe si las mesas se pusieron después de mapear, y NO existe si estaban al mapear**. La regla de
+los ~49 cm es la buena cuando el mobiliario está en el mapa; con obstáculos añadidos después basta
+con ~42-45.
+
+**Lo que se comprobó ANTES de creerse la medida**, porque este proyecto ya se comió un «plan
+perfecto» que era la firma de un costmap vacío (evidencia 97): `planner_server`,
+`global_costmap/global_costmap` y `controller_server` los tres en **`active [3]`**, **cero** líneas
+de `Failed to bring up`/`Aborting bringup` en el log del launch, y `atriz-slam` vivo dando
+`map → odom`.
+
+📝 **Y el mapa nuevo se verificó por contenido, no por existir:** el mapa vacío tenía **0 celdas
+ocupadas en el interior**; éste tiene **25**, en dos grupos, que son los dos objetos. Sin esa
+comprobación, «cerrado» podría haber sido simplemente un mapa mal hecho.
+
+Mapa guardado como `~/mapas/arena_con_objetos.yaml` (14,71 m de conducción, perímetro + 3 tramos).
+⚠️ **`ATRIZ_MAPA` sigue apuntando a `arena.yaml`** (el de la sala vacía): cambiarlo exige `sudo` y es
+decisión de operación, no de esta medida.
+
+Batería 7,24 → 7,21 V.
+
+---
+
 ## 2026-08-20 (Pi, laboratorio) — LA TRAVESÍA: por un hueco de 40 cm el robot pasa, pero la capa de seguridad lo deja reptando
 
 Cierra el ⏳ que quedaba de los huecos: **las celdas dicen que el paso existe; sólo cruzar dice lo
