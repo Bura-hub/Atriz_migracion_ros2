@@ -11,11 +11,11 @@ para saber por dónde vas.
 
 ---
 
-**Última actualización:** 2026-08-19
+**Última actualización:** 2026-08-20
 
 ---
 
-## ✅ Pi (2026-08-19) · **LA ARENA DEL LABORATORIO ESTÁ MAPEADA, Y A5 CERRADO CON CINTA**
+## ✅ Pi (2026-08-18/20) · **LA ARENA MAPEADA, A5 CERRADO Y EL BLOQUE C ENTERO CERRADO**
 
 Lo que el PC necesita saber, en cuatro líneas:
 
@@ -57,6 +57,36 @@ cerradas, sin parpadeo)** contra **1 celda** con el mapa sin ellos.
 📌 **La frase para la pantalla: un paso de 40 cm existe si el mobiliario se puso DESPUÉS de mapear,
 y NO existe si estaba al mapear.** Con el mobiliario en el mapa, la regla son ~49 cm.
 **Con esto el Bloque C queda cerrado.**
+
+---
+
+### 👉 LO QUE LE TOCA AL PC — seis cosas, por orden de lo que puede morder
+
+1. 🔴🔴 **`SUCCEEDED` de Nav2 NO puede presentarse como «ha llegado», y ahora está medido EN EL
+   AULA.** n=2 sobre `arena.yaml`, con cruz marcada en el suelo y cinta: **llegó a 14 y 17 cm** con
+   `SUCCEEDED` las dos veces, y AMCL creyéndose a 6,4 y 8,2. La `xy_goal_tolerance` de 10 cm **no se
+   cumple en el mundo real** porque el controlador para cuando *cree* estar dentro: **el desenlace
+   hereda el error de localización entero.** Lo que sí se puede enseñar es el desplazamiento por
+   `/odom`, como ya hace la pantalla. **Cifra honesta para el aula: ~15 cm.**
+2. 🔴 **`/amcl_pose` NO llega con el robot quieto** (AMCL sólo actualiza cada 15 cm). Medido:
+   20 s suscrito, **cero mensajes**, con el robot perfectamente sano. **Si alguna pantalla espera ese
+   topic para pintar la pose, se quedará muda sobre un robot bueno** — el modo de fallo que este
+   proyecto persigue en todas partes. La creencia continua está en **TF `map → base_footprint`**.
+3. 🔴 **`/initialpose` exige sello 0.** Con `now()` AMCL la descarta por extrapolación al futuro
+   (evidencia 88). Si la web publica ahí con marca de tiempo actual, **cree que fija la pose y no la
+   fija**.
+4. 📌 **Los dos números del paso, que la web necesita para decir qué cabe y qué no:**
+   · **planificador** — mobiliario **en el mapa**: ~49 cm · añadido **después**: ~42-45 cm.
+   · **capa de seguridad** — `hueco practicable ≈ 2 × 0,15 + 2 × deriva` → **40 cm es el límite,
+     45-50 lo cómodo**. **Manda la más exigente de las dos.**
+5. 🔑 **La convención de mapeo hay que enseñarla en la interfaz** el día que un profesor remapee:
+   esquina, ~55 cm de cada pared, **morro paralelo** a ella, y el origen se ancla ahí. Sin eso el
+   mapa sale **en rombo**, y una sala cuadrada **no se puede localizar sola** — por eso
+   `/initialpose` no es un extra, es la única vía.
+6. ⚠️ **Decisión abierta que afecta al despliegue: cómo llega el mapa a los 16.** `arena.yaml` vive
+   **fuera** del paquete y `fase_6` borra `~/mapas`: hoy los otros 15 saldrían de la imagen **sin
+   mapa**. Las dos salidas están en `00_auditoria/planes/2026-08-03-arranque-navegacion.md`.
+   👤 Es del usuario, pero el PC debería saberlo antes de prometer navegación en la flota.
 
 5. 🔴 **PARA LA WEB, lo más importante del día: `SUCCEEDED` de Nav2 NO significa que el robot haya
    llegado, y ahora está medido EN EL AULA.** n=2 sobre `arena.yaml`, con una cruz marcada en el
