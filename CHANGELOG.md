@@ -4,6 +4,66 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-19, noche (Pi, laboratorio) — LOS HUECOS DE 43/45: umbral acotado, y el engorde del mapa medido en el planificador
+
+Cerrado el último pendiente de navegación del Bloque C, y **sin mover el robot ni un centímetro**:
+todo con `compute_path_to_pose` y muestreo del costmap, que es para lo que existe
+`mediciones_banco/consultar_plan.py`. Coste en batería: 7,45 → 7,32 V, y eso lo gastó Nav2 corriendo,
+no el robot.
+
+**La curva de la arena** — AMCL sobre `arena.yaml`, que **NO** contiene los objetos, así que la
+puerta la marca sólo la capa de obstáculos del LIDAR. 👤 El usuario deslizaba un objeto entre tandas;
+el ancho lo mide el **LIDAR**, no la cinta. 48-49 muestras del costmap en 75 s por punto:
+
+```
+hueco (LIDAR)   celdas transitables SIEMPRE   parpadeando
+   40,3 cm                 1                       3
+   45,0 cm                 2                       2
+   48,1 cm                 2                       3
+```
+
+📌 **Y puesta al lado de la curva de casa (evidencia 97), que se midió con el mapa CONTENIENDO la
+puerta, sale el mecanismo con número:**
+
+```
+casa, capa estatica engordada    38,6 -> 0 celdas    47,1 -> 1 celda    61,1 -> 2-3
+arena, solo capa de obstaculos   40,3 -> 1 celda     45,0 -> 2          48,1 -> 2
+```
+
+**El mismo hueco «vale» ~7 cm más cuando los objetos no están en el mapa.** El engorde de ~5 cm por
+lado de la evidencia 91 estaba deducido de **tres celdas**; esto lo mide en la magnitud que decide,
+que es cuántas celdas transitables quedan en la fila de la pinza. ⚠️ Un punto por ancho, y los dos
+juegos vienen de salas distintas: es **coherencia**, no un experimento pareado.
+
+✅ **La predicción se escribió antes de medir el último punto y acertó:** una celda es transitable si
+está a más de 14,5 cm (radio inscrito) de los dos objetos, así que la banda abierta ≈ `hueco − 29 cm`
+más la cuantización de 5 cm → cierre alrededor de **39-40 cm**. A 40,3 quedó **1 celda**.
+
+🔴🔴 **DOS FALLOS DE MÉTODO MÍOS EN ESTA MISMA SESIÓN, y el segundo invalidó una conclusión:**
+
+1. **Medí el coste sobre el EJE DEL ROBOT en vez de sobre la línea de la puerta**, y con ese dato
+   escribí «a 40,4 cm el canal está CERRADO». **Falso**: el eje pasaba a 9 cm del borde de un objeto,
+   o sea rozando, mientras el hueco tenía sitio más abajo. **Miré la línea equivocada.** Con el corte
+   perpendicular, ese mismo ancho da 1 celda abierta. Retirado en el acto.
+2. 🔴 **Y el diseño de la prueba no podía medir lo que yo creía:** monté la puerta en **medio de una
+   arena abierta** y usé «¿el plan cruza?» como criterio. Las 8 de 8 consultas dijeron RODEA **a los
+   tres anchos, incluso con el canal abierto**, porque dar la vuelta cuesta 78 cm de desvío por
+   espacio libre. **En una sala abierta, la tasa de consultas no mide el ancho del paso: mide si el
+   rodeo sale más barato.** En casa la puerta estaba en un pasillo y por eso allí sí discriminaba.
+   → **La métrica que transfiere entre salas es contar CELDAS en la fila de la pinza**, que es
+     justo lo que la evidencia 97 había dejado escrito y que yo no apliqué hasta el segundo intento.
+
+⏳ **Lo que queda de este bloque, y no es poco:**
+- **La travesía.** Todo esto son celdas y consultas: dicen que el paso EXISTE. **Sólo cruzar mide lo
+  que cuesta**, y es la lección que la evidencia 97 dejó subrayada. No se hizo: batería.
+- **El caso engordado EN LA ARENA** (mapear con los objetos puestos y navegar sobre ese mapa), que es
+  el que se parece a la F7 de la aceptación.
+- **La alineación con la rejilla** sigue **sin discriminar**: los tres anchos se midieron con la
+  puerta casi en el mismo sitio (x=1,50-1,51), así que no separan «depende del ancho» de «depende de
+  dónde cae respecto a las celdas».
+
+---
+
 ## 2026-08-19, tarde (Pi, laboratorio) — CONFIGURACIÓN DURA DE OBJETOS: AMCL sigue sin degradarse, con siete veces más estorbo
 
 El escalón que faltaba del Bloque C. Los dos objetos, movidos por el usuario para formar una

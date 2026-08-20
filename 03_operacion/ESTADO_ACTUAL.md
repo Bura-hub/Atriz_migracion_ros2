@@ -38,8 +38,15 @@ Lo que el PC necesita saber, en cuatro líneas:
    sobre un robot sano; la creencia continua está en TF `map → base_footprint`. Y `/initialpose`
    necesita **sello 0**: con `now()` AMCL la descarta.
 
-⏳ Del Bloque C quedan la configuración **dura** de objetos (junto a la ruta) y los **huecos de
-43/45 cm**.
+✅ **El Bloque C de navegación queda cerrado salvo dos casillas.** Además de lo de arriba:
+la configuración **dura** de objetos (18,6 % del barrido) tampoco degrada a AMCL, y los **huecos**
+están acotados sin mover el robot — con el mapa SIN los objetos: **40,3 cm → 1 celda transitable ·
+45,0 → 2 · 48,1 → 2**, contra la curva de casa con el mapa engordado (38,6 → 0 · 47,1 → 1). O sea:
+**el mismo hueco vale ~7 cm más cuando los objetos no están en el mapa.**
+📌 Para la web, en una frase: **si las mesas estaban al mapear, exige ~49 cm de paso; si aparecen
+después, con ~42-45 hay canal.**
+⏳ Quedan la **travesía** de confirmación (las celdas dicen que el paso existe, solo cruzar dice lo
+que cuesta) y el caso **engordado en la arena** (mapear con los objetos puestos).
 
 5. 🔴 **PARA LA WEB, lo más importante del día: `SUCCEEDED` de Nav2 NO significa que el robot haya
    llegado, y ahora está medido EN EL AULA.** n=2 sobre `arena.yaml`, con una cruz marcada en el

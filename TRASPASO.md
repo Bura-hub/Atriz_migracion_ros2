@@ -50,8 +50,19 @@
 > otras dos tandas. 📌 Lo que NO se ha probado y es el estresor de verdad: **tapar una
 > pared entera**, que no añade ruido sino que quita restricción.
 >
-> ⏳ **Siguiente:** los **huecos de 43/45 cm** (umbral entre 41,1 y 47,1 sin acotar) y la
-> **práctica 63**. `ATRIZ_MAPA` ya apunta a `arena.yaml`.
+> ✅ **Y los HUECOS acotados, sin mover el robot** (costmap + `compute_path_to_pose`):
+> con el mapa SIN los objetos, **40,3 cm → 1 celda · 45,0 → 2 · 48,1 → 2**. Puesto al lado
+> de la curva de casa (con el mapa engordado: 38,6 → 0 · 47,1 → 1), **el mismo hueco vale
+> ~7 cm más cuando los objetos no están en el mapa** — el engorde, medido por fin en el
+> planificador.
+> 🔴 Y dos fallos de método propios en esa tanda, los dos escritos: medir el coste sobre el
+> **eje del robot** en vez de la línea de la puerta (invalidó una conclusión), y montar la
+> puerta **en una sala abierta**, donde «¿el plan cruza?» mide si el rodeo es barato, no el
+> ancho del paso.
+>
+> ⏳ **Siguiente:** la **travesía** de confirmación (celdas dicen que el paso existe; solo
+> cruzar dice lo que cuesta), el caso **engordado en la arena**, y la **práctica 63**.
+> `ATRIZ_MAPA` ya apunta a `arena.yaml`.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-18 (Pi, laboratorio) · LA ARENA MAPEADA POR PRIMERA VEZ** *(mapa

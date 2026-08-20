@@ -1427,6 +1427,26 @@ línea de la puerta (x=85 cm), lateral -40..+40, misma escena, mismos 45 cm
   Con AMCL la puerta la marca **sólo la capa de obstáculos del LIDAR**, que es fina y exacta; con
   SLAM entra en la **capa estática** ya engordada. **La regla de los 49 cm sigue siendo la buena
   para la F7 de la aceptación, que lanza SLAM** — que es donde apareció el FALLO.
+→ ✅ **Y CUÁNTO valen esos «5 cm por lado» EN EL PLANIFICADOR, medido el 2026-08-19 en la arena**
+  contando celdas transitables en la fila de la pinza (48-49 muestras del costmap por punto):
+
+```
+casa, mapa CON la puerta (engordada)   38,6 -> 0 celdas   47,1 -> 1   61,1 -> 2-3
+arena, mapa SIN los objetos            40,3 -> 1 celda    45,0 -> 2   48,1 -> 2
+```
+
+  **El mismo hueco vale ~7 cm más cuando los objetos NO están en el mapa.** Para el aula: si las
+  mesas estaban puestas al mapear, exige los **~49 cm**; si aparecen después (una silla que alguien
+  movió), con **~42-45** ya hay canal. ⚠️ Un punto por ancho y salas distintas: coherencia, no
+  experimento pareado.
+→ 🔴🔴 **Y OJO CON EL INSTRUMENTO, que aquí falla de dos maneras distintas:**
+  · **Mide el coste en la LÍNEA DE LA PUERTA, perpendicular, no en el eje del robot.** El 2026-08-19
+    se escribió «a 40,4 cm el canal está cerrado» muestreando el eje, que pasaba a 9 cm del borde de
+    un objeto: **la línea equivocada**. Con el corte bueno, ese ancho da 1 celda abierta.
+  · **«¿El plan cruza?» NO mide el ancho del paso en una sala abierta: mide si el rodeo es barato.**
+    Con la puerta en medio de la arena, 8 de 8 consultas dijeron RODEA **a los tres anchos, incluso
+    con el canal abierto** — el desvío eran 78 cm por espacio libre. En un pasillo sí discrimina, y
+    de ahí venía la curva de casa. **La métrica que transfiere entre salas es CONTAR CELDAS.**
 → ⏳ **La casilla que falta, y es la del aula: AMCL sobre un mapa que SÍ contiene los objetos.** Los
   mapas del aula se hacen con slam_toolbox y se guardan, así que lo que estuviera puesto al mapear
   entra ya engordado en el fichero. **Predicción NO VERIFICADA: se comportará como SLAM.**
