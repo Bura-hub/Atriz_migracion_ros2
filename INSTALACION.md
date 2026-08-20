@@ -75,6 +75,7 @@ Marcas: ✅ recorrido y verificado · ⏳ pendiente · 👤 lo ejecuta la person
      F11 Paso estrecho: el límite medido      manual, cap. 12.10             ✅
          └── con radius 0.18 NO cruzaba 40 cm · y el URDF tenía las cotas CRUZADAS
              🔄 desde 2026-08-09 el radius es 0.15 -> pasillo mínimo ~30 cm (ev. 94)
+                ⚠️ ~30 es para un robot CENTRADO; practicable ~40 (límite) y 45-50 cómodo (2026-08-20)
 
      F12 El robot medido entero  03_operacion/MEDIDAS_ROBOT.md          ✅
          └── 18.2 x 21.7 x 7.0 cm · laser_z 15.5 (no 17.45) · LIDAR NIVELADO

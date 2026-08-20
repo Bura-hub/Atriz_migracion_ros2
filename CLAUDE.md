@@ -2806,6 +2806,7 @@ de verdad. Dos consecuencias que cambian el día a día:
 | Alto del RVR (suelo → tapa) | **7.0 cm** — la ficha decía 11.4 | 2026-07-31 |
 | Radio circunscrito | **0.142 m** → `robot_radius: 0.145` | derivado de lo anterior |
 | Paso mínimo con `radius: 0.15` | ~**30 cm** + margen (`2 × radius`) — con el 0.18 anterior eran 36 y no cruzaba 40 | 2026-08-09 |
+| 🆕 **Paso PRACTICABLE, medido cruzando** | 🔑 **`hueco ≈ 2 × radius + 2 × deriva`** → con este robot **40 cm es el LÍMITE y 45-50 lo cómodo**. Los 30 cm de arriba valen para un robot **perfectamente centrado**, y eso no existe conduciendo: por 40,1 cm pasó, pero mandado→real **41 %** dentro de la puerta (`Precaucion`) y **11 %** al salir (`Aproximacion`), acabando a **15,0 cm exactos** de un objeto. ⚠️ n=1, lazo abierto | 2026-08-20 |
 | Hueco al parar, `radius: 0.15` | **6.3 cm** a 0.25 m/s · **7.4 / 6.6 cm** a 0.40 (máxima) | 2026-08-09 |
 | ✅ **Deriva de SLAM (referenciando)** | mediana **1.55 cm** (1.6 m) y **0.90 cm** (2.3 m) · peor **4.4 cm** · **0 fallos de 12**. NO crece con la distancia | 2026-07-31, n=12 |
 | 🔴 Deriva de SLAM **sin** referenciar | **~21 %** de las corridas se iban a 6–56 cm | 2026-07-31, n=24 |

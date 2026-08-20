@@ -3401,6 +3401,18 @@ frenar antes cuanto mayor es la velocidad.
 
 ### 12.5 🔴 SÍ queda atrapado — el 2026-08-09 lo desmintió
 
+> 🆕 **PRECISADO el 2026-08-20, con control: depende de si el obstáculo está DENTRO del círculo o
+> en su BORDE.** Cruzando un hueco de 40,1 cm el robot acabó a **15,0 cm exactos** de un objeto —el
+> borde justo, con `radius: 0.15`— y desde ahí **se liberó solo**: retrocedió 10,5 cm de 30 mandados
+> (35 %) y giró 17,9° de 20. La inmovilización total que describe esta sección se midió con el
+> obstáculo **dentro**. Encaja con el ajuste 0,18 → 0,15 (evidencia 95), que estrechó la banda de
+> trampa de 3,6 a **0,6 cm**: hoy esa banda se atravesó sin quedarse.
+>
+> 📌 Y de la misma travesía sale el número que faltaba para dimensionar un paso:
+> **`hueco practicable ≈ 2 × radius + 2 × deriva`** — con este robot, **40 cm es el límite y 45-50
+> lo cómodo**. Mandado→real al cruzar: **41 %** dentro de la puerta (`Precaucion`, 40 % configurado)
+> y **11 %** al salir (`Aproximacion`).
+
 > 🔴🔴 **AVISO: EL TÍTULO Y LA TABLA DE ESTA SECCIÓN ESTÁN EN DISPUTA.**
 > El 2026-08-09 (evidencia 93) se midió lo contrario, con el usuario mirando el robot:
 >

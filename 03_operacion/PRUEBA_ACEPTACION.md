@@ -385,7 +385,22 @@ arena, mapa SIN los objetos            40,3 -> 1 celda    45,0 -> 2   48,1 -> 2
 
 **El mismo hueco vale ~7 cm más cuando los objetos no están en el mapa.** Para montar el aula:
 **si las mesas estaban puestas al mapear, exige ~49 cm; si aparecen después, con ~42-45 hay canal.**
-⏳ Son celdas, no travesías: dicen que el paso **existe**, no lo que cuesta cruzarlo.
+
+✅ **Y LO QUE CUESTA CRUZARLO, medido el 2026-08-20** (conducción manual: en una sala abierta Nav2
+no cruza, rodea). Hueco de **40,1 cm**:
+
+```
+tramo                    mandado   real     %     quien frena
+aproximacion              1,20 m   1,197   100    nadie
+DENTRO de la puerta       0,90 m   0,366    41    Precaucion (40 % configurado)
+salida                    1,05 m   0,119    11    Aproximacion, escalando a cero
+```
+
+🔑 **Y de ahí la regla que ninguna cuenta de celdas da: `hueco practicable ≈ 2 × radius + 2 × deriva`.**
+El círculo de `Aproximacion` son 15 cm desde el centro del robot, así que 30 cm es el mínimo **para
+un robot centrado**; con 40,1 sobran 5 cm por lado y la deriva del lazo abierto se los come — acabó
+a **15,0 cm exactos** de un objeto. **40 cm es el límite; 45-50 es lo cómodo**, y esto es *además*
+de lo que pida el planificador.
 
 ⏳ **Sin verificar, y es la casilla del aula:** AMCL sobre un mapa que **sí** contiene los objetos.
 Los mapas del aula se hacen con slam_toolbox y se guardan, así que lo que estuviera puesto al
