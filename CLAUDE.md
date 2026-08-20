@@ -1481,6 +1481,17 @@ RETROCEDER hacia la pared       ->  0.0 cm    monitor: APROXIMACION
   editar el YAML y reiniciar**, o sea es un cambio de imagen dorada para los 16, no un botón.
   ⚠️ Y la prueba que «aislaba la causa» tenía además el control roto: la pared estaba a 18,3 cm y no
   a 16,8, o sea **ya fuera del círculo**. Dos fallos independientes en la misma medida.
+→ ✅ **MATIZADO el 2026-08-20 con control: EN EL BORDE del círculo el robot SÍ se libera solo.**
+  Cruzando un hueco de 40,1 cm quedó a **15,0 cm exactos** de un objeto (el borde, con `radius: 0.15`)
+  y desde ahí retrocedió **10,5 cm de 30 mandados (35 %)** y giró **17,9° de 20**. La inmovilización
+  total de esta evidencia era con el obstáculo **DENTRO** del círculo. Encaja con el ajuste
+  0,18 → 0,15 (evidencia 95), que estrechó la banda de trampa de 3,6 a 0,6 cm.
+→ 🔑 **Y de ahí sale la regla del pasillo, que ninguna cuenta de celdas da:
+  `hueco practicable ≈ 30 cm + 2 × (deriva esperada)`.** El círculo son 15 cm desde
+  `base_footprint`, así que 30 cm es el mínimo **para un robot perfectamente centrado**; con 40,1 cm
+  sobran 5 cm por lado y **conducir en lazo abierto se los come**. Medido cruzando: mandado→real
+  **41 %** dentro de la puerta (`Precaucion`, 40 % configurado — la confirmación más limpia que ha
+  tenido ese parámetro) y **11 %** al salir. **40 cm es el límite; 45-50 es lo cómodo.**
 → ✅ **Hueco al parar MEDIDO con el radio real (0.18), a 0,25 m/s: 9,3 · 9,4 · 9,3 · 9,4 cm**
   (n=4, 1 mm de dispersión). Cuadra con la asíntota `18 − 9,5 = 8,5` más ~1 cm de arrastre, y con
   los 9,9 cm del fichero 17. El escalón de 0,25 a 0,100 a ~36 cm es el polígono `Precaucion`.

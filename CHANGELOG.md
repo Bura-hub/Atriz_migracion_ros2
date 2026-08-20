@@ -4,6 +4,55 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-20 (Pi, laboratorio) — LA TRAVESÍA: por un hueco de 40 cm el robot pasa, pero la capa de seguridad lo deja reptando
+
+Cierra el ⏳ que quedaba de los huecos: **las celdas dicen que el paso existe; sólo cruzar dice lo
+que cuesta**. Y cuesta mucho más de lo que la cuenta de celdas sugería.
+
+🔴 **Primero, lo que NO se pudo medir y por qué:** con la puerta en medio de una arena abierta,
+**Nav2 no cruza** — rodea, 8 de 8, a los tres anchos (medido el 19). Así que esta travesía es
+**conducción manual** por `atriz.py`, y responde a otra pregunta: *¿cabe el robot y le deja pasar la
+capa de seguridad?* Es la del alumno conduciendo, no la del planificador.
+
+**Hueco medido por el LIDAR: 40,1 cm** · centro a −24,7 cm de la línea del robot · puntería −9,3°.
+Con el robot centrado le quedarían **9,2 cm de chasis por lado**.
+
+```
+tramo                       mandado   REAL      %      quien frena
+1 · aproximacion             1,20 m   1,197 m   100    nadie
+2 · dentro de la puerta      0,90 m   0,366 m    41    Precaucion (40 % configurado)
+3 · salida                   1,05 m   0,119 m    11    Aproximacion, escalando a cero
+```
+
+✅ **Las tres predicciones, declaradas ANTES de conducir, acertaron:** que pasaría (el paso mínimo
+con `radius: 0.15` es ~30 cm), que `Precaucion` frenaría (sus ±20 cm de ancho contra objetos a
+±20,05) y que no se congelaría del todo. El **41 % medido contra el 40 % configurado** es la
+confirmación más limpia que ha tenido ese parámetro.
+
+🔴🔴 **Y el hallazgo operativo, que no estaba en ninguna cuenta de celdas: el margen de deriva.**
+`Aproximacion` es un círculo de 15 cm desde `base_footprint`, así que un pasillo necesita 2×15 = 30 cm
+**para un robot perfectamente centrado**. Con 40,1 cm sobran **5 cm por lado**, y conducir en lazo
+abierto se los come: el robot se descentró hasta quedar a **15,0 cm exactos** de un objeto — el borde
+del círculo—, con el factor de mando previsto en **0,001**. Reptando.
+
+📌 **Regla con número que sale de aquí:** `hueco practicable ≈ 30 cm + 2 × (deriva esperada)`.
+Con la deriva de este robot en lazo abierto (varios cm por metro), **40 cm es el límite y 45-50 es
+lo cómodo** — y eso es *además* de lo que pida el planificador, que es otra cuenta.
+
+✅ **Y un matiz a la evidencia 93, medido con control: EN EL BORDE el robot SÍ se libera solo.**
+Se le mandó retroceder y girar: **10,5 cm de 30 (35 %) y 17,9° de 20**, y quedó a 17,0 cm. La
+inmovilización total de la 93 —«ni siquiera puede alejarse»— era con el obstáculo **dentro** del
+círculo. Encaja con el ajuste `radius` 0,18 → 0,15 del 2026-08-09, que estrechó la banda de trampa
+de 3,6 a 0,6 cm: aquí esa banda se atravesó sin quedarse.
+
+⚠️ n=1, un solo ancho, conducción manual y en lazo abierto. **La travesía CON NAV2 sigue sin
+medirse** en la arena, y no se puede montar aquí: haría falta que el hueco fuera el único camino, y
+con dos objetos en una sala de 4×4 m el rodeo siempre es gratis.
+
+Batería 7,29 V.
+
+---
+
 ## 2026-08-19, noche (Pi, laboratorio) — LOS HUECOS DE 43/45: umbral acotado, y el engorde del mapa medido en el planificador
 
 Cerrado el último pendiente de navegación del Bloque C, y **sin mover el robot ni un centímetro**:

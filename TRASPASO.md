@@ -60,9 +60,18 @@
 > puerta **en una sala abierta**, donde «¿el plan cruza?» mide si el rodeo es barato, no el
 > ancho del paso.
 >
-> ⏳ **Siguiente:** la **travesía** de confirmación (celdas dicen que el paso existe; solo
-> cruzar dice lo que cuesta), el caso **engordado en la arena**, y la **práctica 63**.
-> `ATRIZ_MAPA` ya apunta a `arena.yaml`.
+> ✅ **Y la TRAVESÍA, hecha el 2026-08-20: por 40,1 cm el robot pasa, pero reptando.**
+> Conducción manual (Nav2 no cruza: rodea, y en una sala abierta eso es gratis).
+> Mandado→real: aproximación **100 %**, dentro de la puerta **41 %** (`Precaucion`, 40 %
+> configurado), salida **11 %** (`Aproximacion` escalando a cero). Acabó a **15,0 cm
+> exactos** de un objeto — el borde del círculo — y **se liberó solo** (10,5 cm de 30),
+> lo que **matiza la evidencia 93**: la inmovilización total era con el obstáculo DENTRO.
+> 📌 **Regla nueva: `hueco practicable ≈ 30 cm + 2 × deriva`** — 40 cm es el límite,
+> 45-50 lo cómodo, y eso es ADEMÁS de lo que pida el planificador.
+>
+> ⏳ **Siguiente:** el caso **engordado en la arena** (mapear con los objetos puestos) y la
+> **práctica 63**. ⚠️ La travesía **con Nav2** no se puede montar aquí: haría falta que el
+> hueco fuera el único camino. `ATRIZ_MAPA` ya apunta a `arena.yaml`.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-18 (Pi, laboratorio) · LA ARENA MAPEADA POR PRIMERA VEZ** *(mapa

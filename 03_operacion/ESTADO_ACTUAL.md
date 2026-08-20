@@ -45,8 +45,13 @@ están acotados sin mover el robot — con el mapa SIN los objetos: **40,3 cm �
 **el mismo hueco vale ~7 cm más cuando los objetos no están en el mapa.**
 📌 Para la web, en una frase: **si las mesas estaban al mapear, exige ~49 cm de paso; si aparecen
 después, con ~42-45 hay canal.**
-⏳ Quedan la **travesía** de confirmación (las celdas dicen que el paso existe, solo cruzar dice lo
-que cuesta) y el caso **engordado en la arena** (mapear con los objetos puestos).
+✅ **La travesía, hecha el 2026-08-20 (conducción manual: Nav2 rodea):** por un hueco de 40,1 cm el
+robot **pasa reptando** — 41 % de lo mandado dentro de la puerta (`Precaucion`, 40 % configurado) y
+**11 %** al salir (`Aproximacion`). Acabó a **15,0 cm exactos** de un objeto y se liberó solo.
+📌 **Para la web y para montar el aula: `hueco practicable ≈ 30 cm + 2 × deriva`.** El círculo de
+`Aproximacion` son 15 cm desde el centro del robot, así que 30 cm es el mínimo **para un robot
+centrado**; con 40 sobran 5 cm por lado y la deriva se los come. **45-50 cm es lo cómodo.**
+⏳ Queda el caso **engordado en la arena** (mapear con los objetos puestos).
 
 5. 🔴 **PARA LA WEB, lo más importante del día: `SUCCEEDED` de Nav2 NO significa que el robot haya
    llegado, y ahora está medido EN EL AULA.** n=2 sobre `arena.yaml`, con una cruz marcada en el
