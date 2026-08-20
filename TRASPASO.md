@@ -79,9 +79,15 @@
 > 📌 **Para el aula:** un paso de 40 cm **existe si el mobiliario se puso DESPUÉS de mapear,
 > y no existe si estaba al mapear**.
 >
-> ⏳ **Con esto el Bloque C queda cerrado.** Fuera de él: la **práctica 63** (espera a la
-> línea en el suelo), la aceptación de un tirón, la foto del conector, y las dos decisiones
-> del usuario (reparto del mapa a la flota y Fase 6). ⚠️ La travesía **con Nav2** no se puede
+> ⏳ **Con esto el Bloque C queda cerrado.** ✅ **Y el 2026-08-20 se cerró también la decisión
+> del reparto del mapa: entra en el paquete** (`Atriz_rvr` `6c8697e`,
+> `atriz_rvr_bringup/maps/aula.yaml`), así que los 16 clones lo heredan por el valor por
+> defecto y `fase_6` puede seguir borrando `~/mapas`. La alineación de rvr-01 con la imagen
+> quedó auditada: **21 de 21 ficheros idénticos** al manifiesto, verificador en **código 2**
+> (avisos, cero fallos).
+> ⏳ Fuera del Bloque C: la **práctica 63** (espera a la línea en el suelo), la aceptación de
+> un tirón, la foto del conector, y 👤 **autorizar la Fase 6** — antes hay que **cargar el
+> robot** y **parar `atriz-robot`/`atriz-agente`**. ⚠️ La travesía **con Nav2** no se puede
 > montar aquí: haría falta que el hueco fuera el único camino.
 >
 > ═══════════════════════════════════════════════════════════════════════════════

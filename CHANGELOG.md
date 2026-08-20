@@ -4,6 +4,52 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-20, cierre (Pi) — ALINEACIÓN CON LA IMAGEN DORADA: el mapa entra en el paquete, y la única divergencia real queda cerrada
+
+Auditoría de rvr-01 contra lo que producen los guiones, **sin ejecutar `fase_6`** (es destructiva y
+necesita autorización explícita).
+
+✅ **Lo que está alineado, comprobado fichero a fichero contra `MANIFIESTO.tsv`:** **21 de 21
+idénticos** con `cmp` (los dos ausentes son de `first-boot`, marcados `opcional` porque solo existen
+tras `fase_6`), las cinco unidades systemd instaladas coinciden, `testigo.pub` presente, ningún
+paquete `pip` puesto a mano, y el verificador sale con **código 2** — avisos, cero fallos.
+
+🔴 **Y mi propia comprobación reprodujo el NOVENO falso positivo del verificador**, el de la regla de
+polkit: `/etc/polkit-1/rules.d` es `drwxr-x--- root:polkitd`, así que `[ -e fichero ]` da falso
+**exista o no**. Dije «FALTA» sobre una regla instalada. Lo cerró el control por efecto que el propio
+repositorio dejó escrito: `stop` sobre una unidad ya parada devuelve **0** y `reset-failed` devuelve
+**1** — esa asimetría solo la produce una lista blanca **por verbo**. 📌 La trampa estaba documentada
+en `CLAUDE.md` y aun así la pisé: leerla no basta, hay que **aplicarla al escribir la comprobación**.
+
+👤 **DECISIÓN DEL USUARIO, y era la única divergencia de verdad: el mapa de la arena entra en el
+paquete.** `Atriz_rvr` `6c8697e` — `atriz_rvr_bringup/maps/aula.yaml` + `aula.pgm`. Motivo: `fase_6`
+borra `~/mapas` y vacía `ATRIZ_MAPA` (y hace bien), y el mapa vivía sólo ahí, así que **los 15 clones
+habrían salido sin mapa**. Con el fichero en el paquete lo encuentra el **valor por defecto** del
+supervisor y de `atriz-nav.sh` —que apuntan al **fuente**, no al instalado, desde que se
+desincronizaron el 2026-08-07— sin tocar `ATRIZ_MAPA` ni `CMakeLists`.
+
+⚠️ **El coste aceptado, escrito para que nadie lo herede sin querer:** mete un artefacto de un sitio
+concreto en un repo compartido. Se paga con `maps/README.md`, que **abre** diciendo que ese
+`aula.yaml` es la arena de Atriz y dando los tres pasos para reemplazarlo. Es una **convención
+escrita, no un mecanismo**: quien clone sin leer hereda un mapa ajeno, y ese fallo **no tiene
+síntoma** (Nav2 dice «llegué» a medio metro).
+
+📌 **Verificado por efecto, no por copiar:** el `.yaml` apunta a `aula.pgm`, que existe a su lado; el
+`.pgm` es **idéntico byte a byte** al original (511 ocupadas · 5440 libres); y la ruta por defecto
+del supervisor **resuelve**.
+
+📝 **Dos avisos del verificador que NO se tocan, y por qué:** el de **mDNS por enlace** en `wlan0`
+—`MulticastDNS=yes` está global, y quien publica el `.local` es **avahi**, medido funcionando desde
+el navegador (04-08) y en el laboratorio (12-08); lo que ese aviso afecta es a que este robot
+resuelva el `.local` de otros, que el diseño no necesita— y el **`authorized_keys` vacío**, que para
+la imagen es **lo correcto**.
+
+⏳ **Antes de construir la imagen quedan tres cosas, ninguna técnica:** 👤 cargar el robot (el
+verificador ya avisa de batería <25 %), 👤 parar `atriz-robot` y `atriz-agente` (la imagen se hace
+del robot parado y limpio), y 👤 autorizar `fase_6`.
+
+---
+
 ## 2026-08-20, tarde (Pi, laboratorio) — EL CASO ENGORDADO: el mismo hueco de 40 cm se CIERRA cuando los objetos están en el mapa
 
 Última casilla del Bloque C, y cierra un ⏳ abierto desde el 2026-08-09. La arena se remapeó **con

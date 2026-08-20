@@ -63,15 +63,20 @@ haría que `provision.sh` y la imagen dorada lo repartan a los 16. El mapa real 
 `ATRIZ_MAPA` a propósito**. Consecuencia medida por lectura, **no probada aún**: los 15 robots
 restantes saldrían de la imagen **sin mapa**, y hoy no hay ningún mecanismo que se lo lleve.
 
-Las dos salidas, y son excluyentes:
+✅ **DECIDIDO EL 2026-08-20 (👤 el usuario): opción A — el mapa entra en el paquete.**
+`Atriz_rvr` commit `6c8697e`: `atriz_rvr_bringup/maps/aula.yaml` + `aula.pgm` son ahora la arena
+del laboratorio. Así lo reparten `provision.sh` y la imagen dorada, y el **valor por defecto** del
+supervisor y de `atriz-nav.sh` lo encuentra **sin tocar `ATRIZ_MAPA`**.
 
-| | qué implica |
-|---|---|
-| **A · el mapa entra en el paquete** como `maps/aula.yaml` | lo reparten `provision.sh` y la imagen, y el valor por defecto del supervisor (`… or ~/atriz_ws/.../maps/aula.yaml`) ya lo encuentra sin tocar `ATRIZ_MAPA`. Coste: mete un artefacto **de un sitio concreto** en un repo compartido, que es justo lo que `fase_6` evita para que nadie herede el mapa de otra aula |
-| **B · se copia a mano a los 16** tras la imagen | mantiene la regla «cada aula mapea el suyo», pero **es un paso manual por robot** y nada lo comprueba: un robot sin mapa arranca, parece sano y la web le habilita el botón |
+Se eligió sobre la alternativa —copiarlo a mano a los 16 tras la imagen— porque ese camino **no lo
+comprueba nada**: un robot sin mapa arranca, parece sano y la web le habilita el botón.
 
-⚠️ **Mientras no se decida, el mapa existe en UN robot.** No es un problema hoy —solo rvr-01 está
-montado— y sí lo será el día de la imagen dorada. Anotado el 2026-08-19.
+⚠️ **El coste aceptado, y cómo se paga:** mete un artefacto **de un sitio concreto** en un repo
+compartido, que es justo lo que `fase_6` evita para que nadie herede el mapa de otra aula. Se paga
+con `maps/README.md`, que ahora **abre** diciendo que ese `aula.yaml` es la arena de Atriz y dando
+los tres pasos para reemplazarlo en otra aula. Es una convención escrita, no un mecanismo: si otra
+instalación clona este repo sin leerlo, hereda un mapa que no es suyo — y el fallo **no tiene
+síntoma** (Nav2 dice «llegué» a medio metro).
 
 ---
 

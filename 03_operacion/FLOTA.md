@@ -456,14 +456,13 @@ estática está mal, sigues llegando al robot. Evidencia 39.
    (clonar/pull sí — repos públicos).
 3. **Los mapas mueren** (`cuarto3` incluido) y `ATRIZ_MAPA` queda vacío — a propósito: cada
    aula mapea el suyo (evidencia 84).
-   🔴 **Y desde el 2026-08-19 esto tiene un coste concreto que antes era teórico: el mapa del
-   laboratorio YA EXISTE** (`~/mapas/arena.yaml`, hecho en la arena) **y esta fase lo borraría**,
-   dejando a los 15 robots nuevos sin él y sin ningún mecanismo que se lo lleve — porque vive
-   **fuera** del paquete. Los 16 comparten arena, así que aquí clonar el mapa **sí** es correcto,
-   al revés que con un mapa de casa. 👤 **Decisión pendiente** (meterlo en el paquete como
-   `maps/aula.yaml`, o copiarlo a mano tras la imagen): las dos opciones y sus costes están en
-   `00_auditoria/planes/2026-08-03-arranque-navegacion.md`. **No ejecutes `fase_6` sin haberla
-   tomado**, o habrá que remapear o repartir a mano con seis robots ya desplegados.
+   ✅ **Y eso ya NO deja a los clones sin mapa, desde el 2026-08-20:** el mapa de la arena vive
+   ahora **dentro del paquete** (`Atriz_rvr`, `atriz_rvr_bringup/maps/aula.yaml`, commit
+   `6c8697e`), así que `fase_6` puede seguir borrando `~/mapas` y vaciando `ATRIZ_MAPA` —hace
+   bien— y los clones lo encuentran igual por el **valor por defecto**. 👤 Decisión del usuario;
+   el porqué y el coste aceptado, en `00_auditoria/planes/2026-08-03-arranque-navegacion.md`.
+   ⚠️ **Consecuencia para otra instalación:** quien clone este repositorio hereda **la arena de
+   Atriz**. `maps/README.md` lo dice en su primera pantalla y da los tres pasos para reemplazarlo.
 4. **La identidad muere**: huella SSH nueva al renacer como robot 01, y ⚠️ **no arrancar la
    tarjeta entre `fase_6` y el `dd`** — el first-boot regeneraría la identidad en la imagen.
 5. **El Taller viaja, y los 16 exigirán testigo** (desde el 2026-08-15): la imagen lleva
