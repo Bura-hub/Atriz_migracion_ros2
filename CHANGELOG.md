@@ -4,6 +4,44 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-19 (Pi, laboratorio) — NAV2 NAVEGANDO EN LA ARENA: llega a ~15 cm y dice `SUCCEEDED` las dos veces
+
+Primera navegación por objetivo sobre `arena.yaml`. 👤 El usuario marcó una cruz en el suelo (250 cm
+de la pared A · 300 de la B = map (+2,46, −1,95)) y midió; el robot condujo solo.
+
+```
+              Nav2 dice   llego de verdad (cinta)   AMCL creia estar a   error de AMCL
+tanda 1       SUCCEEDED       14 cm  /  16,5            6,4 cm             10,2 cm
+tanda 2       SUCCEEDED       17 cm  /  12,6            8,2 cm              7,9 cm
+```
+
+**Dos columnas de «llegó de verdad» a propósito**: la medida directa a la cruz y la derivada de dos
+distancias a pared. Difieren **2,5 y 4,4 cm**, y eso *es* el dato: **el ruido de una cinta de ~3 m en
+este montaje es de varios centímetros**, así que no se puede afirmar nada por debajo de eso. Mejor
+estimación de cada tanda: **~15 cm**, las dos.
+
+🔴 **El resultado operativo: la navegación por objetivo llega a ~15 cm, y `SUCCEEDED` NO significa
+que haya llegado.** La `xy_goal_tolerance` son 10 cm y no se cumple en el mundo real — porque el
+controlador para cuando **cree** estar dentro, y esa creencia es la pose de AMCL. En la tanda 1 creía
+6,4 cm y estaba a 14. **El desenlace de la acción hereda el error de localización entero**, así que no
+puede usarse como prueba de llegada. Es la evidencia 88 apareciendo otra vez, ahora en el aula.
+
+📌 **Y AMCL es aquí peor que en el resto de la sesión**: 10,2 y 7,9 cm en esa esquina, contra 2,7 cm
+cerca del origen y 0,6 cm en la zona media (con objetos). ⚠️ **No lo atribuyo a la distancia al
+origen**: son tres puntos, no una curva, y no se aisló nada. Queda anotado como patrón a comprobar.
+
+🔴 **Fallo de método, cazado por el usuario:** anuncié la tanda 2 como réplica «volviendo al origen»,
+y **el robot no volvió al origen** — se quedó a ~9 cm según su propia creencia. Cada tanda sigue
+siendo una muestra válida de llegada, pero **no es una repetición estricta**. Y de paso se perdió una
+muestra gratis: esa vuelta al origen era una navegación a un destino de posición conocida (la esquina
+convenida) y no se midió, porque allí no había cruz marcada. **Marca el destino ANTES de cada tramo,
+también los de reposicionamiento.**
+
+⏳ n=2, un solo objetivo, con los dos objetos de la prueba anterior puestos (lejos de la ruta).
+Batería 7,82 → 7,61 V. Quedan la configuración dura de objetos y los huecos de 43/45.
+
+---
+
 ## 2026-08-19 (Pi, laboratorio) — AMCL CON OBJETOS en la arena: no se degrada, y el porqué es un número
 
 Mismo mapa, misma ruta, misma marca y mismo protocolo que A5 — **lo único que cambia son dos

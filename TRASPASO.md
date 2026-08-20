@@ -39,7 +39,12 @@
 > ruido de la medida (cinta contra LIDAR difieren ~2 cm sobre la misma pared).
 > Guion: `mediciones_banco/a5_pose_cinta.py`.
 >
-> ⏳ **Siguiente:** resto del Bloque C — **AMCL con objetos** en la arena y los
+> ✅ **AMCL con objetos: sin degradación medible** (0,6 cm; los objetos son el 2,6 %
+> del barrido). ✅ **Nav2 navegando en la arena: llega a ~15 cm (n=2) y dice
+> `SUCCEEDED` las dos veces** — la tolerancia de 10 cm NO se cumple, y el desenlace
+> hereda el error de AMCL, así que no prueba llegada.
+>
+> ⏳ **Siguiente:** configuración DURA de objetos (junto a la ruta) y los
 > **huecos de 43/45 cm**. `ATRIZ_MAPA` ya apunta a `arena.yaml`.
 >
 > ═══════════════════════════════════════════════════════════════════════════════

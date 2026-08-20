@@ -38,7 +38,19 @@ Lo que el PC necesita saber, en cuatro líneas:
    sobre un robot sano; la creencia continua está en TF `map → base_footprint`. Y `/initialpose`
    necesita **sello 0**: con `now()` AMCL la descarta.
 
-⏳ Del Bloque C quedan **AMCL con objetos** en la arena y los **huecos de 43/45 cm**.
+⏳ Del Bloque C quedan la configuración **dura** de objetos (junto a la ruta) y los **huecos de
+43/45 cm**.
+
+5. 🔴 **PARA LA WEB, lo más importante del día: `SUCCEEDED` de Nav2 NO significa que el robot haya
+   llegado, y ahora está medido EN EL AULA.** n=2 sobre `arena.yaml`, con una cruz marcada en el
+   suelo y cinta: **llegó a ~15 cm las dos veces** (14 y 17 directos), con `SUCCEEDED` las dos y con
+   AMCL creyendo estar a 6,4 y 8,2 cm. La `xy_goal_tolerance` de 10 cm **no se cumple en el mundo
+   real**: el controlador para cuando *cree* estar dentro, así que el desenlace **hereda el error de
+   localización entero**. La pantalla no puede prometer precisión a partir del desenlace — lo que sí
+   puede enseñar es el desplazamiento por `/odom`, como ya hace.
+6. ✅ **AMCL con objetos: sin degradación medible** (0,6 cm con dos objetos puestos). El porqué es un
+   número: los objetos eran el **2,6 % del barrido** (6 rayos de 240), y las cuatro paredes —que sí
+   están en el mapa— dominan el casado. Meter objetos no estresa a AMCL por sí solo.
 
 ---
 
