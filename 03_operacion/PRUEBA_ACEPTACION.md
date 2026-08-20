@@ -329,6 +329,7 @@ colisión y `failure_tolerance: 0.3` mata el objetivo en tres décimas.
 
 ```
 hueco mínimo ≈ 2 × (14,5 inscrito + 5 engorde del mapa + 5 celda) ≈ 49 cm
+                                        ↑ solo si los objetos ESTÁN en el mapa
 con 60 cm el plan sale RECTO — única tanda que lo hizo, 14 cm de desvío
 con 45 y con 34 cm RODEA siempre
 ```
@@ -372,6 +373,19 @@ línea de la puerta (x=85 cm), lateral -40..+40, mismos 45 cm
 
 Con AMCL la puerta la marca **sólo la capa de obstáculos del LIDAR**, fina y exacta. Con SLAM entra
 en la **capa estática** ya engordada. **F7 lanza SLAM, así que el umbral de F7 son los 60 cm.**
+
+🆕 **Y el otro caso quedó MEDIDO el 2026-08-19 en la arena** (mapa **sin** los objetos, así que la
+puerta sólo la marca la capa de obstáculos), contando celdas transitables en la fila de la pinza con
+48-49 muestras del costmap por punto:
+
+```
+casa, mapa CON la puerta (engordada)   38,6 -> 0 celdas   47,1 -> 1   61,1 -> 2-3
+arena, mapa SIN los objetos            40,3 -> 1 celda    45,0 -> 2   48,1 -> 2
+```
+
+**El mismo hueco vale ~7 cm más cuando los objetos no están en el mapa.** Para montar el aula:
+**si las mesas estaban puestas al mapear, exige ~49 cm; si aparecen después, con ~42-45 hay canal.**
+⏳ Son celdas, no travesías: dicen que el paso **existe**, no lo que cuesta cruzarlo.
 
 ⏳ **Sin verificar, y es la casilla del aula:** AMCL sobre un mapa que **sí** contiene los objetos.
 Los mapas del aula se hacen con slam_toolbox y se guardan, así que lo que estuviera puesto al
