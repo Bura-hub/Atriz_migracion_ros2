@@ -44,8 +44,14 @@
 > `SUCCEEDED` las dos veces** — la tolerancia de 10 cm NO se cumple, y el desenlace
 > hereda el error de AMCL, así que no prueba llegada.
 >
-> ⏳ **Siguiente:** configuración DURA de objetos (junto a la ruta) y los
-> **huecos de 43/45 cm**. `ATRIZ_MAPA` ya apunta a `arena.yaml`.
+> ✅ **Y la configuración DURA de objetos también: sin degradación medible.** Con los dos
+> objetos formando una puerta que el robot cruza, la ocupación del barrido subió a
+> **18,6 %** (7× la fácil) y AMCL erró **1,2 cm** — dentro del ruido de la cinta, como las
+> otras dos tandas. 📌 Lo que NO se ha probado y es el estresor de verdad: **tapar una
+> pared entera**, que no añade ruido sino que quita restricción.
+>
+> ⏳ **Siguiente:** los **huecos de 43/45 cm** (umbral entre 41,1 y 47,1 sin acotar) y la
+> **práctica 63**. `ATRIZ_MAPA` ya apunta a `arena.yaml`.
 >
 > ═══════════════════════════════════════════════════════════════════════════════
 > 🆕 **2026-08-18 (Pi, laboratorio) · LA ARENA MAPEADA POR PRIMERA VEZ** *(mapa

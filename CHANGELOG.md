@@ -4,6 +4,48 @@ Una entrada por sesión de trabajo. Formato: qué se hizo, qué se verificó, qu
 
 ---
 
+## 2026-08-19, tarde (Pi, laboratorio) — CONFIGURACIÓN DURA DE OBJETOS: AMCL sigue sin degradarse, con siete veces más estorbo
+
+El escalón que faltaba del Bloque C. Los dos objetos, movidos por el usuario para formar una
+**puerta de 90 cm entre centros** que el robot cruza por el medio, en vez de estar a 70 cm del
+camino. Mismo mapa, mismo recorrido, **misma marca** y mismo protocolo que las dos tandas
+anteriores: control limpio, solo cambia dónde están los objetos.
+
+```
+en la MISMA marca      ocupacion del barrido    error de AMCL contra cinta
+sin objetos                    0 %                     2,7 cm
+objetos lejos del camino     2,6 %                     0,6 cm
+objetos formando puerta     18,6 %                     1,2 cm     <- ESTA TANDA
+                                                  (ruido de la cinta: ~2 cm)
+```
+
+✅ **Con el 18,6 % del barrido ocupado por cosas que NO están en el mapa, AMCL no se degrada.** Las
+tres cifras caben dentro del ruido de la medida: **no hay efecto medible en un rango de 7× de
+ocupación**. La odometría en esa misma tanda erró 5,3 cm, o sea que AMCL siguió aportando.
+
+🔑 **Y esto vale porque el estresor SE MIDIÓ ANTES de conducir, no después.** Se declaró por
+escrito: «si la ocupación sale por debajo del 8 %, no habremos estresado nada y un *no se degrada*
+no significaría nada». Salió **18,6 %**. **Un resultado nulo solo informa si consta que la causa
+estaba aplicada** — sin esa medida previa, esta entrada no valdría nada.
+
+📌 **La distinción que este resultado obliga a hacer, y que explica por qué no pasa nada:** meter
+objetos **AÑADE rayos** que el mapa no explica, y el modelo de AMCL los absorbe (para eso tiene su
+mezcla de ruido). Lo que degradaría la localización es lo contrario: **TAPAR una pared entera**, que
+no añade ruido sino que **quita la restricción** que sujeta la pose. Son dos estresores distintos y
+solo se ha probado el primero. ⏳ El segundo —un panel grande ocultando un lado de la arena— **no se
+ha probado**, y es el que se parece a un aula con mesas altas alrededor.
+
+🔴 **Y otra vez el aviso de la corrección `map→odom`, ahora con el signo contrario:** salió **2,9 cm**
+(contra 16,5 en la configuración fácil). Si se leyera como «medida del estrés» se concluiría que
+esta tanda fue **más suave**, y es al revés. Ese número mide **cuánto había que corregir a la
+odometría**, no cuánto molestan los objetos. Es la misma atribución que ya se retiró esta mañana,
+y por eso se anunció el recelo **antes** de tener la cinta.
+
+⚠️ n=1 a esta ocupación, un solo punto de medida, con las cuatro paredes visibles en todo momento.
+Batería 7,56 V al empezar.
+
+---
+
 ## 2026-08-19 (Pi, laboratorio) — NAV2 NAVEGANDO EN LA ARENA: llega a ~15 cm y dice `SUCCEEDED` las dos veces
 
 Primera navegación por objetivo sobre `arena.yaml`. 👤 El usuario marcó una cruz en el suelo (250 cm

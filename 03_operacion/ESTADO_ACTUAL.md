@@ -48,9 +48,14 @@ Lo que el PC necesita saber, en cuatro líneas:
    real**: el controlador para cuando *cree* estar dentro, así que el desenlace **hereda el error de
    localización entero**. La pantalla no puede prometer precisión a partir del desenlace — lo que sí
    puede enseñar es el desplazamiento por `/odom`, como ya hace.
-6. ✅ **AMCL con objetos: sin degradación medible** (0,6 cm con dos objetos puestos). El porqué es un
-   número: los objetos eran el **2,6 % del barrido** (6 rayos de 240), y las cuatro paredes —que sí
-   están en el mapa— dominan el casado. Meter objetos no estresa a AMCL por sí solo.
+6. ✅ **AMCL con objetos: sin degradación medible, ni en fácil ni en DURO.** En la misma marca:
+   sin objetos **2,7 cm** · objetos lejos del camino (**2,6 %** del barrido) **0,6 cm** · objetos
+   formando una puerta que el robot cruza (**18,6 %**) **1,2 cm**. Las tres dentro del ruido de la
+   cinta (~2 cm): **sin efecto medible en un rango de 7× de ocupación**.
+   📌 **Para la web esto es una buena noticia con letra pequeña:** meter objetos **añade** rayos que
+   el mapa no explica y el modelo de AMCL los absorbe; lo que degradaría la pose es **tapar una
+   pared entera**, que quita la restricción en vez de añadir ruido. ⏳ Eso **no se ha probado**, y
+   es lo que se parece a un aula con mesas altas alrededor.
 
 ---
 

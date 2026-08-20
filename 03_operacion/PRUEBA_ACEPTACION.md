@@ -385,8 +385,23 @@ mapear entra ya engordado en el fichero. **Predicción: se comportará como SLAM
 | mapa **SIN** los objetos, puestos después | ¿se degrada la localización? | ✅ **medido: NO, con objetos pequeños** — 0,6 cm de error contra cinta |
 
 📌 **Y el porqué del ✅ es un número, no una tranquilidad: los objetos eran el 2,6 % del barrido**
-(6 rayos de 240). Las cuatro paredes, que **sí** están en el mapa, dominan el casado. **Meter
-objetos no estresa a AMCL por sí solo**; para hacerlo hay que ocupar una fracción grande de lo que
-ve el LIDAR (cerca del robot, grandes, o muchos). ⏳ Esa configuración dura **no se ha probado**.
+(6 rayos de 240). Las cuatro paredes, que **sí** están en el mapa, dominan el casado.
+
+✅ **La configuración DURA se probó el mismo día, y tampoco degrada:**
+
+```
+en la MISMA marca      ocupacion del barrido    error de AMCL contra cinta
+sin objetos                    0 %                     2,7 cm
+objetos lejos del camino     2,6 %                     0,6 cm
+objetos formando puerta     18,6 %                     1,2 cm
+                                                  (ruido de la cinta: ~2 cm)
+```
+
+**No hay efecto medible en un rango de 7× de ocupación.** ⚠️ n=1 a la ocupación alta.
+
+⏳ **Lo que sigue SIN probar, y es el estresor que de verdad importaría:** meter objetos **añade**
+rayos que el mapa no explica, y el modelo de AMCL los absorbe. **Tapar una pared entera** hace lo
+contrario — **quita la restricción** que sujeta la pose — y eso se parece mucho más a un aula con
+mesas altas alrededor.
 
 📌 Para la imagen dorada: **esto no depende del robot**, así que los 16 aplicarán el mismo umbral.
