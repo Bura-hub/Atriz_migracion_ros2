@@ -902,8 +902,9 @@
 > `00_auditoria/planes/2026-08-03-arranque-navegacion.md`), ~~pero **nunca se ha arrancado bajo
 > systemd**~~ ✅ **arrancada bajo systemd el 2026-08-13** (evidencia 107): 27,80/27,84 s hasta
 > aceptar objetivos, `active/success` las dos vueltas, con `cuarto3.yaml` como mapa de mecanismo.
-> El `aula.yaml` de verdad sí espera al
-> laboratorio. Detalle en `03_operacion/ARRANQUE_NAVEGACION.md`.
+> ~~El `aula.yaml` de verdad sí espera al laboratorio.~~ ✅ **HECHO el 2026-08-19:
+> `~/mapas/arena.yaml`**, mapeado en la arena y con `ATRIZ_MAPA` apuntando ahí.
+> Detalle en `03_operacion/ARRANQUE_NAVEGACION.md`.
 
 ---
 

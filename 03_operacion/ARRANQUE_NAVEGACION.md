@@ -69,8 +69,18 @@ escrita.
 ## 🔧 Dónde se configura el mapa — UN sitio, `/etc/default/atriz`
 
 ```
-ATRIZ_MAPA=/home/sphero/atriz_ws/src/Atriz_rvr/atriz_rvr_bringup/maps/aula.yaml
+ATRIZ_MAPA=/home/sphero/mapas/arena.yaml        # ← el valor REAL en rvr-01 desde el 2026-08-19
 ATRIZ_DIR_MAPAS=/home/sphero/mapas
+```
+
+⚠️ **La ruta de arriba es la que hay, no un ejemplo.** Este documento mostraba
+`.../atriz_rvr_bringup/maps/aula.yaml`, que **nunca ha existido en el robot**: quien lo leyera
+deducía la ruta equivocada, que es exactamente el fallo que ya se pagó una vez (`hay_mapa: true`
+con el directorio del código vacío). **Compruébalo por efecto, no por este fichero:**
+
+```bash
+systemctl show atriz-robot -p Environment | tr ' ' '\n' | grep MAPA   # lo que systemd pasará
+tr '\0' '\n' < /proc/$(systemctl show atriz-robot -p MainPID --value)/environ | grep MAPA
 ```
 
 Lo leen las **tres** unidades por `EnvironmentFile=-/etc/default/atriz`:

@@ -157,6 +157,13 @@ Medido con cinta y trilateración el 2026-08-07 (evidencias 83 y 84), sobre un m
 Y con el mapa bueno, dos tandas dieron **6,1 y 11,8 cm** reales — **con Nav2 diciendo
 `SUCCEEDED` las tres veces**.
 
+🆕 **Y EN EL LABORATORIO, sobre el mapa de la arena (2026-08-19, n=2), sale peor:** el robot llegó a
+**14 y 17 cm** del objetivo —marcado con una cruz en el suelo y medido con cinta— **con `SUCCEEDED`
+las dos veces** y con AMCL creyéndose a **6,4 y 8,2 cm**. La cifra operativa para el aula es
+**~15 cm**, no la tolerancia. ⚠️ Y la resolución de la propia medida es de varios centímetros: las
+dos vías de medir (distancia directa a la cruz y derivada de dos distancias a pared) difirieron
+**2,5 y 4,4 cm**.
+
 📌 **No se cambia la banda ni se convierte en FALLO**, y es deliberado: sería fingir que el
 número mide algo que no mide. La prueba **avisa por pantalla** y remite al instrumento que sí
 lo mide — `mediciones_banco/comparar_con_cinta.py`, con **dos** distancias de cinta.
@@ -369,5 +376,17 @@ en la **capa estática** ya engordada. **F7 lanza SLAM, así que el umbral de F7
 ⏳ **Sin verificar, y es la casilla del aula:** AMCL sobre un mapa que **sí** contiene los objetos.
 Los mapas del aula se hacen con slam_toolbox y se guardan, así que lo que estuviera puesto al
 mapear entra ya engordado en el fichero. **Predicción: se comportará como SLAM.**
+
+⚠️ **OJO, que son DOS casillas distintas y se confunden con facilidad** (2026-08-19):
+
+| | qué se pregunta | estado |
+|---|---|---|
+| mapa **CON** los objetos dentro | ¿el hueco se cierra en la capa estática, como con SLAM? | ⏳ **sigue sin verificar** — el mapa de la arena se hizo con la sala **VACÍA**: cero celdas ocupadas en su interior |
+| mapa **SIN** los objetos, puestos después | ¿se degrada la localización? | ✅ **medido: NO, con objetos pequeños** — 0,6 cm de error contra cinta |
+
+📌 **Y el porqué del ✅ es un número, no una tranquilidad: los objetos eran el 2,6 % del barrido**
+(6 rayos de 240). Las cuatro paredes, que **sí** están en el mapa, dominan el casado. **Meter
+objetos no estresa a AMCL por sí solo**; para hacerlo hay que ocupar una fracción grande de lo que
+ve el LIDAR (cerca del robot, grandes, o muchos). ⏳ Esa configuración dura **no se ha probado**.
 
 📌 Para la imagen dorada: **esto no depende del robot**, así que los 16 aplicarán el mismo umbral.

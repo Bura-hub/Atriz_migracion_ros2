@@ -33,7 +33,7 @@
 > | 8bis | LEDs y sensores del RVR | ✅ verificado 2026-07-30 |
 > | 9 | SLAM con `slam_toolbox` (Fase 4) | ✅ **verificado** · deriva caracterizada, 9.12b: replicar antes de atribuir |
 > | 10 | Los marcos de referencia de `/odom` | ✅ **verificado** · los tres bugs de marcos, arreglados |
-> | 11 | Nav2 (Fase 4b) | ✅ **el mecanismo, verificado** · ⚠️ el «error final 9–10 cm» es la tolerancia repetida, ver 11.7 |
+> | 11 | Nav2 (Fase 4b) | ✅ **el mecanismo, verificado** · ⚠️ el «error final 9–10 cm» es la tolerancia repetida, ver 11.7 · 🆕 **en el aula, con cinta: ~15 cm y `SUCCEEDED` igual** (2026-08-19, n=2) |
 > | 12 | El `collision_monitor` | ✅ **verificado** · parada en 9.9 cm |
 > | 13 | La inclinación del RVR: es el acelerómetro | ✅ **verificado** · y dos conclusiones retiradas |
 > | 14 | `map_server` + AMCL (Fase 4c) | ✅ **verificado** · 0.1 cm siguiendo la pose |
@@ -2880,6 +2880,10 @@ ls -d ~/atriz_ws/src/*/build 2>/dev/null && echo "🔴 workspace parásito: bór
 
 ✅ **VERIFICADO el 2026-07-31 — el robot navega solo.** Dos objetivos autónomos completados,
 9–10 cm de «error final» ⚠️ que es la tolerancia repetida, no una medida — ver el aviso del 11.7. Lo que queda abierto está marcado ⏳ en el 11.7.
+🆕 **Y la cifra del AULA, que es la que vale para la clase: ~15 cm** (2026-08-19, n=2 sobre
+`arena.yaml`, con una cruz marcada en el suelo y cinta: 14 y 17 cm). Nav2 dijo `SUCCEEDED` las dos
+veces y AMCL se creía a 6,4 y 8,2 cm. **El desenlace hereda el error de localización**, así que ni
+`SUCCEEDED` ni la distancia que reporta el robot sirven como prueba de llegada.
 
 Evidencia: `00_auditoria/evidencia_24_04/16_nav2_preparacion.txt`.
 

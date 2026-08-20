@@ -51,9 +51,27 @@ Y **`atriz_rvr_bringup/maps/` no existe**. Los mapas que hay viven en
 y la imagen dorada, y los 16 robots comparten el mismo `map`, que es el argumento entero para usar
 AMCL en vez de SLAM.
 
-⏳ **Pero el mapa del aula no existe todavía** (las medidas del 2026-08-03 se hicieron en casa del
-usuario). Así que la tarea 1 hace que la unidad **falle alto y claro** si el mapa no está, en vez
-de arrancar un AMCL ciego. Levantar el mapa del aula es trabajo del laboratorio, no de este plan.
+~~⏳ **Pero el mapa del aula no existe todavía**~~ ✅ **EXISTE DESDE EL 2026-08-19**: la arena
+del laboratorio está mapeada (`~/mapas/arena.yaml`, ~3,95 × 4,00 m, origen anclado a una esquina
+convenida). La tarea 1 sigue valiendo: la unidad **falla alto y claro** si el mapa no está, en vez
+de arrancar un AMCL ciego.
+
+🔴 **PERO LA SUPOSICIÓN DE ARRIBA NO SE ESTÁ CUMPLIENDO, y hay que decidirlo (👤).** Este plan
+supone que el mapa **viaja dentro del paquete** (`atriz_rvr_bringup/maps/aula.yaml`), que es lo que
+haría que `provision.sh` y la imagen dorada lo repartan a los 16. El mapa real **vive fuera**, en
+`~/mapas/arena.yaml`, con `ATRIZ_MAPA` apuntando ahí — y `fase_6` **borra `~/mapas` y vacía
+`ATRIZ_MAPA` a propósito**. Consecuencia medida por lectura, **no probada aún**: los 15 robots
+restantes saldrían de la imagen **sin mapa**, y hoy no hay ningún mecanismo que se lo lleve.
+
+Las dos salidas, y son excluyentes:
+
+| | qué implica |
+|---|---|
+| **A · el mapa entra en el paquete** como `maps/aula.yaml` | lo reparten `provision.sh` y la imagen, y el valor por defecto del supervisor (`… or ~/atriz_ws/.../maps/aula.yaml`) ya lo encuentra sin tocar `ATRIZ_MAPA`. Coste: mete un artefacto **de un sitio concreto** en un repo compartido, que es justo lo que `fase_6` evita para que nadie herede el mapa de otra aula |
+| **B · se copia a mano a los 16** tras la imagen | mantiene la regla «cada aula mapea el suyo», pero **es un paso manual por robot** y nada lo comprueba: un robot sin mapa arranca, parece sano y la web le habilita el botón |
+
+⚠️ **Mientras no se decida, el mapa existe en UN robot.** No es un problema hoy —solo rvr-01 está
+montado— y sí lo será el día de la imagen dorada. Anotado el 2026-08-19.
 
 ---
 

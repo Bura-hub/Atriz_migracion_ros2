@@ -1663,6 +1663,40 @@ mal interpretada el 2026-08-09.
 pies y **el mapa queda embadurnado** (medido: 40 % letal, el robot y el objetivo en bolsas separadas
 por un muro inexistente, planificador fallando 8 veces).
 → ✅ Después de recolocar el robot a mano, **reinicia SLAM**. AMCL sí lo encaja; SLAM no.
+→ 🔴🔴 **Y EL SÍNTOMA SE DISFRAZA DE OTRA COSA: es idéntico a la congelación del
+  `collision_monitor`.** El 2026-08-19 costó DOS mapas. Con una persona sujetando el robot mientras
+  un guion conducía, el log daba **lecturas de `/scan` IDÉNTICAS tramo tras tramo y giros de 0,0°**
+  — que es exactamente la firma de la evidencia 93. Se atribuyó al monitor y era una mano.
+  **Idéntico no es «parecido»: es la señal de que nada cambió**, y la causa puede estar fuera del
+  robot. → **Antes de atribuir un atasco al monitor, pregunta a quien está al lado si lo está
+  tocando.** Es la regla de «cuando el efecto es físico, pregunta a quien lo mira» aplicada al
+  revés: aquí la persona no era el instrumento, era la CAUSA.
+
+**🔴🔴 SI EL MORRO NO ESTÁ PARALELO A UNA PARED AL EMPEZAR A MAPEAR, EL MAPA SALE EN ROMBO — Y
+UNA SALA CUADRADA NO SE PUEDE LOCALIZAR DESPUÉS.** Medido el 2026-08-19 mapeando la arena tres
+veces, la misma sala:
+
+```
+                 lienzo        ocupadas   desconocido   forma
+v1 y v2       8,1x4,4 / 7,1x6,3    540/549    66 / 67 %   ROMBO (morro a ~45° de la pared)
+v3            6,0x4,7              511        47 %        ✅ recto, y 4,1x4,0 al cerrar el perímetro
+```
+
+Los ejes del mapa **son los del robot en su primer barrido**. Torcido, la sala entra en diagonal
+en un lienzo enorme lleno de desconocido, y todo lo que luego lea coordenadas hereda el giro.
+→ ✅ **La convención que lo cierra, y es de OPERACIÓN, no de código** (`mediciones_banco/mapear_arena.py`):
+  robot en una esquina a **~55 cm de cada pared**, pared a su IZQUIERDA y morro **PARALELO** a ella
+  → `/set_pos_and_yaw(0,0,0)` → arrancar `atriz-slam` **DESPUÉS** → comprobar que
+  `map → base_footprint` da **(0,000, 0,000, 0,0°)** → y solo entonces conducir. Así **el (0,0) del
+  mapa ES esa esquina**, con testigo.
+→ 🔴 **Y no es estética: una arena CUADRADA es irresoluble por casado de `/scan`.** Intentando
+  localizar el robot contra el mapa salieron **tres candidatos empatados** (coste 0,003 · 0,004 ·
+  0,004), y **conducir 1 m no los desempató** (0,418 contra 0,420). Con un LIDAR de 360° en una sala
+  simétrica no hay información que rompa el empate — y este robot **no tiene rumbo absoluto**
+  (evidencia 42). **La pose de partida la tiene que dar una persona: para eso existe `/initialpose`.**
+→ 📌 El paralelismo se comprueba **con el propio LIDAR**, no a ojo: ajusta una recta a los puntos de
+  la pared (sector ±35° alrededor de los 90°) y mira su inclinación. Medido: **−1,99°** con residuo
+  de 0,9 cm, o sea que la pared es recta y el robot casi paralelo.
 
 **🔴 EL SUPERVISOR RECHAZA SLAM CON AMCL VIVA, Y AL REVÉS** —«SLAM y AMCL son excluyentes»—: los dos
 publican `map -> odom`. Para la variante con SLAM hay que lanzar `nav2.launch.py` **a mano**, como
@@ -1719,6 +1753,11 @@ CPU 60-75 % usada · **25-39 % OCIOSA** · 10 500 cambios de contexto/s
 
 **📝 `/amcl_pose` no llega con el robot quieto, y no es un fallo.** AMCL solo actualiza tras
 moverse `update_min_d` (0.15 m). Mueve el robot antes de dar por roto nada.
+→ ✅ **Y si lo que quieres es la creencia de AMCL AHORA, no la leas de ese topic: léela de TF**
+  (`map → base_footprint`), que es continua. Medido el 2026-08-19: tras navegar y **parar**, 20 s
+  suscrito a `/amcl_pose` dieron **cero mensajes** mientras TF respondía al instante. 🔴 **Para la
+  web importa:** una pantalla que espere `/amcl_pose` para pintar la pose se queda muda sobre un
+  robot perfectamente sano, que es el modo de fallo que este proyecto persigue en todas partes.
 
 **🔴🔴 SI UN NODO MUERE, systemd NO SE ENTERA: EL SERVICIO SIGUE EN VERDE.** El PID principal de
 `atriz-robot.service` es el `ros2 launch`, que **sobrevive** a la muerte de uno de sus nodos, así
@@ -2719,6 +2758,9 @@ de verdad. Dos consecuencias que cambian el día a día:
 | 🔴 **Nav2 navegando** | «error final **9–10 cm**» — 🔴 **NO ES UNA MEDIDA: es la `xy_goal_tolerance` repetida.** Sale de la pose que el robot se atribuye, y el controlador para cuando **cree** estar dentro, así que da ~10 cm esté donde esté. Con cinta y trilateración: **6,1 · 11,8 · y 41,3 cm** con un mapa rancio, y `SUCCEEDED` las tres veces | 2026-07-31, corregido 2026-08-08 |
 | ⚠️ **Nav2, error REAL contra cinta** (trilateración, no la diagonal) | **n=3: 6,1 · 11,8 · 11,3 cm** — **DOS de tres FUERA** de la tolerancia de 10 · odometría **1,5 · 4,2 · 2,2 · 0,3 cm** (n=4, dos mapas, cargas de 5 a 9) · AMCL **45,0 · 8,9 · 15,2 · 8,2**. 🔴 La cifra honesta es **~10-12 cm**, no la tolerancia | 2026-08-07/08, evidencias 84 y 88 |
 | ~~Nav2, error real (n=2)~~ | **6,1 y 11,8 cm** de un objetivo de 80, sobre un mapa **fresco** — una tanda dentro de la tolerancia de 10 y otra fuera · AMCL **8,9 y 15,2**, odometría **4,2 y 2,2** · corrección `map→odom` **0,028 y 0,021 m**. 🔴 Con el mapa **rancio**: **41,3 · 45,0 · 0,424**. 🔴 **Nav2 declaró ÉXITO en las TRES.** n=2 | 2026-08-07/08, evidencia 84 |
+| 🆕 **Nav2 EN LA ARENA DEL LABORATORIO, contra cinta** | **n=2: 14 y 17 cm** del objetivo (por paredes: 16,5 y 12,6 → mejor estimación **~15 cm las dos**), con **`SUCCEEDED` las dos veces** y AMCL creyéndose a 6,4 y 8,2 cm. 🔴 La `xy_goal_tolerance` de 10 cm **NO se cumple**: el controlador para cuando *cree* estar dentro, así que el desenlace **hereda el error de AMCL**. ⚠️ El ruido de la cinta a 3 m es de **varios cm** (las dos vías de medir difieren 2,5 y 4,4): nada por debajo de eso es afirmable | 2026-08-19, mapa `arena.yaml` |
+| 🆕 **AMCL en la arena, contra cinta** | **0,6 · 2,7 · 6,9 · 7,9 · 10,2 cm** (n=5, cuatro puntos y dos tandas) · odometría en las mismas **3,1 · 3,6 · 7,8 · 9,7**. 📌 Aquí AMCL **NO es 4× peor** que la odometría, al revés que en las tandas del 07-08 — ⚠️ contraste, **no causa aislada**. 📌 Los errores mayores salieron **lejos del origen**: patrón anotado, **sin curva y sin aislar** | 2026-08-19 |
+| 🆕 **La arena del laboratorio** | **~3,95 × 4,00 m, cuadrada**, muros rectos. Mapa `~/mapas/arena.yaml` (161→120×93 celdas de 5 cm), **4,2 % desconocido dentro** y **cero objetos en el interior**: es la sala VACÍA | 2026-08-19 |
 | ✅ **Deriva acumulada de la odometría** | **3,3 cm** tras un ciclo completo (ida 45 cm, giro de 125°, vuelta, ×2), medido con cinta a la marca de partida | 2026-08-07 |
 | Stack COMPLETO (driver+LIDAR+SLAM+Nav2) | **~89 %** de un núcleo, ~477 MB, loadavg 2.53/4, 58.9 °C | 2026-07-31 |
 | Nav2 solo | ~58 % de un núcleo — la pieza más pesada | 2026-07-31 |
@@ -2816,7 +2858,7 @@ lo que produce deriva entre documentación y realidad.
 | **NO se mide ahora el consumo del lidar** entre 11.8 y 2.7 Hz | serían horas de robot con `/battery_state` para un número que solo decide un matiz del systemd. Se anota **NO MEDIDO**. Decisión del usuario, 2026-07-31 |
 | **NO se persigue el efecto del roll en la deriva** | medido ~1 cm sin significación (p=0.142). Cerrarlo costaría ~62 corridas y 5 h de robot, para 1 cm sobre una tolerancia de objetivo de 10. Decisión del usuario, 2026-07-31 |
 | 🔴 **El material docente corre sobre `atriz.py`, NO sobre `rclpy`** | Un script de alumno contra `rclpy` a pelo tiene que acertar siete cosas que este proyecto pagó aprendiéndolas (topic correcto, encender el barrido, republicar contra el watchdog, `SignalHandlerOptions.NO`, BEST_EFFORT, límites de velocidad/tiempo, apagar el barrido al cerrar). `atriz.py` las acierta una vez y el alumno escribe robótica, no ROS. Diseño en `03_operacion/API_LABORATORIO.md`, 2026-08-02. Código escrito y revisado (tareas 1-13 + oleada de arreglos final, **89 tests**) — ✅ **VERIFICADO con el robot moviéndose**: ocho prácticas corridas el 2026-08-08 (evidencia 85) y la sesión física **en banda** el 2026-08-13 con el usuario midiendo (evidencia 108: avanzar 58/59 cm, girar(90) ~90°, Ctrl-C 5/5, luces, distancia_frontal Δ1,1 cm). ⏳ Queda solo la **práctica 63** (seguidor de línea), que espera a la línea del aula |
-| ✅ **La navegación va en `atriz-nav.service`, instalada y NO habilitada** (2026-08-03) | Hasta entonces **nadie arrancaba Nav2 ni AMCL**: había que entrar por SSH y lanzar dos launch a mano, así que la Decisión 2 era cierta solo para teleoperación. Unidad aparte y no un argumento de `robot.launch.py`, para no acoplar los ciclos de vida. **Sin `enable`**: Nav2 cuesta ~58 % de un núcleo y la Pi se alimenta del USB del RVR, así que sale de la batería — y la autonomía (~2 h) ya no cubre una clase (2-3 h). Levanta **AMCL**, no SLAM, por el marco compartido. `03_operacion/ARRANQUE_NAVEGACION.md`. ✅ **VERIFICADA BAJO SYSTEMD el 2026-08-13** (evidencia 107): 27,80/27,84 s desde `systemctl start` hasta aceptar objetivos (n=2), con un mapa de mecanismo. 🔴 Y B3 confirmó que **un start sin mapa deja el botón muerto** (StartLimit latcheado, `reset-failed` denegado desde la web) — ✅ y el guardia que lo impide **ya existía**: `supervisor_navegacion` se niega antes de systemctl desde el 2026-08-07, rechazos verificados por efecto (evidencia 80); el «sin implementar» que estuvo aquí era un negativo escrito sin mirar el código (retirado el 2026-08-14). El latch solo es alcanzable por el camino directo (SSH/a mano). ⏳ El `aula.yaml` de verdad sigue sin existir |
+| ✅ **La navegación va en `atriz-nav.service`, instalada y NO habilitada** (2026-08-03) | Hasta entonces **nadie arrancaba Nav2 ni AMCL**: había que entrar por SSH y lanzar dos launch a mano, así que la Decisión 2 era cierta solo para teleoperación. Unidad aparte y no un argumento de `robot.launch.py`, para no acoplar los ciclos de vida. **Sin `enable`**: Nav2 cuesta ~58 % de un núcleo y la Pi se alimenta del USB del RVR, así que sale de la batería — y la autonomía (~2 h) ya no cubre una clase (2-3 h). Levanta **AMCL**, no SLAM, por el marco compartido. `03_operacion/ARRANQUE_NAVEGACION.md`. ✅ **VERIFICADA BAJO SYSTEMD el 2026-08-13** (evidencia 107): 27,80/27,84 s desde `systemctl start` hasta aceptar objetivos (n=2), con un mapa de mecanismo. 🔴 Y B3 confirmó que **un start sin mapa deja el botón muerto** (StartLimit latcheado, `reset-failed` denegado desde la web) — ✅ y el guardia que lo impide **ya existía**: `supervisor_navegacion` se niega antes de systemctl desde el 2026-08-07, rechazos verificados por efecto (evidencia 80); el «sin implementar» que estuvo aquí era un negativo escrito sin mirar el código (retirado el 2026-08-14). El latch solo es alcanzable por el camino directo (SSH/a mano). ✅ **Y el mapa del aula YA EXISTE desde el 2026-08-19**: `~/mapas/arena.yaml`, hecho en el laboratorio y con `ATRIZ_MAPA` apuntando ahí en rvr-01. Se llama `arena`, no `aula` |
 | ⏳ **El seguidor de línea se valida EN EL AULA, no en casa** (decisión del usuario, 2026-08-09) | Una línea en el suelo de una habitación no reproduce lo que la práctica valida: el recorrido, la iluminación y el contraste del laboratorio. Y el seguidor decide **por umbral del canal `claro`**, que es justo lo que cambia con el suelo — medido: **1275 en una habitación y ~950 en otra, el mismo robot el mismo día**. Un ✅ en casa mediría **el suelo, no el algoritmo** |
 | ✅ **El robot mudo en DDS se cura SOLO: vigía con una-sola-vez y fallo abierto** (2026-08-14) | `atriz-vigia-dds` (ExecStartPost de atriz-robot): sin `/estado_robot` en 90 s → SIGINT al proceso principal + `Restart=always`. **Una vez por arranque** (marca en `/run/atriz`, sin rearme: un ping-pong quemaría el StartLimitBurst) y **fallo abierto** en todos los bordes — un robot mudo es malo; uno latcheado por su vigía es peor. Sin tocar polkit. Evidencias 109 y 113 |
 | ✅ **El LIDAR desenchufado se reengancha por udev, no parcheando el nodo** (decisión A del usuario, 2026-08-14) | `98-atriz-lidar-reenganche.rules` + oneshot que reinicia atriz-robot SOLO con el descriptor `(deleted)`; cinco guardias y anti-aleteo de 120 s. Se eligió sobre parchear el C++ del ydlidar (horas y más superficie) y sobre dejarlo documentado (el coste se pagaba en clase). Verificado desenchufando: ~22 s a robot útil. Evidencia 115 |
